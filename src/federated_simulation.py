@@ -1,16 +1,11 @@
 import logging
 import sys
-import os
-
 import flwr
 
-from flwr.client import Client, ClientApp, NumPyClient
+from flwr.client import Client
 from flwr.common import ndarrays_to_parameters
-from flwr.server.strategy.aggregate import weighted_loss_avg
 from typing import List, Tuple
-
 from peft import PeftModel, get_peft_model_state_dict
-
 
 from src.dataset_loaders.image_dataset_loader import ImageDatasetLoader
 from src.dataset_loaders.image_transformers.its_image_transformer import its_image_transformer
@@ -20,7 +15,6 @@ from src.dataset_loaders.image_transformers.lung_photos_image_transformer import
 from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
 from src.dataset_loaders.image_transformers.medmnist_2d_grayscale_image_transformer import medmnist_2d_grayscale_image_transformer
 from src.dataset_loaders.image_transformers.medmnist_2d_rgb_image_transformer import medmnist_2d_rgb_image_transformer
-
 
 from src.network_models.its_network_definition import ITSNetwork
 from src.network_models.femnist_reduced_iid_network_definition import FemnistReducedIIDNetwork
