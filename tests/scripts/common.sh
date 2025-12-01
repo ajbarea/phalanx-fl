@@ -8,7 +8,7 @@ set -eu
 # ============================================================================
 
 log_info() {
-    echo "✅ $1"
+    echo "$1"
 }
 
 log_warning() {
@@ -27,7 +27,7 @@ setup_logging_with_file() {
     LOG_FILE="$_log_dir/${_log_prefix}_$(date +%Y%m%d_%H%M%S).log"
     : > "$LOG_FILE"
 
-    log_info "📝 Logging to: $LOG_FILE"
+    log_info "Logging to: $LOG_FILE"
 
     export LOG_FILE
     LOG_DIR="$_log_dir"
@@ -85,7 +85,7 @@ find_python_interpreter() {
         return 0
     fi
 
-    log_info "🔍 Searching for a compatible Python interpreter..."
+    log_info "Searching for a compatible Python interpreter..."
     for version in python3.11 python3.10 python3.9 python3 python; do
         if command_exists "$version"; then
             if "$version" -c "import sys; sys.exit(not (sys.version_info >= (3, 9)))" 2>/dev/null; then
@@ -124,7 +124,7 @@ setup_virtual_environment() {
         sleep 1
     fi
 
-    log_info "🔌 Searching for virtual environment..."
+    log_info "Searching for virtual environment..."
     venv_path=""
     if [ -d "venv" ]; then
         venv_path="venv"
@@ -190,7 +190,7 @@ setup_joblib_env() {
 install_requirements() {
     requirements_file="${1:-requirements.txt}"
     if [ -f "$requirements_file" ]; then
-        log_info "📦 Installing requirements from $requirements_file..."
+        log_info "Installing requirements from $requirements_file..."
         if pip install -r "$requirements_file"; then
             log_info "Requirements installed successfully."
         else
@@ -274,13 +274,13 @@ show_simulation_output_info() {
         fi
     fi
 
-    log_info "🎉 Simulation completed successfully!"
+    log_info "Simulation completed successfully!"
 
     if [ -n "$latest_dir" ]; then
-        log_info "📁 Results saved to: $latest_dir"
-        log_info "📊 Contains: plots, CSV data, configs, datasets, logs"
+        log_info "Results saved to: $latest_dir"
+        log_info "Contains: plots, CSV data, configs, datasets, logs"
     else
-        log_info "📁 Results saved to: $rel_output_dir"
+        log_info "Results saved to: $rel_output_dir"
     fi
 }
 

@@ -16,6 +16,7 @@ from tests.common import (
     ClientProxy,
 )
 from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 from tests.common import generate_mock_client_data
 
@@ -24,9 +25,15 @@ class TestRFABasedRemovalStrategy:
     """Test cases for RFABasedRemovalStrategy."""
 
     @pytest.fixture
-    def rfa_strategy(self, mock_output_directory):
+    def mock_strategy_history(self):
+        """Create mock strategy history."""
+        return Mock(spec=SimulationStrategyHistory)
+
+    @pytest.fixture
+    def rfa_strategy(self, mock_output_directory, mock_strategy_history):
         """Create RFABasedRemovalStrategy instance for testing."""
         return RFABasedRemovalStrategy(
+            strategy_history=mock_strategy_history,
             remove_clients=True,
             begin_removing_from_round=2,
             weighted_median_factor=1.0,
