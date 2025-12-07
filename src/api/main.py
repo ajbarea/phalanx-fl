@@ -1,20 +1,26 @@
 # src/api/main.py
 
+import asyncio
 import datetime
+import fcntl
 import json
 import logging
 import multiprocessing
 import os
+import pty
 import re
+import select
 import shutil
+import struct
 import subprocess
+import termios
 import traceback
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import psutil
-from fastapi import Body, Depends, FastAPI, HTTPException
+from fastapi import Body, Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
@@ -781,6 +787,81 @@ def stop_simulation(simulation_id: str) -> Dict[str, str]:
         )
 
 
+@app.get("/api/simulations/{simulation_id}/attack-snapshots")
+async def get_attack_snapshots(
+    simulation_id: str, sim_path: Path = Depends(get_simulation_path)
+) -> Dict[str, Any]:
+    """Return attack snapshot data for visualization.
+
+    Returns summary, timeline, and paths to visual snapshots organized by client/round.
+    """
+    # Find attack_snapshots directories (support multiple strategies)
+    snapshot_dirs = sorted(sim_path.glob("attack_snapshots_*"))
+
+    if not snapshot_dirs:
+        return {"has_snapshots": False, "strategies": []}
+
+    strategies_data = []
+
+    for snapshot_dir in snapshot_dirs:
+        strategy_num = int(snapshot_dir.name.replace("attack_snapshots_", ""))
+
+        # Load summary.json if it exists
+        summary_path = snapshot_dir / "summary.json"
+        summary = None
+        if summary_path.is_file():
+            try:
+                with summary_path.open("r") as f:
+                    summary = json.load(f)
+            except (json.JSONDecodeError, IOError):
+                pass
+
+        # Collect all visual snapshots
+        snapshots = []
+        for client_dir in sorted(snapshot_dir.glob("client_*")):
+            client_id = int(client_dir.name.replace("client_", ""))
+
+            for round_dir in sorted(client_dir.glob("round_*")):
+                round_num = int(round_dir.name.replace("round_", ""))
+
+                # Find visual files
+                visual_files = list(round_dir.glob("*_visual.png"))
+                metadata_files = list(round_dir.glob("*_metadata.json"))
+
+                for visual_file in visual_files:
+                    attack_type = visual_file.stem.replace("_visual", "")
+                    rel_path = visual_file.relative_to(sim_path)
+
+                    # Load metadata if available
+                    metadata = None
+                    metadata_path = round_dir / f"{attack_type}_metadata.json"
+                    if metadata_path.is_file():
+                        try:
+                            with metadata_path.open("r") as f:
+                                metadata = json.load(f)
+                        except (json.JSONDecodeError, IOError):
+                            pass
+
+                    snapshots.append({
+                        "client_id": client_id,
+                        "round_num": round_num,
+                        "attack_type": attack_type,
+                        "image_path": str(rel_path).replace("\\", "/"),
+                        "metadata": metadata,
+                    })
+
+        strategies_data.append({
+            "strategy_number": strategy_num,
+            "summary": summary,
+            "snapshots": sorted(snapshots, key=lambda x: (x["round_num"], x["client_id"])),
+        })
+
+    return {
+        "has_snapshots": True,
+        "strategies": strategies_data,
+    }
+
+
 @app.get("/api/datasets/validate")
 async def validate_dataset(name: str) -> Dict[str, Any]:
     """
@@ -879,3 +960,144 @@ async def validate_dataset(name: str) -> Dict[str, Any]:
             "info": None,
             "error": error_message,
         }
+
+
+# --- WebSocket Terminal ---
+
+# Store active terminal sessions
+terminal_sessions: Dict[str, Dict[str, Any]] = {}
+
+
+def set_terminal_size(fd: int, rows: int, cols: int) -> None:
+    """Set the terminal size for a PTY file descriptor."""
+    winsize = struct.pack("HHHH", rows, cols, 0, 0)
+    fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
+
+
+@app.websocket("/api/terminal")
+async def terminal_websocket(websocket: WebSocket):
+    """WebSocket endpoint for interactive terminal sessions.
+
+    Spawns a bash shell and streams stdin/stdout over WebSocket.
+    Supports terminal resizing via JSON messages: {"type": "resize", "rows": 24, "cols": 80}
+    """
+    await websocket.accept()
+
+    session_id = f"term_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
+    logger.info(f"Terminal session started: {session_id}")
+
+    # Create pseudo-terminal
+    master_fd, slave_fd = pty.openpty()
+
+    # Set initial terminal size
+    set_terminal_size(master_fd, 24, 80)
+
+    # Set non-blocking mode on master
+    flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
+    fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+    # Spawn bash process
+    env = os.environ.copy()
+    env["TERM"] = "xterm-256color"
+    env["COLORTERM"] = "truecolor"
+
+    process = subprocess.Popen(
+        ["/bin/bash"],
+        stdin=slave_fd,
+        stdout=slave_fd,
+        stderr=slave_fd,
+        cwd=str(BASE_DIR),
+        env=env,
+        preexec_fn=os.setsid,
+    )
+
+    os.close(slave_fd)  # Close slave in parent process
+
+    terminal_sessions[session_id] = {
+        "process": process,
+        "master_fd": master_fd,
+    }
+
+    async def read_from_pty():
+        """Read output from PTY and send to WebSocket."""
+        try:
+            while True:
+                await asyncio.sleep(0.01)  # Small delay to prevent busy loop
+
+                if process.poll() is not None:
+                    # Process has exited
+                    break
+
+                try:
+                    # Check if data is available
+                    ready, _, _ = select.select([master_fd], [], [], 0)
+                    if ready:
+                        data = os.read(master_fd, 4096)
+                        if data:
+                            await websocket.send_text(data.decode("utf-8", errors="replace"))
+                except (OSError, BlockingIOError):
+                    pass
+
+        except Exception as e:
+            logger.error(f"PTY read error: {e}")
+
+    # Start reading task
+    read_task = asyncio.create_task(read_from_pty())
+
+    try:
+        while True:
+            # Receive input from WebSocket
+            message = await websocket.receive()
+
+            if message["type"] == "websocket.disconnect":
+                break
+
+            if "text" in message:
+                text = message["text"]
+
+                # Check if it's a control message (JSON)
+                if text.startswith("{"):
+                    try:
+                        msg = json.loads(text)
+                        if msg.get("type") == "resize":
+                            rows = msg.get("rows", 24)
+                            cols = msg.get("cols", 80)
+                            set_terminal_size(master_fd, rows, cols)
+                            logger.debug(f"Terminal resized to {rows}x{cols}")
+                            continue
+                    except json.JSONDecodeError:
+                        pass
+
+                # Write to PTY
+                try:
+                    os.write(master_fd, text.encode("utf-8"))
+                except OSError as e:
+                    logger.error(f"PTY write error: {e}")
+                    break
+
+    except WebSocketDisconnect:
+        logger.info(f"Terminal session disconnected: {session_id}")
+    except Exception as e:
+        logger.error(f"Terminal WebSocket error: {e}")
+    finally:
+        # Cleanup
+        read_task.cancel()
+        try:
+            await read_task
+        except asyncio.CancelledError:
+            pass
+
+        # Terminate process
+        if process.poll() is None:
+            try:
+                process.terminate()
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                process.kill()
+
+        os.close(master_fd)
+
+        if session_id in terminal_sessions:
+            del terminal_sessions[session_id]
+
+        logger.info(f"Terminal session ended: {session_id}")

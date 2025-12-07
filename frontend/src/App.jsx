@@ -6,6 +6,7 @@ import { NewSimulation } from './pages/NewSimulation/NewSimulation';
 import { ExperimentQueue } from './pages/ExperimentQueue/ExperimentQueue';
 import { QueueStatus } from './pages/QueueStatus/QueueStatus';
 import ComparisonView from './components/ComparisonView';
+import TerminalPanel from './components/TerminalPanel';
 import ErrorBoundary from './components/ErrorBoundary';
 import ThemeToggle from './components/ThemeToggle';
 import { Toaster } from 'sonner';
@@ -85,7 +86,7 @@ function App() {
             </Navbar.Collapse>
           </Container>
         </Navbar>
-        <Container className="mt-4">
+        <Container className="mt-4" style={{ paddingBottom: '60px' }}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/simulations/new" element={<NewSimulation />} />
@@ -95,6 +96,7 @@ function App() {
             <Route path="/compare" element={<ComparisonView />} />
           </Routes>
         </Container>
+        <TerminalPanel />
       </Router>
     </ErrorBoundary>
   );
