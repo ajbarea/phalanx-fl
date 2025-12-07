@@ -9,7 +9,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from tests.scripts.constants import BASELINE_FORMAT_VERSION, FAST_CONFIGS
+from tests.scripts.constants import FAST_CONFIGS
 
 project_root = Path(__file__).parent.parent.parent
 console = Console()
@@ -131,42 +131,6 @@ def compare_metrics(
     return warnings
 
 
-def check_baseline_staleness(baseline: dict, config_name: str) -> list[str]:
-    """Checks if baseline may be stale.
-
-    Args:
-        baseline: Loaded baseline data.
-        config_name: Name of config for error messages.
-
-    Returns:
-        List of warnings about staleness.
-    """
-    warnings = []
-
-    baseline_version = baseline.get("baseline_format_version")
-    if baseline_version and baseline_version != BASELINE_FORMAT_VERSION:
-        warnings.append(
-            f"{config_name}: baseline format version mismatch "
-            f"(baseline: {baseline_version}, current: {BASELINE_FORMAT_VERSION})"
-        )
-
-    recorded_at = baseline.get("recorded_at")
-    if recorded_at:
-        try:
-            from datetime import datetime
-
-            recorded = datetime.fromisoformat(recorded_at)
-            age_days = (datetime.now() - recorded).days
-            if age_days > 60:
-                warnings.append(
-                    f"{config_name}: baseline is {age_days} days old, consider re-recording"
-                )
-        except Exception:
-            pass
-
-    return warnings
-
-
 def run_mock_simulations(
     configs: list[str], config_dir: Path, baselines_dir: Path, verbose: bool = False
 ) -> int:
@@ -199,7 +163,6 @@ def run_mock_simulations(
 
     passed = 0
     failed = 0
-    staleness_warnings = []
     metric_warnings = []
     results = []
 
@@ -207,10 +170,6 @@ def run_mock_simulations(
         console.print(f"[{idx}/{len(configs_with_baselines)}] {config}...", end=" ")
 
         baseline = load_baseline(config, baselines_dir)
-
-        if baseline:
-            stale_warns = check_baseline_staleness(baseline, config)
-            staleness_warnings.extend(stale_warns)
 
         success, output_dir, errors = run_mock_simulation(
             config, config_dir, baselines_dir, project_root / "out"
@@ -283,11 +242,6 @@ def run_mock_simulations(
             )
 
     _print_summary_table(results, verbose)
-
-    if staleness_warnings:
-        console.print("\n[yellow]Baseline Staleness Warnings:[/yellow]")
-        for warn in staleness_warnings:
-            console.print(f"  [yellow]![/yellow] {warn}")
 
     if metric_warnings:
         console.print("\n[yellow]Metric Regression Warnings:[/yellow]")
