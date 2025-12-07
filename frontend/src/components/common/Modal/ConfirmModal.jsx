@@ -29,7 +29,11 @@ function ConfirmModal({
         <Modal.Title>{title}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <p style={{ whiteSpace: 'pre-line', marginBottom: 0 }}>{message}</p>
+        {typeof message === 'string' ? (
+          <p style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>{message}</p>
+        ) : (
+          message
+        )}
       </Modal.Body>
       <Modal.Footer>
         <OutlineButton onClick={onCancel}>{cancelText}</OutlineButton>
