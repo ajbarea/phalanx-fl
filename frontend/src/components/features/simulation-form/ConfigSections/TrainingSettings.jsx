@@ -31,7 +31,7 @@ export function TrainingSettings({ config, onChange }) {
         value={config.training_device}
         onChange={onChange}
         options={DEVICES}
-        tooltip="Hardware for training. 'auto' = detect best available (recommended), 'cpu' = force CPU, 'gpu'/'cuda' = use NVIDIA GPU if available."
+        tooltip="Hardware for training. 'cpu' = use CPU, 'gpu' = use NVIDIA GPU if available."
       />
 
       <NumberField
@@ -50,7 +50,7 @@ export function TrainingSettings({ config, onChange }) {
         onChange={onChange}
         step={0.1}
         min={0}
-        tooltip="Fraction of GPU allocated to each client. 'auto' = optimal allocation (recommended), 0 = CPU only, 0.25 = 4 clients in parallel, 0.5 = 2 clients in parallel, 1.0 = 1 client at a time (full GPU)."
+        tooltip="Fraction of GPU allocated to each client. 0 = CPU only, 0.25 = 4 clients share GPU, 0.5 = 2 clients share GPU, 1.0 = 1 client uses full GPU."
       />
 
       <NumberField

@@ -23,12 +23,7 @@ export const initialConfig = {
   gaussian_noise_mean: 0,
   gaussian_noise_std: 75,
   num_std_dev: 2,
-
-  // Dynamic Poisoning Attacks
-  dynamic_attacks: {
-    enabled: false,
-    schedule: [],
-  },
+  attack_schedule: [],
 
   // Defense Strategy
   aggregation_strategy_keyword: 'pid',
@@ -49,9 +44,9 @@ export const initialConfig = {
   num_of_clusters: 1,
 
   // Training Configuration
-  training_device: 'auto',
+  training_device: 'cpu',
   cpus_per_client: 1,
-  gpus_per_client: 'auto',
+  gpus_per_client: 0,
   num_of_client_epochs: 1,
   batch_size: 20,
   training_subset_fraction: 0.9,
