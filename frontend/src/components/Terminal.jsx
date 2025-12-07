@@ -139,10 +139,14 @@ const Terminal = forwardRef(function Terminal({ height = 400, showQuickCommands 
   }, [disconnect, connect]);
 
   // Expose methods to parent components
-  useImperativeHandle(ref, () => ({
-    reset,
-    sendCommand,
-  }), [reset, sendCommand]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      reset,
+      sendCommand,
+    }),
+    [reset, sendCommand]
+  );
 
   // Initialize terminal
   useEffect(() => {
@@ -172,7 +176,7 @@ const Terminal = forwardRef(function Terminal({ height = 400, showQuickCommands 
     const initTimer = setTimeout(() => {
       try {
         fitAddon.fit();
-      } catch (e) {
+      } catch {
         console.warn('Initial fit failed, will retry on resize');
       }
       // Connect after terminal is ready
@@ -200,7 +204,7 @@ const Terminal = forwardRef(function Terminal({ height = 400, showQuickCommands 
       xtermRef.current = null;
       fitAddonRef.current = null;
     };
-  }, []);
+  }, [connect, disconnect, getTerminalTheme]);
 
   // Update theme when it changes
   useEffect(() => {
@@ -215,7 +219,7 @@ const Terminal = forwardRef(function Terminal({ height = 400, showQuickCommands 
       if (fitAddonRef.current) {
         try {
           fitAddonRef.current.fit();
-        } catch (e) {
+        } catch {
           // Ignore fit errors during resize
         }
       }
@@ -231,7 +235,7 @@ const Terminal = forwardRef(function Terminal({ height = 400, showQuickCommands 
       setTimeout(() => {
         try {
           fitAddonRef.current.fit();
-        } catch (e) {
+        } catch {
           // Ignore fit errors
         }
       }, 0);

@@ -16,8 +16,8 @@ export function TerminalPage() {
 
       <div className="mt-3 text-muted">
         <small>
-          <strong>Tips:</strong> Use the quick command buttons or type commands directly.
-          Common commands: <code>./run_simulation.sh</code>, <code>bash clean.sh</code>,{' '}
+          <strong>Tips:</strong> Use the quick command buttons or type commands directly. Common
+          commands: <code>./run_simulation.sh</code>, <code>bash clean.sh</code>,{' '}
           <code>git status</code>
         </small>
       </div>

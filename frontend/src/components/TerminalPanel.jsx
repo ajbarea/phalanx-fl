@@ -47,46 +47,50 @@ export default function TerminalPanel() {
   }, [isOpen]);
 
   // Handle resize drag
-  const handleMouseDown = useCallback(e => {
-    e.preventDefault();
-    setIsResizing(true);
+  const handleMouseDown = useCallback(
+    e => {
+      e.preventDefault();
+      setIsResizing(true);
 
-    const startY = e.clientY;
-    const startHeight = height;
+      const startY = e.clientY;
+      const startHeight = height;
 
-    const handleMouseMove = e => {
-      const delta = startY - e.clientY;
-      const newHeight = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, startHeight + delta));
-      setHeight(newHeight);
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  }, [height]);
-
-  const colors = theme === 'dark'
-    ? {
-        bg: '#1e1e1e',
-        border: '#404040',
-        handle: '#555',
-        handleHover: '#666',
-        text: '#ccc',
-        buttonBg: '#2d2d2d',
-      }
-    : {
-        bg: '#f8f9fa',
-        border: '#dee2e6',
-        handle: '#adb5bd',
-        handleHover: '#6c757d',
-        text: '#495057',
-        buttonBg: '#e9ecef',
+      const handleMouseMove = e => {
+        const delta = startY - e.clientY;
+        const newHeight = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, startHeight + delta));
+        setHeight(newHeight);
       };
+
+      const handleMouseUp = () => {
+        setIsResizing(false);
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    },
+    [height]
+  );
+
+  const colors =
+    theme === 'dark'
+      ? {
+          bg: '#1e1e1e',
+          border: '#404040',
+          handle: '#555',
+          handleHover: '#666',
+          text: '#ccc',
+          buttonBg: '#2d2d2d',
+        }
+      : {
+          bg: '#f8f9fa',
+          border: '#dee2e6',
+          handle: '#adb5bd',
+          handleHover: '#6c757d',
+          text: '#495057',
+          buttonBg: '#e9ecef',
+        };
 
   return (
     <>
@@ -173,9 +177,7 @@ export default function TerminalPanel() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ color: colors.text, fontSize: '12px', fontWeight: 500 }}>
-              TERMINAL
-            </span>
+            <span style={{ color: colors.text, fontSize: '12px', fontWeight: 500 }}>TERMINAL</span>
             <span
               style={{
                 fontSize: '10px',
@@ -198,8 +200,8 @@ export default function TerminalPanel() {
                 fontSize: '11px',
                 opacity: 0.7,
               }}
-              onMouseEnter={e => e.target.style.opacity = 1}
-              onMouseLeave={e => e.target.style.opacity = 0.7}
+              onMouseEnter={e => (e.target.style.opacity = 1)}
+              onMouseLeave={e => (e.target.style.opacity = 0.7)}
             >
               ⚠️
             </button>
@@ -252,11 +254,13 @@ export default function TerminalPanel() {
         </div>
 
         {/* Terminal content - always mounted to preserve connection */}
-        <div style={{
-          height: height - 40,
-          visibility: isOpen ? 'visible' : 'hidden',
-          position: isOpen ? 'relative' : 'absolute',
-        }}>
+        <div
+          style={{
+            height: height - 40,
+            visibility: isOpen ? 'visible' : 'hidden',
+            position: isOpen ? 'relative' : 'absolute',
+          }}
+        >
           <Terminal ref={terminalRef} height={height - 40} showQuickCommands={true} />
         </div>
       </div>
@@ -279,11 +283,17 @@ export default function TerminalPanel() {
           <div>
             <p>This will permanently delete:</p>
             <ul style={{ marginBottom: '1rem' }}>
-              <li>All simulation results <code>out/</code></li>
-              <li>All log files <code>logs/</code></li>
+              <li>
+                All simulation results <code>out/</code>
+              </li>
+              <li>
+                All log files <code>logs/</code>
+              </li>
               <li>All Python caches</li>
             </ul>
-            <p className="text-danger mb-0"><strong>This cannot be undone.</strong></p>
+            <p className="text-danger mb-0">
+              <strong>This cannot be undone.</strong>
+            </p>
           </div>
         }
         variant="danger"

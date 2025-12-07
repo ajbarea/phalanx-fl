@@ -215,8 +215,8 @@ export function AttackSnapshotsTab({ simulationId, status }) {
           <strong>Understanding Attack Snapshots:</strong>
           <ul className="mb-0 mt-2">
             <li>
-              <strong>Before/After Comparisons:</strong> Images show original data (left) vs poisoned
-              data (right)
+              <strong>Before/After Comparisons:</strong> Images show original data (left) vs
+              poisoned data (right)
             </li>
             <li>
               <strong>Gaussian Noise:</strong> Adds random noise to model weights, disrupting
