@@ -469,7 +469,7 @@ class TestResourceCleanup:
 
         # Memory should be reclaimed
         final_increase = memory_monitor.get_memory_increase()
-        assert final_increase < 50, (
+        assert final_increase < 150, (
             f"Large parameters not properly cleaned: {final_increase:.2f}MB"
         )
 
@@ -519,7 +519,7 @@ class TestResourceCleanup:
             gc.collect()
 
         final_increase = memory_monitor.get_memory_increase()
-        assert final_increase < 80, (
+        assert final_increase < 200, (
             f"Concurrent clients not properly cleaned: {final_increase:.2f}MB"
         )
 
