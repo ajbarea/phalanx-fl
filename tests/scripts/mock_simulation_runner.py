@@ -1,16 +1,5 @@
 #!/usr/bin/env python3
-"""Mock simulation runner - runs full output generation using recorded baselines.
-
-This script runs the complete simulation pipeline (plots, CSVs, HTML reports)
-using pre-recorded baseline data instead of actual Flower training.
-
-Usage:
-    # Run single config with mock data
-    python tests/scripts/mock_simulation_runner.py --config femnist_krum_baseline.json
-
-    # Run all fast configs
-    python tests/scripts/mock_simulation_runner.py --all-fast
-"""
+"""Mock simulation runner - runs full output generation with real strategy execution."""
 
 import argparse
 import csv
@@ -18,22 +7,49 @@ import json
 import logging
 import sys
 import traceback
-import torch
 from pathlib import Path
+from typing import Any
+
+import numpy as np
+import torch
+from flwr.common import ndarrays_to_parameters
 from rich.console import Console
-from tests.scripts.constants import FAST_CONFIGS
+
 from src.attack_utils.attack_snapshots import save_attack_snapshot
-from src.data_models.simulation_strategy_config import StrategyConfig
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.output_handlers import new_plot_handler
-from src.output_handlers.directory_handler import DirectoryHandler
 from src.attack_utils.snapshot_html_reports import (
     generate_main_dashboard,
     generate_snapshot_index,
     generate_summary_json,
 )
+from src.data_models.simulation_strategy_config import StrategyConfig
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.output_handlers import new_plot_handler
+from src.output_handlers.directory_handler import DirectoryHandler
+from src.simulation_strategies.bulyan_strategy import BulyanStrategy
+from src.simulation_strategies.fedavg_strategy import FedAvgStrategy
+from src.simulation_strategies.krum_based_removal_strategy import (
+    KrumBasedRemovalStrategy,
+)
+from src.simulation_strategies.multi_krum_based_removal_strategy import (
+    MultiKrumBasedRemovalStrategy,
+)
+from src.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
+from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
+from src.simulation_strategies.trimmed_mean_based_removal_strategy import (
+    TrimmedMeanBasedRemovalStrategy,
+)
+from src.simulation_strategies.trust_based_removal_strategy import (
+    TrustBasedRemovalStrategy,
+)
+from tests.fixtures.mock_flower_components import (
+    MockClient,
+    MockNumPyClient,
+    MockServerConfig,
+    mock_start_simulation,
+)
+from tests.scripts.constants import FAST_CONFIGS
 
-# Project root for path resolution
 project_root = Path(__file__).parent.parent.parent
 console = Console()
 
@@ -57,19 +73,138 @@ def load_config(config_name: str, config_dir: Path) -> dict:
         return json.load(f)
 
 
+def create_strategy_for_mock(
+    strategy_config: StrategyConfig,
+    strategy_history: SimulationStrategyHistory,
+    initial_params: Any,
+) -> Any:
+    """Creates a real strategy instance for mock testing.
+
+    Args:
+        strategy_config: Strategy configuration from config JSON.
+        strategy_history: History object for recording metrics.
+        initial_params: Mock initial parameters.
+
+    Returns:
+        Real strategy instance that will execute actual aggregation code.
+    """
+    common_kwargs = dict(
+        initial_parameters=initial_params,
+        min_fit_clients=2,
+        min_evaluate_clients=2,
+        min_available_clients=2,
+        strategy_history=strategy_history,
+        remove_clients=getattr(strategy_config, "remove_clients", False),
+        begin_removing_from_round=getattr(
+            strategy_config, "begin_removing_from_round", 1
+        ),
+    )
+
+    keyword = strategy_config.aggregation_strategy_keyword
+
+    if keyword == "fedavg":
+        return FedAvgStrategy(
+            strategy_history=strategy_history,
+            initial_parameters=initial_params,
+            min_fit_clients=2,
+            min_evaluate_clients=2,
+            min_available_clients=2,
+        )
+
+    elif keyword == "krum":
+        return KrumBasedRemovalStrategy(
+            num_malicious_clients=getattr(
+                strategy_config, "num_of_malicious_clients", 0
+            ),
+            num_krum_selections=getattr(strategy_config, "num_krum_selections", 1),
+            **common_kwargs,
+        )
+
+    elif keyword == "multi-krum":
+        return MultiKrumStrategy(
+            num_of_malicious_clients=getattr(
+                strategy_config, "num_of_malicious_clients", 0
+            ),
+            num_krum_selections=getattr(strategy_config, "num_krum_selections", 1),
+            **common_kwargs,
+        )
+
+    elif keyword == "multi-krum-based":
+        return MultiKrumBasedRemovalStrategy(
+            num_of_malicious_clients=getattr(
+                strategy_config, "num_of_malicious_clients", 0
+            ),
+            num_krum_selections=getattr(strategy_config, "num_krum_selections", 1),
+            **common_kwargs,
+        )
+
+    elif keyword == "bulyan":
+        return BulyanStrategy(
+            num_krum_selections=getattr(strategy_config, "num_krum_selections", 1),
+            **common_kwargs,
+        )
+
+    elif keyword == "rfa":
+        return RFABasedRemovalStrategy(
+            num_of_malicious_clients=getattr(
+                strategy_config, "num_of_malicious_clients", 0
+            ),
+            **common_kwargs,
+        )
+
+    elif keyword == "trimmed_mean":
+        return TrimmedMeanBasedRemovalStrategy(
+            trim_ratio=getattr(strategy_config, "trim_ratio", 0.1),
+            **common_kwargs,
+        )
+
+    elif keyword in (
+        "pid",
+        "pid_scaled",
+        "pid_standardized",
+        "pid_standardized_score_based",
+    ):
+        return PIDBasedRemovalStrategy(
+            ki=getattr(strategy_config, "Ki", 0.1),
+            kp=getattr(strategy_config, "Kp", 1.0),
+            kd=getattr(strategy_config, "Kd", 0.1),
+            num_std_dev=getattr(strategy_config, "num_std_dev", 2.0),
+            network_model=None,
+            aggregation_strategy_keyword=keyword,
+            use_lora=False,
+            **common_kwargs,
+        )
+
+    elif keyword == "trust":
+        return TrustBasedRemovalStrategy(
+            beta_value=getattr(strategy_config, "beta_value", 0.9),
+            trust_threshold=getattr(strategy_config, "trust_threshold", 0.5),
+            **common_kwargs,
+        )
+
+    else:
+        logging.warning(f"Unknown strategy '{keyword}', falling back to FedAvg")
+        return FedAvgStrategy(
+            strategy_history=strategy_history,
+            initial_parameters=initial_params,
+            min_fit_clients=2,
+            min_evaluate_clients=2,
+            min_available_clients=2,
+        )
+
+
 def populate_history_from_baseline(
     strategy_history, baseline_strategy: dict, num_clients: int
 ):
-    """Populate SimulationStrategyHistory with baseline data."""
+    """Populates SimulationStrategyHistory with baseline data."""
     per_round = baseline_strategy.get("per_round", {})
     per_client = baseline_strategy.get("per_client", {})
     total_rounds = baseline_strategy.get("total_rounds", 10)
 
-    # Populate per-client data
     for client_id in range(num_clients):
         client_data = per_client.get(str(client_id), {})
         for round_num in range(1, total_rounds + 1):
-            idx = round_num - 1  # 0-indexed
+            idx = round_num - 1
 
             strategy_history.insert_single_client_history_entry(
                 client_id=client_id,
@@ -87,7 +222,6 @@ def populate_history_from_baseline(
                 )[idx],
             )
 
-    # Populate per-round data
     aggregated_loss = per_round.get("aggregated_loss", [0.0] * total_rounds)
     for round_num in range(1, total_rounds + 1):
         idx = round_num - 1
@@ -119,22 +253,19 @@ def generate_mock_attack_snapshots(
     max_samples: int = 5,
     save_format: str = "pickle",
 ) -> int:
-    """Generate mock attack snapshots for CI testing.
-
-    Creates synthetic snapshot data for attacks defined in the attack_schedule.
-    This allows testing the snapshot generation pipeline without actual training.
+    """Generates mock attack snapshots for CI testing.
 
     Args:
-        attack_schedule: List of attack configurations
-        output_dir: Output directory path
-        num_clients: Total number of clients
-        total_rounds: Total number of rounds
-        strategy_number: Strategy index
-        max_samples: Max samples per snapshot
-        save_format: Snapshot format (pickle, visual, pickle_and_visual)
+        attack_schedule: List of attack configurations.
+        output_dir: Output directory path.
+        num_clients: Total number of clients.
+        total_rounds: Total number of rounds.
+        strategy_number: Strategy index.
+        max_samples: Max samples per snapshot.
+        save_format: Snapshot format.
 
     Returns:
-        Number of snapshots generated
+        Number of snapshots generated.
     """
     snapshots_generated = 0
 
@@ -143,7 +274,6 @@ def generate_mock_attack_snapshots(
         start_round = attack.get("start_round", 1)
         end_round = attack.get("end_round", total_rounds)
 
-        # Determine malicious clients
         selection = attack.get("selection_strategy", "percentage")
         if selection == "percentage":
             percentage = attack.get("malicious_percentage", 0.2)
@@ -154,14 +284,11 @@ def generate_mock_attack_snapshots(
         else:
             malicious_clients = [0]
 
-        # Generate snapshots for each affected client/round
         for round_num in range(start_round, min(end_round, total_rounds) + 1):
             for client_id in malicious_clients:
-                # Create mock tensor data (28x28 grayscale images like FEMNIST)
                 mock_data = torch.rand(max_samples, 1, 28, 28)
                 mock_labels = torch.randint(0, 10, (max_samples,))
 
-                # For label flipping, create original labels different from current
                 if attack_type == "label_flipping":
                     original_labels = (mock_labels + 1) % 10
                 else:
@@ -196,20 +323,21 @@ def run_mock_simulation(
     baselines_dir: Path,
     output_base: Path,
 ) -> tuple[bool, Path | None, list[str]]:
-    """Run mock simulation using baseline data.
+    """Runs mock simulation with REAL strategy code execution.
+
+    Args:
+        config_name: Name of config file.
+        config_dir: Directory containing config files.
+        baselines_dir: Directory containing baselines.
+        output_base: Base output directory.
 
     Returns:
-        Tuple of (success, output_dir, errors)
+        Tuple of (success, output_dir, errors).
     """
     errors = []
 
-    # Load baseline
     baseline = load_baseline(config_name, baselines_dir)
-    if not baseline:
-        errors.append(f"No baseline found for {config_name}")
-        return False, None, errors
 
-    # Load config
     try:
         config = load_config(config_name, config_dir)
     except Exception as e:
@@ -217,86 +345,87 @@ def run_mock_simulation(
         return False, None, errors
 
     try:
-        # Create directory handler for output
         directory_handler = DirectoryHandler()
         output_dir = Path(directory_handler.dirname)
 
-        # Process each strategy in the config
         shared_settings = config.get("shared_settings", {})
         strategies = config.get("simulation_strategies", [{}])
-        num_clients = baseline.get(
-            "num_clients", shared_settings.get("num_of_clients", 10)
-        )
+        num_clients = shared_settings.get("num_of_clients", 10)
+        if baseline:
+            num_clients = baseline.get("num_clients", num_clients)
 
         executed_simulations = []
 
         for strat_idx, strategy_overrides in enumerate(strategies):
-            # Merge config
             merged_config = {**shared_settings, **strategy_overrides}
             merged_config["strategy_number"] = strat_idx
 
-            # Get baseline for this strategy
-            if strat_idx < len(baseline.get("strategies", [])):
-                baseline_strategy = baseline["strategies"][strat_idx]
-            else:
-                baseline_strategy = (
-                    baseline["strategies"][0] if baseline.get("strategies") else {}
-                )
-
-            # Create strategy config
             strategy_config = StrategyConfig.from_dict(merged_config)
             setattr(strategy_config, "strategy_number", strat_idx)
 
-            # Create mock dataset handler (minimal, just for initialization)
             class MockDatasetHandler:
                 def __init__(self):
                     self.malicious_clients = set()
-                    # Parse attack schedule to find malicious clients
                     for attack in merged_config.get("attack_schedule", []):
                         selected = attack.get("_selected_clients", [])
                         self.malicious_clients.update(selected)
 
             dataset_handler = MockDatasetHandler()
 
-            # Create strategy history
             strategy_history = SimulationStrategyHistory(
                 strategy_config=strategy_config,
                 dataset_handler=dataset_handler,  # type: ignore[arg-type]
             )
 
-            # Populate from baseline
-            populate_history_from_baseline(
-                strategy_history, baseline_strategy, num_clients
+            rng = np.random.default_rng(42)
+            initial_params = ndarrays_to_parameters(
+                [
+                    rng.standard_normal((100, 10)).astype(np.float32),
+                    rng.standard_normal(10).astype(np.float32),
+                ]
             )
 
-            # Calculate additional metrics
+            strategy = create_strategy_for_mock(
+                strategy_config=strategy_config,
+                strategy_history=strategy_history,
+                initial_params=initial_params,
+            )
+
+            num_rounds = merged_config.get("num_of_rounds", 10)
+            mock_start_simulation(
+                client_fn=lambda cid: MockClient(MockNumPyClient(int(cid))),
+                num_clients=num_clients,
+                config=MockServerConfig(num_rounds),
+                strategy=strategy,
+                initial_parameters=ndarrays_to_parameters(
+                    [
+                        rng.standard_normal((100, 10)).astype(np.float32),
+                        rng.standard_normal(10).astype(np.float32),
+                    ]
+                ),
+            )
+
             strategy_history.calculate_additional_rounds_data()
 
-            # Create mock simulation object for plotting
             mock_sim = MockFederatedSimulation(
                 strategy_config=strategy_config,
                 strategy_history=strategy_history,
                 attack_schedule=merged_config.get("attack_schedule", []),
             )
 
-            # Generate plots
             if strategy_config.save_plots:
                 new_plot_handler.show_plots_within_strategy(
                     mock_sim,  # pyright: ignore[reportArgumentType]
                     directory_handler,
                 )
 
-            # Save CSVs
             if strategy_config.save_csv:
                 directory_handler.save_csv_and_config(strategy_history)
 
-            # Generate attack snapshots if attack_schedule exists
             attack_schedule = merged_config.get("attack_schedule", [])
             save_snapshots = merged_config.get("save_attack_snapshots", "false")
             if attack_schedule and str(save_snapshots).lower() == "true":
-                total_rounds = baseline_strategy.get(
-                    "total_rounds", merged_config.get("num_of_rounds", 10)
-                )
+                total_rounds = merged_config.get("num_of_rounds", 10)
                 snapshot_format = merged_config.get("attack_snapshot_format", "pickle")
                 max_samples = merged_config.get("snapshot_max_samples", 5)
 
@@ -310,7 +439,6 @@ def run_mock_simulation(
                     save_format=snapshot_format,
                 )
 
-                # Generate snapshot index and summary
                 try:
                     generate_summary_json(
                         directory_handler.dirname,
@@ -327,13 +455,11 @@ def run_mock_simulation(
 
             executed_simulations.append(mock_sim)
 
-        # Generate inter-strategy plots if multiple strategies
         if len(executed_simulations) > 1:
             new_plot_handler.show_inter_strategy_plots(
                 executed_simulations, directory_handler
             )
 
-        # Generate main dashboard
         generate_main_dashboard(directory_handler.dirname)
 
         return True, output_dir, []
@@ -345,14 +471,13 @@ def run_mock_simulation(
 
 
 def verify_outputs(output_dir: Path) -> tuple[bool, list[str], dict]:
-    """Verify expected outputs were created and return file counts.
+    """Verifies expected outputs were created and return file counts.
+
+    Args:
+        output_dir: Path to output directory.
 
     Returns:
-        Tuple of (success, errors, counts) where counts has keys:
-        - plots: number of PDF plot files
-        - csvs: number of CSV files
-        - snapshots: number of attack snapshot files
-        - html: whether index.html exists
+        Tuple of (success, errors, counts).
     """
     errors = []
     counts = {"plots": 0, "csvs": 0, "snapshots": 0, "html": False}
@@ -361,7 +486,6 @@ def verify_outputs(output_dir: Path) -> tuple[bool, list[str], dict]:
         errors.append(f"Output directory not found: {output_dir}")
         return False, errors, counts
 
-    # Check for CSV directory and validate files
     csv_dir = output_dir / "csv"
     if not csv_dir.exists():
         errors.append("Missing csv/ directory")
@@ -371,32 +495,28 @@ def verify_outputs(output_dir: Path) -> tuple[bool, list[str], dict]:
             errors.append("No CSV files found")
         else:
             counts["csvs"] = len(csv_files)
-            # Validate CSV structure (has round column and data rows)
             for csv_file in csv_files:
                 csv_errors = _validate_csv_file(csv_file)
                 errors.extend(csv_errors)
 
-    # Check for plots
     plots = list(output_dir.glob("*.pdf"))
     if not plots:
         errors.append("No plot files (*.pdf) found")
     else:
         counts["plots"] = len(plots)
 
-    # Check for index.html
     if not (output_dir / "index.html").exists():
         errors.append("Missing index.html")
     else:
         counts["html"] = True
 
-    # Count attack snapshots
     counts["snapshots"] = _count_attack_snapshots(output_dir)
 
     return len(errors) == 0, errors, counts
 
 
 def _validate_csv_file(csv_path: Path) -> list[str]:
-    """Validate a CSV file has expected structure."""
+    """Validates a CSV file has expected structure."""
     errors = []
     try:
         with open(csv_path, "r") as f:
@@ -407,11 +527,9 @@ def _validate_csv_file(csv_path: Path) -> list[str]:
                 errors.append(f"{csv_path.name}: Empty CSV file")
                 return errors
 
-            # Check for 'round' column
             if not csv_path.name.startswith("exec_stats") and "round" not in headers:
                 errors.append(f"{csv_path.name}: Missing 'round' column")
 
-            # Check for at least one data row
             first_row = next(reader, None)
             if first_row is None:
                 errors.append(f"{csv_path.name}: No data rows")
@@ -423,12 +541,10 @@ def _validate_csv_file(csv_path: Path) -> list[str]:
 
 
 def _count_attack_snapshots(output_dir: Path) -> int:
-    """Count attack snapshot files across all strategies."""
+    """Counts attack snapshot files across all strategies."""
     total = 0
-    # Look for attack_snapshots_* directories
     for snapshots_dir in output_dir.glob("attack_snapshots_*"):
         if snapshots_dir.is_dir():
-            # Count pickle or metadata JSON files
             pickles = list(snapshots_dir.glob("client_*/round_*/*.pickle"))
             jsons = list(snapshots_dir.glob("client_*/round_*/*_metadata.json"))
             total += len(pickles) if pickles else len(jsons)
@@ -466,19 +582,17 @@ def main():
 
     args = parser.parse_args()
 
-    # Determine configs to run
     if args.all_fast:
         configs = FAST_CONFIGS
     elif args.config:
         configs = [args.config]
     else:
-        configs = FAST_CONFIGS  # Default to all fast
+        configs = FAST_CONFIGS
 
     config_dir = project_root / "config" / "simulation_strategies" / args.config_dir
     baselines_dir = project_root / args.baselines_dir
     output_base = project_root / "out"
 
-    # Check baselines exist
     missing_baselines = []
     for config_name in configs:
         baseline_name = config_name.replace(".json", ".baseline.json")
@@ -489,7 +603,6 @@ def main():
         console.print(f"[yellow]Missing baselines for: {missing_baselines}[/yellow]")
         console.print("[yellow]Run record_baselines.py first to create them.[/yellow]")
 
-    # Filter to configs with baselines
     configs = [c for c in configs if c not in missing_baselines]
 
     if not configs:

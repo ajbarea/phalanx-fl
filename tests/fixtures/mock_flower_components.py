@@ -1,15 +1,19 @@
-"""
-Mock Flower FL components for testing without distributed execution.
-"""
+"""Mock Flower FL components for testing without distributed execution."""
 
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+from flwr.common import (
+    Code,
+    Parameters,
+    Status,
+    ndarrays_to_parameters,
+    parameters_to_ndarrays,
+)
 
 NDArray = np.ndarray
 Config = Dict[str, Any]
 Metrics = Dict[str, Any]
-Parameters = Any
 Scalar = Union[bool, bytes, float, int, str]
 
 TENSOR_TYPE_NUMPY = "numpy.ndarray"
@@ -19,18 +23,17 @@ class MockParameters:
     """Mock implementation of flwr.common.Parameters."""
 
     def __init__(self, tensors: List[bytes], tensor_type: str = TENSOR_TYPE_NUMPY):
-        """
-        Initialize mock parameters.
+        """Initializes mock parameters.
 
         Args:
-            tensors: List of serialized tensors
-            tensor_type: Type of tensors
+            tensors: List of serialized tensors.
+            tensor_type: Type of tensors.
         """
         self.tensors = tensors
         self.tensor_type = tensor_type
 
     def __eq__(self, other: object) -> bool:
-        """Check equality with another Parameters object."""
+        """Checks equality with another Parameters object."""
         if not isinstance(other, MockParameters):
             return False
         return self.tensors == other.tensors and self.tensor_type == other.tensor_type
@@ -45,14 +48,14 @@ class MockFitRes:
         num_examples: int,
         metrics: Optional[Metrics] = None,
     ):
-        """
-        Initialize mock fit result.
+        """Initializes mock fit result.
 
         Args:
-            parameters: Updated model parameters
-            num_examples: Number of training examples used
-            metrics: Optional training metrics
+            parameters: Updated model parameters.
+            num_examples: Number of training examples used.
+            metrics: Optional training metrics.
         """
+        self.status = Status(code=Code.OK, message="")
         self.parameters = parameters
         self.num_examples = num_examples
         self.metrics = metrics or {}
@@ -64,14 +67,14 @@ class MockEvaluateRes:
     def __init__(
         self, loss: float, num_examples: int, metrics: Optional[Metrics] = None
     ):
-        """
-        Initialize mock evaluation result.
+        """Initializes mock evaluation result.
 
         Args:
-            loss: Evaluation loss
-            num_examples: Number of evaluation examples
-            metrics: Optional evaluation metrics
+            loss: Evaluation loss.
+            num_examples: Number of evaluation examples.
+            metrics: Optional evaluation metrics.
         """
+        self.status = Status(code=Code.OK, message="")
         self.loss = loss
         self.num_examples = num_examples
         self.metrics = metrics or {}
@@ -81,52 +84,53 @@ class MockClientProxy:
     """Mock implementation of flwr.server.client_proxy.ClientProxy."""
 
     def __init__(self, cid: str, client_fn: Optional[Callable[..., Any]] = None):
-        """
-        Initialize mock client proxy.
+        """Initializes mock client proxy.
 
         Args:
-            cid: Client ID
-            client_fn: Optional client function for creating actual client
+            cid: Client ID.
+            client_fn: Optional client function for creating actual client.
         """
         self.cid = cid
         self.client_fn = client_fn
         self._mock_client = None
 
-        # Training history for consistent behavior
-        # Extract numeric part from client ID for seeding
         try:
             client_num = int(cid)
         except ValueError:
-            # Use hash for non-numeric cid seeding
             client_num = hash(cid) % 1000
         self._rng = np.random.default_rng(42 + client_num)
         self._training_rounds = 0
 
-    def fit(self, parameters: MockParameters, _: Config) -> MockFitRes:
-        """
-        Mock client training.
+    def fit(self, parameters: Any, _: Config) -> MockFitRes:
+        """Simulates client training.
 
         Args:
-            parameters: Model parameters from server
-            _: Training configuration (unused)
+            parameters: Model parameters from server.
+            _: Training configuration.
 
         Returns:
-            Mock fit result with updated parameters and metrics
+            Mock fit result with updated parameters and metrics.
         """
         self._training_rounds += 1
 
-        # Add noise to simulate parameter updates
-        updated_tensors = []
-        for tensor_bytes in parameters.tensors:
-            # Deserialize, add noise, serialize
-            tensor = np.frombuffer(tensor_bytes, dtype=np.float32)
-            noise = self._rng.normal(0, 0.01, tensor.shape).astype(np.float32)
-            updated_tensor = tensor + noise
-            updated_tensors.append(updated_tensor.tobytes())
+        if isinstance(parameters, MockParameters):
+            updated_tensors = []
+            for tensor_bytes in parameters.tensors:
+                tensor = np.frombuffer(tensor_bytes, dtype=np.float32)
+                noise = self._rng.normal(0, 0.01, tensor.shape).astype(np.float32)
+                updated_tensor = tensor + noise
+                updated_tensors.append(updated_tensor.tobytes())
+            updated_params: Any = MockParameters(
+                updated_tensors, parameters.tensor_type
+            )
+        else:
+            ndarrays = parameters_to_ndarrays(parameters)
+            updated_arrays = []
+            for arr in ndarrays:
+                noise = self._rng.normal(0, 0.01, arr.shape).astype(arr.dtype)
+                updated_arrays.append(arr + noise)
+            updated_params = ndarrays_to_parameters(updated_arrays)
 
-        updated_params = MockParameters(updated_tensors, parameters.tensor_type)
-
-        # Training metrics
         mock_loss = self._rng.uniform(0.1, 2.0)
         mock_accuracy = self._rng.uniform(0.5, 0.95)
         num_examples = int(self._rng.integers(50, 200))
@@ -139,18 +143,16 @@ class MockClientProxy:
 
         return MockFitRes(updated_params, num_examples, metrics)
 
-    def evaluate(self, _parameters: MockParameters, _config: Config) -> MockEvaluateRes:
-        """
-        Mock client evaluation.
+    def evaluate(self, _parameters: Any, _config: Config) -> MockEvaluateRes:
+        """Simulates client evaluation.
 
         Args:
-            _parameters: Model parameters from server (unused)
-            _config: Evaluation configuration (unused)
+            _parameters: Model parameters from server.
+            _config: Evaluation configuration.
 
         Returns:
-            Mock evaluation result
+            Mock evaluation result.
         """
-        # Evaluation metrics
         mock_loss = self._rng.uniform(0.1, 1.5)
         mock_accuracy = self._rng.uniform(0.6, 0.95)
         num_examples = int(self._rng.integers(30, 100))
@@ -167,11 +169,10 @@ class MockServerConfig:
     """Mock implementation of flwr.server.ServerConfig."""
 
     def __init__(self, num_rounds: int):
-        """
-        Initialize mock server configuration.
+        """Initializes mock server configuration.
 
         Args:
-            num_rounds: Number of federated learning rounds
+            num_rounds: Number of federated learning rounds.
         """
         self.num_rounds = num_rounds
 
@@ -180,26 +181,23 @@ class MockNumPyClient:
     """Mock implementation of flwr.client.NumPyClient."""
 
     def __init__(self, client_id: int = 0):
-        """
-        Initialize mock NumPy client.
+        """Initializes mock NumPy client.
 
         Args:
-            client_id: Client identifier
+            client_id: Client identifier.
         """
         self.client_id = client_id
         self._rng = np.random.default_rng(42 + client_id)
 
     def get_parameters(self, _: Config) -> List[NDArray]:
-        """
-        Get client parameters.
+        """Gets client parameters.
 
         Args:
-            _: Configuration dictionary (unused)
+            _: Configuration dictionary.
 
         Returns:
-            List of parameter arrays
+            List of parameter arrays.
         """
-        # Consistent seeding for deterministic results
         self._rng = np.random.default_rng(42 + self.client_id)
         return [
             self._rng.standard_normal((100, 10)).astype(np.float32),
@@ -209,17 +207,15 @@ class MockNumPyClient:
     def fit(
         self, parameters: List[NDArray], _: Config
     ) -> Tuple[List[NDArray], int, Metrics]:
-        """
-        Mock client training.
+        """Simulates client training.
 
         Args:
-            parameters: Model parameters from server
-            _: Training configuration (unused)
+            parameters: Model parameters from server.
+            _: Training configuration.
 
         Returns:
-            Tuple of (updated_parameters, num_examples, metrics)
+            Tuple of (updated_parameters, num_examples, metrics).
         """
-        # Add noise to simulate training
         updated_params = []
         for param in parameters:
             noise = self._rng.normal(0, 0.01, param.shape).astype(param.dtype)
@@ -236,15 +232,14 @@ class MockNumPyClient:
     def evaluate(
         self, _parameters: List[NDArray], _config: Config
     ) -> Tuple[float, int, Metrics]:
-        """
-        Mock client evaluation.
+        """Simulates client evaluation.
 
         Args:
-            _parameters: Model parameters from server (unused)
-            _config: Evaluation configuration (unused)
+            _parameters: Model parameters from server.
+            _config: Evaluation configuration.
 
         Returns:
-            Tuple of (loss, num_examples, metrics)
+            Tuple of (loss, num_examples, metrics).
         """
         loss = self._rng.uniform(0.1, 1.5)
         num_examples = int(self._rng.integers(30, 100))
@@ -260,34 +255,28 @@ class MockClient:
     """Mock implementation of flwr.client.Client."""
 
     def __init__(self, numpy_client: MockNumPyClient):
-        """
-        Initialize mock client wrapper.
+        """Initializes mock client wrapper.
 
         Args:
-            numpy_client: Underlying NumPy client
+            numpy_client: Underlying NumPy client.
         """
         self.numpy_client = numpy_client
 
     def fit(self, parameters: MockParameters, config: Config) -> MockFitRes:
-        """Mock fit method that delegates to NumPy client."""
-        # Convert Parameters to numpy arrays
+        """Delegates fit to NumPy client."""
         np_params = [np.frombuffer(t, dtype=np.float32) for t in parameters.tensors]
 
-        # Call NumPy client
         updated_params, num_examples, metrics = self.numpy_client.fit(np_params, config)
 
-        # Convert back to Parameters
         updated_tensors = [p.tobytes() for p in updated_params]
         updated_parameters = MockParameters(updated_tensors, parameters.tensor_type)
 
         return MockFitRes(updated_parameters, num_examples, metrics)
 
     def evaluate(self, parameters: MockParameters, config: Config) -> MockEvaluateRes:
-        """Mock evaluate method that delegates to NumPy client."""
-        # Convert Parameters to numpy arrays
+        """Delegates evaluate to NumPy client."""
         np_params = [np.frombuffer(t, dtype=np.float32) for t in parameters.tensors]
 
-        # Call NumPy client
         loss, num_examples, metrics = self.numpy_client.evaluate(np_params, config)
 
         return MockEvaluateRes(loss, num_examples, metrics)
@@ -298,23 +287,22 @@ def mock_start_simulation(
     num_clients: int,
     config: MockServerConfig,
     strategy: Any,
+    initial_parameters: Optional[Union[MockParameters, Parameters]] = None,
     **_kwargs: Any,
 ) -> Dict[str, Any]:
-    """
-    Mock flwr.simulation.start_simulation.
+    """Mocks flwr.simulation.start_simulation with real strategy execution.
 
     Args:
-        client_fn: Function to create client instances
-        num_clients: Number of clients in simulation
-        config: Server configuration
-        strategy: Aggregation strategy
-        **_kwargs: Additional simulation parameters (unused)
+        client_fn: Function to create client instances.
+        num_clients: Number of clients in simulation.
+        config: Server configuration.
+        strategy: Aggregation strategy instance.
+        initial_parameters: Initial model parameters for simulation.
+        **_kwargs: Additional simulation parameters.
 
     Returns:
-        Mock simulation results
+        Mock simulation results.
     """
-
-    # Initialize simulation state
     simulation_results = {
         "history": {
             "losses_distributed": [],
@@ -326,23 +314,34 @@ def mock_start_simulation(
         "num_clients": num_clients,
     }
 
-    # Create mock client proxies
     client_proxies = []
     for cid in range(num_clients):
         proxy = MockClientProxy(str(cid), client_fn)
         client_proxies.append(proxy)
 
-    # Simulate federated learning rounds
-    for round_num in range(config.num_rounds):
-        round_results = _simulate_round(
-            client_proxies, strategy, round_num, num_clients
+    if initial_parameters is None:
+        rng = np.random.default_rng(42)
+        initial_parameters = ndarrays_to_parameters(
+            [
+                rng.standard_normal((100, 10)).astype(np.float32),
+                rng.standard_normal(10).astype(np.float32),
+            ]
         )
 
-        # Update simulation history
+    assert initial_parameters is not None
+    current_params = initial_parameters
+
+    for round_num in range(1, config.num_rounds + 1):
+        round_results, new_params = _simulate_round(
+            client_proxies, strategy, round_num, num_clients, current_params
+        )
+
+        if new_params is not None:
+            current_params = new_params
+
         avg_loss = round_results["avg_loss"]
         simulation_results["history"]["losses_distributed"].append(avg_loss)
 
-        # Add round metrics
         metrics_dict = round_results["metrics"]
         for metric_name, metric_value in metrics_dict.items():
             distributed_metrics = simulation_results["history"]["metrics_distributed"]
@@ -355,96 +354,115 @@ def mock_start_simulation(
 
 def _simulate_round(
     client_proxies: List[MockClientProxy],
-    _: Any,
+    strategy: Any,
     round_num: int,
     num_clients: int,
-) -> Dict[str, Any]:
-    """
-    Simulate single federated learning round.
+    current_params: Union[MockParameters, Parameters],
+) -> Tuple[Dict[str, Any], Optional[Union[MockParameters, Parameters]]]:
+    """Simulates a single federated learning round.
 
     Args:
-        client_proxies: List of client proxies
-        _: Aggregation strategy (unused)
-        round_num: Current round number
-        num_clients: Total number of clients
+        client_proxies: List of client proxies.
+        strategy: Aggregation strategy instance.
+        round_num: Current round number.
+        num_clients: Total number of clients.
+        current_params: Current model parameters.
 
     Returns:
-        Round results dictionary
+        Tuple of (round_results_dict, aggregated_parameters).
     """
-    # Mock initial parameters for the round
-    rng = np.random.default_rng(42 + round_num)
-    mock_params = MockParameters(
-        [rng.standard_normal(100).astype(np.float32).tobytes()], TENSOR_TYPE_NUMPY
-    )
-
-    # Simulate client selection (use all clients for simplicity)
     selected_clients = client_proxies[: min(num_clients, len(client_proxies))]
 
-    # Simulate client training
-    fit_results = []
+    fit_results: List[Tuple[MockClientProxy, MockFitRes]] = []
     for client in selected_clients:
-        fit_res = client.fit(mock_params, {"round": round_num})
-        fit_results.append(fit_res)
+        fit_res = client.fit(current_params, {"round": round_num})
+        fit_results.append((client, fit_res))
 
-    # Simulate client evaluation
-    eval_results = []
+    aggregated_params = None
+    fit_metrics: Dict[str, Any] = {}
+    try:
+        result = strategy.aggregate_fit(
+            server_round=round_num,
+            results=fit_results,
+            failures=[],
+        )
+        if result is not None:
+            aggregated_params, fit_metrics = result
+    except Exception as e:
+        import logging
+
+        logging.warning(f"aggregate_fit failed in round {round_num}: {e}")
+
+    eval_results: List[Tuple[MockClientProxy, MockEvaluateRes]] = []
     for client in selected_clients:
-        eval_res = client.evaluate(mock_params, {"round": round_num})
-        eval_results.append(eval_res)
+        eval_res = client.evaluate(current_params, {"round": round_num})
+        eval_results.append((client, eval_res))
 
-    # Calculate round metrics
-    avg_loss = np.mean([res.loss for res in eval_results])
-    avg_accuracy = np.mean(
-        [float(res.metrics.get("accuracy", 0.0)) for res in eval_results]
-    )
+    avg_loss = 0.0
+    eval_metrics: Dict[str, Any] = {}
+    try:
+        result = strategy.aggregate_evaluate(
+            server_round=round_num,
+            results=eval_results,
+            failures=[],
+        )
+        if result is not None:
+            avg_loss, eval_metrics = result
+            if avg_loss is None:
+                avg_loss = 0.0
+    except Exception as e:
+        import logging
+
+        logging.warning(f"aggregate_evaluate failed in round {round_num}: {e}")
+        avg_loss = float(np.mean([res.loss for _, res in eval_results]))
+
+    if "accuracy" not in eval_metrics:
+        avg_accuracy = float(
+            np.mean([res.metrics.get("accuracy", 0.0) for _, res in eval_results])
+        )
+        eval_metrics["accuracy"] = avg_accuracy
 
     return {
         "avg_loss": avg_loss,
-        "metrics": {"accuracy": avg_accuracy, "num_clients": len(selected_clients)},
+        "metrics": {**eval_metrics, "num_clients": len(selected_clients)},
         "fit_results": fit_results,
         "eval_results": eval_results,
-    }
-
-
-# Utility functions for parameter conversion (mock implementations)
+    }, aggregated_params
 
 
 def mock_ndarrays_to_parameters(ndarrays: List[NDArray]) -> MockParameters:
-    """
-    Mock flwr.common.ndarrays_to_parameters.
+    """Mocks flwr.common.ndarrays_to_parameters.
 
     Args:
-        ndarrays: List of numpy arrays
+        ndarrays: List of numpy arrays.
 
     Returns:
-        Mock Parameters object
+        Mock Parameters object.
     """
     tensors = [arr.astype(np.float32).tobytes() for arr in ndarrays]
     return MockParameters(tensors, TENSOR_TYPE_NUMPY)
 
 
 def mock_parameters_to_ndarrays(parameters: MockParameters) -> List[NDArray]:
-    """
-    Mock flwr.common.parameters_to_ndarrays.
+    """Mocks flwr.common.parameters_to_ndarrays.
 
     Args:
-        parameters: Mock Parameters object
+        parameters: Mock Parameters object.
 
     Returns:
-        List of numpy arrays
+        List of numpy arrays.
     """
     return [np.frombuffer(tensor, dtype=np.float32) for tensor in parameters.tensors]
 
 
 def mock_weighted_loss_avg(results: List[Tuple[int, float]]) -> float:
-    """
-    Mock implementation of flwr.server.strategy.aggregate.weighted_loss_avg.
+    """Mocks flwr.server.strategy.aggregate.weighted_loss_avg.
 
     Args:
-        results: List of (num_examples, loss) tuples
+        results: List of (num_examples, loss) tuples.
 
     Returns:
-        Weighted average loss
+        Weighted average loss.
     """
     if not results:
         return 0.0
@@ -457,32 +475,27 @@ def mock_weighted_loss_avg(results: List[Tuple[int, float]]) -> float:
     return weighted_sum / total_examples
 
 
-# Factory functions for creating mock components
-
-
 def create_mock_flower_client(client_id: int = 0) -> MockClient:
-    """
-    Create mock Flower client.
+    """Creates a mock Flower client.
 
     Args:
-        client_id: Client identifier
+        client_id: Client identifier.
 
     Returns:
-        Mock Flower client
+        Mock Flower client.
     """
     numpy_client = MockNumPyClient(client_id)
     return MockClient(numpy_client)
 
 
 def create_mock_client_proxies(num_clients: int) -> List[MockClientProxy]:
-    """
-    Create multiple mock client proxies for testing.
+    """Creates multiple mock client proxies.
 
     Args:
-        num_clients: Number of client proxies to create
+        num_clients: Number of client proxies to create.
 
     Returns:
-        List of mock client proxies
+        List of mock client proxies.
     """
     return [MockClientProxy(str(i)) for i in range(num_clients)]
 
@@ -490,22 +503,20 @@ def create_mock_client_proxies(num_clients: int) -> List[MockClientProxy]:
 def create_mock_fit_results(
     num_clients: int, param_shapes: List[Tuple[int, ...]]
 ) -> List[MockFitRes]:
-    """
-    Create mock fit results for testing aggregation strategies.
+    """Creates mock fit results.
 
     Args:
-        num_clients: Number of clients
-        param_shapes: Shapes of model parameters
+        num_clients: Number of clients.
+        param_shapes: Shapes of model parameters.
 
     Returns:
-        List of mock fit results
+        List of mock fit results.
     """
     results = []
 
     for client_id in range(num_clients):
         rng = np.random.default_rng(42 + client_id)
 
-        # Create mock parameters
         tensors = []
         for shape in param_shapes:
             param = rng.standard_normal(shape).astype(np.float32)
@@ -524,14 +535,13 @@ def create_mock_fit_results(
 
 
 def create_mock_evaluate_results(num_clients: int) -> List[MockEvaluateRes]:
-    """
-    Create mock evaluation results for testing.
+    """Creates mock evaluation results.
 
     Args:
-        num_clients: Number of clients
+        num_clients: Number of clients.
 
     Returns:
-        List of mock evaluation results
+        List of mock evaluation results.
     """
     results = []
 
