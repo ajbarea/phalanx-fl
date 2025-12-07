@@ -9,11 +9,9 @@ from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
 from unittest.mock import patch
 
-from tests.common import Mock, np, pytest
 import torch
 import torch.nn as nn
 
-# Import BERT model functions
 from src.network_models.bert_model_definition import (
     get_lora_state_dict,
     load_model,
@@ -21,6 +19,8 @@ from src.network_models.bert_model_definition import (
     set_lora_state_dict,
 )
 from src.network_models.bloodmnist_network_definition import BloodMNISTNetwork
+from src.network_models.breastmnist_network_definition import BreastMNISTNetwork
+from src.network_models.dermamnist_network_definition import DermaMNISTNetwork
 from src.network_models.femnist_full_niid_network_definition import (
     FemnistFullNIIDNetwork,
 )
@@ -28,10 +28,6 @@ from src.network_models.femnist_reduced_iid_network_definition import (
     FemnistReducedIIDNetwork,
 )
 from src.network_models.flair_network_definition import FlairNetwork
-
-# Import network models
-from src.network_models.breastmnist_network_definition import BreastMNISTNetwork
-from src.network_models.dermamnist_network_definition import DermaMNISTNetwork
 from src.network_models.its_network_definition import ITSNetwork
 from src.network_models.lung_photos_network_definition import (
     LungCancerCNN as LungPhotosNetwork,
@@ -44,6 +40,7 @@ from src.network_models.pathmnist_network_definition import PathMNISTNetwork
 from src.network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
 from src.network_models.retinamnist_network_definition import RetinaMNISTNetwork
 from src.network_models.tissuemnist_network_definition import TissueMNISTNetwork
+from tests.common import Mock, np, pytest
 
 
 class TestNetworkModels:

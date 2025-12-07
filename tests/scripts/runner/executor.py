@@ -6,19 +6,19 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime
-from pathlib import Path
-from typing import Optional, List
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
+from pathlib import Path
+from typing import List, Optional
 
 from rich.console import Console
 from rich.progress import (
+    BarColumn,
     Progress,
     SpinnerColumn,
-    TextColumn,
-    BarColumn,
     TaskProgressColumn,
+    TextColumn,
 )
 
 from .timing_db import TimingDatabase

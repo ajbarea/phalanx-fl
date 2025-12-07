@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
-from tests.common import Mock, pytest, mock_medquad_dependencies
 from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
+from tests.common import Mock, mock_medquad_dependencies, pytest
 
 
 class TestMedQuADDatasetLoader:

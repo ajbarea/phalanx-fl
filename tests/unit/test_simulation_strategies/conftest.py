@@ -11,13 +11,7 @@ import pytest
 from flwr.common import EvaluateRes
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from tests.common import (
-    ClientProxy,
-    Mock,
-    generate_mock_client_data,
-    np,
-)
-
+from tests.common import ClientProxy, Mock, generate_mock_client_data, np
 
 # =============================================================================
 # CLIENT RESULT FIXTURES

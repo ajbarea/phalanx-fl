@@ -1,8 +1,9 @@
 """Unit tests for dynamic client.is_malicious updates based on attack_schedule."""
 
 from unittest.mock import Mock
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+
 from src.data_models.simulation_strategy_config import StrategyConfig
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 
 class TestDynamicClientMaliciousUpdate:

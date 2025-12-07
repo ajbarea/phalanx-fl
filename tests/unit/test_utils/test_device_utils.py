@@ -3,10 +3,7 @@ from unittest.mock import Mock, patch
 
 import torch
 
-from src.utils.device_utils import (
-    get_device,
-    get_device_name,
-)
+from src.utils.device_utils import get_device, get_device_name
 
 
 class TestDeviceUtils(unittest.TestCase):

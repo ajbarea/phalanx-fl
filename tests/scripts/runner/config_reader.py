@@ -1,9 +1,9 @@
 """Config file reader utility for experiments."""
 
 import json
-from pathlib import Path
-from typing import Optional, Dict, Any
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 
 @dataclass

@@ -1,15 +1,14 @@
 """Unit tests for weight-level poisoning attacks."""
 
-from tests.common import np
-
 from src.attack_utils.weight_poisoning import (
-    apply_model_poisoning,
-    apply_gradient_scaling,
+    WEIGHT_ATTACK_TYPES,
     apply_byzantine_perturbation,
+    apply_gradient_scaling,
+    apply_model_poisoning,
     apply_weight_poisoning,
     is_weight_attack,
-    WEIGHT_ATTACK_TYPES,
 )
+from tests.common import np
 
 
 class TestWeightAttackTypes:

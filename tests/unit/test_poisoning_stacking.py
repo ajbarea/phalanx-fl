@@ -1,12 +1,9 @@
 """Unit tests for attack stacking functionality in dynamic poisoning."""
 
-from tests.common import pytest
 import torch
 
-from src.attack_utils.poisoning import (
-    should_poison_this_round,
-    apply_poisoning_attack,
-)
+from src.attack_utils.poisoning import apply_poisoning_attack, should_poison_this_round
+from tests.common import pytest
 
 
 def _create_attack_schedule_entry(

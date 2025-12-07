@@ -6,17 +6,18 @@ Usage:
     python -m tests.scripts.experiment_runner examples
 """
 
-import sys
-import json
 import argparse
+import json
+import sys
 from collections import defaultdict
 from pathlib import Path
 
-from tests.scripts.runner.executor import ExperimentExecutor, display_summary
-from tests.scripts.runner.timing_db import TimingDatabase
-from tests.scripts.runner.config_reader import ConfigReader
 from rich.console import Console
 from rich.table import Table
+
+from tests.scripts.runner.config_reader import ConfigReader
+from tests.scripts.runner.executor import ExperimentExecutor, display_summary
+from tests.scripts.runner.timing_db import TimingDatabase
 
 # Project root for config/output paths
 project_root = Path(__file__).parent.parent.parent

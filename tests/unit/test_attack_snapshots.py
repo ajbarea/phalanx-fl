@@ -3,21 +3,19 @@
 import pickle
 from unittest.mock import patch
 
+from src.attack_utils.attack_snapshots import (
+    get_snapshot_summary,
+    list_attack_snapshots,
+    load_attack_snapshot,
+    save_attack_snapshot,
+)
 from tests.common import (
-    pytest,
-    create_sample_tensors,
     create_attack_config,
     create_nested_attack_config,
+    create_sample_tensors,
+    pytest,
     verify_pickle_snapshot,
 )
-
-from src.attack_utils.attack_snapshots import (
-    save_attack_snapshot,
-    load_attack_snapshot,
-    list_attack_snapshots,
-    get_snapshot_summary,
-)
-
 
 # =============================================================================
 # TEST SUITE

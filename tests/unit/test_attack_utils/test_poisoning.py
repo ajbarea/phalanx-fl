@@ -1,16 +1,17 @@
 """Unit tests for attack_utils.poisoning module."""
 
 from unittest.mock import MagicMock, patch
-from tests.common import pytest
+
 import torch
 
 from src.attack_utils.poisoning import (
-    apply_label_flipping,
     apply_gaussian_noise,
+    apply_label_flipping,
+    apply_poisoning_attack,
     apply_token_replacement,
     should_poison_this_round,
-    apply_poisoning_attack,
 )
+from tests.common import pytest
 
 
 class TestApplyLabelFlipping:

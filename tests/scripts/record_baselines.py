@@ -21,12 +21,13 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from tests.scripts.runner.executor import ExperimentExecutor
-from tests.scripts.runner.timing_db import TimingDatabase
+
 from rich.console import Console
 from rich.table import Table
 
-from tests.scripts.constants import FAST_CONFIGS, BASELINE_FORMAT_VERSION
+from tests.scripts.constants import BASELINE_FORMAT_VERSION, FAST_CONFIGS
+from tests.scripts.runner.executor import ExperimentExecutor
+from tests.scripts.runner.timing_db import TimingDatabase
 
 # Project root for path resolution
 project_root = Path(__file__).parent.parent.parent

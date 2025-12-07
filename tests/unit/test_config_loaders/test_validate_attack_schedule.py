@@ -5,9 +5,10 @@ Tests attack schedule parameter validation, round range validation,
 attack type parameters, and client selection strategies.
 """
 
-from tests.common import pytest
 from jsonschema import ValidationError
+
 from src.config_loaders.validate_strategy_config import validate_strategy_config
+from tests.common import pytest
 
 
 class TestValidateAttackSchedule:

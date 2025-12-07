@@ -9,14 +9,7 @@ from unittest.mock import patch
 from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
-from tests.common import (
-    ClientProxy,
-    FitRes,
-    Mock,
-    ndarrays_to_parameters,
-    np,
-    pytest,
-)
+from tests.common import ClientProxy, FitRes, Mock, ndarrays_to_parameters, np, pytest
 
 
 class TestTrustBasedRemovalStrategy:

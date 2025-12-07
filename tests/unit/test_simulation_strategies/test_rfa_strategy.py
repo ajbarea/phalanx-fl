@@ -6,19 +6,18 @@ Tests RFA (Robust Federated Averaging) geometric median calculation and client r
 
 from unittest.mock import patch
 
-from tests.common import (
-    Mock,
-    np,
-    pytest,
-    FitRes,
-    ndarrays_to_parameters,
-    parameters_to_ndarrays,
-    ClientProxy,
-)
-from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
-
-from tests.common import generate_mock_client_data
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
+from tests.common import (
+    ClientProxy,
+    FitRes,
+    Mock,
+    generate_mock_client_data,
+    ndarrays_to_parameters,
+    np,
+    parameters_to_ndarrays,
+    pytest,
+)
 
 
 class TestRFABasedRemovalStrategy:

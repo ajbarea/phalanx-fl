@@ -10,38 +10,21 @@ Separation of concerns:
 # CONSOLIDATED IMPORTS
 # =============================================================================
 
-# Standard library
-import sys
-import os
+import contextlib
+import inspect
 import io
 import locale
 import logging
-import contextlib
-import inspect
+import os
+import sys
 from pathlib import Path
-from typing import Generator, List, Tuple, Any, Dict, Optional, Union
+from typing import Any, Dict, Generator, List, Optional, Tuple, Union
 from unittest.mock import Mock
 
-# Third-party imports (conditional to avoid import errors)
-try:
-    import numpy as np
-except ImportError:
-    np = None
-
-try:
-    import pytest
-except ImportError:
-    pytest = None
-
-# Flower imports (conditional)
-try:
-    from flwr.common import FitRes, ndarrays_to_parameters, parameters_to_ndarrays
-    from flwr.server.client_proxy import ClientProxy
-except ImportError:
-    FitRes = None
-    ndarrays_to_parameters = None
-    parameters_to_ndarrays = None
-    ClientProxy = None
+import numpy as np
+import pytest
+from flwr.common import FitRes, ndarrays_to_parameters, parameters_to_ndarrays
+from flwr.server.client_proxy import ClientProxy
 
 # Type definitions
 NDArray = Any  # Will be np.ndarray when numpy is available

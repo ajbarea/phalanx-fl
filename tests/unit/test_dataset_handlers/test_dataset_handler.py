@@ -9,10 +9,10 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from tests.common import Mock, pytest
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.dataset_handlers.dataset_handler import DatasetHandler
 from src.output_handlers.directory_handler import DirectoryHandler
+from tests.common import Mock, pytest
 
 
 class TestDatasetHandler:
