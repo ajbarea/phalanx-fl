@@ -1,33 +1,41 @@
-import os
+import csv
 import datetime
 import json
-import csv
+from pathlib import Path
+
 import numpy as np
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 
 class DirectoryHandler:
-    dirname = f"out/{str(datetime.datetime.now().strftime('%m-%d-%Y_%H-%M-%S'))}"
-    new_plots_dirname = dirname
-    new_csv_dirname = dirname + "/csv"
+    dirname: str = None
 
-    def __init__(self):
-        self.simulation_strategy_history = None
-        self.dirname = DirectoryHandler.dirname
-        self.new_plots_dirname = DirectoryHandler.new_plots_dirname
+    def __init__(self, output_dir: str = None):
+        """Initialize directory handler.
+
+        Args:
+            output_dir: Output directory path. Defaults to timestamped dir in out/.
+        """
+        base = Path(output_dir) if output_dir else Path(
+            f"out/{datetime.datetime.now().strftime('%m-%d-%Y_%H-%M-%S')}"
+        )
+        self.dirname = str(base)
+        self.new_plots_dirname = self.dirname
+        self.new_csv_dirname = str(base / "csv")
+        self.simulation_strategy_history: SimulationStrategyHistory = None
         self.dataset_dir = None
 
-        os.makedirs(self.dirname, exist_ok=True)
-        os.makedirs(self.new_csv_dirname, exist_ok=True)
+        DirectoryHandler.dirname = self.dirname
 
-        self.simulation_strategy_history: SimulationStrategyHistory
+        base.mkdir(parents=True, exist_ok=True)
+        (base / "csv").mkdir(exist_ok=True)
 
     def assign_dataset_dir(self, strategy_number):
-        """Create and set dataset directory for the strategy"""
-
-        self.dataset_dir = self.dirname + "/dataset_" + str(strategy_number)
-        os.makedirs(self.dataset_dir)
+        """Create and set dataset directory for the strategy."""
+        dataset_path = Path(self.dirname) / f"dataset_{strategy_number}"
+        dataset_path.mkdir(exist_ok=True)
+        self.dataset_dir = str(dataset_path)
 
     def save_csv_and_config(
         self, simulation_strategy_history: SimulationStrategyHistory

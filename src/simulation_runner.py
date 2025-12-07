@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import time
+from pathlib import Path
 import torch
 import gc
 import ray
@@ -15,11 +16,11 @@ os.environ["OMP_NUM_THREADS"] = str(os.cpu_count() or 1)
 os.environ["HF_HOME"] = "./cache/huggingface"
 
 from src.config_loaders.config_loader import ConfigLoader
-from src.output_handlers.directory_handler import DirectoryHandler
-from src.output_handlers import new_plot_handler
-from src.federated_simulation import FederatedSimulation
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.dataset_handlers.dataset_handler import DatasetHandler
+from src.federated_simulation import FederatedSimulation
+from src.output_handlers import new_plot_handler
+from src.output_handlers.directory_handler import DirectoryHandler
 
 
 def _serialize_config_for_logging(config_dict: dict) -> str:
@@ -57,22 +58,18 @@ def parse_arguments() -> argparse.Namespace:
 
 class SimulationRunner:
     def __init__(self, config_filename: str, log_level: str = "INFO") -> None:
-        # Configure logging only if not already configured
         if not logging.getLogger().hasHandlers():
             logging.basicConfig(
                 level=getattr(logging, log_level), format="%(levelname)s: %(message)s"
             )
+        logging.getLogger("flwr").propagate = False
 
-        # Prevent Flower's logs from duplicating
-        flwr_logger = logging.getLogger("flwr")
-        flwr_logger.propagate = False
+        config_path = Path(config_filename)
+        if not config_path.exists():
+            config_path = Path("config/simulation_strategies") / config_filename
 
         self._config_loader = ConfigLoader(
-            usecase_config_path=(
-                config_filename
-                if os.path.isabs(config_filename) or os.path.exists(config_filename)
-                else f"config/simulation_strategies/{config_filename}"
-            ),
+            usecase_config_path=str(config_path),
             dataset_config_path="config/dataset_keyword_to_dataset_dir.json",
         )
         self._simulation_strategy_config_dicts = (
