@@ -1,3 +1,4 @@
+import json
 import matplotlib
 
 matplotlib.use("Agg")
@@ -142,6 +143,64 @@ def _add_attack_background_shading(
         )
 
 
+def _is_client_malicious(client_id: int, attack_schedule: list) -> bool:
+    """Check if client is targeted by any attack in the schedule."""
+    if not attack_schedule:
+        return False
+    for entry in attack_schedule:
+        selection = entry.get("selection_strategy")
+        if selection == "specific":
+            if client_id in entry.get("malicious_client_ids", []):
+                return True
+        elif selection in ("random", "percentage"):
+            if client_id in entry.get("_selected_clients", []):
+                return True
+    return False
+
+
+def save_plot_data_json(
+    simulation_strategy: FederatedSimulation, directory_handler: DirectoryHandler
+) -> None:
+    """Export plot data as JSON for interactive frontend visualization."""
+    client_histories = simulation_strategy.strategy_history.get_all_clients()
+    if not client_histories:
+        return
+
+    attack_schedule = simulation_strategy.strategy_config.attack_schedule or []
+    rounds = client_histories[0].rounds
+    plottable_metrics = client_histories[0].plottable_metrics
+
+    per_client_metrics = []
+    for client in client_histories:
+        client_data = {
+            "client_id": client.client_id,
+            "is_malicious": _is_client_malicious(client.client_id, attack_schedule),
+            "metrics": {},
+        }
+        for metric_name in plottable_metrics:
+            values = client.get_metric_by_name(metric_name)
+            client_data["metrics"][metric_name] = [
+                float(v) if v is not None else None for v in values
+            ]
+        per_client_metrics.append(client_data)
+
+    plot_data = {
+        "per_client_metrics": per_client_metrics,
+        "rounds": list(rounds),
+        "removal_threshold_history": list(
+            simulation_strategy.strategy_history.rounds_history.removal_threshold_history
+        ) if simulation_strategy.strategy_history.rounds_history.removal_threshold_history else None,
+        "strategy_number": simulation_strategy.strategy_config.strategy_number,
+    }
+
+    output_path = (
+        f"{directory_handler.dirname}/"
+        f"plot_data_{simulation_strategy.strategy_config.strategy_number}.json"
+    )
+    with open(output_path, "w") as f:
+        json.dump(plot_data, f, indent=2)
+
+
 def show_plots_within_strategy(
     simulation_strategy: FederatedSimulation, directory_handler: DirectoryHandler
 ) -> None:
@@ -157,6 +216,9 @@ def show_plots_within_strategy(
 
     if not list_of_client_histories:
         return
+
+    if simulation_strategy.strategy_config.save_plots:
+        save_plot_data_json(simulation_strategy, directory_handler)
 
     plottable_metrics = list_of_client_histories[0].plottable_metrics
 
