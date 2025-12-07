@@ -163,7 +163,7 @@ setup_virtual_environment() {
 
     if [ -n "$venv_path" ]; then
         log_info "Found virtual environment in '$venv_path', activating..."
-        VENV_DIR="$venv_path"
+        VENV_DIR="$(cd "$venv_path" && pwd)"
         export VENV_DIR
         if [ -f "$VENV_DIR/Scripts/activate" ]; then
             . "$VENV_DIR/Scripts/activate"
