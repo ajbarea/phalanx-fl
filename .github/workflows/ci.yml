@@ -71,9 +71,9 @@ jobs:
         pip install -r requirements.txt
         pip install rich
 
-    - name: Run config validation
+    - name: Run smoke tests
       run: |
-        PYTHONPATH=. python tests/scripts/ci_smoke_test.py --parse-only
+        PYTHONPATH=. python tests/scripts/ci_smoke_test.py
 
   strategy-pipeline-test:
     runs-on: ubuntu-latest
