@@ -17,8 +17,10 @@ class DirectoryHandler:
         Args:
             output_dir: Output directory path. Defaults to timestamped dir in out/.
         """
-        base = Path(output_dir) if output_dir else Path(
-            f"out/{datetime.datetime.now().strftime('%m-%d-%Y_%H-%M-%S')}"
+        base = (
+            Path(output_dir)
+            if output_dir
+            else Path(f"out/{datetime.datetime.now().strftime('%m-%d-%Y_%H-%M-%S')}")
         )
         self.dirname = str(base)
         self.new_plots_dirname = self.dirname

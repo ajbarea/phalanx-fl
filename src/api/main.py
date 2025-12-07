@@ -20,7 +20,14 @@ from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import psutil
-from fastapi import Body, Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import (
+    Body,
+    Depends,
+    FastAPI,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
@@ -826,7 +833,6 @@ async def get_attack_snapshots(
 
                 # Find visual files
                 visual_files = list(round_dir.glob("*_visual.png"))
-                metadata_files = list(round_dir.glob("*_metadata.json"))
 
                 for visual_file in visual_files:
                     attack_type = visual_file.stem.replace("_visual", "")
@@ -842,19 +848,25 @@ async def get_attack_snapshots(
                         except (json.JSONDecodeError, IOError):
                             pass
 
-                    snapshots.append({
-                        "client_id": client_id,
-                        "round_num": round_num,
-                        "attack_type": attack_type,
-                        "image_path": str(rel_path).replace("\\", "/"),
-                        "metadata": metadata,
-                    })
+                    snapshots.append(
+                        {
+                            "client_id": client_id,
+                            "round_num": round_num,
+                            "attack_type": attack_type,
+                            "image_path": str(rel_path).replace("\\", "/"),
+                            "metadata": metadata,
+                        }
+                    )
 
-        strategies_data.append({
-            "strategy_number": strategy_num,
-            "summary": summary,
-            "snapshots": sorted(snapshots, key=lambda x: (x["round_num"], x["client_id"])),
-        })
+        strategies_data.append(
+            {
+                "strategy_number": strategy_num,
+                "summary": summary,
+                "snapshots": sorted(
+                    snapshots, key=lambda x: (x["round_num"], x["client_id"])
+                ),
+            }
+        )
 
     return {
         "has_snapshots": True,
@@ -1034,7 +1046,9 @@ async def terminal_websocket(websocket: WebSocket):
                     if ready:
                         data = os.read(master_fd, 4096)
                         if data:
-                            await websocket.send_text(data.decode("utf-8", errors="replace"))
+                            await websocket.send_text(
+                                data.decode("utf-8", errors="replace")
+                            )
                 except (OSError, BlockingIOError):
                     pass
 

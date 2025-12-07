@@ -185,7 +185,9 @@ class SimulationStrategyHistory:
                 else 0.0
             )
             self.rounds_history.average_accuracy_std_history.append(
-                np.std(round_client_accuracies) if len(round_client_accuracies) > 1 else 0.0
+                np.std(round_client_accuracies)
+                if len(round_client_accuracies) > 1
+                else 0.0
             )
 
         if self.strategy_config.remove_clients:

@@ -189,7 +189,9 @@ def save_plot_data_json(
         "rounds": list(rounds),
         "removal_threshold_history": list(
             simulation_strategy.strategy_history.rounds_history.removal_threshold_history
-        ) if simulation_strategy.strategy_history.rounds_history.removal_threshold_history else None,
+        )
+        if simulation_strategy.strategy_history.rounds_history.removal_threshold_history
+        else None,
         "strategy_number": simulation_strategy.strategy_config.strategy_number,
     }
 
