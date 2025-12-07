@@ -29,6 +29,9 @@ fi
 log_info "⚡ Running ruff check..."
 ruff check --fix --exclude src/attack_utils/vocabularies .
 
+log_info "⚡ Running isort..."
+isort --quiet --skip "src/attack_utils/vocabularies/*" tests/
+
 log_info "⚡ Running ruff format..."
 ruff format --exclude src/attack_utils/vocabularies .
 
