@@ -8,6 +8,7 @@ import { MetricsTab } from '@components/features/simulation-details/MetricsTab/M
 import { ConfigTab } from '@components/features/simulation-details/ConfigTab/ConfigTab';
 import { PlotsTab } from '@components/features/simulation-details/PlotsTab/PlotsTab';
 import { ComparisonTab } from '@components/features/simulation-details/ComparisonTab/ComparisonTab';
+import { AttackSnapshotsTab } from '@components/features/simulation-details/AttackSnapshotsTab';
 import { useSimulationDetails } from '@hooks/useSimulationDetails';
 import { useCSVData } from '@hooks/useCSVData';
 import { createSimulation, stopSimulation } from '@api/endpoints/simulations';
@@ -134,6 +135,10 @@ export function SimulationDetails() {
 
         <Tab eventKey="plots" title="Plots">
           <PlotsTab simulation={{ ...details, id: simulationId }} />
+        </Tab>
+
+        <Tab eventKey="attacks" title="Attacks">
+          <AttackSnapshotsTab simulationId={simulationId} status={displayStatus} />
         </Tab>
 
         <Tab eventKey="metrics" title="Metrics">
