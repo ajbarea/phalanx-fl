@@ -7,7 +7,6 @@ from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.federated_simulation import FederatedSimulation
-from src.output_handlers.directory_handler import DirectoryHandler
 from src.output_handlers.new_plot_handler import (
     _generate_multi_string_strategy_label,
     _generate_single_string_strategy_label,
@@ -22,11 +21,11 @@ matplotlib.use("Agg")
 
 
 class TestPlotHandler:
-    """Test suite for new_plot_handler plotting functionality"""
+    """Tests for new_plot_handler plotting functionality."""
 
     @pytest.fixture
     def mock_strategy_config(self):
-        """Create a mock strategy configuration for testing"""
+        """Returns a mock StrategyConfig."""
         return StrategyConfig(
             aggregation_strategy_keyword="trust",
             dataset_keyword="its",
@@ -42,7 +41,7 @@ class TestPlotHandler:
 
     @pytest.fixture
     def mock_client_info_list(self):
-        """Create mock client info list with metrics for testing"""
+        """Returns mock ClientInfo objects with loss and accuracy metrics."""
         clients = []
         for i in range(3):
             client = ClientInfo(client_id=i, num_of_rounds=3)
@@ -53,16 +52,14 @@ class TestPlotHandler:
 
     @pytest.fixture
     def mock_simulation_strategy(self, mock_strategy_config, mock_client_info_list):
-        """Create mock federated simulation for testing"""
+        """Returns a mock FederatedSimulation with strategy history."""
 
         simulation = Mock(spec=FederatedSimulation)
         simulation.strategy_config = mock_strategy_config
 
-        # Mock strategy history
         strategy_history = Mock(spec=SimulationStrategyHistory)
         strategy_history.get_all_clients.return_value = mock_client_info_list
 
-        # Add the missing rounds_history attribute
         mock_rounds_history = Mock(spec=RoundsInfo)
         mock_rounds_history.removal_threshold_history = []
         strategy_history.rounds_history = mock_rounds_history
@@ -72,14 +69,17 @@ class TestPlotHandler:
         return simulation
 
     @pytest.fixture
-    def mock_directory_handler(self):
-        """Create mock directory handler for testing"""
-        handler = Mock(spec=DirectoryHandler)
-        handler.dirname = "/tmp/test_output"
+    def mock_directory_handler(self, tmp_path):
+        """Returns a mock directory handler with tmp_path outputs."""
+        test_output = tmp_path / "test_output"
+        test_output.mkdir(exist_ok=True)
+        handler = Mock()
+        handler.dirname = str(test_output)
+        handler.new_plots_dirname = str(test_output)
         return handler
 
     def test_generate_single_string_strategy_label(self, mock_strategy_config):
-        """Test _generate_single_string_strategy_label creates correct label"""
+        """Verifies _generate_single_string_strategy_label includes all config fields."""
         label = _generate_single_string_strategy_label(mock_strategy_config)
 
         assert "strategy: trust" in label
@@ -92,7 +92,7 @@ class TestPlotHandler:
         assert "batch_size: 32" in label
 
     def test_generate_single_string_strategy_label_no_removal(self):
-        """Test label generation when client removal is disabled"""
+        """Verifies label shows 'n/a' for remove_from when removal is disabled."""
         config = StrategyConfig(
             aggregation_strategy_keyword="fedavg",
             dataset_keyword="femnist",
@@ -109,11 +109,10 @@ class TestPlotHandler:
         assert "remove_from: n/a" in label
 
     def test_generate_multi_string_strategy_label(self, mock_strategy_config):
-        """Test _generate_multi_string_strategy_label replaces commas with newlines"""
+        """Verifies multi-string label replaces commas with newlines."""
         multi_label = _generate_multi_string_strategy_label(mock_strategy_config)
         single_label = _generate_single_string_strategy_label(mock_strategy_config)
 
-        # Should be same content but with newlines instead of commas
         assert multi_label == single_label.replace(", ", "\n")
         assert "\n" in multi_label
         assert ", " not in multi_label
@@ -121,15 +120,13 @@ class TestPlotHandler:
     def test_show_plots_within_strategy_returns_early_when_no_plots_enabled(
         self, mock_simulation_strategy, mock_directory_handler
     ):
-        """Test show_plots_within_strategy returns early when plots are disabled"""
-        # Disable both plot options
+        """Verifies no plots are created when both show and save are disabled."""
         mock_simulation_strategy.strategy_config.show_plots = False
         mock_simulation_strategy.strategy_config.save_plots = False
 
         with patch("matplotlib.pyplot.subplots") as mock_subplots:
             show_plots_within_strategy(mock_simulation_strategy, mock_directory_handler)
 
-            # Should not call matplotlib functions
             mock_subplots.assert_not_called()
 
     @patch("matplotlib.pyplot.figure")
@@ -143,16 +140,13 @@ class TestPlotHandler:
         mock_simulation_strategy,
         mock_directory_handler,
     ):
-        """Test show_plots_within_strategy creates plots when enabled"""
-        # Enable plot showing
+        """Verifies plots are created and shown when show_plots is enabled."""
         mock_simulation_strategy.strategy_config.show_plots = True
         mock_simulation_strategy.strategy_config.save_plots = False
 
         show_plots_within_strategy(mock_simulation_strategy, mock_directory_handler)
 
-        # Should create plots
         mock_figure.assert_called()
-        # Should show plots
         mock_show.assert_called()
 
     @patch("matplotlib.pyplot.figure")
@@ -166,34 +160,27 @@ class TestPlotHandler:
         mock_simulation_strategy,
         mock_directory_handler,
     ):
-        """Test show_plots_within_strategy saves plots when save is enabled"""
-        # Enable plot saving
+        """Verifies plots are saved but not shown when only save_plots is enabled."""
         mock_simulation_strategy.strategy_config.save_plots = True
         mock_simulation_strategy.strategy_config.show_plots = False
 
         show_plots_within_strategy(mock_simulation_strategy, mock_directory_handler)
 
-        # Should create plots
         mock_figure.assert_called()
-        # Should save plots
         mock_savefig.assert_called()
-        # Should not show plots
         mock_show.assert_not_called()
 
     @patch("matplotlib.pyplot.subplots")
     def test_show_plots_within_strategy_handles_empty_client_list(
         self, mock_subplots, mock_simulation_strategy, mock_directory_handler
     ):
-        """Test show_plots_within_strategy handles empty client list gracefully"""
-        # Mock empty client list
+        """Verifies empty client list does not raise an exception."""
         mock_simulation_strategy.strategy_history.get_all_clients.return_value = []
 
-        # Mock matplotlib components
         mock_fig = Mock()
         mock_axes = [Mock(), Mock()]
         mock_subplots.return_value = (mock_fig, mock_axes)
 
-        # Should not raise exception with empty client list
         show_plots_within_strategy(mock_simulation_strategy, mock_directory_handler)
 
     @patch("matplotlib.pyplot.figure")
@@ -201,22 +188,19 @@ class TestPlotHandler:
     def test_show_plots_within_strategy_uses_client_metrics(
         self, mock_plot, mock_figure, mock_simulation_strategy, mock_directory_handler
     ):
-        """Test show_plots_within_strategy uses client loss and accuracy metrics"""
+        """Verifies client loss and accuracy metrics are plotted."""
         show_plots_within_strategy(mock_simulation_strategy, mock_directory_handler)
 
-        # Should call plot method, verifying that the metric-processing loop is entered
         mock_plot.assert_called()
 
     def test_plot_size_constant(self):
-        """Test plot_size constant is correctly defined"""
-
+        """Verifies plot_size is a tuple of two integers."""
         assert plot_size == (11, 7)
         assert len(plot_size) == 2
         assert all(isinstance(dim, int) for dim in plot_size)
 
     def test_bar_width_constant(self):
-        """Test bar_width constant is correctly defined"""
-
+        """Verifies bar_width is a positive float."""
         assert bar_width == 0.2
         assert isinstance(bar_width, float)
 
@@ -224,13 +208,11 @@ class TestPlotHandler:
     def test_show_plots_with_both_options_enabled(
         self, mock_subplots, mock_simulation_strategy, mock_directory_handler
     ):
-        """Test show_plots_within_strategy when both show and save are enabled"""
-        # Mock matplotlib components
+        """Verifies both show and save occur when both options are enabled."""
         mock_fig = Mock()
         mock_axes = [Mock(), Mock()]
         mock_subplots.return_value = (mock_fig, mock_axes)
 
-        # Enable both options
         mock_simulation_strategy.strategy_config.show_plots = True
         mock_simulation_strategy.strategy_config.save_plots = True
 
@@ -240,12 +222,11 @@ class TestPlotHandler:
                     mock_simulation_strategy, mock_directory_handler
                 )
 
-                # Should both show and save
                 mock_show.assert_called()
                 mock_savefig.assert_called()
 
     def test_strategy_label_handles_none_values(self):
-        """Test strategy label generation handles None values gracefully"""
+        """Verifies None values in config are converted to strings."""
         config = StrategyConfig(
             aggregation_strategy_keyword="fedavg",
             dataset_keyword=None,
@@ -256,14 +237,13 @@ class TestPlotHandler:
             batch_size=None,
         )
 
-        # Should not raise exception with None values
         label = _generate_single_string_strategy_label(config)
         assert "strategy: fedavg" in label
-        assert "None" in label  # None values should be converted to string
+        assert "None" in label
 
     @pytest.fixture
     def mock_multiple_strategies(self, mock_strategy_config):
-        """Create multiple mock simulation strategies for inter-strategy testing"""
+        """Returns multiple mock FederatedSimulation objects for inter-strategy tests."""
         strategies = []
         for i in range(2):
             simulation = Mock(spec=FederatedSimulation)
@@ -280,15 +260,12 @@ class TestPlotHandler:
             )
             simulation.strategy_config = config
 
-            # Mock strategy history with rounds_history
             strategy_history = Mock(spec=SimulationStrategyHistory)
 
-            # Mock client info with rounds
             client_info = Mock(spec=ClientInfo)
             client_info.rounds = [1, 2, 3]
             strategy_history.get_all_clients.return_value = [client_info]
 
-            # Mock rounds_history with metrics
             rounds_history = Mock(spec=RoundsInfo)
             rounds_history.plottable_metrics = ["accuracy", "loss"]
             rounds_history.barable_metrics = ["num_clients"]
@@ -315,11 +292,10 @@ class TestPlotHandler:
         mock_multiple_strategies,
         mock_directory_handler,
     ):
-        """Test show_inter_strategy_plots creates line plots for plottable metrics"""
+        """Verifies line plots are created for plottable metrics."""
         show_inter_strategy_plots(mock_multiple_strategies, mock_directory_handler)
 
-        # Should create figure for each plottable metric
-        assert mock_figure.call_count >= 2  # accuracy and loss
+        assert mock_figure.call_count >= 2
         mock_show.assert_called()
 
     @patch("matplotlib.pyplot.tight_layout")
@@ -335,7 +311,7 @@ class TestPlotHandler:
         mock_multiple_strategies,
         mock_directory_handler,
     ):
-        """Test show_inter_strategy_plots creates bar plots for barable metrics"""
+        """Verifies bar plots are created for barable metrics."""
         show_inter_strategy_plots(mock_multiple_strategies, mock_directory_handler)
 
         mock_bar.assert_called()
@@ -343,8 +319,7 @@ class TestPlotHandler:
     def test_show_inter_strategy_plots_returns_early_when_plots_disabled(
         self, mock_multiple_strategies, mock_directory_handler
     ):
-        """Test show_inter_strategy_plots returns early when plots are disabled"""
-        # Disable both plot options for first strategy
+        """Verifies no figures are created when plots are disabled."""
         mock_multiple_strategies[0].strategy_config.show_plots = False
         mock_multiple_strategies[0].strategy_config.save_plots = False
 
@@ -361,8 +336,7 @@ class TestPlotHandler:
         mock_multiple_strategies,
         mock_directory_handler,
     ):
-        """Test show_inter_strategy_plots saves plots when save_plots is enabled"""
-        # Enable saving for first strategy
+        """Verifies plots are saved when save_plots is enabled."""
         mock_multiple_strategies[0].strategy_config.save_plots = True
         mock_multiple_strategies[0].strategy_config.show_plots = False
 
@@ -383,7 +357,7 @@ class TestPlotHandler:
         mock_multiple_strategies,
         mock_directory_handler,
     ):
-        """Test show_inter_strategy_plots handles strategies with empty metrics"""
+        """Verifies strategies with empty metrics do not raise exceptions."""
         mock_multiple_strategies[
             0
         ].strategy_history.rounds_history.get_metric_by_name.return_value = []
@@ -405,7 +379,7 @@ class TestPlotHandler:
         mock_multiple_strategies,
         mock_directory_handler,
     ):
-        """Test show_inter_strategy_plots handles legend display conditionally"""
+        """Verifies legend is displayed when handles and labels exist."""
         with patch("matplotlib.pyplot.gca") as mock_gca:
             mock_ax = Mock()
             mock_ax.get_legend_handles_labels.return_value = (["handle1"], ["label1"])
@@ -426,7 +400,7 @@ class TestPlotHandler:
         mock_multiple_strategies,
         mock_directory_handler,
     ):
-        """Test show_inter_strategy_plots skips legend when no handles/labels"""
+        """Verifies legend is skipped when no handles or labels exist."""
         with patch("matplotlib.pyplot.gca") as mock_gca:
             with patch("matplotlib.pyplot.legend") as mock_legend:
                 mock_ax = Mock()
@@ -452,7 +426,7 @@ class TestPlotHandler:
         mock_simulation_strategy,
         mock_directory_handler,
     ):
-        """Test show_plots_within_strategy handles removal threshold plotting"""
+        """Verifies removal threshold history is plotted when available."""
         mock_simulation_strategy.strategy_history.rounds_history.removal_threshold_history = [
             0.5,
             0.6,
@@ -482,7 +456,7 @@ class TestPlotHandler:
         mock_simulation_strategy,
         mock_directory_handler,
     ):
-        """Test show_plots_within_strategy when no removal threshold exists"""
+        """Verifies plotting works when removal threshold history is empty."""
         mock_simulation_strategy.strategy_history.rounds_history.removal_threshold_history = []
 
         mock_client = mock_simulation_strategy.strategy_history.get_all_clients()[0]
@@ -508,7 +482,7 @@ class TestPlotHandler:
         mock_simulation_strategy,
         mock_directory_handler,
     ):
-        """Test show_plots_within_strategy handles mismatched data dimensions"""
+        """Verifies mismatched data dimensions do not raise exceptions."""
         mock_client = mock_simulation_strategy.strategy_history.get_all_clients()[0]
 
         mock_client.rounds = [1, 2, 3, 4, 5]
@@ -533,7 +507,7 @@ class TestPlotHandler:
         mock_simulation_strategy,
         mock_directory_handler,
     ):
-        """Test show_plots_within_strategy labels malicious clients correctly"""
+        """Verifies malicious clients are labeled in plot legends."""
         mock_client = mock_simulation_strategy.strategy_history.get_all_clients()[0]
         mock_client.is_malicious = True
         mock_client.client_id = 5
@@ -564,7 +538,7 @@ class TestPlotHandler:
         mock_simulation_strategy,
         mock_directory_handler,
     ):
-        """Test show_plots_within_strategy plots excluded values with X markers"""
+        """Verifies excluded values are plotted with X markers."""
         mock_client = mock_simulation_strategy.strategy_history.get_all_clients()[0]
         mock_client.plottable_metrics = ["accuracy_history"]
         mock_client.accuracy_history = [0.4, 0.5, 0.8]
@@ -593,10 +567,9 @@ class TestPlotHandler:
         mock_simulation_strategy,
         mock_directory_handler,
     ):
-        """Test show_plots_within_strategy uses directory handler for save path"""
+        """Verifies plots are saved to directory handler's path."""
         mock_simulation_strategy.strategy_config.save_plots = True
         mock_simulation_strategy.strategy_config.show_plots = False
-        mock_directory_handler.new_plots_dirname = "/test/plots"
 
         with patch("matplotlib.pyplot.savefig") as mock_savefig:
             with patch("matplotlib.pyplot.figure"):
@@ -605,7 +578,9 @@ class TestPlotHandler:
                 )
 
         save_calls = [call[0][0] for call in mock_savefig.call_args_list]
-        assert any("/test/plots/" in path for path in save_calls)
+        assert any(
+            mock_directory_handler.new_plots_dirname in path for path in save_calls
+        )
 
     @patch("matplotlib.pyplot.tight_layout")
     @patch("matplotlib.pyplot.show")
@@ -618,7 +593,7 @@ class TestPlotHandler:
         mock_multiple_strategies,
         mock_directory_handler,
     ):
-        """Test show_inter_strategy_plots positions bar charts correctly"""
+        """Verifies bar charts have correct x-axis positions."""
         with patch("matplotlib.pyplot.bar") as mock_bar:
             with patch("numpy.arange") as mock_arange:
                 mock_arange.return_value = np.array([0, 1, 2])
@@ -645,7 +620,7 @@ class TestPlotHandler:
         mock_simulation_strategy,
         mock_directory_handler,
     ):
-        """Test show_plots_within_strategy configures axes correctly"""
+        """Verifies x-axis major locator is configured."""
         mock_ax = Mock()
         mock_gca.return_value = mock_ax
 
@@ -666,7 +641,7 @@ class TestPlotHandler:
         mock_multiple_strategies,
         mock_directory_handler,
     ):
-        """Test show_inter_strategy_plots configures axes correctly for bar charts"""
+        """Verifies bar chart x-axis ticks and labels are configured."""
         mock_ax = Mock()
         mock_ax.get_legend_handles_labels.return_value = ([], [])
         mock_gca.return_value = mock_ax
@@ -691,7 +666,7 @@ class TestPlotHandler:
         mock_simulation_strategy,
         mock_directory_handler,
     ):
-        """Test show_plots_within_strategy calculates legend columns correctly"""
+        """Verifies legend column count is calculated using math.ceil."""
         mock_ceil.return_value = 3
 
         show_plots_within_strategy(mock_simulation_strategy, mock_directory_handler)
@@ -713,7 +688,7 @@ class TestPlotHandler:
         mock_simulation_strategy,
         mock_directory_handler,
     ):
-        """Test show_plots_within_strategy calls tight_layout"""
+        """Verifies tight_layout is called for plot layout."""
         show_plots_within_strategy(mock_simulation_strategy, mock_directory_handler)
 
         mock_tight_layout.assert_called()
@@ -729,13 +704,13 @@ class TestPlotHandler:
         mock_multiple_strategies,
         mock_directory_handler,
     ):
-        """Test show_inter_strategy_plots calls tight_layout"""
+        """Verifies tight_layout is called for inter-strategy plots."""
         show_inter_strategy_plots(mock_multiple_strategies, mock_directory_handler)
 
         mock_tight_layout.assert_called()
 
     def test_plot_configuration_constants_access(self):
-        """Test that plot configuration constants are accessible and have expected types"""
+        """Verifies plot_size and bar_width constants have expected types."""
         assert isinstance(plot_size, tuple)
         assert len(plot_size) == 2
         assert isinstance(bar_width, (int, float))
