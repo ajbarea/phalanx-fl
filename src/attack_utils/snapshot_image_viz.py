@@ -12,12 +12,14 @@ from matplotlib import pyplot as plt
 
 
 def _display_image(ax, image: np.ndarray) -> None:
-    """Display an image on matplotlib axes.
+    """Displays an image on matplotlib axes.
 
     Args:
-        ax: Matplotlib axes object
-        image: Image array to display
+        ax: The matplotlib axes object.
+        image: The image array to display.
     """
+    image = (image * 0.5) + 0.5
+
     if image.shape[0] == 1:
         ax.imshow(image[0], cmap="gray")
     else:
@@ -25,15 +27,15 @@ def _display_image(ax, image: np.ndarray) -> None:
 
 
 def _normalize_axes(axes, rows: int, cols: int):
-    """Normalize axes array for consistent indexing.
+    """Normalizes the axes array for consistent indexing.
 
     Args:
-        axes: Matplotlib axes array (can be 1D or 2D)
-        rows: Number of rows in grid
-        cols: Number of columns in grid
+        axes: The matplotlib axes array.
+        rows: The number of rows in the grid.
+        cols: The number of columns in the grid.
 
     Returns:
-        2D array of axes for consistent [row, col] indexing
+        A 2D array of axes.
     """
     if rows == 1 and cols == 1:
         return [[axes]]
@@ -48,15 +50,15 @@ def _normalize_axes(axes, rows: int, cols: int):
 def _extract_attack_param(
     attack_config: Union[dict, List[dict]], *attack_parameters: str, default: any = "?"
 ) -> any:
-    """Extract attack parameter from config with fallback.
+    """Extracts an attack parameter from the configuration.
 
     Args:
-        attack_config: Attack configuration dict or list of dicts
-        *attack_parameters: Parameter names to search for (in order)
-        default: Default value if parameter not found
+        attack_config: The attack configuration dictionary or list of dictionaries.
+        *attack_parameters: The parameter names to search for.
+        default: The default value if the parameter is not found.
 
     Returns:
-        Parameter value if found, otherwise default
+        The parameter value or the default value.
     """
     config = (
         attack_config[0]
@@ -73,13 +75,13 @@ def _extract_attack_param(
 
 
 def _extract_attack_type(attack_config: Union[dict, List[dict]]) -> str:
-    """Extract attack type string from config.
+    """Extracts the attack type string from the configuration.
 
     Args:
-        attack_config: Attack configuration dict or list of dicts
+        attack_config: The attack configuration dictionary or list of dictionaries.
 
     Returns:
-        Attack type string, or composite type for multiple attacks
+        The attack type string.
     """
     if isinstance(attack_config, list):
         if attack_config:
@@ -102,18 +104,18 @@ def _build_single_attack_title(
     index: int,
     style: str,
 ) -> str:
-    """Build title string for a single attack sample.
+    """Builds the title string for a single attack sample.
 
     Args:
-        attack_config: Attack configuration dict or list of dicts
-        attack_type: Attack type string
-        labels: Poisoned labels array
-        original_labels: Original labels array
-        index: Sample index
-        style: Display style ("side_by_side" or other)
+        attack_config: The attack configuration dictionary or list of dictionaries.
+        attack_type: The attack type string.
+        labels: The poisoned labels array.
+        original_labels: The original labels array.
+        index: The sample index.
+        style: The display style.
 
     Returns:
-        Formatted title string with attack details and label info
+        The formatted title string.
     """
     if attack_type == "label_flipping":
         if style == "side_by_side":
@@ -142,20 +144,18 @@ def _build_attack_title(
     index: int,
     style: str = "side_by_side",
 ) -> str:
-    """Build title for attack visualization.
-
-    Wrapper around _build_single_attack_title for consistency.
+    """Builds the title for the attack visualization.
 
     Args:
-        attack_config: Attack configuration dict or list of dicts
-        attack_type: Attack type string
-        labels: Poisoned labels array
-        original_labels: Original labels array
-        index: Sample index
-        style: Display style (default: "side_by_side")
+        attack_config: The attack configuration dictionary or list of dictionaries.
+        attack_type: The attack type string.
+        labels: The poisoned labels array.
+        original_labels: The original labels array.
+        index: The sample index.
+        style: The display style.
 
     Returns:
-        Formatted title string
+        The formatted title string.
     """
     if isinstance(attack_config, list) and len(attack_config) > 1:
         title_parts = ["Poisoned"] if style == "side_by_side" else []
@@ -197,22 +197,15 @@ def save_image_grid(
     attack_config: Union[dict, List[dict]],
     original_images: Optional[np.ndarray] = None,
 ) -> None:
-    """Save image grid visualization to file.
-
-    Creates side-by-side comparison grid of original vs poisoned images
-    if original_images provided, otherwise shows only poisoned images.
+    """Saves an image grid visualization to a file.
 
     Args:
-        images: Poisoned images array of shape (N, C, H, W) or (N, H, W, C)
-        labels: Poisoned labels array
-        original_labels: Original labels array
-        filepath: Output file path for the image
-        attack_config: Attack configuration dict or list of dicts
-        original_images: Original images for comparison (optional)
-
-    Note:
-        Automatically adjusts grid layout based on number of samples.
-        Saves with tight layout and 150 DPI for clarity.
+        images: The poisoned images array.
+        labels: The poisoned labels array.
+        original_labels: The original labels array.
+        filepath: The output file path.
+        attack_config: The attack configuration dictionary or list of dictionaries.
+        original_images: The original images array for comparison.
     """
     matplotlib.use("Agg")
 
