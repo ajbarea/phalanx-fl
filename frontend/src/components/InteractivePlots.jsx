@@ -111,18 +111,20 @@ export default function InteractivePlots({ simulation }) {
     }
   }, [plotData, selectedMetric]);
 
-  // Responsive chart height
+  // Responsive chart dimensions
   const [chartHeight, setChartHeight] = useState(window.innerWidth < 768 ? 350 : 500);
+  const [chartWidth, setChartWidth] = useState(Math.max(450, window.innerWidth - 32));
 
   useEffect(() => {
-    const updateHeight = () => {
+    const updateDimensions = () => {
       const isMobile = window.innerWidth < 768;
       setChartHeight(isMobile ? 350 : 500);
+      setChartWidth(Math.max(450, window.innerWidth - 32));
     };
 
-    updateHeight();
-    window.addEventListener('resize', updateHeight);
-    return () => window.removeEventListener('resize', updateHeight);
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
   }, []);
 
   if (loading) return <div className="text-center p-4">Loading interactive plots...</div>;
@@ -253,8 +255,13 @@ export default function InteractivePlots({ simulation }) {
         </div>
 
         {/* Chart */}
-        <ResponsiveContainer width="100%" height={chartHeight}>
-          <LineChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 80 }}>
+        <div style={{ width: '100%', overflowX: 'auto' }}>
+          <LineChart
+            width={chartWidth}
+            height={chartHeight}
+            data={chartData}
+            margin={{ top: 10, right: 30, left: 50, bottom: 80 }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
             <XAxis
               dataKey="round"
@@ -329,7 +336,7 @@ export default function InteractivePlots({ simulation }) {
                 />
               )}
           </LineChart>
-        </ResponsiveContainer>
+        </div>
 
         <div className="mt-3 text-muted">
           <small>
