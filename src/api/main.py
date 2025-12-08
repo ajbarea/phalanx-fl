@@ -1,22 +1,25 @@
-# src/api/main.py
-
 import asyncio
+from contextlib import asynccontextmanager
 import datetime
-import fcntl
 import json
 import logging
 import multiprocessing
 import os
-import pty
 import re
-import select
 import shutil
 import struct
 import subprocess
-import termios
-import traceback
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+
+if sys.platform == "win32":
+    import winpty
+else:
+    import fcntl
+    import pty
+    import select
+    import termios
 
 import pandas as pd
 import psutil
@@ -36,9 +39,17 @@ from datasets import load_dataset_builder
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-logger.info("=== API main.py loaded with latin-1 CSV encoding fix ===")
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handles the application lifespan events (startup and shutdown)."""
+    logger.info("Federated Learning API initialized")
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -61,14 +72,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Configuration and Constants ---
-
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = BASE_DIR / "out"
 
 running_processes: Dict[str, subprocess.Popen] = {}
-
-# --- Pydantic Models ---
 
 
 class SimulationConfig(BaseModel):
@@ -77,7 +84,7 @@ class SimulationConfig(BaseModel):
     remove_clients: Optional[str] = None
     begin_removing_from_round: Optional[int] = None
     dataset_keyword: Optional[str] = None
-    dataset_source: Optional[str] = None  # 'local' or 'huggingface'
+    dataset_source: Optional[str] = None
     num_of_rounds: Optional[int] = None
     num_of_clients: Optional[int] = None
     num_of_malicious_clients: Optional[int] = None
@@ -146,11 +153,19 @@ class SimulationDetails(BaseModel):
     status: str
 
 
-# --- Security and Path Validation ---
-
-
 def secure_join(base: Path, *paths: str) -> Path:
-    """Safely join a base directory with other paths, preventing path traversal."""
+    """Safely joins a base directory with other paths to prevent traversal.
+
+    Args:
+        base: The base directory path.
+        *paths: Variable length argument list of paths to join.
+
+    Returns:
+        The resolved safe path.
+
+    Raises:
+        HTTPException: If the resulting path is outside the base directory.
+    """
     try:
         final_path = (base / Path(*paths)).resolve()
         final_path.relative_to(base.resolve())
@@ -160,7 +175,17 @@ def secure_join(base: Path, *paths: str) -> Path:
 
 
 def get_simulation_path(simulation_id: str) -> Path:
-    """Dependency to validate and return a simulation path."""
+    """Validates and returns the path for a specific simulation ID.
+
+    Args:
+        simulation_id: The unique identifier for the simulation.
+
+    Returns:
+        The valid path object for the simulation.
+
+    Raises:
+        HTTPException: If the ID is invalid format or the directory does not exist.
+    """
     if not simulation_id.isalnum() and "_" not in simulation_id:
         raise HTTPException(status_code=400, detail="Invalid simulation ID format.")
 
@@ -171,12 +196,13 @@ def get_simulation_path(simulation_id: str) -> Path:
     return sim_path
 
 
-# --- API Endpoints ---
-
-
 @app.get("/api/simulations", response_model=List[SimulationMetadata])
 def get_simulations() -> List[SimulationMetadata]:
-    """Scans the output directory for all simulation runs and returns their metadata."""
+    """Retrieves metadata for all available simulation runs.
+
+    Returns:
+        A list of SimulationMetadata objects sorted by creation time.
+    """
     simulations = []
     if not OUTPUT_DIR.is_dir():
         return []
@@ -219,7 +245,18 @@ def get_simulations() -> List[SimulationMetadata]:
 def get_simulation_details(
     sim_path: Path = Depends(get_simulation_path), simulation_id: str = ""
 ) -> SimulationDetails:
-    """Returns the configuration and a list of result files for a specific simulation."""
+    """Retrieves configuration and result files for a specific simulation.
+
+    Args:
+        sim_path: The validated path to the simulation directory.
+        simulation_id: The simulation identifier.
+
+    Returns:
+        A SimulationDetails object containing config, results, and status.
+
+    Raises:
+        HTTPException: If the configuration file cannot be read.
+    """
     config_path = sim_path / "config.json"
     if not config_path.is_file():
         raise HTTPException(status_code=404, detail="Simulation config.json not found.")
@@ -242,7 +279,6 @@ def get_simulation_details(
             if not rel_path_str.startswith("dataset_"):
                 result_files.append(rel_path_str)
 
-    # Check if simulation was manually stopped (must be checked first)
     stopped_marker = sim_path / ".stopped"
     if stopped_marker.is_file():
         status = "stopped"
@@ -279,13 +315,18 @@ def get_result_file(
     sim_path: Path = Depends(get_simulation_path),
     download: bool = False,
 ) -> Union[FileResponse, JSONResponse]:
-    """
-    Serves a specific result file (e.g., a plot image, PDF, or CSV).
+    """Retrieves a specific result file from a simulation.
 
     Args:
-        result_filename: Name of the result file to retrieve
-        sim_path: Path to simulation directory (injected by dependency)
-        download: If True, return file for download instead of JSON (CSV only)
+        result_filename: The name of the file to retrieve.
+        sim_path: The validated path to the simulation directory.
+        download: Whether to trigger a file download for CSVs.
+
+    Returns:
+        A FileResponse or JSONResponse containing the file data.
+
+    Raises:
+        HTTPException: If the file type is unsupported or file is missing.
     """
     if not result_filename.endswith((".png", ".pdf", ".csv", ".json")):
         raise HTTPException(status_code=400, detail="Unsupported file type.")
@@ -308,8 +349,7 @@ def get_result_file(
             df = pd.read_csv(file_path, encoding="latin-1")
             return JSONResponse(content=df.to_dict(orient="records"))
         except Exception as e:
-            logger.error(f"Failed to read or parse CSV file {file_path}: {e}")
-            logger.error(f"Traceback: {traceback.format_exc()}")
+            logger.exception(f"Failed to read or parse CSV file {file_path}")
             raise HTTPException(
                 status_code=500, detail=f"Failed to process CSV file: {str(e)}"
             )
@@ -319,35 +359,37 @@ def get_result_file(
 
 @app.post("/api/simulations", status_code=201)
 async def create_simulation(request: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
-    """Creates and runs a new simulation from a configuration payload.
+    """Creates and initiates a new simulation based on the provided configuration.
 
     Args:
-        request: Request body containing config and optionally add_to_queue
+        request: A dictionary containing the simulation configuration.
+
+    Returns:
+        A dictionary containing the simulation ID of the created or updated run.
+
+    Raises:
+        HTTPException: If the simulation process fails to start or config cannot be written.
     """
-    # Extract add_to_queue parameter if present
     add_to_queue = request.get("add_to_queue", None)
 
-    # Copy config without add_to_queue
     config = {k: v for k, v in request.items() if k != "add_to_queue"}
 
-    logger.info(f"Received config keys: {list(config.keys())}")
-    logger.info(f"Config has shared_settings: {'shared_settings' in config}")
+    config_keys = list(config.keys())
+    has_shared = "shared_settings" in config
+    has_strategies = "simulation_strategies" in config
     logger.info(
-        f"Config has simulation_strategies: {'simulation_strategies' in config}"
+        f"New simulation request. Keys: {config_keys}, Shared: {has_shared}, "
+        f"Strategies: {has_strategies}, Queue: {add_to_queue}"
     )
-    logger.info(f"add_to_queue parameter: {add_to_queue}")
 
     config_dict = config
 
-    # Check if there's a running simulation to queue into
     running_sim_id = None
     for sim_id, process in running_processes.items():
         if process.poll() is None:
             running_sim_id = sim_id
             break
 
-    # If there's a running simulation and this is a single-sim config
-    # Only auto-queue if add_to_queue is explicitly True
     if (
         running_sim_id
         and add_to_queue is True
@@ -364,7 +406,6 @@ async def create_simulation(request: Dict[str, Any] = Body(...)) -> Dict[str, An
             with config_filepath.open("r") as f:
                 running_config = json.load(f)
 
-            # Build new strategy from incoming config
             new_strategy = {}
             strategy_fields = [
                 "aggregation_strategy_keyword",
@@ -377,21 +418,18 @@ async def create_simulation(request: Dict[str, Any] = Body(...)) -> Dict[str, An
                 if config_dict.get(field) is not None:
                     new_strategy[field] = config_dict[field]
 
-            # Add to queue
             running_config["simulation_strategies"].append(new_strategy)
 
-            # Write updated config
             with config_filepath.open("w") as f:
                 json.dump(running_config, f, indent=4)
 
             logger.info(f"Added strategy to running simulation {running_sim_id}")
             return {"simulation_id": running_sim_id, "queued": True}
 
-        except Exception as e:
-            logger.warning(
-                f"Failed to add to running queue: {e}, creating new simulation"
+        except Exception:
+            logger.exception(
+                "Failed to add to running queue, creating new simulation instead"
             )
-            # Fall through to create new simulation
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     simulation_id = f"api_run_{timestamp}"
@@ -401,13 +439,10 @@ async def create_simulation(request: Dict[str, Any] = Body(...)) -> Dict[str, An
 
     config_filepath = output_sim_path / "config.json"
 
-    # Check if this is already a multi-simulation config
     if "shared_settings" in config_dict and "simulation_strategies" in config_dict:
-        # Already in multi-sim format, use as-is
         logger.info("Multi-sim config detected, using as-is")
         wrapped_config = config_dict
     else:
-        # Single simulation, wrap it
         logger.info("Single sim config detected, wrapping")
         wrapped_config = {
             "shared_settings": config_dict,
@@ -440,9 +475,10 @@ async def create_simulation(request: Dict[str, Any] = Body(...)) -> Dict[str, An
             )
         running_processes[simulation_id] = process
         logger.info(f"Started simulation {simulation_id} with PID {process.pid}")
-    except Exception as e:
+    except Exception:
+        logger.exception(f"Failed to start simulation process for {simulation_id}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to start simulation process: {e}"
+            status_code=500, detail="Failed to start simulation process"
         )
 
     return {"simulation_id": simulation_id}
@@ -452,13 +488,18 @@ async def create_simulation(request: Dict[str, Any] = Body(...)) -> Dict[str, An
 def get_simulation_status(
     sim_path: Path = Depends(get_simulation_path), simulation_id: str = ""
 ) -> Dict[str, Any]:
-    """Returns the current status of a simulation (running/completed/failed/stopped)."""
-    # Check if simulation was manually stopped
+    """Retrieves the current execution status of a simulation.
+
+    Args:
+        sim_path: The validated path to the simulation directory.
+        simulation_id: The simulation identifier.
+
+    Returns:
+        A dictionary containing the status, progress, and error details if any.
+    """
     stopped_marker = sim_path / ".stopped"
     stopped_exists = stopped_marker.is_file()
-    # print(f"DEBUG: Checking {stopped_marker}, exists={stopped_exists}", flush=True)
     if stopped_exists:
-        # print(f"DEBUG: Returning stopped status for {simulation_id}", flush=True)
         return {"status": "stopped", "progress": 0.0}
 
     if simulation_id in running_processes:
@@ -510,7 +551,18 @@ def get_simulation_status(
 def delete_simulation(
     sim_path: Path = Depends(get_simulation_path), simulation_id: str = ""
 ) -> Dict[str, str]:
-    """Delete a simulation and all its files."""
+    """Permanently deletes a simulation and all associated files.
+
+    Args:
+        sim_path: The validated path to the simulation directory.
+        simulation_id: The simulation identifier.
+
+    Returns:
+        A confirmation message and the deleted simulation ID.
+
+    Raises:
+        HTTPException: If the simulation is currently running or deletion fails.
+    """
     if simulation_id in running_processes:
         process = running_processes[simulation_id]
         if process.poll() is None:
@@ -523,18 +575,23 @@ def delete_simulation(
         shutil.rmtree(sim_path)
         logger.info(f"Deleted simulation: {simulation_id}")
         return {"message": "deleted", "simulation_id": simulation_id}
-    except Exception as e:
-        logger.error(f"Failed to delete simulation {simulation_id}: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to delete simulation: {str(e)}"
-        )
+    except Exception:
+        logger.exception(f"Failed to delete simulation {simulation_id}")
+        raise HTTPException(status_code=500, detail="Failed to delete simulation")
 
 
 @app.delete("/api/simulations", status_code=200)
 def delete_multiple_simulations(
     simulation_ids: List[str] = Body(..., embed=True),
 ) -> Dict[str, Any]:
-    """Delete multiple simulations at once."""
+    """Permanently deletes multiple simulations defined by their IDs.
+
+    Args:
+        simulation_ids: A list of simulation IDs to delete.
+
+    Returns:
+        A dictionary with lists of successfully deleted IDs and failure details.
+    """
     deleted = []
     failed = []
 
@@ -571,7 +628,7 @@ def delete_multiple_simulations(
             logger.info(f"Deleted simulation: {simulation_id}")
 
         except Exception as e:
-            logger.error(f"Failed to delete simulation {simulation_id}: {e}")
+            logger.exception(f"Failed to delete simulation {simulation_id}")
             failed.append({"simulation_id": simulation_id, "error": str(e)})
 
     return {"deleted": deleted, "failed": failed}
@@ -583,7 +640,19 @@ def rename_simulation(
     display_name: str = Body(..., embed=True),
     sim_path: Path = Depends(get_simulation_path),
 ) -> Dict[str, str]:
-    """Update the display name of a simulation."""
+    """Updates the display name of a simulation.
+
+    Args:
+        simulation_id: The simulation identifier.
+        display_name: The new display name.
+        sim_path: The validated path to the simulation directory.
+
+    Returns:
+        A confirmation message and the updated display name.
+
+    Raises:
+        HTTPException: If the name is invalid or configuration cannot be updated.
+    """
     if not display_name or not display_name.strip():
         raise HTTPException(
             status_code=400, detail="Display name cannot be empty or whitespace only"
@@ -628,7 +697,7 @@ def rename_simulation(
         }
 
     except (json.JSONDecodeError, IOError) as e:
-        logger.error(f"Failed to rename simulation {simulation_id}: {e}")
+        logger.exception(f"Failed to rename simulation {simulation_id}")
         raise HTTPException(
             status_code=500, detail=f"Failed to update simulation config: {str(e)}"
         )
@@ -641,7 +710,17 @@ def read_root() -> Dict[str, str]:
 
 @app.get("/api/simulations/{simulation_id}/plot-data")
 async def get_plot_data(simulation_id: str) -> Dict:
-    """Return JSON plot data for interactive visualization"""
+    """Retrieves JSON plot data for a specific simulation.
+
+    Args:
+        simulation_id: The simulation identifier.
+
+    Returns:
+        The content of the plot data JSON file.
+
+    Raises:
+        HTTPException: If data is unavailable or not found.
+    """
     try:
         sim_dir = OUTPUT_DIR / simulation_id
 
@@ -681,7 +760,17 @@ async def get_plot_data(simulation_id: str) -> Dict:
 
 @app.get("/api/simulations/{simulation_id}/all-plot-data")
 async def get_all_plot_data(simulation_id: str) -> Dict:
-    """Return all plot data JSON files for multi-strategy comparison"""
+    """Retrieves all plot data JSON files for a multi-strategy simulation.
+
+    Args:
+        simulation_id: The simulation identifier.
+
+    Returns:
+        A dictionary containing a list of plot data for each strategy.
+
+    Raises:
+        HTTPException: If data is unavailable or not found.
+    """
     try:
         sim_dir = OUTPUT_DIR / simulation_id
 
@@ -710,7 +799,6 @@ async def get_all_plot_data(simulation_id: str) -> Dict:
             json_path = sim_dir / json_file
             with open(json_path, "r") as f:
                 data = json.load(f)
-                # Extract strategy number from filename (plot_data_0.json -> 0)
                 strategy_num = int(
                     json_file.replace("plot_data_", "").replace(".json", "")
                 )
@@ -731,7 +819,17 @@ async def get_all_plot_data(simulation_id: str) -> Dict:
 
 @app.post("/api/simulations/{simulation_id}/stop", status_code=200)
 def stop_simulation(simulation_id: str) -> Dict[str, str]:
-    """Stop a running simulation and all its child processes."""
+    """Terminates a running simulation and all its child processes.
+
+    Args:
+        simulation_id: The simulation identifier.
+
+    Returns:
+        A confirmation message.
+
+    Raises:
+        HTTPException: If the simulation is not running or termination fails.
+    """
     if simulation_id not in running_processes:
         raise HTTPException(
             status_code=404, detail="Simulation is not running or does not exist."
@@ -744,11 +842,9 @@ def stop_simulation(simulation_id: str) -> Dict[str, str]:
         raise HTTPException(status_code=409, detail="Simulation has already completed.")
 
     try:
-        # Kill entire process tree to ensure child processes are terminated
         parent = psutil.Process(process.pid)
         children = parent.children(recursive=True)
 
-        # Terminate parent and all children
         parent.terminate()
         for child in children:
             try:
@@ -756,11 +852,9 @@ def stop_simulation(simulation_id: str) -> Dict[str, str]:
             except psutil.NoSuchProcess:
                 pass
 
-        # Wait for graceful termination
         try:
             parent.wait(timeout=5)
         except psutil.TimeoutExpired:
-            # Force kill if still running
             parent.kill()
             for child in children:
                 try:
@@ -771,7 +865,6 @@ def stop_simulation(simulation_id: str) -> Dict[str, str]:
 
         del running_processes[simulation_id]
 
-        # Write stopped status marker file
         sim_path = OUTPUT_DIR / simulation_id
         stopped_marker = sim_path / ".stopped"
         try:
@@ -783,26 +876,27 @@ def stop_simulation(simulation_id: str) -> Dict[str, str]:
         logger.info(f"Stopped simulation {simulation_id} and all child processes")
         return {"message": "stopped", "simulation_id": simulation_id}
     except psutil.NoSuchProcess:
-        # Process already terminated
         del running_processes[simulation_id]
         logger.info(f"Simulation {simulation_id} already terminated")
         return {"message": "stopped", "simulation_id": simulation_id}
-    except Exception as e:
-        logger.error(f"Failed to stop simulation {simulation_id}: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to stop simulation: {str(e)}"
-        )
+    except Exception:
+        logger.exception(f"Failed to stop simulation {simulation_id}")
+        raise HTTPException(status_code=500, detail="Failed to stop simulation")
 
 
 @app.get("/api/simulations/{simulation_id}/attack-snapshots")
 async def get_attack_snapshots(
     simulation_id: str, sim_path: Path = Depends(get_simulation_path)
 ) -> Dict[str, Any]:
-    """Return attack snapshot data for visualization.
+    """Retrieves attack snapshot data for visualization.
 
-    Returns summary, timeline, and paths to visual snapshots organized by client/round.
+    Args:
+        simulation_id: The simulation identifier.
+        sim_path: The validated path to the simulation directory.
+
+    Returns:
+        A dictionary containing snapshot summaries, timelines, and image paths.
     """
-    # Find attack_snapshots directories (support multiple strategies)
     snapshot_dirs = sorted(sim_path.glob("attack_snapshots_*"))
 
     if not snapshot_dirs:
@@ -813,7 +907,6 @@ async def get_attack_snapshots(
     for snapshot_dir in snapshot_dirs:
         strategy_num = int(snapshot_dir.name.replace("attack_snapshots_", ""))
 
-        # Load summary.json if it exists
         summary_path = snapshot_dir / "summary.json"
         summary = None
         if summary_path.is_file():
@@ -823,7 +916,6 @@ async def get_attack_snapshots(
             except (json.JSONDecodeError, IOError):
                 pass
 
-        # Collect all visual snapshots
         snapshots = []
         for client_dir in sorted(snapshot_dir.glob("client_*")):
             client_id = int(client_dir.name.replace("client_", ""))
@@ -831,14 +923,12 @@ async def get_attack_snapshots(
             for round_dir in sorted(client_dir.glob("round_*")):
                 round_num = int(round_dir.name.replace("round_", ""))
 
-                # Find visual files
                 visual_files = list(round_dir.glob("*_visual.png"))
 
                 for visual_file in visual_files:
                     attack_type = visual_file.stem.replace("_visual", "")
                     rel_path = visual_file.relative_to(sim_path)
 
-                    # Load metadata if available
                     metadata = None
                     metadata_path = round_dir / f"{attack_type}_metadata.json"
                     if metadata_path.is_file():
@@ -876,30 +966,21 @@ async def get_attack_snapshots(
 
 @app.get("/api/datasets/validate")
 async def validate_dataset(name: str) -> Dict[str, Any]:
-    """
-    Validate HuggingFace dataset exists and is Flower-compatible.
+    """Validates if a HuggingFace dataset exists and is compatible with Flower.
 
     Args:
-        name: HuggingFace dataset identifier (e.g., "ylecun/mnist")
+        name: The HuggingFace dataset identifier.
 
     Returns:
-        {
-            "valid": bool,
-            "compatible": bool,
-            "info": {"splits": list, "num_examples": int, "features": str,
-                     "has_label": bool, "key_features": list} | null,
-            "error": str | null
-        }
+        A dictionary indicating validity, compatibility, and dataset metadata.
     """
     try:
-        # Only load metadata to avoid downloading full dataset
         builder = load_dataset_builder(name)
 
         splits = list(builder.info.splits.keys())
         num_examples = sum(s.num_examples for s in builder.info.splits.values())
         features = str(builder.info.features)
 
-        # Check for supervised learning label fields
         label_field_indicators = [
             "label",
             "labels",
@@ -974,144 +1055,206 @@ async def validate_dataset(name: str) -> Dict[str, Any]:
         }
 
 
-# --- WebSocket Terminal ---
-
-# Store active terminal sessions
 terminal_sessions: Dict[str, Dict[str, Any]] = {}
 
 
-def set_terminal_size(fd: int, rows: int, cols: int) -> None:
-    """Set the terminal size for a PTY file descriptor."""
-    winsize = struct.pack("HHHH", rows, cols, 0, 0)
-    fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
+if sys.platform == "win32":
 
+    @app.websocket("/api/terminal")
+    async def terminal_websocket(websocket: WebSocket):
+        """Manages interactive terminal sessions over WebSocket for Windows."""
+        await websocket.accept()
 
-@app.websocket("/api/terminal")
-async def terminal_websocket(websocket: WebSocket):
-    """WebSocket endpoint for interactive terminal sessions.
+        session_id = f"term_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
+        logger.info(f"Terminal session started: {session_id}")
 
-    Spawns a bash shell and streams stdin/stdout over WebSocket.
-    Supports terminal resizing via JSON messages: {"type": "resize", "rows": 24, "cols": 80}
-    """
-    await websocket.accept()
+        proc = winpty.PtyProcess.spawn(
+            "cmd.exe",
+            cwd=str(BASE_DIR),
+            dimensions=(24, 80),
+        )
 
-    session_id = f"term_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
-    logger.info(f"Terminal session started: {session_id}")
+        terminal_sessions[session_id] = {"process": proc}
 
-    # Create pseudo-terminal
-    master_fd, slave_fd = pty.openpty()
+        async def read_from_pty():
+            """Reads output from the PTY and sends it to the WebSocket."""
+            try:
+                while proc.isalive():
+                    await asyncio.sleep(0.01)
+                    try:
+                        data = proc.read(4096)
+                        if data:
+                            await websocket.send_text(data)
+                    except Exception:
+                        pass
+            except Exception:
+                logger.exception("PTY read error")
 
-    # Set initial terminal size
-    set_terminal_size(master_fd, 24, 80)
+        read_task = asyncio.create_task(read_from_pty())
 
-    # Set non-blocking mode on master
-    flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
-    fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-
-    # Spawn bash process
-    env = os.environ.copy()
-    env["TERM"] = "xterm-256color"
-    env["COLORTERM"] = "truecolor"
-
-    process = subprocess.Popen(
-        ["/bin/bash"],
-        stdin=slave_fd,
-        stdout=slave_fd,
-        stderr=slave_fd,
-        cwd=str(BASE_DIR),
-        env=env,
-        preexec_fn=os.setsid,
-    )
-
-    os.close(slave_fd)  # Close slave in parent process
-
-    terminal_sessions[session_id] = {
-        "process": process,
-        "master_fd": master_fd,
-    }
-
-    async def read_from_pty():
-        """Read output from PTY and send to WebSocket."""
         try:
             while True:
-                await asyncio.sleep(0.01)  # Small delay to prevent busy loop
+                message = await websocket.receive()
 
-                if process.poll() is not None:
-                    # Process has exited
+                if message["type"] == "websocket.disconnect":
                     break
 
-                try:
-                    # Check if data is available
-                    ready, _, _ = select.select([master_fd], [], [], 0)
-                    if ready:
-                        data = os.read(master_fd, 4096)
-                        if data:
-                            await websocket.send_text(
-                                data.decode("utf-8", errors="replace")
-                            )
-                except (OSError, BlockingIOError):
-                    pass
+                if "text" in message:
+                    text = message["text"]
 
-        except Exception as e:
-            logger.error(f"PTY read error: {e}")
+                    if text.startswith("{"):
+                        try:
+                            msg = json.loads(text)
+                            if msg.get("type") == "resize":
+                                rows = msg.get("rows", 24)
+                                cols = msg.get("cols", 80)
+                                proc.setwinsize(rows, cols)
+                                logger.debug(f"Terminal resized to {rows}x{cols}")
+                                continue
+                        except json.JSONDecodeError:
+                            pass
 
-    # Start reading task
-    read_task = asyncio.create_task(read_from_pty())
-
-    try:
-        while True:
-            # Receive input from WebSocket
-            message = await websocket.receive()
-
-            if message["type"] == "websocket.disconnect":
-                break
-
-            if "text" in message:
-                text = message["text"]
-
-                # Check if it's a control message (JSON)
-                if text.startswith("{"):
                     try:
-                        msg = json.loads(text)
-                        if msg.get("type") == "resize":
-                            rows = msg.get("rows", 24)
-                            cols = msg.get("cols", 80)
-                            set_terminal_size(master_fd, rows, cols)
-                            logger.debug(f"Terminal resized to {rows}x{cols}")
-                            continue
-                    except json.JSONDecodeError:
+                        proc.write(text)
+                    except Exception:
+                        logger.exception("PTY write error")
+                        break
+
+        except WebSocketDisconnect:
+            logger.info(f"Terminal session disconnected: {session_id}")
+        except Exception:
+            logger.exception("Terminal WebSocket error")
+        finally:
+            read_task.cancel()
+            try:
+                await read_task
+            except asyncio.CancelledError:
+                pass
+
+            if proc.isalive():
+                proc.terminate()
+
+            if session_id in terminal_sessions:
+                del terminal_sessions[session_id]
+
+            logger.info(f"Terminal session ended: {session_id}")
+
+else:
+
+    def _set_terminal_size(fd: int, rows: int, cols: int) -> None:
+        """Sets the terminal size for a PTY file descriptor."""
+        winsize = struct.pack("HHHH", rows, cols, 0, 0)
+        fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
+
+    @app.websocket("/api/terminal")
+    async def terminal_websocket(websocket: WebSocket):
+        """Manages interactive terminal sessions over WebSocket for Unix."""
+        await websocket.accept()
+
+        session_id = f"term_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
+        logger.info(f"Terminal session started: {session_id}")
+
+        master_fd, slave_fd = pty.openpty()
+        _set_terminal_size(master_fd, 24, 80)
+
+        flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
+        fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+        env = os.environ.copy()
+        env["TERM"] = "xterm-256color"
+        env["COLORTERM"] = "truecolor"
+
+        process = subprocess.Popen(
+            ["/bin/bash"],
+            stdin=slave_fd,
+            stdout=slave_fd,
+            stderr=slave_fd,
+            cwd=str(BASE_DIR),
+            env=env,
+            preexec_fn=os.setsid,
+        )
+
+        os.close(slave_fd)
+
+        terminal_sessions[session_id] = {
+            "process": process,
+            "master_fd": master_fd,
+        }
+
+        async def read_from_pty():
+            """Reads output from the PTY and sends it to the WebSocket."""
+            try:
+                while True:
+                    await asyncio.sleep(0.01)
+
+                    if process.poll() is not None:
+                        break
+
+                    try:
+                        ready, _, _ = select.select([master_fd], [], [], 0)
+                        if ready:
+                            data = os.read(master_fd, 4096)
+                            if data:
+                                await websocket.send_text(
+                                    data.decode("utf-8", errors="replace")
+                                )
+                    except (OSError, BlockingIOError):
                         pass
 
-                # Write to PTY
-                try:
-                    os.write(master_fd, text.encode("utf-8"))
-                except OSError as e:
-                    logger.error(f"PTY write error: {e}")
+            except Exception:
+                logger.exception("PTY read error")
+
+        read_task = asyncio.create_task(read_from_pty())
+
+        try:
+            while True:
+                message = await websocket.receive()
+
+                if message["type"] == "websocket.disconnect":
                     break
 
-    except WebSocketDisconnect:
-        logger.info(f"Terminal session disconnected: {session_id}")
-    except Exception as e:
-        logger.error(f"Terminal WebSocket error: {e}")
-    finally:
-        # Cleanup
-        read_task.cancel()
-        try:
-            await read_task
-        except asyncio.CancelledError:
-            pass
+                if "text" in message:
+                    text = message["text"]
 
-        # Terminate process
-        if process.poll() is None:
+                    if text.startswith("{"):
+                        try:
+                            msg = json.loads(text)
+                            if msg.get("type") == "resize":
+                                rows = msg.get("rows", 24)
+                                cols = msg.get("cols", 80)
+                                _set_terminal_size(master_fd, rows, cols)
+                                logger.debug(f"Terminal resized to {rows}x{cols}")
+                                continue
+                        except json.JSONDecodeError:
+                            pass
+
+                    try:
+                        os.write(master_fd, text.encode("utf-8"))
+                    except OSError:
+                        logger.exception("PTY write error")
+                        break
+
+        except WebSocketDisconnect:
+            logger.info(f"Terminal session disconnected: {session_id}")
+        except Exception:
+            logger.exception("Terminal WebSocket error")
+        finally:
+            read_task.cancel()
             try:
-                process.terminate()
-                process.wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                process.kill()
+                await read_task
+            except asyncio.CancelledError:
+                pass
 
-        os.close(master_fd)
+            if process.poll() is None:
+                try:
+                    process.terminate()
+                    process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    process.kill()
 
-        if session_id in terminal_sessions:
-            del terminal_sessions[session_id]
+            os.close(master_fd)
 
-        logger.info(f"Terminal session ended: {session_id}")
+            if session_id in terminal_sessions:
+                del terminal_sessions[session_id]
+
+            logger.info(f"Terminal session ended: {session_id}")
