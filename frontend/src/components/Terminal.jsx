@@ -5,7 +5,7 @@ import { Button, ButtonGroup } from 'react-bootstrap';
 import { useTheme } from '../contexts/ThemeContext';
 import '@xterm/xterm/css/xterm.css';
 
-const WEBSOCKET_URL = 'ws://localhost:8000/api/terminal';
+const WEBSOCKET_URL = 'ws://127.0.0.1:8000/api/terminal';
 
 // Predefined commands for quick access
 const QUICK_COMMANDS = [
@@ -14,7 +14,10 @@ const QUICK_COMMANDS = [
   { label: 'Git Status', cmd: 'git status\n' },
 ];
 
-const Terminal = forwardRef(function Terminal({ height = 400, showQuickCommands = true }, ref) {
+const Terminal = forwardRef(function Terminal(
+  { height = 400, showQuickCommands = true, isVisible = true },
+  ref
+) {
   const { theme } = useTheme();
   const terminalRef = useRef(null);
   const xtermRef = useRef(null);
@@ -51,27 +54,27 @@ const Terminal = forwardRef(function Terminal({ height = 400, showQuickCommands 
       };
     }
     return {
-      background: '#ffffff',
-      foreground: '#383a42',
-      cursor: '#383a42',
-      cursorAccent: '#ffffff',
+      background: '#f8f8f8',
+      foreground: '#1a1a1a',
+      cursor: '#1a1a1a',
+      cursorAccent: '#f8f8f8',
       selectionBackground: '#bfceff',
-      black: '#383a42',
-      red: '#e45649',
-      green: '#50a14f',
-      yellow: '#c18401',
-      blue: '#4078f2',
+      black: '#1a1a1a',
+      red: '#c41a16',
+      green: '#007400',
+      yellow: '#826b28',
+      blue: '#0451a5',
       magenta: '#a626a4',
-      cyan: '#0184bc',
-      white: '#a0a1a7',
-      brightBlack: '#4f525e',
-      brightRed: '#e45649',
-      brightGreen: '#50a14f',
-      brightYellow: '#c18401',
-      brightBlue: '#4078f2',
+      cyan: '#0598bc',
+      white: '#5c5c5c',
+      brightBlack: '#1a1a1a',
+      brightRed: '#c41a16',
+      brightGreen: '#007400',
+      brightYellow: '#826b28',
+      brightBlue: '#0451a5',
       brightMagenta: '#a626a4',
-      brightCyan: '#0184bc',
-      brightWhite: '#383a42',
+      brightCyan: '#0598bc',
+      brightWhite: '#1a1a1a',
     };
   }, [theme]);
 
@@ -89,7 +92,7 @@ const Terminal = forwardRef(function Terminal({ height = 400, showQuickCommands 
       setError(null);
 
       // Send initial resize
-      if (xtermRef.current) {
+      if (xtermRef.current && xtermRef.current.rows && xtermRef.current.cols) {
         const { rows, cols } = xtermRef.current;
         ws.send(JSON.stringify({ type: 'resize', rows, cols }));
       }
@@ -168,20 +171,49 @@ const Terminal = forwardRef(function Terminal({ height = 400, showQuickCommands 
     const fitAddon = new FitAddon();
     xterm.loadAddon(fitAddon);
 
-    xterm.open(terminalRef.current);
     xtermRef.current = xterm;
     fitAddonRef.current = fitAddon;
 
-    // Delay fit and connect to ensure DOM is ready
-    const initTimer = setTimeout(() => {
-      try {
-        fitAddon.fit();
-      } catch {
-        console.warn('Initial fit failed, will retry on resize');
+    let initTimer;
+    let dimensionCheckInterval;
+
+    // Function to initialize terminal when visible and has dimensions
+    const initializeTerminal = () => {
+      if (!isVisible) return false; // Don't initialize if not visible
+
+      const rect = terminalRef.current?.getBoundingClientRect();
+      if (rect && rect.width > 0 && rect.height > 0) {
+        // Clear the check interval if it was running
+        if (dimensionCheckInterval) {
+          clearInterval(dimensionCheckInterval);
+          dimensionCheckInterval = null;
+        }
+
+        // Open terminal now that it's visible and has dimensions
+        xterm.open(terminalRef.current);
+
+        // Fit and connect after a short delay
+        initTimer = setTimeout(() => {
+          try {
+            fitAddon.fit();
+          } catch (err) {
+            console.warn('Terminal fit failed:', err.message);
+          }
+          connect();
+        }, 150);
+
+        return true;
       }
-      // Connect after terminal is ready
-      connect();
-    }, 150);
+      return false;
+    };
+
+    // Try immediate initialization
+    if (!initializeTerminal()) {
+      // Not visible or no dimensions, poll until ready
+      dimensionCheckInterval = setInterval(() => {
+        initializeTerminal();
+      }, 100);
+    }
 
     // Handle user input
     xterm.onData(data => {
@@ -198,12 +230,14 @@ const Terminal = forwardRef(function Terminal({ height = 400, showQuickCommands 
     });
 
     return () => {
-      clearTimeout(initTimer);
+      if (initTimer) clearTimeout(initTimer);
+      if (dimensionCheckInterval) clearInterval(dimensionCheckInterval);
       disconnect();
       xterm.dispose();
       xtermRef.current = null;
       fitAddonRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connect, disconnect, getTerminalTheme]);
 
   // Update theme when it changes
@@ -218,7 +252,10 @@ const Terminal = forwardRef(function Terminal({ height = 400, showQuickCommands 
     const handleResize = () => {
       if (fitAddonRef.current) {
         try {
-          fitAddonRef.current.fit();
+          const parentRect = terminalRef.current?.getBoundingClientRect();
+          if (parentRect && parentRect.width > 0 && parentRect.height > 0) {
+            fitAddonRef.current.fit();
+          }
         } catch {
           // Ignore fit errors during resize
         }
@@ -234,7 +271,10 @@ const Terminal = forwardRef(function Terminal({ height = 400, showQuickCommands 
     if (fitAddonRef.current) {
       setTimeout(() => {
         try {
-          fitAddonRef.current.fit();
+          const parentRect = terminalRef.current?.getBoundingClientRect();
+          if (parentRect && parentRect.width > 0 && parentRect.height > 0) {
+            fitAddonRef.current.fit();
+          }
         } catch {
           // Ignore fit errors
         }
@@ -303,7 +343,7 @@ const Terminal = forwardRef(function Terminal({ height = 400, showQuickCommands 
         ref={terminalRef}
         style={{
           height: `${height}px`,
-          backgroundColor: theme === 'dark' ? '#1e1e1e' : '#ffffff',
+          backgroundColor: theme === 'dark' ? '#1e1e1e' : '#f8f8f8',
         }}
       />
     </div>

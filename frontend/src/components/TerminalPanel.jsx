@@ -264,7 +264,12 @@ export default function TerminalPanel() {
             position: isOpen ? 'relative' : 'absolute',
           }}
         >
-          <Terminal ref={terminalRef} height={height - 40} showQuickCommands={true} />
+          <Terminal
+            ref={terminalRef}
+            height={height - 40}
+            showQuickCommands={true}
+            isVisible={isOpen}
+          />
         </div>
       </div>
 
