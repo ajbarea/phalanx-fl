@@ -76,7 +76,14 @@ class SimulationRunner:
             self._config_loader.get_usecase_config_list()
         )
         self._dataset_config_list = self._config_loader.get_dataset_config_list()
-        self._directory_handler = DirectoryHandler()
+        config_parent = config_path.parent.resolve()
+        out_dir = Path("out").resolve()
+        if config_parent != Path(".").resolve() and str(config_parent).startswith(
+            str(out_dir)
+        ):
+            self._directory_handler = DirectoryHandler(output_dir=str(config_parent))
+        else:
+            self._directory_handler = DirectoryHandler()
 
     def run(self):
         """Run simulations according to the specified usecase config"""
