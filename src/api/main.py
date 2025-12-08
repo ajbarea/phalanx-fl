@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures
 from contextlib import asynccontextmanager
 import datetime
 import json
@@ -665,8 +666,6 @@ def rename_simulation(
             status_code=400, detail="Display name must be 100 characters or less"
         )
 
-    import re
-
     if not re.match(r"^[a-zA-Z0-9\s\-_]+$", display_name):
         raise HTTPException(
             status_code=400,
@@ -1068,27 +1067,68 @@ if sys.platform == "win32":
         session_id = f"term_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
         logger.info(f"Terminal session started: {session_id}")
 
+        # Prefer Git Bash/MSYS2, fallback to cmd.exe
+        bash_path = shutil.which("bash")
+        if bash_path:
+            shell_cmd = [bash_path]
+            logger.info(f"Using bash: {bash_path}")
+        else:
+            shell_path = os.environ.get("COMSPEC", "cmd.exe")
+            shell_cmd = [shell_path]
+            logger.info(f"Bash not found, using cmd.exe: {shell_path}")
+
+        env = os.environ.copy()
+        env["TERM"] = "xterm-256color"
+        env["COLORTERM"] = "truecolor"
+
         proc = winpty.PtyProcess.spawn(
-            "cmd.exe",
+            shell_cmd,
             cwd=str(BASE_DIR),
             dimensions=(24, 80),
+            env=env,
         )
 
         terminal_sessions[session_id] = {"process": proc}
 
         async def read_from_pty():
             """Reads output from the PTY and sends it to the WebSocket."""
+            loop = asyncio.get_event_loop()
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
+            def blocking_read():
+                """Read with timeout using thread."""
+                try:
+                    return proc.read()
+                except EOFError:
+                    return None
+                except Exception as e:
+                    logger.debug(f"PTY read exception: {e}")
+                    return None
+
             try:
                 while proc.isalive():
-                    await asyncio.sleep(0.01)
                     try:
-                        data = proc.read(4096)
-                        if data:
-                            await websocket.send_text(data)
-                    except Exception:
-                        pass
+                        future = loop.run_in_executor(executor, blocking_read)
+                        try:
+                            data = await asyncio.wait_for(future, timeout=0.5)
+                            if data:
+                                logger.debug(f"PTY data: {len(data)} bytes")
+                                await websocket.send_text(data)
+                            else:
+                                await asyncio.sleep(0.05)
+                        except asyncio.TimeoutError:
+                            await asyncio.sleep(0.01)
+                            continue
+                    except EOFError:
+                        logger.debug("PTY EOF")
+                        break
+                    except Exception as e:
+                        logger.debug(f"PTY read loop error: {e}")
+                        await asyncio.sleep(0.05)
             except Exception:
                 logger.exception("PTY read error")
+            finally:
+                executor.shutdown(wait=False)
 
         read_task = asyncio.create_task(read_from_pty())
 
