@@ -113,7 +113,7 @@ export default function InteractivePlots({ simulation }) {
 
   // Responsive chart dimensions
   const [chartHeight, setChartHeight] = useState(window.innerWidth < 768 ? 350 : 500);
-  const [chartWidth, setChartWidth] = useState(Math.max(450, window.innerWidth - 32));
+  const [, setChartWidth] = useState(Math.max(450, window.innerWidth - 32));
 
   useEffect(() => {
     const updateDimensions = () => {
@@ -255,87 +255,84 @@ export default function InteractivePlots({ simulation }) {
         </div>
 
         {/* Chart */}
-        <div style={{ width: '100%', overflowX: 'auto' }}>
-          <LineChart
-            width={chartWidth}
-            height={chartHeight}
-            data={chartData}
-            margin={{ top: 10, right: 30, left: 50, bottom: 80 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
-            <XAxis
-              dataKey="round"
-              stroke={chartColors.axis}
-              tick={{ fill: chartColors.text, fontSize: chartHeight < 400 ? 10 : 12 }}
-              label={{
-                value: 'Round #',
-                position: 'insideBottom',
-                offset: -10,
-                fill: chartColors.text,
-                fontSize: chartHeight < 400 ? 10 : 12,
-              }}
-              height={60}
-            />
-            <YAxis
-              stroke={chartColors.axis}
-              tick={{ fill: chartColors.text, fontSize: chartHeight < 400 ? 10 : 12 }}
-              label={{
-                value: METRIC_LABELS[selectedMetric] || selectedMetric,
-                angle: -90,
-                position: 'insideLeft',
-                fill: chartColors.text,
-                fontSize: chartHeight < 400 ? 10 : 12,
-              }}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: theme === 'dark' ? '#2b2b2b' : '#fff',
-                border: `1px solid ${chartColors.grid}`,
-                color: chartColors.text,
-              }}
-            />
-            <Legend wrapperStyle={{ color: chartColors.text }} />
-            <Brush
-              dataKey="round"
-              height={30}
-              stroke={chartColors.brush}
-              fill={theme === 'dark' ? '#1a1a1a' : '#f5f5f5'}
-              y={chartHeight - 70}
-            />
+        <div style={{ width: '100%', height: chartHeight }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 10, right: 30, left: 50, bottom: 80 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+              <XAxis
+                dataKey="round"
+                stroke={chartColors.axis}
+                tick={{ fill: chartColors.text, fontSize: chartHeight < 400 ? 10 : 12 }}
+                label={{
+                  value: 'Round #',
+                  position: 'insideBottom',
+                  offset: -10,
+                  fill: chartColors.text,
+                  fontSize: chartHeight < 400 ? 10 : 12,
+                }}
+                height={60}
+              />
+              <YAxis
+                stroke={chartColors.axis}
+                tick={{ fill: chartColors.text, fontSize: chartHeight < 400 ? 10 : 12 }}
+                label={{
+                  value: METRIC_LABELS[selectedMetric] || selectedMetric,
+                  angle: -90,
+                  position: 'insideLeft',
+                  fill: chartColors.text,
+                  fontSize: chartHeight < 400 ? 10 : 12,
+                }}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: theme === 'dark' ? '#2b2b2b' : '#fff',
+                  border: `1px solid ${chartColors.grid}`,
+                  color: chartColors.text,
+                }}
+              />
+              <Legend wrapperStyle={{ color: chartColors.text }} />
+              <Brush
+                dataKey="round"
+                height={30}
+                stroke={chartColors.brush}
+                fill={theme === 'dark' ? '#1a1a1a' : '#f5f5f5'}
+                y={chartHeight - 70}
+              />
 
-            {plotData.per_client_metrics.map((client, idx) => {
-              const clientKey = `client_${client.client_id}`;
-              const color = client.is_malicious ? MALICIOUS_COLOR : COLORS[idx % COLORS.length];
-              return (
-                visibleClients[clientKey] && (
+              {plotData.per_client_metrics.map((client, idx) => {
+                const clientKey = `client_${client.client_id}`;
+                const color = client.is_malicious ? MALICIOUS_COLOR : COLORS[idx % COLORS.length];
+                return (
+                  visibleClients[clientKey] && (
+                    <Line
+                      key={clientKey}
+                      type="monotone"
+                      dataKey={clientKey}
+                      stroke={color}
+                      strokeWidth={2}
+                      strokeDasharray={client.is_malicious ? '5 5' : undefined}
+                      dot={{ r: 3 }}
+                      name={`Client ${client.client_id}${client.is_malicious ? ' (Malicious)' : ''}`}
+                    />
+                  )
+                );
+              })}
+
+              {plotData.removal_threshold_history &&
+                selectedMetric === 'removal_criterion_history' &&
+                visibleClients.threshold && (
                   <Line
-                    key={clientKey}
                     type="monotone"
-                    dataKey={clientKey}
-                    stroke={color}
+                    dataKey="threshold"
+                    stroke={MALICIOUS_COLOR}
                     strokeWidth={2}
-                    strokeDasharray={client.is_malicious ? '5 5' : undefined}
-                    dot={{ r: 3 }}
-                    name={`Client ${client.client_id}${client.is_malicious ? ' (Malicious)' : ''}`}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    name="Removal Threshold"
                   />
-                )
-              );
-            })}
-
-            {plotData.removal_threshold_history &&
-              selectedMetric === 'removal_criterion_history' &&
-              visibleClients.threshold && (
-                <Line
-                  type="monotone"
-                  dataKey="threshold"
-                  stroke={MALICIOUS_COLOR}
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  dot={false}
-                  name="Removal Threshold"
-                />
-              )}
-          </LineChart>
+                )}
+            </LineChart>
+          </ResponsiveContainer>
         </div>
 
         <div className="mt-3 text-muted">
