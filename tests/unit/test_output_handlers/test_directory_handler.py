@@ -1,6 +1,7 @@
 import csv
 import datetime
 import json
+import os
 from pathlib import Path
 
 from src.data_models.client_info import ClientInfo
@@ -259,7 +260,7 @@ class TestDirectoryHandler:
         monkeypatch.setattr(datetime, "datetime", Mock(now=Mock(return_value=mock_now)))
 
         handler = DirectoryHandler()
-        assert "out/" in handler.dirname
+        assert f"out{os.sep}" in handler.dirname
 
     def test_csv_dirname_is_subdirectory_of_dirname(self, tmp_path):
         """Verifies CSV directory is a subdirectory of main directory."""
