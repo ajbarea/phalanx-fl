@@ -26,13 +26,11 @@ jobs:
         cache: 'pip'
         cache-dependency-path: |
           requirements.txt
-          src/api/requirements.txt
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install -r src/api/requirements.txt
 
     - name: Run unit tests (parallel)
       run: |
@@ -91,7 +89,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install -r src/api/requirements.txt
 
     - name: Run strategy pipeline tests
       run: |

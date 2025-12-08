@@ -34,4 +34,3 @@ log_info "Upgrading pip..."
 run_python -m pip install --upgrade pip
 
 install_requirements
-install_requirements "src/api/requirements.txt"
