@@ -1,13 +1,8 @@
-#!/usr/bin/env python3
-"""Interactive batch runner for testing configs.
-
-Usage:
-    python -m tests.scripts.experiment_runner testing
-    python -m tests.scripts.experiment_runner examples
-"""
+"""Interactive batch runner for testing configs."""
 
 import argparse
 import json
+import signal
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -19,27 +14,35 @@ from tests.scripts.runner.config_reader import ConfigReader
 from tests.scripts.runner.executor import ExperimentExecutor, display_summary
 from tests.scripts.runner.timing_db import TimingDatabase
 
-# Project root for config/output paths
 project_root = Path(__file__).parent.parent.parent
 
 console = Console()
+
+_stop_requested = False
+
+
+def _handle_interrupt(signum, frame):
+    """Handle Ctrl+C for graceful shutdown."""
+    global _stop_requested
+    if _stop_requested:
+        console.print("\n[red]Force quitting...[/red]")
+        sys.exit(130)
+    _stop_requested = True
+    console.print(
+        "\n[yellow]Stopping after current experiment completes... "
+        "(Ctrl+C again to force quit)[/yellow]"
+    )
 
 
 def parse_selection(selection_input: str, max_index: int) -> set:
     """Parse user selection input into set of indices.
 
-    Supports:
-    - "all" -> all indices
-    - "1,3,5" -> specific indices
-    - "1-5" -> ranges
-    - "1,3-5,8" -> combinations
-
     Args:
-        selection_input: User input string
-        max_index: Maximum valid index
+        selection_input: User input string.
+        max_index: Maximum valid index.
 
     Returns:
-        Set of selected indices (0-based)
+        Set of selected indices (0-based).
     """
     selection_input = selection_input.strip().lower()
 
@@ -52,23 +55,21 @@ def parse_selection(selection_input: str, max_index: int) -> set:
     for part in parts:
         part = part.strip()
         if "-" in part:
-            # Range like "3-7"
             try:
                 start, end = part.split("-")
-                start_idx = int(start.strip()) - 1  # Convert to 0-based
+                start_idx = int(start.strip()) - 1
                 end_idx = int(end.strip()) - 1
                 if 0 <= start_idx <= end_idx < max_index:
                     selected.update(range(start_idx, end_idx + 1))
             except (ValueError, IndexError):
-                pass  # Skip invalid ranges
+                pass
         else:
-            # Single number like "5"
             try:
-                idx = int(part) - 1  # Convert to 0-based
+                idx = int(part) - 1
                 if 0 <= idx < max_index:
                     selected.add(idx)
             except ValueError:
-                pass  # Skip invalid numbers
+                pass
 
     return selected
 
@@ -82,10 +83,10 @@ def show_config_menu(
     """Display interactive config selection menu.
 
     Args:
-        configs: List of config filenames (sorted by timing)
-        timing_db: Timing database for duration estimates
-        config_reader: Config reader for titles
-        config_subdir: Subdirectory under config/simulation_strategies/
+        configs: List of config filenames.
+        timing_db: Timing database for duration estimates.
+        config_reader: Config reader for titles.
+        config_subdir: Subdirectory under config/simulation_strategies.
     """
     console.print("\n[bold cyan]Available Experiments[/bold cyan]")
     table = Table(show_header=True, header_style="bold cyan")
@@ -103,7 +104,6 @@ def show_config_menu(
         else:
             title = config_name
 
-        # Read training_device from JSON config (config_name may include subdirs)
         config_file_path = config_base_dir / config_name
         try:
             with open(config_file_path, "r") as f:
@@ -114,11 +114,9 @@ def show_config_menu(
                     .lower()
                 )
         except (FileNotFoundError, json.JSONDecodeError):
-            device = "cpu"  # Default to CPU if config can't be read
+            device = "cpu"
 
-        # Query timing with full path (e.g., "testing/cpu_testing/test.json")
-        config_path = f"{config_subdir}/{config_name}"
-        duration = timing_db.get_duration(config_path, device=device)
+        duration = timing_db.get_duration(config_name, device=device)
 
         if duration == float("inf"):
             time_str = "[dim]unknown[/dim]"
@@ -146,15 +144,14 @@ def select_configs_interactive(
     """Interactively select configs to run.
 
     Args:
-        all_configs: List of all available config filenames (sorted)
-        timing_db: Timing database
-        config_reader: Config reader
-        config_subdir: Subdirectory under config/simulation_strategies/
+        all_configs: List of available config filenames.
+        timing_db: Timing database.
+        config_reader: Config reader.
+        config_subdir: Subdirectory under config/simulation_strategies.
 
     Returns:
-        List of selected config filenames
+        List of selected config filenames.
     """
-    # Show timing stats
     stats = timing_db.get_stats(device="gpu")
     if stats["count"] > 0:
         console.print(
@@ -170,10 +167,8 @@ def select_configs_interactive(
         )
 
     while True:
-        # Show menu
         show_config_menu(all_configs, timing_db, config_reader, config_subdir)
 
-        # Select by numbers
         console.print("[yellow]Select experiments:[/yellow]")
         console.print("  [cyan]all[/cyan]      - Run all experiments")
         console.print("  [cyan]1,3,5[/cyan]    - Run specific experiments")
@@ -186,7 +181,6 @@ def select_configs_interactive(
             console.print("[yellow]Cancelled[/yellow]")
             sys.exit(0)
 
-        # Parse selection
         selected_indices = parse_selection(selection, len(all_configs))
 
         if not selected_indices:
@@ -195,7 +189,6 @@ def select_configs_interactive(
 
         selected_configs = [all_configs[i] for i in sorted(selected_indices)]
 
-        # Confirm selection
         console.print(f"\n[green]Selected {len(selected_configs)} experiments:[/green]")
         for config in selected_configs:
             title_text = config_reader.get_title(config)
@@ -217,7 +210,8 @@ def select_configs_interactive(
 
 def main():
     """Run selected configs with memory cleanup."""
-    # Parse command-line arguments
+    signal.signal(signal.SIGINT, _handle_interrupt)
+
     parser = argparse.ArgumentParser(
         description="Interactive batch runner for testing configs"
     )
@@ -229,30 +223,25 @@ def main():
     )
     args = parser.parse_args()
 
-    # Setup paths
     config_dir = project_root / "config" / "simulation_strategies" / args.dir
 
     if not config_dir.exists():
         console.print(f"[red]Config directory not found: {config_dir}[/red]")
         sys.exit(1)
 
-    # Initialize timing database and config reader
     timing_db = TimingDatabase()
     config_reader = ConfigReader(project_root)
 
-    # Discover all configs (recursively search subdirectories)
     all_config_paths = list(config_dir.rglob("*.json"))
 
     if not all_config_paths:
         console.print("[red]No config files found[/red]")
         sys.exit(1)
 
-    # Store relative paths from config_dir
     all_configs = [
         str(f.relative_to(config_dir)).replace("\\", "/") for f in all_config_paths
     ]
 
-    # Show summary of discovered configs by subdirectory
     configs_by_subdir = defaultdict(int)
     for config in all_configs:
         if "/" in config:
@@ -268,9 +257,7 @@ def main():
             display_dir = f"{args.dir}/" if subdir == "." else f"{args.dir}/{subdir}/"
             console.print(f"  [dim]•[/dim] {count} in [yellow]{display_dir}[/yellow]")
 
-    # Sort by historical timing (fastest first for fail-fast)
     def get_sort_key(config_name):
-        # Read training_device from JSON config
         config_file_path = config_dir / config_name
         try:
             with open(config_file_path, "r") as f:
@@ -281,16 +268,13 @@ def main():
                     .lower()
                 )
         except (FileNotFoundError, json.JSONDecodeError):
-            device = "cpu"  # Default to CPU if config can't be read
+            device = "cpu"
 
-        # Query timing with full path (e.g., "testing/cpu_testing/test.json")
-        config_path = f"{args.dir}/{config_name}"
-        duration = timing_db.get_duration(config_path, device=device)
+        duration = timing_db.get_duration(config_name, device=device)
         return duration
 
     configs = sorted(all_configs, key=get_sort_key)
 
-    # Interactive selection
     selected_configs = select_configs_interactive(
         configs, timing_db, config_reader, args.dir
     )
@@ -299,22 +283,21 @@ def main():
         f"\n[cyan]Running {len(selected_configs)} configs with Ray cleanup[/cyan]\n"
     )
 
-    # Create executor with cleanup and timing database
     with ExperimentExecutor(
         project_root=project_root,
         config_subdir=args.dir,
         log_level="INFO",
-        timeout=None,  # No timeout - let experiments run as long as needed
-        cleanup_mode="aggressive",  # Clear caches and pause between runs
-        timing_db=timing_db,  # Track execution times
+        timeout=None,
+        cleanup_mode="aggressive",
+        timing_db=timing_db,
     ) as executor:
-        # Run selected configs
-        results = executor.run_batch(selected_configs)
+        results = executor.run_batch(
+            selected_configs,
+            should_stop=lambda: _stop_requested,
+        )
 
-        # Display summary with project root and config subdir for titles and output dirs
         display_summary(results, project_root=project_root, config_subdir=args.dir)
 
-    # Exit with error if any failed
     total_errors = len(results["failed"]) + len(results["timedout"])
     sys.exit(0 if total_errors == 0 else 1)
 

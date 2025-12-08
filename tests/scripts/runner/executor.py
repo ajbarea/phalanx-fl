@@ -61,13 +61,13 @@ class ExperimentExecutor:
         """Initialize executor.
 
         Args:
-            project_root: Project root directory
-            config_subdir: Subdirectory under config/simulation_strategies/ (default: examples)
-            log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
-            timeout: Timeout in seconds per experiment, None for unlimited
-            cleanup_mode: Cleanup mode (none, basic, aggressive)
-            timing_db: Optional timing database to record execution times
-            skip_gc: Skip manual garbage collection (rely on subprocess cleanup)
+            project_root: Project root directory.
+            config_subdir: Subdirectory under config/simulation_strategies.
+            log_level: Logging level.
+            timeout: Timeout in seconds per experiment.
+            cleanup_mode: Cleanup mode (none, basic, aggressive).
+            timing_db: Optional timing database.
+            skip_gc: Skip manual garbage collection.
         """
         self.project_root = Path(project_root)
         self.config_subdir = config_subdir
@@ -91,18 +91,14 @@ class ExperimentExecutor:
 
     def _open_log_file(self) -> None:
         """Create and open a log file for capturing all experiment output."""
-        # Create logs directory if it doesn't exist
         logs_dir = self.project_root / "logs"
         logs_dir.mkdir(exist_ok=True)
 
-        # Create timestamped log file
         timestamp = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
         self.log_file_path = logs_dir / f"experiment_batch_{timestamp}.log"
 
-        # Open file in append mode with UTF-8 encoding
         self.log_file_handle = open(self.log_file_path, "a", encoding="utf-8")
 
-        # Write header
         self.log_file_handle.write("=" * 80 + "\n")
         self.log_file_handle.write(f"Experiment Batch Run - {timestamp}\n")
         self.log_file_handle.write(
@@ -121,11 +117,7 @@ class ExperimentExecutor:
             self.log_file_handle = None
 
     def _kill_ray_processes(self) -> None:
-        """Kill stray Ray processes to prevent resource leaks.
-
-        On Windows, Ray's raylet.exe can become orphaned and hold GPU memory,
-        file locks, and network ports. This ensures clean slate between experiments.
-        """
+        """Kill stray Ray processes to prevent resource leaks."""
         try:
             if sys.platform == "win32":
                 subprocess.run(
@@ -146,10 +138,10 @@ class ExperimentExecutor:
         """Extract title from config file if available.
 
         Args:
-            config_name: Name of config file
+            config_name: Name of config file.
 
         Returns:
-            Title string if found, None otherwise
+            Title string if found, None otherwise.
         """
         config_path = (
             self.project_root
@@ -169,10 +161,10 @@ class ExperimentExecutor:
         """Extract training device from config file.
 
         Args:
-            config_name: Name of config file
+            config_name: Name of config file.
 
         Returns:
-            Device string ("gpu", "cpu"), defaults to "gpu"
+            Device string ("gpu", "cpu").
         """
         config_path = (
             self.project_root
@@ -184,27 +176,24 @@ class ExperimentExecutor:
         try:
             with open(config_path, "r") as f:
                 config = json.load(f)
-                # Check shared_settings first, then root level
                 if "shared_settings" in config:
                     return config["shared_settings"].get("training_device", "gpu")
                 return config.get("training_device", "gpu")
         except (FileNotFoundError, json.JSONDecodeError, KeyError):
-            return "gpu"  # Default to gpu if can't read
+            return "gpu"
 
     def _detect_device_from_output(self, stderr_lines: List[str]) -> Optional[str]:
         """Parse stderr to detect actual device used.
 
         Args:
-            stderr_lines: List of stderr output lines from experiment
+            stderr_lines: List of stderr output lines.
 
         Returns:
-            "gpu" if GPU was used, "cpu" if CPU was used, None if couldn't detect
+            "gpu" or "cpu" if detected, None otherwise.
         """
         for line in stderr_lines:
-            # Check for CUDA/GPU usage
             if "Using CUDA" in line or "CUDA GPU" in line:
                 return "gpu"
-            # Check for CPU usage
             if "Using CPU" in line or "Using device: CPU" in line:
                 return "cpu"
         return None
@@ -213,18 +202,16 @@ class ExperimentExecutor:
         """Find the newest output directory in out/.
 
         Returns:
-            Path to newest directory, or None if not found
+            Path to newest directory, or None.
         """
         out_dir = self.project_root / "out"
         if not out_dir.exists():
             return None
 
-        # Get all directories with timestamp pattern
         dirs = [d for d in out_dir.iterdir() if d.is_dir() and d.name != ".gitkeep"]
         if not dirs:
             return None
 
-        # Return the newest directory by modification time
         newest_dir = max(dirs, key=lambda d: d.stat().st_mtime)
         return str(newest_dir.relative_to(self.project_root))
 
@@ -234,17 +221,16 @@ class ExperimentExecutor:
         """Run a single experiment.
 
         Args:
-            config_name: Name of config file
-            config_index: Current config index (1-based)
-            total_configs: Total number of configs
+            config_name: Name of config file.
+            config_index: Current config index.
+            total_configs: Total number of configs.
 
         Returns:
-            ExperimentResult with execution details
+            ExperimentResult with execution details.
         """
         start_time = time.time()
         output_dir = None
 
-        # Get human-readable title if available
         title = self._get_config_title(config_name)
         if title:
             console.print(
@@ -256,7 +242,6 @@ class ExperimentExecutor:
                 f"\n[cyan][{config_index}/{total_configs}] Running {config_name}...[/cyan]"
             )
 
-        # Write experiment header to log file
         if self.log_file_handle:
             self.log_file_handle.write("\n" + "=" * 80 + "\n")
             self.log_file_handle.write(
@@ -270,7 +255,6 @@ class ExperimentExecutor:
             self.log_file_handle.write("=" * 80 + "\n\n")
             self.log_file_handle.flush()
 
-        # Build command
         cmd = [
             self.python_exe,
             "src/simulation_runner.py",
@@ -279,42 +263,36 @@ class ExperimentExecutor:
             self.log_level,
         ]
 
-        # Run with timeout and capture output for device detection
         env = os.environ.copy()
         env["PYTHONPATH"] = str(self.project_root)
 
-        stderr_buffer = []  # Capture stderr for device detection
+        stderr_buffer = []
 
         try:
-            # Use Popen for real-time output streaming
             process = subprocess.Popen(
                 cmd,
                 cwd=self.project_root,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,  # Merge stderr into stdout for simplicity
+                stderr=subprocess.STDOUT,
                 text=True,
-                bufsize=1,  # Line buffered
+                bufsize=1,
                 env=env,
             )
 
-            # Stream output line by line
             if process.stdout:
                 for line in process.stdout:
-                    print(line, end="")  # Print to console in real-time
-                    stderr_buffer.append(line)  # Save for parsing
-                    # Write to log file if available
+                    print(line, end="")
+                    stderr_buffer.append(line)
                     if self.log_file_handle:
                         self.log_file_handle.write(line)
-                        self.log_file_handle.flush()  # Ensure immediate write
+                        self.log_file_handle.flush()
 
-            # Wait for process to complete with timeout
             try:
                 returncode = process.wait(timeout=self.timeout)
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait()
                 duration = time.time() - start_time
-                # self.timeout is guaranteed to be set if TimeoutExpired is raised
                 assert self.timeout is not None
                 timeout_str = (
                     f"{self.timeout // 60} minutes"
@@ -340,19 +318,14 @@ class ExperimentExecutor:
                 if self.log_file_handle:
                     self.log_file_handle.write(f"\n{msg}\n")
                     self.log_file_handle.flush()
-                # Capture output directory
                 output_dir = self._get_newest_output_dir()
-                # Detect actual device used from output
                 if self.timing_db:
                     detected_device = self._detect_device_from_output(stderr_buffer)
                     if detected_device:
                         device = detected_device
                     else:
-                        # Fallback to config value if couldn't detect
                         device = self._get_config_device(config_name)
-                    # Record with directory prefix (e.g., "examples/test.json")
-                    config_path = f"{self.config_subdir}/{config_name}"
-                    self.timing_db.record(config_path, duration, device)
+                    self.timing_db.record(config_name, duration, device)
                 return ExperimentResult(
                     config_name,
                     ExecutionResult.SUCCESS,
@@ -387,7 +360,6 @@ class ExperimentExecutor:
             )
 
         finally:
-            # Always kill stray Ray processes to prevent resource leaks
             self._kill_ray_processes()
             gc.collect()
 
@@ -395,7 +367,7 @@ class ExperimentExecutor:
         """Perform cleanup between experiments.
 
         Args:
-            is_last: Whether this is the last experiment (skip cleanup)
+            is_last: Whether this is the last experiment (skip cleanup).
         """
         if is_last or self.cleanup_mode == "none":
             return
@@ -403,7 +375,6 @@ class ExperimentExecutor:
         console.print(f"[dim]Running cleanup (mode: {self.cleanup_mode})...[/dim]")
 
         if self.cleanup_mode in ["basic", "aggressive"]:
-            # Force garbage collection (unless skip_gc is enabled)
             if not self.skip_gc:
                 gc.collect()
                 console.print("[dim]Garbage collection complete[/dim]")
@@ -413,7 +384,6 @@ class ExperimentExecutor:
                 )
 
         if self.cleanup_mode == "aggressive":
-            # Clear __pycache__ directories
             cache_dirs = list(self.project_root.rglob("__pycache__"))
             for cache_dir in cache_dirs:
                 try:
@@ -421,33 +391,37 @@ class ExperimentExecutor:
                         item.unlink()
                     cache_dir.rmdir()
                 except Exception:
-                    pass  # Ignore errors
+                    pass
 
-            # Brief pause for resource reclaim
             console.print("[dim]Pausing 3 seconds for resource cleanup...[/dim]")
             time.sleep(3)
 
     def run_batch(
-        self, configs: List[str], on_complete=None, on_failed=None, on_timeout=None
+        self,
+        configs: List[str],
+        on_complete=None,
+        on_failed=None,
+        on_timeout=None,
+        should_stop=None,
     ) -> dict:
         """Run a batch of experiments.
 
         Args:
-            configs: List of config filenames
-            on_complete: Callback for successful completion
-            on_failed: Callback for failures
-            on_timeout: Callback for timeouts
+            configs: List of config filenames.
+            on_complete: Callback for successful completion.
+            on_failed: Callback for failures.
+            on_timeout: Callback for timeouts.
+            should_stop: Callable returning True to stop after current experiment.
 
         Returns:
-            Dictionary with results summary (includes "log_file_path" key)
+            Dictionary with results summary.
         """
         total = len(configs)
         completed = []
         failed = []
         timedout = []
-        output_dirs = {}  # Map config_name -> output_dir
+        output_dirs = {}
 
-        # Open log file for capturing all output
         self._open_log_file()
         console.print(f"[dim]Logging all output to: {self.log_file_path}[/dim]\n")
 
@@ -462,13 +436,18 @@ class ExperimentExecutor:
                 task = progress.add_task("[cyan]Running experiments...", total=total)
 
                 for idx, config in enumerate(configs, start=1):
+                    if should_stop and should_stop():
+                        console.print(
+                            f"\n[yellow]Stopping early (user requested) - "
+                            f"{idx - 1}/{total} completed[/yellow]"
+                        )
+                        break
+
                     result = self.run_experiment(config, idx, total)
 
-                    # Track output directory
                     if result.output_dir:
                         output_dirs[config] = result.output_dir
 
-                    # Track results
                     if result.result == ExecutionResult.SUCCESS:
                         completed.append(config)
                         if on_complete:
@@ -482,12 +461,10 @@ class ExperimentExecutor:
                         if on_failed:
                             on_failed(config)
 
-                    # Cleanup between experiments
                     self.cleanup(is_last=(idx == total))
 
                     progress.update(task, advance=1)
         finally:
-            # Always close log file, even if there's an exception
             self._close_log_file()
 
         return {
@@ -509,10 +486,10 @@ def display_summary(
     """Display summary of batch execution.
 
     Args:
-        results: Results dictionary from run_batch
-        skipped: List of skipped configs
-        project_root: Optional project root for reading config titles
-        config_subdir: Optional config subdirectory for reading config titles
+        results: Results dictionary.
+        skipped: List of skipped configs.
+        project_root: Optional project root.
+        config_subdir: Optional config subdirectory.
     """
     console.print("\n" + "=" * 50)
     console.print("[bold cyan]Execution Summary[/bold cyan]")
@@ -526,7 +503,6 @@ def display_summary(
             f"[dim]Skipped {len(skipped)} already-completed config(s)[/dim]\n"
         )
 
-    # Helper function to get config title
     def get_config_title(config_name: str) -> Optional[str]:
         if not project_root or not config_subdir:
             return None
@@ -544,7 +520,6 @@ def display_summary(
         except (FileNotFoundError, json.JSONDecodeError, KeyError):
             return None
 
-    # Get output directories mapping
     output_dirs = results.get("output_dirs", {})
 
     if total_errors == 0:
@@ -555,7 +530,6 @@ def display_summary(
                 f"[green]All {configs_run} config(s) completed successfully![/green]\n"
             )
 
-            # Display completed experiments
             if results["completed"]:
                 console.print("[cyan]Experiments run:[/cyan]")
                 for config in results["completed"]:
@@ -576,7 +550,6 @@ def display_summary(
     else:
         console.print(f"[red]{total_errors}/{configs_run} config(s) failed:[/red]\n")
 
-        # Display completed experiments (if any)
         if results["completed"]:
             console.print(f"[green]Completed ({len(results['completed'])}):[/green]")
             for config in results["completed"]:
@@ -631,7 +604,6 @@ def display_summary(
                     console.print(f"  [red][X][/red] {config_display}")
             console.print()
 
-    # Display log file path if available
     log_file_path = results.get("log_file_path")
     if log_file_path:
         console.print(f"[cyan]Full output log:[/cyan] {log_file_path}\n")
