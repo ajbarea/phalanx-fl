@@ -4,11 +4,14 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './index.css';
 import App from './App.jsx';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { TerminalProvider } from './contexts/TerminalContext';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ThemeProvider>
-      <App />
+      <TerminalProvider>
+        <App />
+      </TerminalProvider>
     </ThemeProvider>
   </StrictMode>
 );
