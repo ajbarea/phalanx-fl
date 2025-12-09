@@ -7,13 +7,66 @@ import '@xterm/xterm/css/xterm.css';
 
 const WEBSOCKET_URL = 'ws://127.0.0.1:8000/api/terminal';
 
-// Predefined commands for quick access
+/** Quick command definitions. */
 const QUICK_COMMANDS = [
   { label: 'Run Simulation', cmd: './run_simulation.sh\n' },
   { label: 'Run Tests', cmd: 'python -m tests.scripts.experiment_runner testing\n' },
   { label: 'Git Status', cmd: 'git status\n' },
 ];
 
+/** Terminal theme configurations. */
+const TERMINAL_THEMES = {
+  dark: {
+    background: '#1e1e1e',
+    foreground: '#d4d4d4',
+    cursor: '#d4d4d4',
+    cursorAccent: '#1e1e1e',
+    selectionBackground: '#264f78',
+    black: '#1e1e1e',
+    red: '#f44747',
+    green: '#6a9955',
+    yellow: '#dcdcaa',
+    blue: '#569cd6',
+    magenta: '#c586c0',
+    cyan: '#4ec9b0',
+    white: '#d4d4d4',
+    brightBlack: '#808080',
+    brightRed: '#f44747',
+    brightGreen: '#6a9955',
+    brightYellow: '#dcdcaa',
+    brightBlue: '#569cd6',
+    brightMagenta: '#c586c0',
+    brightCyan: '#4ec9b0',
+    brightWhite: '#ffffff',
+  },
+  light: {
+    background: '#ffffff',
+    foreground: '#383a42',
+    cursor: '#383a42',
+    cursorAccent: '#ffffff',
+    selectionBackground: '#b4d5fe',
+    black: '#383a42',
+    red: '#e45649',
+    green: '#50a14f',
+    yellow: '#c18401',
+    blue: '#4078f2',
+    magenta: '#a626a4',
+    cyan: '#0184bc',
+    white: '#fafafa',
+    brightBlack: '#a0a1a7',
+    brightRed: '#e45649',
+    brightGreen: '#50a14f',
+    brightYellow: '#c18401',
+    brightBlue: '#4078f2',
+    brightMagenta: '#a626a4',
+    brightCyan: '#0184bc',
+    brightWhite: '#ffffff',
+  },
+};
+
+/**
+ * Renders a terminal interface with WebSocket connectivity.
+ */
 const Terminal = forwardRef(function Terminal(
   { height = 400, showQuickCommands = true, isVisible = true },
   ref
@@ -26,59 +79,11 @@ const Terminal = forwardRef(function Terminal(
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState(null);
 
-  // Theme-aware terminal colors
   const getTerminalTheme = useCallback(() => {
-    if (theme === 'dark') {
-      return {
-        background: '#1e1e1e',
-        foreground: '#d4d4d4',
-        cursor: '#d4d4d4',
-        cursorAccent: '#1e1e1e',
-        selectionBackground: '#264f78',
-        black: '#1e1e1e',
-        red: '#f44747',
-        green: '#6a9955',
-        yellow: '#dcdcaa',
-        blue: '#569cd6',
-        magenta: '#c586c0',
-        cyan: '#4ec9b0',
-        white: '#d4d4d4',
-        brightBlack: '#808080',
-        brightRed: '#f44747',
-        brightGreen: '#6a9955',
-        brightYellow: '#dcdcaa',
-        brightBlue: '#569cd6',
-        brightMagenta: '#c586c0',
-        brightCyan: '#4ec9b0',
-        brightWhite: '#ffffff',
-      };
-    }
-    return {
-      background: '#f8f8f8',
-      foreground: '#1a1a1a',
-      cursor: '#1a1a1a',
-      cursorAccent: '#f8f8f8',
-      selectionBackground: '#bfceff',
-      black: '#1a1a1a',
-      red: '#c41a16',
-      green: '#007400',
-      yellow: '#826b28',
-      blue: '#0451a5',
-      magenta: '#a626a4',
-      cyan: '#0598bc',
-      white: '#5c5c5c',
-      brightBlack: '#1a1a1a',
-      brightRed: '#c41a16',
-      brightGreen: '#007400',
-      brightYellow: '#826b28',
-      brightBlue: '#0451a5',
-      brightMagenta: '#a626a4',
-      brightCyan: '#0598bc',
-      brightWhite: '#1a1a1a',
-    };
+    return TERMINAL_THEMES[theme] || TERMINAL_THEMES.dark;
   }, [theme]);
 
-  // Connect to WebSocket
+  /** Establishes WebSocket connection. */
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       return;
@@ -91,7 +96,6 @@ const Terminal = forwardRef(function Terminal(
       setConnected(true);
       setError(null);
 
-      // Send initial resize
       if (xtermRef.current && xtermRef.current.rows && xtermRef.current.cols) {
         const { rows, cols } = xtermRef.current;
         ws.send(JSON.stringify({ type: 'resize', rows, cols }));
@@ -115,7 +119,7 @@ const Terminal = forwardRef(function Terminal(
     wsRef.current = ws;
   }, []);
 
-  // Disconnect WebSocket
+  /** Closes WebSocket connection. */
   const disconnect = useCallback(() => {
     if (wsRef.current) {
       wsRef.current.close();
@@ -124,14 +128,14 @@ const Terminal = forwardRef(function Terminal(
     setConnected(false);
   }, []);
 
-  // Send command to terminal
+  /** Sends command to terminal via WebSocket. */
   const sendCommand = useCallback(cmd => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(cmd);
     }
   }, []);
 
-  // Reset terminal - clears output and reconnects for fresh shell
+  /** Resets terminal state and reconnects. */
   const reset = useCallback(() => {
     if (xtermRef.current) {
       xtermRef.current.clear();
@@ -141,7 +145,6 @@ const Terminal = forwardRef(function Terminal(
     setTimeout(() => connect(), 100);
   }, [disconnect, connect]);
 
-  // Expose methods to parent components
   useImperativeHandle(
     ref,
     () => ({
@@ -151,11 +154,9 @@ const Terminal = forwardRef(function Terminal(
     [reset, sendCommand]
   );
 
-  // Initialize terminal
   useEffect(() => {
     if (!terminalRef.current) return;
 
-    // Prevent double initialization in React Strict Mode
     if (xtermRef.current) {
       return;
     }
@@ -177,22 +178,18 @@ const Terminal = forwardRef(function Terminal(
     let initTimer;
     let dimensionCheckInterval;
 
-    // Function to initialize terminal when visible and has dimensions
     const initializeTerminal = () => {
-      if (!isVisible) return false; // Don't initialize if not visible
+      if (!isVisible) return false;
 
       const rect = terminalRef.current?.getBoundingClientRect();
       if (rect && rect.width > 0 && rect.height > 0) {
-        // Clear the check interval if it was running
         if (dimensionCheckInterval) {
           clearInterval(dimensionCheckInterval);
           dimensionCheckInterval = null;
         }
 
-        // Open terminal now that it's visible and has dimensions
         xterm.open(terminalRef.current);
 
-        // Fit and connect after a short delay
         initTimer = setTimeout(() => {
           try {
             fitAddon.fit();
@@ -207,22 +204,18 @@ const Terminal = forwardRef(function Terminal(
       return false;
     };
 
-    // Try immediate initialization
     if (!initializeTerminal()) {
-      // Not visible or no dimensions, poll until ready
       dimensionCheckInterval = setInterval(() => {
         initializeTerminal();
       }, 100);
     }
 
-    // Handle user input
     xterm.onData(data => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(data);
       }
     });
 
-    // Handle resize
     xterm.onResize(({ rows, cols }) => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: 'resize', rows, cols }));
@@ -238,16 +231,34 @@ const Terminal = forwardRef(function Terminal(
       fitAddonRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connect, disconnect, getTerminalTheme]);
+  }, [connect, disconnect]);
 
-  // Update theme when it changes
   useEffect(() => {
     if (xtermRef.current) {
       xtermRef.current.options.theme = getTerminalTheme();
     }
-  }, [theme, getTerminalTheme]);
+  }, [getTerminalTheme]);
 
-  // Handle window resize
+  useEffect(() => {
+    if (!isVisible || !xtermRef.current || !terminalRef.current) return;
+
+    if (xtermRef.current.element?.parentElement) return;
+
+    const rect = terminalRef.current.getBoundingClientRect();
+    if (rect && rect.width > 0 && rect.height > 0) {
+      xtermRef.current.open(terminalRef.current);
+      setTimeout(() => {
+        try {
+          fitAddonRef.current?.fit();
+        } catch {
+        }
+        if (!connected) {
+          connect();
+        }
+      }, 150);
+    }
+  }, [isVisible, connected, connect]);
+
   useEffect(() => {
     const handleResize = () => {
       if (fitAddonRef.current) {
@@ -257,7 +268,6 @@ const Terminal = forwardRef(function Terminal(
             fitAddonRef.current.fit();
           }
         } catch {
-          // Ignore fit errors during resize
         }
       }
     };
@@ -266,7 +276,6 @@ const Terminal = forwardRef(function Terminal(
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Fit terminal when height changes
   useEffect(() => {
     if (fitAddonRef.current) {
       setTimeout(() => {
@@ -276,11 +285,13 @@ const Terminal = forwardRef(function Terminal(
             fitAddonRef.current.fit();
           }
         } catch {
-          // Ignore fit errors
         }
       }, 0);
     }
   }, [height]);
+
+  const termTheme = getTerminalTheme();
+  const isDark = theme === 'dark';
 
   return (
     <div className="terminal-container">
@@ -292,13 +303,17 @@ const Terminal = forwardRef(function Terminal(
           height: auto !important;
           min-height: unset !important;
         }
+        .terminal-container .xterm,
+        .terminal-container .xterm-viewport,
+        .terminal-container .xterm-screen {
+          background-color: ${termTheme.background} !important;
+        }
       `}</style>
-      {/* Toolbar */}
       <div
         className="terminal-toolbar d-flex justify-content-between align-items-center p-2"
         style={{
-          backgroundColor: theme === 'dark' ? '#2d2d2d' : '#f5f5f5',
-          borderBottom: `1px solid ${theme === 'dark' ? '#404040' : '#ddd'}`,
+          backgroundColor: isDark ? '#2d2d2d' : '#e9ecef',
+          borderBottom: `1px solid ${isDark ? '#404040' : '#dee2e6'}`,
         }}
       >
         <div className="d-flex align-items-center gap-2">
@@ -320,7 +335,7 @@ const Terminal = forwardRef(function Terminal(
             {QUICK_COMMANDS.map((cmd, idx) => (
               <Button
                 key={idx}
-                variant={theme === 'dark' ? 'outline-light' : 'outline-secondary'}
+                variant={isDark ? 'outline-light' : 'outline-secondary'}
                 onClick={() => sendCommand(cmd.cmd)}
                 className="terminal-quick-btn"
               >
@@ -331,19 +346,17 @@ const Terminal = forwardRef(function Terminal(
         )}
       </div>
 
-      {/* Error message */}
       {error && (
         <div className="alert alert-warning m-2 py-2" role="alert">
           {error}
         </div>
       )}
 
-      {/* Terminal */}
       <div
         ref={terminalRef}
         style={{
           height: `${height}px`,
-          backgroundColor: theme === 'dark' ? '#1e1e1e' : '#f8f8f8',
+          backgroundColor: termTheme.background,
         }}
       />
     </div>
