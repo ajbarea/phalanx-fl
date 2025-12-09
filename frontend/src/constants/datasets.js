@@ -11,6 +11,9 @@ export const DATASETS = [
   'bloodmnist',
   'medquad',
   'lung_photos',
+  'financial_phrasebank',
+  'lexglue',
+  'medal',
 ];
 
 export const POPULAR_DATASETS = [
