@@ -64,11 +64,21 @@ export function NewSimulation() {
     setSelectedPreset(presetKey);
     if (presetKey && PRESETS[presetKey]) {
       const preset = PRESETS[presetKey];
-      setConfig(prev => ({
-        ...prev,
+      const newConfig = {
+        ...config,
         ...preset.config,
         display_name: preset.name,
-      }));
+      };
+
+      // Sync attack_schedule to dynamic_attacks for UI
+      if (preset.config.attack_schedule?.length > 0) {
+        newConfig.dynamic_attacks = {
+          enabled: true,
+          schedule: preset.config.attack_schedule,
+        };
+      }
+
+      setConfig(newConfig);
     }
   };
 
@@ -80,7 +90,7 @@ export function NewSimulation() {
     const sanitized = { ...config };
 
     // Local datasets that use transformers/LLM (not CNN)
-    const llmDatasets = ['financial_phrasebank', 'lexglue', 'medal'];
+    const llmDatasets = ['financial_phrasebank', 'lexglue', 'medal', 'medquad'];
     const isLlmDataset = llmDatasets.includes(config.dataset_keyword);
 
     if (config.dataset_source === 'huggingface') {
