@@ -1,6 +1,5 @@
 import os
 import glob
-import torch
 from datasets import load_dataset
 from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
@@ -127,8 +126,8 @@ class MedQuADDatasetLoader:
                 batch_size=self.batch_size,
                 shuffle=True,
                 collate_fn=collate_fn,
-                num_workers=0,  # Avoid CUDA fork issues
-                pin_memory=torch.cuda.is_available(),  # Fast GPU transfer
+                num_workers=0,
+                pin_memory=False,
             )
             valloader = DataLoader(
                 dataset["test"],
@@ -136,7 +135,7 @@ class MedQuADDatasetLoader:
                 shuffle=False,
                 collate_fn=collate_fn,
                 num_workers=0,
-                pin_memory=torch.cuda.is_available(),
+                pin_memory=False,
             )
 
             trainloaders.append(trainloader)

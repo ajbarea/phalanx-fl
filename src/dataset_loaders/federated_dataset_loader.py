@@ -88,24 +88,21 @@ class FederatedDatasetLoader:
                 partition, [train_size, val_size], torch.Generator().manual_seed(42)
             )
 
-            use_cuda = torch.cuda.is_available()
             trainloaders.append(
                 DataLoader(
                     train_dataset,
                     batch_size=self.batch_size,
                     shuffle=True,
-                    num_workers=2,
-                    pin_memory=use_cuda,
-                    persistent_workers=True,
+                    num_workers=0,
+                    pin_memory=False,
                 )
             )
             valloaders.append(
                 DataLoader(
                     val_dataset,
                     batch_size=self.batch_size,
-                    num_workers=2,
-                    pin_memory=use_cuda,
-                    persistent_workers=True,
+                    num_workers=0,
+                    pin_memory=False,
                 )
             )
 

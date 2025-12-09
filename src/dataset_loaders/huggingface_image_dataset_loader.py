@@ -1,5 +1,4 @@
 import logging
-import torch
 import numpy as np
 from datasets import load_dataset
 from torch.utils.data import DataLoader, Dataset
@@ -175,15 +174,15 @@ class HuggingFaceImageDatasetLoader:
                 train_dataset,
                 batch_size=self.batch_size,
                 shuffle=True,
-                num_workers=0,  # Avoid CUDA fork issues
-                pin_memory=torch.cuda.is_available(),  # Fast GPU transfer
+                num_workers=0,
+                pin_memory=False,
             )
             valloader = DataLoader(
                 val_dataset,
                 batch_size=self.batch_size,
                 shuffle=False,
                 num_workers=0,
-                pin_memory=torch.cuda.is_available(),
+                pin_memory=False,
             )
 
             trainloaders.append(trainloader)

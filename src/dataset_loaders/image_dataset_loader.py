@@ -55,8 +55,8 @@ class ImageDatasetLoader:
                     train_dataset,
                     batch_size=self.batch_size,
                     shuffle=True,
-                    num_workers=0,  # Avoid CUDA fork issues
-                    pin_memory=torch.cuda.is_available(),  # Fast GPU transfer
+                    num_workers=0,
+                    pin_memory=False,
                 )
             )
             valloaders.append(
@@ -65,7 +65,7 @@ class ImageDatasetLoader:
                     batch_size=self.batch_size,
                     shuffle=False,
                     num_workers=0,
-                    pin_memory=torch.cuda.is_available(),
+                    pin_memory=False,
                 )
             )
 
