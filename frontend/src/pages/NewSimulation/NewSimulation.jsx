@@ -10,6 +10,7 @@ import { QueueChoiceModal } from '@components/common/Modal/QueueChoiceModal';
 import { createSimulation } from '@api';
 import { useConfigValidation } from '@hooks/useConfigValidation';
 import { useRunningSimulation } from '@hooks/useRunningSimulation';
+import { useTerminal } from '@contexts/TerminalContext';
 import { initialConfig } from '@constants/initialConfig';
 import { PRESETS } from '@constants/presets';
 import { toast } from 'sonner';
@@ -38,6 +39,7 @@ export function NewSimulation() {
 
   const validation = useConfigValidation(config);
   const { hasRunning, runningSimIds } = useRunningSimulation();
+  const { openTerminal, sendCommand } = useTerminal();
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -77,6 +79,10 @@ export function NewSimulation() {
   const sanitizeConfig = config => {
     const sanitized = { ...config };
 
+    // Local datasets that use transformers/LLM (not CNN)
+    const llmDatasets = ['financial_phrasebank', 'lexglue', 'medal'];
+    const isLlmDataset = llmDatasets.includes(config.dataset_keyword);
+
     if (config.dataset_source === 'huggingface') {
       delete sanitized.dataset_keyword;
     } else {
@@ -86,12 +92,17 @@ export function NewSimulation() {
       delete sanitized.text_column;
       delete sanitized.text2_column;
       delete sanitized.label_column;
-      delete sanitized.use_lora;
-      delete sanitized.lora_rank;
       delete sanitized.partitioning_strategy;
       delete sanitized.partitioning_params;
 
-      if (sanitized.model_type === 'transformer') {
+      // Only delete LoRA params for non-LLM local datasets
+      if (!isLlmDataset) {
+        delete sanitized.use_lora;
+        delete sanitized.lora_rank;
+      }
+
+      // Only reset to CNN for non-LLM local datasets
+      if (sanitized.model_type === 'transformer' && !isLlmDataset) {
         sanitized.model_type = 'cnn';
       }
     }
@@ -129,6 +140,11 @@ export function NewSimulation() {
         navigate(`/queue/${simulation_id}`);
       } else {
         toast.success('Simulation created successfully!');
+        openTerminal();
+        // Give terminal time to open, then tail the execution log
+        setTimeout(() => {
+          sendCommand(`tail -f out/${simulation_id}/execution.log\n`);
+        }, 100);
         navigate(`/simulations/${simulation_id}`);
       }
     } catch (err) {
