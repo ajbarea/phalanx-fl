@@ -1,5 +1,5 @@
 import { Form, OverlayTrigger, Tooltip } from 'react-bootstrap';
-import { POPULAR_DATASETS } from '@constants/datasets';
+import { HUGGINGFACE_DATASETS } from '@constants/datasets';
 import { useDatasetValidation } from '@hooks/useDatasetValidation';
 
 export function DatasetSelector({ config, onChange }) {
@@ -32,7 +32,7 @@ export function DatasetSelector({ config, onChange }) {
           placeholder="Select from suggestions or type dataset name..."
         />
         <datalist id="popular-datasets">
-          {POPULAR_DATASETS.map(d => (
+          {HUGGINGFACE_DATASETS.map(d => (
             <option key={d.value} value={d.value}>
               {d.label}
             </option>
