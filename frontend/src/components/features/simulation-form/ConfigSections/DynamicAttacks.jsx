@@ -1,11 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Form, Button, Card, Alert } from 'react-bootstrap';
 import { SwitchField } from '../FormFields/SwitchField';
 import { NumberField } from '../FormFields/NumberField';
 import { SelectField } from '../FormFields/SelectField';
+import { ATTACKS } from '@constants/attacks';
 
 export function DynamicAttacks({ config, onChange }) {
   const [schedule, setSchedule] = useState(config.dynamic_attacks?.schedule || []);
+
+  // Sync local schedule state when dynamic attack changes
+  useEffect(() => {
+    const configSchedule = config.dynamic_attacks?.schedule || [];
+    if (JSON.stringify(configSchedule) !== JSON.stringify(schedule)) {
+      setSchedule(configSchedule);
+    }
+  }, [config.dynamic_attacks?.schedule, schedule]);
 
   const handleEnabledChange = e => {
     const enabled = e.target.checked;
@@ -22,11 +31,8 @@ export function DynamicAttacks({ config, onChange }) {
       start_round: 1,
       end_round: config.num_of_rounds || 10,
       selection_strategy: 'specific',
-      client_ids: [0],
-      attack_config: {
-        type: 'label_flipping',
-        params: { flip_fraction: 0.5, num_classes: 10 },
-      },
+      malicious_client_ids: [0],
+      attack_type: 'label_flipping',
     };
     const newSchedule = [...schedule, newPhase];
     setSchedule(newSchedule);
@@ -51,12 +57,7 @@ export function DynamicAttacks({ config, onChange }) {
 
   const handlePhaseChange = (index, field, value) => {
     const newSchedule = [...schedule];
-    if (field.includes('.')) {
-      const [parent, child] = field.split('.');
-      newSchedule[index][parent][child] = value;
-    } else {
-      newSchedule[index][field] = value;
-    }
+    newSchedule[index][field] = value;
     setSchedule(newSchedule);
     onChange({
       target: {
@@ -123,11 +124,11 @@ export function DynamicAttacks({ config, onChange }) {
                     <Form.Label>Client IDs (comma-separated)</Form.Label>
                     <Form.Control
                       type="text"
-                      value={phase.client_ids.join(', ')}
+                      value={(phase.malicious_client_ids || phase.client_ids || []).join(', ')}
                       onChange={e =>
                         handlePhaseChange(
                           index,
-                          'client_ids',
+                          'malicious_client_ids',
                           e.target.value.split(',').map(id => parseInt(id.trim()))
                         )
                       }
@@ -139,9 +140,9 @@ export function DynamicAttacks({ config, onChange }) {
                 <SelectField
                   name={`phase_${index}_attack_type`}
                   label="Attack Type"
-                  value={phase.attack_config.type}
-                  onChange={e => handlePhaseChange(index, 'attack_config.type', e.target.value)}
-                  options={['label_flipping', 'gaussian_noise']}
+                  value={phase.attack_type || phase.attack_config?.type || 'label_flipping'}
+                  onChange={e => handlePhaseChange(index, 'attack_type', e.target.value)}
+                  options={ATTACKS}
                 />
               </Card.Body>
             </Card>
