@@ -1,21 +1,23 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Terminal from './Terminal';
 import { ConfirmModal } from './common/Modal/ConfirmModal';
 import { useTheme } from '../contexts/ThemeContext';
+import { useTerminal } from '../contexts/TerminalContext';
 import { toast } from 'sonner';
 
 const MIN_HEIGHT = 150;
-const MAX_HEIGHT = 600;
-const DEFAULT_HEIGHT = 300;
+const DEFAULT_HEIGHT = 400;
+
+const getMaxHeight = () =>
+  typeof window !== 'undefined' ? Math.floor(window.innerHeight * 0.95) : 800;
 
 export default function TerminalPanel() {
   const { theme } = useTheme();
-  const [isOpen, setIsOpen] = useState(false);
+  const { isOpen, setIsOpen, terminalRef } = useTerminal();
   const [height, setHeight] = useState(DEFAULT_HEIGHT);
   const [isResizing, setIsResizing] = useState(false);
   const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const terminalRef = useRef(null);
 
   const handlePurgeConfirm = () => {
     setShowPurgeConfirm(false);
@@ -44,7 +46,7 @@ export default function TerminalPanel() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
+  }, [isOpen, setIsOpen]);
 
   // Handle resize drag
   const handleMouseDown = useCallback(
@@ -57,7 +59,8 @@ export default function TerminalPanel() {
 
       const handleMouseMove = e => {
         const delta = startY - e.clientY;
-        const newHeight = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, startHeight + delta));
+        const maxHeight = getMaxHeight();
+        const newHeight = Math.min(maxHeight, Math.max(MIN_HEIGHT, startHeight + delta));
         setHeight(newHeight);
       };
 
@@ -145,7 +148,9 @@ export default function TerminalPanel() {
         {/* Resize handle - double-click to toggle max/default size */}
         <div
           onMouseDown={handleMouseDown}
-          onDoubleClick={() => setHeight(height === MAX_HEIGHT ? DEFAULT_HEIGHT : MAX_HEIGHT)}
+          onDoubleClick={() =>
+            setHeight(height >= getMaxHeight() - 50 ? DEFAULT_HEIGHT : getMaxHeight())
+          }
           style={{
             height: 6,
             cursor: 'ns-resize',
@@ -262,11 +267,12 @@ export default function TerminalPanel() {
             height: height - 40,
             visibility: isOpen ? 'visible' : 'hidden',
             position: isOpen ? 'relative' : 'absolute',
+            paddingBottom: 24,
           }}
         >
           <Terminal
             ref={terminalRef}
-            height={height - 40}
+            height={height - 64}
             showQuickCommands={true}
             isVisible={isOpen}
           />
