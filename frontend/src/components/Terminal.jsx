@@ -250,7 +250,8 @@ const Terminal = forwardRef(function Terminal(
       setTimeout(() => {
         try {
           fitAddonRef.current?.fit();
-        } catch {
+        } catch (err) {
+          console.warn('Terminal fit failed during initialization:', err.message);
         }
         if (!connected) {
           connect();
@@ -267,7 +268,8 @@ const Terminal = forwardRef(function Terminal(
           if (parentRect && parentRect.width > 0 && parentRect.height > 0) {
             fitAddonRef.current.fit();
           }
-        } catch {
+        } catch (err) {
+          console.warn('Terminal fit failed during resize:', err.message);
         }
       }
     };
@@ -284,7 +286,8 @@ const Terminal = forwardRef(function Terminal(
           if (parentRect && parentRect.width > 0 && parentRect.height > 0) {
             fitAddonRef.current.fit();
           }
-        } catch {
+        } catch (err) {
+          console.warn('Terminal fit failed during height change:', err.message);
         }
       }, 0);
     }
