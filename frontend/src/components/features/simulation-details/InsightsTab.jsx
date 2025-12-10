@@ -47,10 +47,15 @@ export function InsightsTab({ details, csvData, status }) {
     }
 
     if (cfg.num_of_malicious_clients > 0) {
+      let attackTypes = cfg.attack_type || 'unknown';
+      if (cfg.attack_schedule && cfg.attack_schedule.length > 0) {
+        const uniqueTypes = [...new Set(cfg.attack_schedule.map(a => a.attack_type))];
+        attackTypes = uniqueTypes.join(', ');
+      }
       insights.push({
         type: 'info',
         icon: '🎯',
-        text: `Simulation includes ${cfg.num_of_malicious_clients} malicious client(s) using ${cfg.attack_type} attack`,
+        text: `Simulation includes ${cfg.num_of_malicious_clients} malicious client(s) using ${attackTypes} attack`,
       });
 
       if (cfg.remove_clients === 'true' && roundMetrics.length > 0) {
