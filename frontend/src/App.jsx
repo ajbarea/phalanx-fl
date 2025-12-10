@@ -11,9 +11,11 @@ import ErrorBoundary from './components/ErrorBoundary';
 import ThemeToggle from './components/ThemeToggle';
 import { Toaster } from 'sonner';
 import { useEffect, useState } from 'react';
+import { useTerminal } from './contexts/TerminalContext';
 import './App.css';
 
 function App() {
+  const { isOpen: isTerminalOpen } = useTerminal();
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('theme') || 'light';
   });
@@ -86,7 +88,13 @@ function App() {
             </Navbar.Collapse>
           </Container>
         </Navbar>
-        <Container className="mt-4" style={{ paddingBottom: '60px' }}>
+        <Container
+          className="mt-4"
+          style={{
+            paddingBottom: isTerminalOpen ? '420px' : '60px',
+            transition: 'padding-bottom 0.3s ease',
+          }}
+        >
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/simulations/new" element={<NewSimulation />} />

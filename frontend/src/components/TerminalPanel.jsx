@@ -143,6 +143,7 @@ export default function TerminalPanel() {
           transition: isResizing ? 'none' : 'height 0.3s ease',
           overflow: 'hidden',
           boxShadow: isOpen ? '0 -4px 20px rgba(0,0,0,0.15)' : 'none',
+          pointerEvents: isOpen ? 'auto' : 'none',
         }}
       >
         {/* Resize handle - double-click to toggle max/default size */}
