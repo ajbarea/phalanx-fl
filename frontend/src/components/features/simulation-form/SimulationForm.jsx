@@ -40,7 +40,9 @@ export function SimulationForm({
       case 'flower':
         return `min_fit: ${config.min_fit_clients || 0} • min_eval: ${config.min_evaluate_clients || 0}`;
       case 'llm':
-        return config.llm_enabled ? `Enabled • ${config.llm_provider || 'openai'}` : 'Disabled';
+        return config.use_llm === 'true'
+          ? `${config.llm_task?.toUpperCase() || 'MLM'} • ${config.llm_finetuning || 'LoRA'}`
+          : 'Disabled';
       case 'output':
         return `${config.preserve_dataset === 'true' ? 'Preserve dataset' : 'Clean after run'}`;
       case 'dynamic':
@@ -131,13 +133,17 @@ export function SimulationForm({
           </div>
         );
       case 'llm':
-        return config.llm_enabled ? (
+        return config.use_llm === 'true' ? (
           <div style={{ textAlign: 'left' }}>
             <div>
-              <strong>Enabled</strong> - LLM integration is active
+              <strong>Enabled</strong> - LLM/Transformer training is active
             </div>
             <div>
-              <strong>{config.llm_provider || 'openai'}</strong> - LLM provider for analysis
+              <strong>Task:</strong> {config.llm_task?.toUpperCase() || 'MLM'} •{' '}
+              <strong>Fine-tuning:</strong> {config.llm_finetuning || 'LoRA'}
+            </div>
+            <div>
+              <strong>Model:</strong> {config.llm_model?.split('/').pop() || 'BiomedBERT'}
             </div>
           </div>
         ) : (
