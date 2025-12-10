@@ -17,16 +17,7 @@ find_python_interpreter
 setup_virtual_environment
 
 # Install Python API dependencies
-if [ -f "requirements.txt" ]; then
-    log_info "📦 Installing Python dependencies..."
-    if pip install -q -r requirements.txt; then
-        log_info "Python dependencies installed"
-    else
-        log_error "Failed to install Python dependencies"
-        exit 1
-    fi
-else
-    log_error "requirements.txt not found"
+if ! install_requirements; then
     exit 1
 fi
 
