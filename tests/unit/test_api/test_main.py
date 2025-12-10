@@ -184,9 +184,10 @@ def test_create_simulation_spawns_background_task(
     # Verify subprocess was called
     assert len(popen_calls) == 1
     args, kwargs = popen_calls[0]
-    assert "python" in args[0]
-    assert "-m" in args[0]
-    assert "src.simulation_runner" in args[0]
+    cmd = args[0]  # The command list passed to Popen
+    assert "python" in cmd[0]  # Python executable path contains "python"
+    assert "-m" in cmd
+    assert "src.simulation_runner" in cmd
 
 
 # --- File Serving Tests ---
