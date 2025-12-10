@@ -76,6 +76,7 @@ const Terminal = forwardRef(function Terminal(
   const xtermRef = useRef(null);
   const fitAddonRef = useRef(null);
   const wsRef = useRef(null);
+  const messageQueueRef = useRef([]); // Queue for messages sent before WebSocket is ready
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState(null);
 
@@ -99,6 +100,12 @@ const Terminal = forwardRef(function Terminal(
       if (xtermRef.current && xtermRef.current.rows && xtermRef.current.cols) {
         const { rows, cols } = xtermRef.current;
         ws.send(JSON.stringify({ type: 'resize', rows, cols }));
+      }
+
+      // Flush queued messages that were sent before connection was ready
+      if (messageQueueRef.current.length > 0) {
+        messageQueueRef.current.forEach(msg => ws.send(msg));
+        messageQueueRef.current = [];
       }
     };
 
@@ -128,10 +135,13 @@ const Terminal = forwardRef(function Terminal(
     setConnected(false);
   }, []);
 
-  /** Sends command to terminal via WebSocket. */
+  /** Sends command to terminal via WebSocket. Queues if not yet connected. */
   const sendCommand = useCallback(cmd => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(cmd);
+    } else {
+      // Queue the message to be sent when WebSocket connects
+      messageQueueRef.current.push(cmd);
     }
   }, []);
 

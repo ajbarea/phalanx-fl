@@ -153,7 +153,9 @@ export function NewSimulation() {
         openTerminal();
         // Give terminal time to open, then tail the execution log
         setTimeout(() => {
-          sendCommand(`tail -f out/${simulation_id}/execution.log\n`);
+          sendCommand(
+            `echo "⏳ Starting simulation ${simulation_id}..." && echo "📋 Waiting for execution log..." && sleep 2 && tail -f out/${simulation_id}/execution.log\n`
+          );
         }, 100);
         navigate(`/simulations/${simulation_id}`);
       }
