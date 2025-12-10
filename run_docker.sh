@@ -1,5 +1,4 @@
-#!/bin/bash
-
+#!/bin/sh
 # Docker-based dev server for Intel Macs
 # Runs PyTorch 2.6.0 in a Linux container, bypassing Intel Mac limitations
 #
@@ -14,9 +13,15 @@
 #
 # Requirements:
 #   Docker - https://docs.docker.com/get-docker/
+
 set -e
 
-echo "🐳 Starting FL Framework with Docker..."
+if ! command -v docker >/dev/null 2>&1; then
+    echo "Docker not found. Please install Docker: https://docs.docker.com/get-docker/"
+    exit 1
+fi
+
+echo "Starting FL Framework with Docker..."
 echo ""
 echo "Services:"
 echo "  - API:      http://localhost:8000"
@@ -25,7 +30,6 @@ echo ""
 echo "Press Ctrl+C to stop"
 echo ""
 
-# Build and start
 docker compose up --build
 
 
