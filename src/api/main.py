@@ -470,7 +470,12 @@ async def create_simulation(request: Dict[str, Any] = Body(...)) -> Dict[str, An
         env["PYTHONWARNINGS"] = "ignore::RuntimeWarning:threadpoolctl"
 
         with error_log_path.open("w") as error_log:
-            command = ["python", "-m", "src.simulation_runner", str(config_filepath)]
+            command = [
+                sys.executable,
+                "-m",
+                "src.simulation_runner",
+                str(config_filepath),
+            ]
             process = subprocess.Popen(
                 command, cwd=BASE_DIR, stderr=error_log, stdout=subprocess.PIPE, env=env
             )
