@@ -1,0 +1,40 @@
+# Docker Compose for FL Execution Framework
+# Use this to run the full stack on Intel Macs (where PyTorch 2.6.0 isn't available natively)
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    shm_size: '2gb'
+    volumes:
+      # Mount source for hot reload during development
+      - ./src:/app/src:ro
+      - ./config:/app/config:ro
+      - ./datasets:/app/datasets:ro
+      # Persist output files
+      - ./out:/app/out
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      - api
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - VITE_API_PROXY_TARGET=http://api:8000
