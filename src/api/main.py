@@ -712,6 +712,12 @@ def read_root() -> Dict[str, str]:
     return {"message": "Federated Learning Simulation Framework API"}
 
 
+@app.get("/api/health")
+def health_check() -> Dict[str, str]:
+    """Health check endpoint for startup detection and monitoring."""
+    return {"status": "healthy"}
+
+
 @app.get("/api/simulations/{simulation_id}/plot-data")
 async def get_plot_data(simulation_id: str) -> Dict:
     """Retrieves JSON plot data for a specific simulation.
