@@ -37,7 +37,7 @@ function ConfirmModal({
       </Modal.Body>
       <Modal.Footer>
         <OutlineButton onClick={onCancel}>{cancelText}</OutlineButton>
-        <Button variant={variant} onClick={onConfirm}>
+        <Button variant={variant} size="sm" onClick={onConfirm}>
           {confirmText}
         </Button>
       </Modal.Footer>
