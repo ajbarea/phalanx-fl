@@ -1,65 +1,53 @@
-import { useState, useCallback, useEffect } from 'react';
-import { getSimulationStatus } from '@api/endpoints/simulations';
-import { usePolling } from './usePolling';
+import { useQuery, useQueries } from '@tanstack/react-query';
+import { fetchApi } from '@api/client';
 
 export function useSimulationStatus(simulationIdOrSimulations, options = {}) {
   // Handle both single simulation (string) and multiple simulations (array)
   const isMultiple = Array.isArray(simulationIdOrSimulations);
+  const interval = options.interval || 2000;
 
-  const [status, setStatus] = useState(null);
-  const [statuses, setStatuses] = useState({});
-  const [error, setError] = useState(null);
+  // Single simulation status query
+  const singleQuery = useQuery({
+    queryKey: ['simulation-status', simulationIdOrSimulations],
+    queryFn: () => fetchApi(`/simulations/${simulationIdOrSimulations}/status`),
+    enabled: !isMultiple && !!simulationIdOrSimulations,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'running' ? interval : false,
+  });
 
-  const pollStatus = useCallback(async () => {
-    if (isMultiple) {
-      // Poll multiple simulations
-      const simulations = simulationIdOrSimulations;
-      if (!simulations || simulations.length === 0) return;
+  // Multiple simulations status queries
+  const multiQueries = useQueries({
+    queries: isMultiple
+      ? simulationIdOrSimulations.map((sim) => ({
+          queryKey: ['simulation-status', sim.simulation_id],
+          queryFn: () => fetchApi(`/simulations/${sim.simulation_id}/status`),
+          enabled: !!sim.simulation_id,
+          refetchInterval: (query) =>
+            query.state.data?.status === 'running' ? interval : false,
+        }))
+      : [],
+  });
 
-      try {
-        const statusPromises = simulations.map(sim =>
-          getSimulationStatus(sim.simulation_id)
-            .then(response => ({ id: sim.simulation_id, data: response.data }))
-            .catch(err => ({ id: sim.simulation_id, error: err }))
-        );
+  if (isMultiple) {
+    // Build statuses object from parallel queries
+    const statuses = simulationIdOrSimulations.reduce((acc, sim, index) => {
+      const query = multiQueries[index];
+      acc[sim.simulation_id] = query?.data ?? { status: 'unknown' };
+      return acc;
+    }, {});
 
-        const results = await Promise.all(statusPromises);
-        const newStatuses = {};
-        results.forEach(result => {
-          if (result.data) {
-            newStatuses[result.id] = result.data;
-          }
-        });
-        setStatuses(newStatuses);
-      } catch (err) {
-        setError(err);
-      }
-    } else {
-      // Poll single simulation
-      const simulationId = simulationIdOrSimulations;
-      if (!simulationId) return;
+    const hasError = multiQueries.some((q) => q.error);
 
-      try {
-        const response = await getSimulationStatus(simulationId);
-        setStatus(response.data);
-      } catch (err) {
-        setError(err);
-      }
-    }
-  }, [simulationIdOrSimulations, isMultiple]);
+    return {
+      statuses,
+      error: hasError ? 'Failed to fetch some statuses' : null,
+      refetch: () => multiQueries.forEach((q) => q.refetch()),
+    };
+  }
 
-  // Initial fetch
-  useEffect(() => {
-    pollStatus();
-  }, [pollStatus]);
-
-  const shouldPoll = isMultiple
-    ? Object.values(statuses).some(s => s.status === 'running')
-    : status?.status === 'running';
-
-  usePolling(pollStatus, options.interval || 2000, shouldPoll);
-
-  return isMultiple
-    ? { statuses, error, refetch: pollStatus }
-    : { status, error, refetch: pollStatus };
+  return {
+    status: singleQuery.data ?? null,
+    error: singleQuery.error?.message ?? null,
+    refetch: singleQuery.refetch,
+  };
 }

@@ -1,47 +1,41 @@
-import { useState, useEffect, useCallback } from 'react';
-import { getSimulations, getSimulationStatus } from '@api/endpoints/simulations';
+import { useQuery, useQueries } from '@tanstack/react-query';
+import { fetchApi } from '@api/client';
 
 export function useSimulations() {
-  const [simulations, setSimulations] = useState([]);
-  const [statuses, setStatuses] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // Fetch all simulations
+  const {
+    data: simulations = [],
+    isLoading: loading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['simulations'],
+    queryFn: () => fetchApi('/simulations'),
+    refetchInterval: 5000, // Poll every 5 seconds
+  });
 
-  const fetchSimulations = async () => {
-    try {
-      const response = await getSimulations();
-      setSimulations(response.data);
-      setLoading(false);
-    } catch (err) {
-      setError(err.message);
-      setLoading(false);
-    }
+  // Fetch statuses for all simulations in parallel
+  const statusQueries = useQueries({
+    queries: simulations.map((sim) => ({
+      queryKey: ['simulation-status', sim.simulation_id],
+      queryFn: () => fetchApi(`/simulations/${sim.simulation_id}/status`),
+      enabled: !!sim.simulation_id,
+      refetchInterval: 5000,
+    })),
+  });
+
+  // Build statuses object from parallel queries
+  const statuses = simulations.reduce((acc, sim, index) => {
+    const query = statusQueries[index];
+    acc[sim.simulation_id] = query?.data ?? { status: 'unknown' };
+    return acc;
+  }, {});
+
+  return {
+    simulations,
+    statuses,
+    loading,
+    error: error?.message,
+    refetch,
   };
-
-  const fetchStatuses = useCallback(async () => {
-    if (!simulations.length) return;
-    const newStatuses = {};
-    for (const sim of simulations) {
-      try {
-        const response = await getSimulationStatus(sim.simulation_id);
-        newStatuses[sim.simulation_id] = response.data;
-      } catch {
-        newStatuses[sim.simulation_id] = { status: 'unknown' };
-      }
-    }
-    setStatuses(newStatuses);
-  }, [simulations]);
-
-  useEffect(() => {
-    fetchSimulations();
-  }, []);
-
-  useEffect(() => {
-    if (!simulations.length) return;
-    fetchStatuses();
-    const interval = setInterval(fetchStatuses, 5000);
-    return () => clearInterval(interval);
-  }, [simulations, fetchStatuses]);
-
-  return { simulations, statuses, loading, error, refetch: fetchSimulations };
 }
