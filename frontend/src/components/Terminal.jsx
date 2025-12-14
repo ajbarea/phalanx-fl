@@ -107,6 +107,11 @@ const Terminal = forwardRef(function Terminal(
         messageQueueRef.current.forEach(msg => ws.send(msg));
         messageQueueRef.current = [];
       }
+
+      // Focus terminal after connection is established
+      if (xtermRef.current) {
+        xtermRef.current.focus();
+      }
     };
 
     ws.onmessage = event => {
@@ -223,6 +228,9 @@ const Terminal = forwardRef(function Terminal(
     xterm.onData(data => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(data);
+      } else {
+        // Queue input to be sent when WebSocket connects
+        messageQueueRef.current.push(data);
       }
     });
 
@@ -269,6 +277,17 @@ const Terminal = forwardRef(function Terminal(
       }, 150);
     }
   }, [isVisible, connected, connect]);
+
+  // Focus terminal when it becomes visible
+  useEffect(() => {
+    if (isVisible && xtermRef.current) {
+      // Small delay to ensure terminal is rendered
+      const focusTimer = setTimeout(() => {
+        xtermRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(focusTimer);
+    }
+  }, [isVisible]);
 
   useEffect(() => {
     const handleResize = () => {
