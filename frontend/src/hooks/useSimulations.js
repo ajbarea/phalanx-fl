@@ -16,7 +16,7 @@ export function useSimulations() {
 
   // Fetch statuses for all simulations in parallel
   const statusQueries = useQueries({
-    queries: simulations.map((sim) => ({
+    queries: simulations.map(sim => ({
       queryKey: ['simulation-status', sim.simulation_id],
       queryFn: () => fetchApi(`/simulations/${sim.simulation_id}/status`),
       enabled: !!sim.simulation_id,

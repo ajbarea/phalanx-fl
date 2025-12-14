@@ -11,19 +11,17 @@ export function useSimulationStatus(simulationIdOrSimulations, options = {}) {
     queryKey: ['simulation-status', simulationIdOrSimulations],
     queryFn: () => fetchApi(`/simulations/${simulationIdOrSimulations}/status`),
     enabled: !isMultiple && !!simulationIdOrSimulations,
-    refetchInterval: (query) =>
-      query.state.data?.status === 'running' ? interval : false,
+    refetchInterval: query => (query.state.data?.status === 'running' ? interval : false),
   });
 
   // Multiple simulations status queries
   const multiQueries = useQueries({
     queries: isMultiple
-      ? simulationIdOrSimulations.map((sim) => ({
+      ? simulationIdOrSimulations.map(sim => ({
           queryKey: ['simulation-status', sim.simulation_id],
           queryFn: () => fetchApi(`/simulations/${sim.simulation_id}/status`),
           enabled: !!sim.simulation_id,
-          refetchInterval: (query) =>
-            query.state.data?.status === 'running' ? interval : false,
+          refetchInterval: query => (query.state.data?.status === 'running' ? interval : false),
         }))
       : [],
   });
@@ -36,12 +34,12 @@ export function useSimulationStatus(simulationIdOrSimulations, options = {}) {
       return acc;
     }, {});
 
-    const hasError = multiQueries.some((q) => q.error);
+    const hasError = multiQueries.some(q => q.error);
 
     return {
       statuses,
       error: hasError ? 'Failed to fetch some statuses' : null,
-      refetch: () => multiQueries.forEach((q) => q.refetch()),
+      refetch: () => multiQueries.forEach(q => q.refetch()),
     };
   }
 

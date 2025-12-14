@@ -79,21 +79,21 @@ export default function TerminalPanel() {
   const colors =
     theme === 'dark'
       ? {
-        bg: '#1e1e1e',
-        border: '#404040',
-        handle: '#555',
-        handleHover: '#666',
-        text: '#ccc',
-        buttonBg: '#2d2d2d',
-      }
+          bg: '#1e1e1e',
+          border: '#404040',
+          handle: '#555',
+          handleHover: '#666',
+          text: '#ccc',
+          buttonBg: '#2d2d2d',
+        }
       : {
-        bg: '#f8f9fa',
-        border: '#dee2e6',
-        handle: '#adb5bd',
-        handleHover: '#6c757d',
-        text: '#495057',
-        buttonBg: '#e9ecef',
-      };
+          bg: '#f8f9fa',
+          border: '#dee2e6',
+          handle: '#adb5bd',
+          handleHover: '#6c757d',
+          text: '#495057',
+          buttonBg: '#e9ecef',
+        };
 
   return (
     <>

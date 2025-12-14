@@ -8,7 +8,7 @@ export const apiClient = axios.create({
 });
 
 // Query function helpers for TanStack Query
-export const fetchApi = async (endpoint) => {
+export const fetchApi = async endpoint => {
   const response = await apiClient.get(endpoint);
   return response.data;
 };
