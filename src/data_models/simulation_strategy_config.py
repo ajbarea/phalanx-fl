@@ -52,6 +52,10 @@ class StrategyConfig:
 
     attack_schedule: list = None
 
+    attack_type: str = None
+    attack_ratio: float = None
+    target_noise_snr: float = None
+
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             if value in ("true", "false"):

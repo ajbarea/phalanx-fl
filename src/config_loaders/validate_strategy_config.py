@@ -51,6 +51,24 @@ config_schema = {
         "num_of_clients": {
             "type": "integer"
         },
+        # Pre-training poisoning fields
+        "num_of_malicious_clients": {
+            "type": "integer",
+            "minimum": 0
+        },
+        "attack_type": {
+            "type": "string",
+            "enum": ["label_flipping", "gaussian_noise", "ner_label_flipping"]
+        },
+        "attack_ratio": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+        },
+        "target_noise_snr": {
+            "type": "number"
+        },
+        # Visualization and dataset fields
         "show_plots": {
             "type": "string",
             "enum": ["true", "false"]
