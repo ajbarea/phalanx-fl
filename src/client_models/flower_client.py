@@ -8,6 +8,7 @@ from collections import OrderedDict
 from src.network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
 from src.attack_utils.poisoning import should_poison_this_round, apply_poisoning_attack
 from src.attack_utils.attack_snapshots import save_attack_snapshot, save_visual_snapshot
+from src.utils.legacy.ner_metrics_medmentions import StrictMentionAndDocEvaluator
 
 
 class FlowerClient(fl.client.NumPyClient):
@@ -107,6 +108,10 @@ class FlowerClient(fl.client.NumPyClient):
                     tokenizer=self.tokenizer,
                     original_data_sample=original_data_sample.cpu().numpy(),
                 )
+
+    def _to_device_only_tensors(self, batch):
+        """Helper to move only tensor values to device, leaving non-tensors (like lists) as-is."""
+        return {k: (v.to(self.training_device) if torch.is_tensor(v) else v) for k, v in batch.items()}
 
     def set_parameters(self, net, parameters: list[np.ndarray]):
         if self.use_lora:
@@ -221,10 +226,13 @@ class FlowerClient(fl.client.NumPyClient):
                                 original_labels_sample=original_labels,
                             )
 
-                    batch = {k: v.to(self.training_device) for k, v in batch.items()}
-                    labels = batch["labels"]
-
-                    outputs = net(**batch)
+                    batch = self._to_device_only_tensors(batch)
+                    model_inputs = {
+                        "input_ids": batch["input_ids"],
+                        "attention_mask": batch.get("attention_mask"),
+                        "labels": batch["labels"],
+                    }
+                    outputs = net(**model_inputs)
                     loss = outputs.loss
 
                     # Apply FedProx only if global_params are provided
@@ -241,6 +249,7 @@ class FlowerClient(fl.client.NumPyClient):
 
                     if hasattr(outputs, "logits"):
                         preds = torch.argmax(outputs.logits, dim=-1)
+                        labels = model_inputs["labels"]
                         mask = labels != -100
                         correct += (preds[mask] == labels[mask]).sum().item()
                         total += mask.sum().item()
@@ -284,30 +293,60 @@ class FlowerClient(fl.client.NumPyClient):
             accuracy = correct / total if total > 0 else 0.0
             return loss, accuracy
 
-        # add check for mlm as well
         elif self.model_type == "transformer":
             net.eval()
-            total_loss = 0
+            total_loss = 0.0
             correct, total = 0, 0
+
+            evaluator = None
+            strict_enabled = None  # decide on first batch
 
             with torch.no_grad():
                 for batch in testloader:
-                    batch = {k: v.to(self.training_device) for k, v in batch.items()}
-                    labels = batch["labels"]
+                    batch_dev = self._to_device_only_tensors(batch)
 
-                    outputs = net(**batch)
-                    loss = outputs.loss.item()
-                    total_loss += loss
+                    # Decide once whether we can run MedMentions strict metrics
+                    if strict_enabled is None:
+                        strict_enabled = ("doc_id" in batch) and ("word_length" in batch)
+                        if strict_enabled:
+                            evaluator = StrictMentionAndDocEvaluator(
+                                id2label=self.net.config.id2label, label_only=True
+                            )
+
+                    model_inputs = {
+                        "input_ids": batch_dev["input_ids"],
+                        "attention_mask": batch_dev.get("attention_mask"),
+                        "labels": batch_dev["labels"],
+                    }
+
+                    outputs = net(**model_inputs)
+                    total_loss += outputs.loss.item()
 
                     if hasattr(outputs, "logits"):
                         preds = torch.argmax(outputs.logits, dim=-1)
+                        labels = model_inputs["labels"]
                         mask = labels != -100
                         correct += (preds[mask] == labels[mask]).sum().item()
-                        total += mask.sum().item()
+                        total   += mask.sum().item()
 
-            loss = total_loss / len(testloader)
-            accuracy = correct / total if total > 0 else 0
-            return loss, accuracy
+                        # Only update strict metrics if this is a MedMentions NER batch
+                        if strict_enabled and evaluator is not None:
+                            evaluator.update_batch(
+                                outputs.logits.detach().cpu(),
+                                labels.detach().cpu(),
+                                batch["doc_id"],       # python list
+                                batch["word_length"],  # python list
+                            )
+
+            loss = total_loss / max(len(testloader), 1)
+            accuracy = (correct / total) if total > 0 else 0.0
+
+            if strict_enabled and evaluator is not None:
+                mm = evaluator.finalize()
+                return loss, accuracy, mm
+            else:
+                # fall back to old two-tuple result for non-NER transformer tasks
+                return loss, accuracy
 
         else:
             raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'.")
@@ -332,9 +371,38 @@ class FlowerClient(fl.client.NumPyClient):
 
     def evaluate(self, parameters, config):
         self.set_parameters(self.net, parameters)
-        loss, accuracy = self.test(self.net, self.valloader)
 
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        if self.model_type == "transformer":
+            out = self.test(self.net, self.valloader)
 
-        return float(loss), len(self.valloader), {"accuracy": float(accuracy)}
+            # test() may return (loss, acc) or (loss, acc, mm)
+            if isinstance(out, tuple) and len(out) == 3:
+                loss, accuracy, mm = out
+                metrics = {
+                    "accuracy": float(accuracy),
+                    "mention_precision": mm["mention_precision"],
+                    "mention_recall":    mm["mention_recall"],
+                    "mention_f1":        mm["mention_f1"],
+                    "document_precision": mm["document_precision"],
+                    "document_recall":    mm["document_recall"],
+                    "document_f1":        mm["document_f1"],
+                    # raw counts for micro-averaging on the server
+                    "tp_m": mm["tp_m"], "fp_m": mm["fp_m"], "fn_m": mm["fn_m"],
+                    "tp_d": mm["tp_d"], "fp_d": mm["fp_d"], "fn_d": mm["fn_d"],
+                }
+            else:
+                loss, accuracy = out
+                metrics = {"accuracy": float(accuracy)}
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+            return float(loss), len(self.valloader), metrics
+
+        else:
+            loss, accuracy = self.test(self.net, self.valloader)
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+            return float(loss), len(self.valloader), {"accuracy": float(accuracy)}
