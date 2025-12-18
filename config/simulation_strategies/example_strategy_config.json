@@ -47,11 +47,13 @@
   "simulation_strategies": [
     {
       "attack_type": "gaussian_noise",
-      "num_std_dev": 2
+      "num_std_dev": 2,
+      "attack_schedule": []
     },
     {
       "attack_type": "label_flipping",
-      "num_std_dev": 3
+      "num_std_dev": 3,
+      "attack_schedule": []
     }
   ]
 }

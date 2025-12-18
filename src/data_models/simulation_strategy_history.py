@@ -86,26 +86,15 @@ class SimulationStrategyHistory:
             )
 
     def update_client_malicious_status(self, current_round: int) -> None:
-        """
-        Update client.is_malicious flag based on attack_schedule for the current round.
-
-        Args:
-            current_round: Current training round (1-indexed)
-        """
-        # Only update if attack_schedule is configured
-        if not self.strategy_config.attack_schedule:
-            return
-
-        # Update each client's malicious status based on current round
+        """Update client.is_malicious flag based on static and dynamic poisoning."""
         for client_id in range(self.strategy_config.num_of_clients):
-            should_poison, _ = should_poison_this_round(
+            is_statically_poisoned = client_id in self.dataset_handler.poisoned_client_ids
+            is_dynamically_poisoned, _ = should_poison_this_round(
                 current_round=current_round,
                 client_id=client_id,
                 attack_schedule=self.strategy_config.attack_schedule
             )
-
-            # Update the is_malicious flag
-            self._clients_dict[client_id].is_malicious = should_poison
+            self._clients_dict[client_id].is_malicious = is_statically_poisoned or is_dynamically_poisoned
 
     def calculate_additional_rounds_data(self) -> None:
         """
@@ -144,13 +133,13 @@ class SimulationStrategyHistory:
 
             for client_info in self.get_all_clients():
 
-                # Determine malicious status for this specific round using attack_schedule
-                should_poison, _ = should_poison_this_round(
-                    current_round=round_num + 1,  # round_num is 0-indexed
+                is_statically_poisoned = client_info.client_id in self.dataset_handler.poisoned_client_ids
+                is_dynamically_poisoned, _ = should_poison_this_round(
+                    current_round=round_num + 1,
                     client_id=client_info.client_id,
                     attack_schedule=self.strategy_config.attack_schedule
                 )
-                client_is_malicious = should_poison
+                client_is_malicious = is_statically_poisoned or is_dynamically_poisoned
                 client_was_aggregated = client_info.aggregation_participation_history[round_num] == 1
 
                 if self.strategy_config.remove_clients:

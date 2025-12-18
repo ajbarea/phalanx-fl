@@ -62,10 +62,8 @@ class DatasetHandler:
                 logging.error(f"Error while preparing dataset: {e}")
 
     def _poison_clients(self, attack_type: str, num_to_poison: int) -> None:
-        """Poison data according to the specified parameters in the strategy config"""
-
-        # Skip pre-training poisoning if attack_type is not specified
-        # (dynamic poisoning via attack_schedule will be used instead)
+        """Apply static poisoning to client datasets before training begins."""
+        # Skip if no static poisoning configured
         if attack_type is None or num_to_poison is None or num_to_poison == 0:
             return
 

@@ -61,7 +61,7 @@ def apply_gaussian_noise(
 def should_poison_this_round(
     current_round: int, client_id: int, attack_schedule: Optional[list]
 ) -> Tuple[bool, list]:
-    """Check if client should be poisoned this round. Returns (bool, active_attacks)."""
+    """Check if client should be dynamically poisoned this round based on attack_schedule."""
     if not attack_schedule:
         return False, []
 
