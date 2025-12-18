@@ -116,7 +116,7 @@ export function DynamicAttacks({ config, onChange }) {
                   label="Client Selection Strategy"
                   value={phase.selection_strategy}
                   onChange={e => handlePhaseChange(index, 'selection_strategy', e.target.value)}
-                  options={['specific', 'random', 'all']}
+                  options={['specific', 'random', 'percentage']}
                 />
 
                 {phase.selection_strategy === 'specific' && (
@@ -135,6 +135,35 @@ export function DynamicAttacks({ config, onChange }) {
                       placeholder="e.g., 0, 1, 2"
                     />
                   </Form.Group>
+                )}
+
+                {phase.selection_strategy === 'random' && (
+                  <NumberField
+                    name={`phase_${index}_malicious_client_count`}
+                    label="Number of Malicious Clients"
+                    value={phase.malicious_client_count || 1}
+                    onChange={e =>
+                      handlePhaseChange(index, 'malicious_client_count', parseInt(e.target.value))
+                    }
+                    min={1}
+                    max={config.num_of_clients}
+                    tooltip="Number of clients to randomly select as malicious"
+                  />
+                )}
+
+                {phase.selection_strategy === 'percentage' && (
+                  <NumberField
+                    name={`phase_${index}_malicious_percentage`}
+                    label="Malicious Client Percentage"
+                    value={phase.malicious_percentage || 0.2}
+                    onChange={e =>
+                      handlePhaseChange(index, 'malicious_percentage', parseFloat(e.target.value))
+                    }
+                    min={0}
+                    max={1}
+                    step={0.1}
+                    tooltip="Fraction of clients to make malicious (0.0-1.0)"
+                  />
                 )}
 
                 <SelectField
