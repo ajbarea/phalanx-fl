@@ -29,6 +29,7 @@ config_schema = {
                 "flair",
                 "bloodmnist",
                 "medquad",
+                "medmentions",
                 "lung_photos",
                 "breastmnist",
                 "pathmnist",
@@ -96,7 +97,7 @@ config_schema = {
         },
         "llm_model": {
             "type": "string",
-            "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"]
+            "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext", "gpt2"]
         },
         "llm_task": {
             "type": "string",
