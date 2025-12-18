@@ -482,6 +482,7 @@
 
   :root[data-theme='dark'] .navbar-collapse {
     background-color: rgba(255, 255, 255, 0.05);
+  color: #e6e1e5 !important;
   }
 }
 
@@ -1418,11 +1419,13 @@ html {
 }
 
 .accordion-button:hover {
-  background-color: rgba(0, 0, 0, 0.02);
+  background-color: rgba(108, 117, 125, 0.1);
+  color: inherit;
 }
 
 :root[data-theme='dark'] .accordion-button:hover {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: #49454f;
+  color: #e6e1e5 !important;
 }
 
 .accordion-button:not(.collapsed) {
