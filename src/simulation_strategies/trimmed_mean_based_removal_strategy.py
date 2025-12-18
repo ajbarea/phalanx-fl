@@ -33,6 +33,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         self.trim_ratio = trim_ratio
         self.current_round = 0
         self.client_scores = {}
+        self.removed_client_ids = set()
 
         self.strategy_history = strategy_history
 
