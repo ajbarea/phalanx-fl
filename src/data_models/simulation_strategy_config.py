@@ -60,6 +60,8 @@ class StrategyConfig:
         for key, value in kwargs.items():
             if value in ("true", "false"):
                 setattr(self, key, value == "true")
+            elif key == "training_device" and value == "gpu":
+                setattr(self, key, "cuda")
             else:
                 setattr(self, key, value)
 
