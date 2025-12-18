@@ -13,7 +13,7 @@ class TestDynamicClientMaliciousUpdate:
         # Create a minimal strategy config with attack_schedule
         strategy_config = StrategyConfig.from_dict(
             {
-                "aggregation_strategy_keyword": "fedavg",
+                "aggregation_strategy_keyword": "rfa",
                 "num_of_rounds": 10,
                 "num_of_clients": 5,
                 "dataset_keyword": "femnist_iid",
@@ -87,7 +87,7 @@ class TestDynamicClientMaliciousUpdate:
         # Create config with empty attack_schedule
         strategy_config = StrategyConfig.from_dict(
             {
-                "aggregation_strategy_keyword": "fedavg",
+                "aggregation_strategy_keyword": "rfa",
                 "num_of_rounds": 10,
                 "num_of_clients": 5,
                 "dataset_keyword": "femnist_iid",
@@ -96,6 +96,7 @@ class TestDynamicClientMaliciousUpdate:
         )
 
         dataset_handler = Mock()
+        dataset_handler.poisoned_client_ids = []
 
         strategy_history = SimulationStrategyHistory(
             strategy_config=strategy_config, dataset_handler=dataset_handler
@@ -118,7 +119,7 @@ class TestDynamicClientMaliciousUpdate:
         """Test that malicious status is correct with overlapping attacks."""
         strategy_config = StrategyConfig.from_dict(
             {
-                "aggregation_strategy_keyword": "fedavg",
+                "aggregation_strategy_keyword": "rfa",
                 "num_of_rounds": 12,
                 "num_of_clients": 5,
                 "dataset_keyword": "femnist_iid",
