@@ -47,8 +47,8 @@ export function LLMSettings({ config, onChange }) {
             label="Task"
             value={config.llm_task}
             onChange={onChange}
-            options={['mlm', 'classification']}
-            tooltip="Masked Language Modeling (MLM) or text classification"
+            options={['mlm']}
+            tooltip="Masked Language Modeling (MLM) for self-supervised pretraining"
           />
 
           <NumberField
