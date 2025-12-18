@@ -8,6 +8,7 @@ export const STRATEGIES = [
   'pid',
   'pid_scaled',
   'pid_standardized',
+  'pid_standardized_score_based',
   'multi-krum',
   'krum',
   'multi-krum-based',

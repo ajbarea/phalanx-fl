@@ -14,6 +14,15 @@ export const DATASETS = [
   'financial_phrasebank',
   'lexglue',
   'medal',
+  'breastmnist',
+  'pathmnist',
+  'dermamnist',
+  'octmnist',
+  'retinamnist',
+  'tissuemnist',
+  'organamnist',
+  'organcmnist',
+  'organsmnist',
 ];
 
 // HuggingFace NLP datasets
