@@ -8,8 +8,9 @@ and clear error message generation.
 from tests.common import pytest
 from jsonschema import ValidationError
 from src.config_loaders.validate_strategy_config import (
-    check_llm_specific_parameters,
-    validate_dependent_params,
+    _validate_dependent_params,
+    _validate_llm_parameters,
+    _validate_attack_schedule,
     validate_strategy_config,
 )
 
@@ -49,6 +50,7 @@ class TestValidateStrategyConfig:
             "trust_threshold": 0.7,
             "beta_value": 0.5,
             "num_of_clusters": 1,
+            "attack_schedule": [],
         }
 
         # Should not raise any exception
@@ -89,6 +91,7 @@ class TestValidateStrategyConfig:
             # Gaussian noise attack parameters
             "target_noise_snr": 10.0,
             "attack_ratio": 0.2,
+            "attack_schedule": [],
         }
 
         # Should not raise any exception
@@ -111,17 +114,18 @@ class TestValidateStrategyConfig:
             "save_csv": "false",
             "preserve_dataset": "false",
             "training_subset_fraction": 0.9,
-            "training_device": "cuda",
+            "training_device": "gpu",
             "cpus_per_client": 1,
             "gpus_per_client": 1.0,
-            "min_fit_clients": 10,
-            "min_evaluate_clients": 10,
+            "min_fit_clients": 12,
+            "min_evaluate_clients": 12,
             "min_available_clients": 12,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 2,
             "batch_size": 16,
             # Krum-specific parameters
             "num_krum_selections": 8,
+            "attack_schedule": [],
         }
 
         # Should not raise any exception
@@ -142,19 +146,20 @@ class TestValidateStrategyConfig:
             "show_plots": "false",
             "save_plots": "false",
             "save_csv": "true",
-            "preserve_dataset": "true",
+            "preserve_dataset": "false",
             "training_subset_fraction": 0.7,
             "training_device": "cpu",
             "cpus_per_client": 4,
             "gpus_per_client": 0.0,
-            "min_fit_clients": 12,
-            "min_evaluate_clients": 12,
+            "min_fit_clients": 15,
+            "min_evaluate_clients": 15,
             "min_available_clients": 15,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 1,
             "batch_size": 128,
             # Trimmed mean specific parameters
             "trim_ratio": 0.2,
+            "attack_schedule": [],
         }
 
         # Should not raise any exception
@@ -316,6 +321,7 @@ class TestValidateStrategyConfigInvalidValues:
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
+            "attack_schedule": [],
         }
 
         with pytest.raises(ValidationError) as exc_info:
@@ -349,6 +355,7 @@ class TestValidateStrategyConfigInvalidValues:
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
+            "attack_schedule": [],
         }
 
         with pytest.raises(ValidationError) as exc_info:
@@ -388,6 +395,7 @@ class TestValidateStrategyConfigInvalidValues:
             "trust_threshold": 0.7,
             "beta_value": 0.5,
             "num_of_clusters": 1,
+            "attack_schedule": [],
         }
 
         with pytest.raises(ValidationError) as exc_info:
@@ -421,6 +429,7 @@ class TestValidateStrategyConfigInvalidValues:
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
+            "attack_schedule": [],
         }
 
         with pytest.raises(ValidationError) as exc_info:
@@ -457,12 +466,13 @@ class TestValidateStrategyConfigInvalidValues:
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
+            "attack_schedule": [],
         }
 
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert "'quantum' is not one of ['cpu', 'gpu', 'cuda']" in str(exc_info.value)
+        assert "'quantum' is not one of ['cpu', 'gpu']" in str(exc_info.value)
 
     def test_invalid_data_types(self):
         """Test validation fails for invalid data types."""
@@ -490,6 +500,7 @@ class TestValidateStrategyConfigInvalidValues:
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
+            "attack_schedule": [],
         }
 
         with pytest.raises(ValidationError) as exc_info:
@@ -512,7 +523,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter trust_threshold for trust aggregation trust" in str(
             exc_info.value
@@ -529,7 +540,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter beta_value for trust aggregation trust" in str(
             exc_info.value
@@ -546,7 +557,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert (
             "Missing parameter begin_removing_from_round for trust aggregation trust"
@@ -564,7 +575,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter num_of_clusters for trust aggregation trust" in str(
             exc_info.value
@@ -581,7 +592,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter Kp for PID aggregation pid" in str(exc_info.value)
 
@@ -596,7 +607,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter Ki for PID aggregation pid_scaled" in str(
             exc_info.value
@@ -613,7 +624,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter Kd for PID aggregation pid_standardized" in str(
             exc_info.value
@@ -630,7 +641,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter num_std_dev for PID aggregation pid" in str(
             exc_info.value
@@ -644,7 +655,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert (
             "Missing parameter num_krum_selections for Krum-based aggregation krum"
@@ -659,7 +670,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert (
             "Missing parameter num_krum_selections for Krum-based aggregation multi-krum"
@@ -674,7 +685,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert (
             "Missing parameter num_krum_selections for Krum-based aggregation multi-krum-based"
@@ -689,7 +700,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert (
             "Missing parameter trim_ratio for trimmed mean aggregation trimmed_mean"
@@ -697,49 +708,54 @@ class TestValidateDependentParams:
         )
 
     def test_gaussian_noise_attack_missing_parameters(self):
-        """Test validation fails when gaussian noise attack is missing required parameters."""
+        """Test validation fails when gaussian noise attack in attack_schedule is missing required parameters."""
         config = {
-            "aggregation_strategy_keyword": "trust",
-            "attack_type": "gaussian_noise",
-            # Trust-specific parameters (required first)
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-            # Missing target_noise_snr, attack_ratio
+            "num_of_rounds": 10,
+            "num_of_clients": 5,
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "gaussian_noise",
+                    "selection_strategy": "specific",
+                    "malicious_client_ids": [0, 1],
+                    # Missing target_noise_snr and attack_ratio
+                }
+            ],
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_attack_schedule(config)
 
         error_message = str(exc_info.value)
         assert (
-            "Missing target_noise_snr that is required for gaussian_noise in configuration"
+            "gaussian_noise attack requires 'target_noise_snr' parameter"
             in error_message
         )
-
 
     def test_gaussian_noise_attack_missing_attack_ratio(self):
         """Test validation fails when gaussian noise attack is missing attack_ratio parameter."""
         config = {
-            "aggregation_strategy_keyword": "trust",
-            "attack_type": "gaussian_noise",
-            # Trust-specific parameters (required first)
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-            # Gaussian noise parameters
-            "target_noise_snr": 10.0,
-            # Missing attack_ratio
+            "num_of_rounds": 10,
+            "num_of_clients": 5,
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "gaussian_noise",
+                    "selection_strategy": "specific",
+                    "malicious_client_ids": [0, 1],
+                    "target_noise_snr": 10.0,
+                    # Missing attack_ratio
+                }
+            ],
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_attack_schedule(config)
 
-        assert (
-            "Missing attack_ratio that is required for gaussian_noise in configuration"
-            in str(exc_info.value)
+        assert "gaussian_noise attack requires 'attack_ratio' parameter" in str(
+            exc_info.value
         )
 
 
@@ -772,6 +788,7 @@ class TestValidateStrategyConfigErrorMessages:
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
+            "attack_schedule": [],
         }
 
         with pytest.raises(ValidationError) as exc_info:
@@ -827,6 +844,7 @@ class TestValidateStrategyConfigErrorMessages:
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
+            "attack_schedule": [],
         }
 
         with pytest.raises(ValidationError) as exc_info:
@@ -844,7 +862,7 @@ class TestValidateStrategyConfigErrorMessages:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         error_message = str(exc_info.value)
         # Should clearly indicate the missing parameter and strategy
@@ -854,22 +872,26 @@ class TestValidateStrategyConfigErrorMessages:
     def test_clear_error_message_for_attack_specific_missing_params(self):
         """Test that error messages clearly indicate which attack-specific parameter is missing."""
         config = {
-            "aggregation_strategy_keyword": "trust",
-            "attack_type": "gaussian_noise",
-            # Trust-specific parameters (required first)
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-            # Missing gaussian noise specific parameters
+            "num_of_rounds": 10,
+            "num_of_clients": 5,
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "gaussian_noise",
+                    "selection_strategy": "specific",
+                    "malicious_client_ids": [0, 1],
+                    # Missing gaussian noise specific parameters
+                }
+            ],
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_attack_schedule(config)
 
         error_message = str(exc_info.value)
         # Should clearly indicate the missing parameter and attack type
-        assert "that is required for gaussian_noise in configuration" in error_message
+        assert "gaussian_noise attack requires" in error_message
 
 
 class TestValidateStrategyConfigEdgeCases:
@@ -890,17 +912,18 @@ class TestValidateStrategyConfigEdgeCases:
             "show_plots": "false",
             "save_plots": "false",
             "save_csv": "true",
-            "preserve_dataset": "true",
+            "preserve_dataset": "false",
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
             "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
             "min_available_clients": 10,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
+            "attack_schedule": [],
         }
 
         # Should not raise any exception
@@ -926,12 +949,13 @@ class TestValidateStrategyConfigEdgeCases:
             "training_device": "gpu",
             "cpus_per_client": 2,
             "gpus_per_client": 1.0,
-            "min_fit_clients": 12,
-            "min_evaluate_clients": 12,
+            "min_fit_clients": 15,
+            "min_evaluate_clients": 15,
             "min_available_clients": 15,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 2,
             "batch_size": 64,
+            "attack_schedule": [],
         }
 
         # Should not raise any exception
@@ -949,7 +973,7 @@ class TestValidateStrategyConfigEdgeCases:
         }
 
         # Should not raise any exception for dependent params
-        validate_dependent_params(config)
+        _validate_dependent_params(config)
 
     def test_empty_config_validation(self):
         """Test validation of completely empty configuration."""
@@ -982,8 +1006,8 @@ class TestValidateStrategyConfigEdgeCases:
             "training_device": "cpu",
             "cpus_per_client": 1,
             "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
             "min_available_clients": 10,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
@@ -995,6 +1019,7 @@ class TestValidateStrategyConfigEdgeCases:
             "num_of_clusters": 1,
             # Extra unknown field
             "unknown_field": "some_value",
+            "attack_schedule": [],
         }
 
         # Should not raise any exception (JSON schema allows additional properties by default)
@@ -1009,7 +1034,7 @@ class TestCheckLlmSpecificParameters:
         config = {"model_type": "cnn", "use_llm": "true"}
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "LLM finetuning is only supported for transformer models" in str(
             exc_info.value
@@ -1026,7 +1051,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter llm_model for LLM finetuning" in str(exc_info.value)
 
@@ -1041,7 +1066,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter llm_finetuning for LLM finetuning" in str(
             exc_info.value
@@ -1058,7 +1083,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter llm_task for LLM finetuning" in str(exc_info.value)
 
@@ -1073,7 +1098,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter llm_chunk_size for LLM finetuning" in str(
             exc_info.value
@@ -1091,7 +1116,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter mlm_probability for LLM task mlm" in str(
             exc_info.value
@@ -1112,7 +1137,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter lora_rank for LORA" in str(exc_info.value)
 
@@ -1131,7 +1156,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter lora_alpha for LORA" in str(exc_info.value)
 
@@ -1150,7 +1175,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter lora_dropout for LORA" in str(exc_info.value)
 
@@ -1169,7 +1194,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter lora_target_modules for LORA" in str(exc_info.value)
 
@@ -1184,7 +1209,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         # Should not raise any exception
-        check_llm_specific_parameters(config)
+        _validate_llm_parameters(config)
 
     def test_llm_valid_lora_finetuning_config(self):
         """Test that valid LORA finetuning config passes validation."""
@@ -1201,7 +1226,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         # Should not raise any exception
-        check_llm_specific_parameters(config)
+        _validate_llm_parameters(config)
 
     def test_llm_valid_mlm_task_config(self):
         """Test that valid MLM task config passes validation."""
@@ -1215,7 +1240,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         # Should not raise any exception
-        check_llm_specific_parameters(config)
+        _validate_llm_parameters(config)
 
 
 class TestStrictModeValidation:
@@ -1241,8 +1266,8 @@ class TestStrictModeValidation:
             "training_device": "cpu",
             "cpus_per_client": 1,
             "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
             "min_available_clients": 10,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
@@ -1253,17 +1278,18 @@ class TestStrictModeValidation:
             "beta_value": 0.5,
             "num_of_clusters": 1,
             # strict_mode not specified - should default to "true"
+            "attack_schedule": [],
         }
 
-        # Should not raise exception and auto-configure clients
+        # Should not raise exception when min_* == num_of_clients
         validate_strategy_config(config)
         assert config["strict_mode"] == "true"
         assert config["min_fit_clients"] == 10
         assert config["min_evaluate_clients"] == 10
         assert config["min_available_clients"] == 10
 
-    def test_strict_mode_enabled_auto_configures_clients(self):
-        """Test that strict_mode=true forces all min_* values to equal num_of_clients."""
+    def test_strict_mode_enabled_rejects_mismatched_clients(self):
+        """Test that strict_mode=true rejects configs where min_* != num_of_clients."""
         config = {
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
@@ -1282,9 +1308,9 @@ class TestStrictModeValidation:
             "training_device": "cpu",
             "cpus_per_client": 1,
             "gpus_per_client": 0.0,
-            "min_fit_clients": 5,  # Will be auto-configured to 10
-            "min_evaluate_clients": 7,  # Will be auto-configured to 10
-            "min_available_clients": 8,  # Will be auto-configured to 10
+            "min_fit_clients": 5,  # Mismatch with num_of_clients
+            "min_evaluate_clients": 7,  # Mismatch with num_of_clients
+            "min_available_clients": 8,  # Mismatch with num_of_clients
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
@@ -1294,13 +1320,18 @@ class TestStrictModeValidation:
             "trust_threshold": 0.7,
             "beta_value": 0.5,
             "num_of_clusters": 1,
+            "attack_schedule": [],
         }
 
-        # Should not raise exception and auto-configure all client values
-        validate_strategy_config(config)
-        assert config["min_fit_clients"] == 10
-        assert config["min_evaluate_clients"] == 10
-        assert config["min_available_clients"] == 10
+        # Should raise exception because min_* != num_of_clients
+        with pytest.raises(ValidationError) as exc_info:
+            validate_strategy_config(config)
+
+        error_message = str(exc_info.value)
+        assert (
+            "CONFIG REJECTED: strict_mode requires all clients to participate"
+            in error_message
+        )
 
     def test_strict_mode_disabled_preserves_client_config(self):
         """Test that strict_mode=false preserves original client configuration."""
@@ -1334,6 +1365,7 @@ class TestStrictModeValidation:
             "trust_threshold": 0.7,
             "beta_value": 0.5,
             "num_of_clusters": 1,
+            "attack_schedule": [],
         }
 
         # Should not raise exception and preserve original values
@@ -1374,6 +1406,7 @@ class TestStrictModeValidation:
             "trust_threshold": 0.7,
             "beta_value": 0.5,
             "num_of_clusters": 1,
+            "attack_schedule": [],
         }
 
         with pytest.raises(ValidationError) as exc_info:
@@ -1418,6 +1451,7 @@ class TestStrictModeValidation:
             "trust_threshold": 0.7,
             "beta_value": 0.5,
             "num_of_clusters": 1,
+            "attack_schedule": [],
         }
 
         # Should not raise exception and preserve correct values
@@ -1458,6 +1492,7 @@ class TestStrictModeValidation:
             "trust_threshold": 0.7,
             "beta_value": 0.5,
             "num_of_clusters": 1,
+            "attack_schedule": [],
         }
 
         with pytest.raises(ValidationError) as exc_info:
@@ -1501,6 +1536,7 @@ class TestValidateStrategyConfigLlmIntegration:
             "beta_value": 0.5,
             "num_of_clusters": 1,
             # Missing LLM parameters should cause error
+            "attack_schedule": [],
         }
 
         with pytest.raises(ValidationError) as exc_info:
@@ -1529,8 +1565,8 @@ class TestValidateStrategyConfigLlmIntegration:
             "training_device": "cpu",
             "cpus_per_client": 1,
             "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
             "min_available_clients": 10,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
@@ -1541,6 +1577,7 @@ class TestValidateStrategyConfigLlmIntegration:
             "beta_value": 0.5,
             "num_of_clusters": 1,
             # No LLM parameters needed when use_llm is false
+            "attack_schedule": [],
         }
 
         # Should not raise any exception
@@ -1577,6 +1614,7 @@ class TestValidateStrategyConfigLlmIntegration:
             "trust_threshold": 0.7,
             "beta_value": 0.5,
             "num_of_clusters": 1,
+            "attack_schedule": [],
         }
 
         with pytest.raises(ValidationError) as exc_info:
