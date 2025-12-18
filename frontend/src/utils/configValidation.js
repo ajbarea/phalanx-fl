@@ -154,24 +154,24 @@ export function validateClientConfig(config) {
     });
   }
 
-  // Strict mode warnings
+  // Strict mode requires all clients to participate
   if (strict_mode === 'true') {
     if (min_fit_clients !== num_of_clients && min_fit_clients <= num_of_clients) {
-      warnings.push({
+      errors.push({
         field: 'min_fit_clients',
-        message: `Strict mode will set this to ${num_of_clients} (all clients participate)`,
+        message: `Strict mode requires all clients to participate. Set min_fit_clients to ${num_of_clients} or disable strict_mode.`,
       });
     }
     if (min_evaluate_clients !== num_of_clients && min_evaluate_clients <= num_of_clients) {
-      warnings.push({
+      errors.push({
         field: 'min_evaluate_clients',
-        message: `Strict mode will set this to ${num_of_clients} (all clients participate)`,
+        message: `Strict mode requires all clients to participate. Set min_evaluate_clients to ${num_of_clients} or disable strict_mode.`,
       });
     }
     if (min_available_clients !== num_of_clients && min_available_clients <= num_of_clients) {
-      warnings.push({
+      errors.push({
         field: 'min_available_clients',
-        message: `Strict mode will set this to ${num_of_clients} (all clients participate)`,
+        message: `Strict mode requires all clients to participate. Set min_available_clients to ${num_of_clients} or disable strict_mode.`,
       });
     }
   }
@@ -210,7 +210,11 @@ export function validateStrategyParams(config) {
   }
 
   // PID strategies
-  if (['pid', 'pid_scaled', 'pid_standardized'].includes(aggregation_strategy_keyword)) {
+  if (
+    ['pid', 'pid_scaled', 'pid_standardized', 'pid_standardized_score_based'].includes(
+      aggregation_strategy_keyword
+    )
+  ) {
     const requiredParams = [
       { key: 'num_std_dev', label: 'Number of Std Deviations' },
       { key: 'Kp', label: 'Kp (Proportional Gain)' },
@@ -316,6 +320,8 @@ export function validateStrategyParams(config) {
         'FedAvg only produces round-level plots (loss/accuracy convergence). For per-client visualizations, try Krum, Multi-Krum, or PID strategies.',
     });
   }
+
+  // Note: 'rfa' (Robust Federated Averaging) is a valid strategy that doesn't require special params
 
   return { errors, warnings, infos };
 }
@@ -628,6 +634,131 @@ export function validateLLMConfig(config) {
 }
 
 /**
+ * Validate dynamic attack schedule
+ * Checks for overlapping rounds with the same attack type (not allowed)
+ * Different attack types CAN overlap (they stack)
+ */
+export function validateDynamicAttacks(config) {
+  const errors = [];
+  const warnings = [];
+  const infos = [];
+
+  const { num_of_rounds, preserve_dataset, dynamic_attacks } = config;
+
+  // Get attack schedule from either location (form uses dynamic_attacks.schedule)
+  // Note: config.attack_schedule may be [] which is truthy, so check length
+  const attack_schedule =
+    (config.attack_schedule && config.attack_schedule.length > 0)
+      ? config.attack_schedule
+      : (dynamic_attacks?.enabled && dynamic_attacks?.schedule) || [];
+
+  // Skip if no attack schedule
+  if (!attack_schedule || attack_schedule.length === 0) {
+    return { errors, warnings, infos };
+  }
+
+  // Reject preserve_dataset=true with attack_schedule (incompatible modes)
+  if (preserve_dataset === 'true') {
+    errors.push({
+      field: 'preserve_dataset',
+      message:
+        'Cannot use attack schedule with preserve_dataset enabled. Attack schedules apply attacks in-memory during training, which is incompatible with pre-poisoned filesystem datasets. Set preserve_dataset to false.',
+    });
+  }
+
+  // Validate each entry's round bounds
+  for (let i = 0; i < attack_schedule.length; i++) {
+    const entry = attack_schedule[i];
+    const phaseNum = i + 1;
+
+    if (entry.start_round < 1) {
+      errors.push({
+        field: `attack_schedule[${i}].start_round`,
+        message: `Phase ${phaseNum}: Start round must be at least 1`,
+      });
+    }
+
+    if (entry.end_round < entry.start_round) {
+      errors.push({
+        field: `attack_schedule[${i}].end_round`,
+        message: `Phase ${phaseNum}: End round (${entry.end_round}) cannot be before start round (${entry.start_round})`,
+      });
+    }
+
+    if (num_of_rounds && entry.end_round > num_of_rounds) {
+      errors.push({
+        field: `attack_schedule[${i}].end_round`,
+        message: `Phase ${phaseNum}: End round (${entry.end_round}) exceeds total rounds (${num_of_rounds})`,
+      });
+    }
+
+    // Validate selection strategy requirements
+    const selectionStrategy = entry.selection_strategy;
+    if (selectionStrategy === 'specific') {
+      if (!entry.malicious_client_ids || !Array.isArray(entry.malicious_client_ids)) {
+        errors.push({
+          field: `attack_schedule[${i}].malicious_client_ids`,
+          message: `Phase ${phaseNum}: 'specific' selection strategy requires 'malicious_client_ids' array`,
+        });
+      }
+    } else if (selectionStrategy === 'random') {
+      if (entry.malicious_client_count === undefined || entry.malicious_client_count === null) {
+        errors.push({
+          field: `attack_schedule[${i}].malicious_client_count`,
+          message: `Phase ${phaseNum}: 'random' selection strategy requires 'malicious_client_count' integer`,
+        });
+      }
+    } else if (selectionStrategy === 'percentage') {
+      if (entry.malicious_percentage === undefined || entry.malicious_percentage === null) {
+        errors.push({
+          field: `attack_schedule[${i}].malicious_percentage`,
+          message: `Phase ${phaseNum}: 'percentage' selection strategy requires 'malicious_percentage' (0.0-1.0)`,
+        });
+      }
+    }
+
+    // Validate attack-type-specific parameters
+    if (entry.attack_type === 'gaussian_noise') {
+      if (entry.target_noise_snr === undefined || entry.target_noise_snr === null) {
+        errors.push({
+          field: `attack_schedule[${i}].target_noise_snr`,
+          message: `Phase ${phaseNum}: gaussian_noise attack requires 'target_noise_snr' parameter`,
+        });
+      }
+      if (entry.attack_ratio === undefined || entry.attack_ratio === null) {
+        errors.push({
+          field: `attack_schedule[${i}].attack_ratio`,
+          message: `Phase ${phaseNum}: gaussian_noise attack requires 'attack_ratio' parameter`,
+        });
+      }
+    }
+  }
+
+  // Check for overlapping rounds with SAME attack type (not allowed)
+  // Different attack types CAN overlap - they stack
+  for (let i = 0; i < attack_schedule.length; i++) {
+    for (let j = i + 1; j < attack_schedule.length; j++) {
+      const entry1 = attack_schedule[i];
+      const entry2 = attack_schedule[j];
+
+      // Check if rounds overlap
+      const roundsOverlap = !(
+        entry1.end_round < entry2.start_round || entry2.end_round < entry1.start_round
+      );
+
+      if (roundsOverlap && entry1.attack_type === entry2.attack_type) {
+        errors.push({
+          field: 'attack_schedule',
+          message: `Overlapping rounds with same attack type "${entry1.attack_type}" between Phase ${i + 1} (rounds ${entry1.start_round}-${entry1.end_round}) and Phase ${j + 1} (rounds ${entry2.start_round}-${entry2.end_round}). Same attack types cannot overlap.`,
+        });
+      }
+    }
+  }
+
+  return { errors, warnings, infos };
+}
+
+/**
  * Main validation function - runs all validation checks
  * Returns aggregated validation results
  */
@@ -639,6 +770,7 @@ export function validateConfig(config) {
   const attackValidation = validateAttackConfig(config);
   const datasetModelValidation = validateDatasetModelCompatibility(config);
   const llmValidation = validateLLMConfig(config);
+  const dynamicAttacksValidation = validateDynamicAttacks(config);
 
   // Aggregate all errors, warnings, and infos
   const errors = [
@@ -648,6 +780,7 @@ export function validateConfig(config) {
     ...attackValidation.errors,
     ...datasetModelValidation.errors,
     ...llmValidation.errors,
+    ...dynamicAttacksValidation.errors,
   ];
 
   const warnings = [
@@ -657,6 +790,7 @@ export function validateConfig(config) {
     ...attackValidation.warnings,
     ...datasetModelValidation.warnings,
     ...llmValidation.warnings,
+    ...dynamicAttacksValidation.warnings,
   ];
 
   const infos = [
@@ -666,6 +800,7 @@ export function validateConfig(config) {
     ...attackValidation.infos,
     ...datasetModelValidation.infos,
     ...llmValidation.infos,
+    ...dynamicAttacksValidation.infos,
   ];
 
   return {
