@@ -285,8 +285,11 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
                         # add this client to the removed_clients list
                         self.removed_client_ids.add(client_id)
 
+        # Use server_round (not self.current_round) because current_round is incremented
+        # in aggregate_fit which runs AFTER configure_fit. Using self.current_round would
+        # cause the last round's participation to never be recorded.
         self.strategy_history.update_client_participation(
-            current_round=self.current_round, removed_client_ids=self.removed_client_ids
+            current_round=server_round, removed_client_ids=self.removed_client_ids
         )
 
         self.logger.info(f"removed clients are : {self.removed_client_ids}")
