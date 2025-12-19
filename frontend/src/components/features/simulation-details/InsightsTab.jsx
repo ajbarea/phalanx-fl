@@ -1,6 +1,10 @@
-import { Card, Alert, ListGroup } from 'react-bootstrap';
+import { Card, Alert, ListGroup, Spinner } from 'react-bootstrap';
 
 export function InsightsTab({ details, csvData, status }) {
+  // Check if CSV data is still loading (status is completed but no CSV data yet)
+  const isLoadingCsvData =
+    status === 'completed' &&
+    (!csvData || Object.keys(csvData).length === 0 || !csvData['csv/round_metrics_0.csv']);
   if (!details || !details.config) {
     return (
       <Card className="mt-3">
@@ -167,9 +171,14 @@ export function InsightsTab({ details, csvData, status }) {
   return (
     <Card className="mt-3">
       <Card.Body>
-        {insights.length > 0 ? (
+        {isLoadingCsvData ? (
+          <div className="text-center py-4">
+            <Spinner animation="border" variant="primary" size="sm" className="me-2" />
+            <span className="text-muted">Loading insights...</span>
+          </div>
+        ) : insights.length > 0 ? (
           <>
-            <h5 className="mb-3">📚 Educational Insights</h5>
+            <h5 className="mb-3">Educational Insights</h5>
             <p className="text-muted mb-3">
               Automatic analysis of simulation results to help understand federated learning
               behavior and defense effectiveness.

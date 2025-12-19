@@ -125,7 +125,7 @@ export function SimulationDetails() {
         </Tab>
 
         {isMultiStrategy && (
-          <Tab eventKey="comparison" title="📊 Comparison">
+          <Tab eventKey="comparison" title="📊 Comparison" mountOnEnter>
             <ComparisonTab
               simulation={{ ...details, id: simulationId, status: displayStatus }}
               isMultiStrategy={isMultiStrategy}
@@ -133,7 +133,7 @@ export function SimulationDetails() {
           </Tab>
         )}
 
-        <Tab eventKey="plots" title="Plots">
+        <Tab eventKey="plots" title="Plots" mountOnEnter unmountOnExit>
           <PlotsTab simulation={{ ...details, id: simulationId }} />
         </Tab>
 

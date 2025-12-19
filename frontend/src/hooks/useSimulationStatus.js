@@ -30,7 +30,7 @@ export function useSimulationStatus(simulationIdOrSimulations, options = {}) {
     // Build statuses object from parallel queries
     const statuses = simulationIdOrSimulations.reduce((acc, sim, index) => {
       const query = multiQueries[index];
-      acc[sim.simulation_id] = query?.data ?? { status: 'unknown' };
+      acc[sim.simulation_id] = query?.data ?? { status: 'loading' };
       return acc;
     }, {});
 

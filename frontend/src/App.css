@@ -482,7 +482,7 @@
 
   :root[data-theme='dark'] .navbar-collapse {
     background-color: rgba(255, 255, 255, 0.05);
-  color: #e6e1e5 !important;
+    color: #e6e1e5 !important;
   }
 }
 
@@ -832,6 +832,16 @@ html {
   background-color: #fd7e14;
 }
 
+.status-loading {
+  color: #6c757d;
+  background-color: rgba(108, 117, 125, 0.08);
+}
+
+.status-loading .status-dot {
+  background-color: #adb5bd;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
 /* Status variants - Dark mode */
 :root[data-theme='dark'] .status-pending {
   color: #cac4d0;
@@ -885,6 +895,16 @@ html {
 
 :root[data-theme='dark'] .status-unknown .status-dot {
   background-color: #ff9800;
+}
+
+:root[data-theme='dark'] .status-loading {
+  color: #cac4d0;
+  background-color: rgba(202, 196, 208, 0.08);
+}
+
+:root[data-theme='dark'] .status-loading .status-dot {
+  background-color: #938f99;
+  animation: pulse 1.5s ease-in-out infinite;
 }
 
 /* Pulse animation for running status */
