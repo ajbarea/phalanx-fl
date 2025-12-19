@@ -24,3 +24,4 @@ tests/logs/
 *sonar-project.properties
 timing_db.json
 logs/
+cache/huggingface/
