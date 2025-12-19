@@ -6,11 +6,13 @@ import { Alert } from 'react-bootstrap';
  * Displays aggregated validation status above the submit button
  * Shows errors, warnings, and info messages in organized alerts
  *
- * @param {Array} errors - Array of error objects {field, message}
- * @param {Array} warnings - Array of warning objects {field, message}
- * @param {Array} infos - Array of info objects {field, message}
+ * @param {Object} validation - Validation object containing errors, warnings, infos arrays
  */
-function ValidationSummary({ errors = [], warnings = [], infos = [] }) {
+function ValidationSummary({ validation }) {
+  // Extract arrays from validation object, with defaults
+  const errors = validation?.errors || [];
+  const warnings = validation?.warnings || [];
+  const infos = validation?.infos || [];
   // If no validation messages, show success
   if (errors.length === 0 && warnings.length === 0 && infos.length === 0) {
     return (
