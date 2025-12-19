@@ -241,15 +241,17 @@ export function SimulationForm({
                 onClick={() => {
                   // Toggle the accordion: open if closed, close if open
                   if (activeSection.includes(item.key)) {
-                    // Close the accordion
+                    // Close the accordion (no scroll)
                     setActiveSection(activeSection.filter(key => key !== item.key));
                   } else {
-                    // Open the accordion
+                    // Open the accordion and scroll to it
                     setActiveSection([...activeSection, item.key]);
+                    // Delay scroll to allow accordion to start opening
+                    setTimeout(() => {
+                      const element = document.querySelector(`[data-section-key="${item.key}"]`);
+                      element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 50);
                   }
-                  // Scroll to the section
-                  const element = document.querySelector(`[data-section-key="${item.key}"]`);
-                  element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
               >
                 {item.label}
