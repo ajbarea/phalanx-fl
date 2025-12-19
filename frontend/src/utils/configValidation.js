@@ -648,7 +648,7 @@ export function validateDynamicAttacks(config) {
   // Get attack schedule from either location (form uses dynamic_attacks.schedule)
   // Note: config.attack_schedule may be [] which is truthy, so check length
   const attack_schedule =
-    (config.attack_schedule && config.attack_schedule.length > 0)
+    config.attack_schedule && config.attack_schedule.length > 0
       ? config.attack_schedule
       : (dynamic_attacks?.enabled && dynamic_attacks?.schedule) || [];
 
