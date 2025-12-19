@@ -1,6 +1,7 @@
 import { Table, Button, Form, Dropdown, Badge } from 'react-bootstrap';
 import { QUICK_PATTERNS, AGGREGATION_STRATEGIES } from '@constants/strategyVariations';
 import { ATTACKS } from '@constants/attacks';
+import { formatAttackName } from '@constants/strategyLabels';
 import { InfoTooltip } from '@components/common/Tooltip/InfoTooltip';
 import { MaterialIcon } from '@components/common/Icon/MaterialIcon';
 
@@ -205,7 +206,9 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
                         type="text"
                         size="sm"
                         value={variation.name}
+                        title={variation.name}
                         onChange={e => handleFieldChange(variation.id, 'name', e.target.value)}
+                        style={{ minWidth: '100px' }}
                       />
                     </td>
                     <td>
@@ -306,7 +309,7 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
                         >
                           {ATTACKS.map(attack => (
                             <option key={attack} value={attack}>
-                              {attack === 'gaussian_noise' ? 'Gaussian Noise' : 'Label Flipping'}
+                              {formatAttackName(attack)}
                             </option>
                           ))}
                         </Form.Select>
