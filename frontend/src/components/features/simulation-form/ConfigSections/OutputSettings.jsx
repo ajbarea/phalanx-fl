@@ -1,6 +1,16 @@
 import { SwitchField } from '../FormFields/SwitchField';
+import { SelectField } from '../FormFields/SelectField';
+import { NumberField } from '../FormFields/NumberField';
+
+const SNAPSHOT_FORMAT_OPTIONS = [
+  { value: 'pickle', label: 'Pickle (Data only)' },
+  { value: 'visual', label: 'Visual (Images only)' },
+  { value: 'pickle_and_visual', label: 'Both (Pickle + Visual)' },
+];
 
 export function OutputSettings({ config, onChange }) {
+  const snapshotsEnabled = config.save_attack_snapshots === 'true';
+
   return (
     <>
       <SwitchField
@@ -32,6 +42,41 @@ export function OutputSettings({ config, onChange }) {
         }
         tooltip="Export metrics to CSV files for further analysis"
       />
+
+      <SwitchField
+        name="save_attack_snapshots"
+        label="Save Attack Snapshots"
+        checked={snapshotsEnabled}
+        onChange={e =>
+          onChange({
+            target: { name: 'save_attack_snapshots', value: e.target.checked ? 'true' : 'false' },
+          })
+        }
+        tooltip="Save snapshots of data before and after attacks for analysis and visualization"
+      />
+
+      {snapshotsEnabled && (
+        <>
+          <SelectField
+            name="attack_snapshot_format"
+            label="Snapshot Format"
+            value={config.attack_snapshot_format || 'pickle_and_visual'}
+            onChange={onChange}
+            options={SNAPSHOT_FORMAT_OPTIONS}
+            tooltip="Format for saving attack snapshots: pickle for data analysis, visual for images"
+          />
+
+          <NumberField
+            name="snapshot_max_samples"
+            label="Max Snapshot Samples"
+            value={config.snapshot_max_samples || 5}
+            onChange={onChange}
+            min={1}
+            max={50}
+            tooltip="Maximum number of samples to include in each snapshot (1-50)"
+          />
+        </>
+      )}
 
       <SwitchField
         name="preserve_dataset"

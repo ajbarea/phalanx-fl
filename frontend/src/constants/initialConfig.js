@@ -61,6 +61,9 @@ export const initialConfig = {
   show_plots: 'false',
   save_plots: 'true',
   save_csv: 'true',
+  save_attack_snapshots: 'false',
+  attack_snapshot_format: 'pickle_and_visual',
+  snapshot_max_samples: 5,
   preserve_dataset: 'true',
   strict_mode: 'true',
 
