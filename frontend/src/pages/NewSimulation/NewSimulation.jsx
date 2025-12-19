@@ -7,7 +7,7 @@ import { SimulationForm } from '@components/features/simulation-form/SimulationF
 import { OutlineButton } from '@components/common/Button/OutlineButton';
 import { ConfirmModal } from '@components/common/Modal/ConfirmModal';
 import { QueueChoiceModal } from '@components/common/Modal/QueueChoiceModal';
-import { createSimulation } from '@api';
+import { createSimulation, prepareSimulation } from '@api';
 import { useConfigValidation } from '@hooks/useConfigValidation';
 import { useRunningSimulation } from '@hooks/useRunningSimulation';
 import { useTerminal } from '@contexts/TerminalContext';
@@ -39,7 +39,7 @@ export function NewSimulation() {
 
   const validation = useConfigValidation(config);
   const { hasRunning, runningSimIds } = useRunningSimulation();
-  const { openTerminal, sendCommand } = useTerminal();
+  const { openTerminal, interruptAndRun } = useTerminal();
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -140,23 +140,30 @@ export function NewSimulation() {
 
     try {
       const configToSubmit = pendingConfig || sanitizeConfig(config);
-      const response = await createSimulation(configToSubmit, addToQueue);
-      const { simulation_id, queued } = response.data;
-      localStorage.removeItem('simulation-draft');
-      setPendingConfig(null);
 
-      if (queued) {
+      if (addToQueue === true) {
+        // Queue mode: use background process via createSimulation
+        const response = await createSimulation(configToSubmit, addToQueue);
+        const { simulation_id } = response.data;
+        localStorage.removeItem('simulation-draft');
+        setPendingConfig(null);
         toast.success('Added to experiment queue!');
         navigate(`/queue/${simulation_id}`);
       } else {
-        toast.success('Simulation created successfully!');
+        // Direct execution: prepare config and run in terminal
+        const response = await prepareSimulation(configToSubmit);
+        const { simulation_id, command } = response.data;
+        localStorage.removeItem('simulation-draft');
+        setPendingConfig(null);
+
+        toast.success('Simulation started!');
         openTerminal();
-        // Give terminal time to open, then tail the execution log
+
+        // Give terminal time to open, then interrupt any running process and run the command
         setTimeout(() => {
-          sendCommand(
-            `echo "⏳ Starting simulation ${simulation_id}..." && echo "📋 Waiting for execution log..." && sleep 2 && tail -f out/${simulation_id}/execution.log\n`
-          );
+          interruptAndRun(`${command}\n`);
         }, 100);
+
         navigate(`/simulations/${simulation_id}`);
       }
     } catch (err) {

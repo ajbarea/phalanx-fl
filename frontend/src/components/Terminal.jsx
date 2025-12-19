@@ -160,13 +160,21 @@ const Terminal = forwardRef(function Terminal(
     setTimeout(() => connect(), 100);
   }, [disconnect, connect]);
 
+  /** Sends Ctrl+C to interrupt current process. */
+  const interrupt = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send('\x03'); // Ctrl+C
+    }
+  }, []);
+
   useImperativeHandle(
     ref,
     () => ({
       reset,
       sendCommand,
+      interrupt,
     }),
-    [reset, sendCommand]
+    [reset, sendCommand, interrupt]
   );
 
   useEffect(() => {
@@ -387,8 +395,9 @@ const Terminal = forwardRef(function Terminal(
       <div
         ref={terminalRef}
         style={{
-          height: `${height}px`,
+          height: `${height - 42}px`, // Subtract toolbar height (~42px) to prevent overflow
           backgroundColor: termTheme.background,
+          overflow: 'hidden',
         }}
       />
     </div>

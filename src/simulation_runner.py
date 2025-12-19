@@ -94,6 +94,14 @@ class SimulationRunner:
             "Set RAY_worker_register_timeout_seconds=60 for multi-strategy reliability"
         )
 
+        # Create .running marker to signal active execution (for UI status detection)
+        running_marker = Path(self._directory_handler.output_dir) / ".running"
+        try:
+            running_marker.touch()
+            logging.debug(f"Created running marker: {running_marker}")
+        except Exception as e:
+            logging.warning(f"Could not create running marker: {e}")
+
         executed_simulation_strategies = []
 
         for strategy_config_dict, strategy_number in zip(
@@ -180,6 +188,14 @@ class SimulationRunner:
         new_plot_handler.show_inter_strategy_plots(
             executed_simulation_strategies, self._directory_handler
         )
+
+        # Remove .running marker to signal completion
+        try:
+            if running_marker.exists():
+                running_marker.unlink()
+                logging.debug(f"Removed running marker: {running_marker}")
+        except Exception as e:
+            logging.warning(f"Could not remove running marker: {e}")
 
 
 if __name__ == "__main__":

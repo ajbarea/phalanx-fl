@@ -19,6 +19,10 @@ export const createSimulation = config => {
   return apiClient.post('/simulations', config);
 };
 
+export const prepareSimulation = config => {
+  return apiClient.post('/simulations/prepare', config);
+};
+
 export const getSimulationStatus = simulationId => {
   return apiClient.get(`/simulations/${simulationId}/status`);
 };

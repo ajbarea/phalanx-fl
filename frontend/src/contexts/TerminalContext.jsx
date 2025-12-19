@@ -39,6 +39,24 @@ export function TerminalProvider({ children }) {
     }
   }, []);
 
+  const interruptTerminal = useCallback(() => {
+    if (terminalRef.current?.interrupt) {
+      terminalRef.current.interrupt();
+    }
+  }, []);
+
+  const interruptAndRun = useCallback(
+    async command => {
+      // Send Ctrl+C to stop any running process
+      interruptTerminal();
+      // Wait for interrupt to take effect
+      await new Promise(resolve => setTimeout(resolve, 200));
+      // Send the new command
+      sendCommand(command);
+    },
+    [interruptTerminal, sendCommand]
+  );
+
   return (
     <TerminalContext.Provider
       value={{
@@ -48,6 +66,8 @@ export function TerminalProvider({ children }) {
         toggleTerminal,
         sendCommand,
         resetTerminal,
+        interruptTerminal,
+        interruptAndRun,
         terminalRef,
         setIsOpen,
       }}

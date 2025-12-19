@@ -490,6 +490,63 @@ async def create_simulation(request: Dict[str, Any] = Body(...)) -> Dict[str, An
     return {"simulation_id": simulation_id}
 
 
+@app.post("/api/simulations/prepare", status_code=201)
+async def prepare_simulation(request: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
+    """Prepares a simulation by creating config but not starting the process.
+
+    This endpoint is used when the frontend wants to run the simulation
+    directly in the terminal PTY for real-time output.
+
+    Args:
+        request: A dictionary containing the simulation configuration.
+
+    Returns:
+        A dictionary containing:
+        - simulation_id: The unique identifier for the simulation
+        - command: The command to run in the terminal
+
+    Raises:
+        HTTPException: If the config cannot be written.
+    """
+    config = {k: v for k, v in request.items() if k != "add_to_queue"}
+
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    simulation_id = f"api_run_{timestamp}"
+
+    output_sim_path = OUTPUT_DIR / simulation_id
+    output_sim_path.mkdir(parents=True, exist_ok=True)
+
+    config_filepath = output_sim_path / "config.json"
+
+    if "shared_settings" in config and "simulation_strategies" in config:
+        logger.info("Multi-sim config detected, using as-is")
+        wrapped_config = config
+    else:
+        logger.info("Single sim config detected, wrapping")
+        wrapped_config = {
+            "shared_settings": config,
+            "simulation_strategies": [{}],
+        }
+
+    try:
+        with config_filepath.open("w") as f:
+            json.dump(wrapped_config, f, indent=4)
+    except IOError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to write config file: {e}")
+
+    # Use relative path with forward slashes for cross-platform terminal compatibility
+    relative_config_path = f"out/{simulation_id}/config.json"
+    command = f"python -m src.simulation_runner {relative_config_path}"
+
+    logger.info(f"Prepared simulation {simulation_id} for terminal execution")
+
+    return {
+        "simulation_id": simulation_id,
+        "command": command,
+        "config_path": relative_config_path,
+    }
+
+
 @app.get("/api/simulations/{simulation_id}/status")
 def get_simulation_status(
     sim_path: Path = Depends(get_simulation_path), simulation_id: str = ""
@@ -507,6 +564,11 @@ def get_simulation_status(
     stopped_exists = stopped_marker.is_file()
     if stopped_exists:
         return {"status": "stopped", "progress": 0.0}
+
+    # Check for .running marker (indicates terminal-based execution is active)
+    running_marker = sim_path / ".running"
+    if running_marker.is_file():
+        return {"status": "running", "progress": 0.0}
 
     if simulation_id in running_processes:
         process = running_processes[simulation_id]

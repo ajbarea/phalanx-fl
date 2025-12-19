@@ -268,12 +268,12 @@ export default function TerminalPanel() {
             height: height - 40,
             visibility: isOpen ? 'visible' : 'hidden',
             position: isOpen ? 'relative' : 'absolute',
-            paddingBottom: 24,
+            overflow: 'hidden',
           }}
         >
           <Terminal
             ref={terminalRef}
-            height={height - 64}
+            height={height - 40}
             showQuickCommands={true}
             isVisible={isOpen}
           />
