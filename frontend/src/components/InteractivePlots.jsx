@@ -255,8 +255,14 @@ export default function InteractivePlots({ simulation }) {
         </div>
 
         {/* Chart */}
-        <div style={{ width: '100%', height: chartHeight }}>
-          <ResponsiveContainer width="100%" height="100%">
+        <div style={{ width: '100%', minWidth: 300, height: chartHeight }}>
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            minWidth={300}
+            minHeight={300}
+            debounce={1}
+          >
             <LineChart data={chartData} margin={{ top: 10, right: 30, left: 50, bottom: 80 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
               <XAxis

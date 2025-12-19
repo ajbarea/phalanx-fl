@@ -86,43 +86,51 @@ export default function RoundMetricsPlot({ plotData }) {
         </Form.Group>
 
         {/* Chart */}
-        <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
-            <XAxis
-              dataKey="round"
-              label={{ value: 'Round', position: 'insideBottom', offset: -5 }}
-              stroke={chartColors.axis}
-              tick={{ fill: chartColors.text }}
-            />
-            <YAxis
-              label={{
-                value: METRIC_LABELS[selectedMetric] || selectedMetric,
-                angle: -90,
-                position: 'insideLeft',
-              }}
-              stroke={chartColors.axis}
-              tick={{ fill: chartColors.text }}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: theme === 'dark' ? '#2b2930' : '#fff',
-                border: `1px solid ${chartColors.grid}`,
-                color: chartColors.text,
-              }}
-            />
-            <Legend />
-            <Line
-              type="monotone"
-              dataKey="value"
-              name={METRIC_LABELS[selectedMetric] || selectedMetric}
-              stroke={chartColors.line}
-              strokeWidth={2}
-              dot={{ fill: chartColors.line, r: 4 }}
-              activeDot={{ r: 6 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+        <div style={{ width: '100%', minWidth: 300, height: 400 }}>
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            minWidth={300}
+            minHeight={300}
+            debounce={1}
+          >
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+              <XAxis
+                dataKey="round"
+                label={{ value: 'Round', position: 'insideBottom', offset: -5 }}
+                stroke={chartColors.axis}
+                tick={{ fill: chartColors.text }}
+              />
+              <YAxis
+                label={{
+                  value: METRIC_LABELS[selectedMetric] || selectedMetric,
+                  angle: -90,
+                  position: 'insideLeft',
+                }}
+                stroke={chartColors.axis}
+                tick={{ fill: chartColors.text }}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: theme === 'dark' ? '#2b2930' : '#fff',
+                  border: `1px solid ${chartColors.grid}`,
+                  color: chartColors.text,
+                }}
+              />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="value"
+                name={METRIC_LABELS[selectedMetric] || selectedMetric}
+                stroke={chartColors.line}
+                strokeWidth={2}
+                dot={{ fill: chartColors.line, r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
 
         <div className="mt-3">
           <small className="text-muted">

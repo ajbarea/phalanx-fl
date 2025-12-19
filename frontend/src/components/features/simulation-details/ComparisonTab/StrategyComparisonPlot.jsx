@@ -218,71 +218,79 @@ export function StrategyComparisonPlot({ allPlotData, strategyConfigs }) {
         </div>
 
         {/* Chart */}
-        <ResponsiveContainer width="100%" height={chartHeight}>
-          <LineChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 80 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
-            <XAxis
-              dataKey="round"
-              stroke={chartColors.axis}
-              tick={{ fill: chartColors.text, fontSize: 10 }}
-              label={{
-                value: 'Round #',
-                position: 'insideBottom',
-                offset: -10,
-                fill: chartColors.text,
-              }}
-              height={60}
-            />
-            <YAxis
-              stroke={chartColors.axis}
-              tick={{ fill: chartColors.text, fontSize: 10 }}
-              label={{
-                value: METRIC_LABELS[selectedMetric] || selectedMetric,
-                angle: -90,
-                position: 'insideLeft',
-                fill: chartColors.text,
-              }}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: theme === 'dark' ? '#2b2b2b' : '#fff',
-                border: `1px solid ${chartColors.grid}`,
-                color: chartColors.text,
-                maxHeight: '300px',
-                overflow: 'auto',
-              }}
-            />
-            <Legend wrapperStyle={{ color: chartColors.text, fontSize: '0.75rem' }} />
-            <Brush
-              dataKey="round"
-              height={30}
-              stroke={chartColors.axis}
-              fill={theme === 'dark' ? '#1a1a1a' : '#f5f5f5'}
-              y={chartHeight - 70}
-            />
+        <div style={{ width: '100%', minWidth: 300, height: chartHeight }}>
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            minWidth={300}
+            minHeight={300}
+            debounce={1}
+          >
+            <LineChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 80 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+              <XAxis
+                dataKey="round"
+                stroke={chartColors.axis}
+                tick={{ fill: chartColors.text, fontSize: 10 }}
+                label={{
+                  value: 'Round #',
+                  position: 'insideBottom',
+                  offset: -10,
+                  fill: chartColors.text,
+                }}
+                height={60}
+              />
+              <YAxis
+                stroke={chartColors.axis}
+                tick={{ fill: chartColors.text, fontSize: 10 }}
+                label={{
+                  value: METRIC_LABELS[selectedMetric] || selectedMetric,
+                  angle: -90,
+                  position: 'insideLeft',
+                  fill: chartColors.text,
+                }}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: theme === 'dark' ? '#2b2b2b' : '#fff',
+                  border: `1px solid ${chartColors.grid}`,
+                  color: chartColors.text,
+                  maxHeight: '300px',
+                  overflow: 'auto',
+                }}
+              />
+              <Legend wrapperStyle={{ color: chartColors.text, fontSize: '0.75rem' }} />
+              <Brush
+                dataKey="round"
+                height={30}
+                stroke={chartColors.axis}
+                fill={theme === 'dark' ? '#1a1a1a' : '#f5f5f5'}
+                y={chartHeight - 70}
+              />
 
-            {allPlotData.map((strategy, idx) => {
-              const strategyKey = `strategy_${strategy.strategy_number}`;
-              const config = strategyConfigs[strategy.strategy_number];
-              const color = COLORS[idx % COLORS.length];
-              const label = generateStrategyLabel(config, strategy.strategy_number);
+              {allPlotData.map((strategy, idx) => {
+                const strategyKey = `strategy_${strategy.strategy_number}`;
+                const config = strategyConfigs[strategy.strategy_number];
+                const color = COLORS[idx % COLORS.length];
+                const label = generateStrategyLabel(config, strategy.strategy_number);
 
-              return (
-                visibleStrategies[strategyKey] && (
-                  <Line
-                    key={strategyKey}
-                    type="monotone"
-                    dataKey={strategyKey}
-                    stroke={color}
-                    strokeWidth={2}
-                    dot={{ r: 2 }}
-                    name={label}
-                  />
-                )
-              );
-            })}
-          </LineChart>
-        </ResponsiveContainer>
+                return (
+                  visibleStrategies[strategyKey] && (
+                    <Line
+                      key={strategyKey}
+                      type="monotone"
+                      dataKey={strategyKey}
+                      stroke={color}
+                      strokeWidth={2}
+                      dot={{ r: 2 }}
+                      name={label}
+                    />
+                  )
+                );
+              })}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
 
         <div className="mt-3 text-muted">
           <small>
