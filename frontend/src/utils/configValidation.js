@@ -312,12 +312,12 @@ export function validateStrategyParams(config) {
     }
   }
 
-  // FedAvg strategy - no per-client plots
+  // FedAvg strategy - no Byzantine detection metrics
   if (aggregation_strategy_keyword === 'fedavg') {
     infos.push({
       field: 'aggregation_strategy_keyword',
       message:
-        'FedAvg only produces round-level plots (loss/accuracy convergence). For per-client visualizations, try Krum, Multi-Krum, or PID strategies.',
+        'FedAvg does not track per-client removal scores or distance metrics. For Byzantine detection visualizations (removal criterion, distances), use Krum, Multi-Krum, or PID strategies.',
     });
   }
 
