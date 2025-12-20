@@ -299,6 +299,7 @@ class TestSimulationRunnerExecution:
             # Configure DirectoryHandler mock
             mock_dir_instance = Mock()
             mock_dir_instance.dataset_dir = "/tmp/test_dataset"
+            mock_dir_instance.output_dir = "/tmp/test_output"
             mock_directory_handler.return_value = mock_dir_instance
 
             # Configure DatasetHandler mock
@@ -675,6 +676,7 @@ class TestSimulationRunnerOutputGeneration:
             mock_config_loader.return_value = mock_loader_instance
 
             mock_dir_instance = Mock()
+            mock_dir_instance.output_dir = "/tmp/test_output"
             mock_directory_handler.return_value = mock_dir_instance
 
             mock_dataset_instance = Mock()
@@ -828,7 +830,9 @@ class TestSimulationRunnerErrorHandling:
             ]
             mock_config_loader.return_value = mock_loader_instance
 
-            mock_directory_handler.return_value = Mock()
+            mock_dir_instance = Mock()
+            mock_dir_instance.output_dir = "/tmp/test_output"
+            mock_directory_handler.return_value = mock_dir_instance
             mock_dataset_handler.return_value = Mock()
 
             # Make simulation raise an error
@@ -862,7 +866,9 @@ class TestSimulationRunnerErrorHandling:
             ]
             mock_config_loader.return_value = mock_loader_instance
 
-            mock_directory_handler.return_value = Mock()
+            mock_dir_instance = Mock()
+            mock_dir_instance.output_dir = "/tmp/test_output"
+            mock_directory_handler.return_value = mock_dir_instance
 
             # Make dataset setup raise an error
             mock_dataset_instance = Mock()
@@ -898,7 +904,9 @@ class TestSimulationRunnerErrorHandling:
             ]
             mock_config_loader.return_value = mock_loader_instance
 
-            mock_directory_handler.return_value = Mock()
+            mock_dir_instance = Mock()
+            mock_dir_instance.output_dir = "/tmp/test_output"
+            mock_directory_handler.return_value = mock_dir_instance
 
             mock_dataset_instance = Mock()
             mock_dataset_handler.return_value = mock_dataset_instance

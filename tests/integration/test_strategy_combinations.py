@@ -110,6 +110,7 @@ class TestMultiStrategyScenarios:
 
             mock_dir_instance = Mock()
             mock_dir_instance.dataset_dir = "/tmp/test_dataset"
+            mock_dir_instance.output_dir = "/tmp/test_output"
             mock_directory_handler.return_value = mock_dir_instance
 
             mock_dataset_instance = Mock()
@@ -650,6 +651,7 @@ class TestAttackDefenseScenarios:
 
             mock_dir_instance = Mock()
             mock_dir_instance.dataset_dir = "/tmp/attack_test_dataset"
+            mock_dir_instance.output_dir = "/tmp/attack_test_output"
             mock_directory_handler.return_value = mock_dir_instance
 
             mock_dataset_instance = Mock()
