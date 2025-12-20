@@ -10,7 +10,11 @@ import { ConfirmModal } from '@components/common/Modal/ConfirmModal';
 import { useSimulations } from '@hooks/useSimulations';
 import { useSimulationStatus } from '@hooks/useSimulationStatus';
 import { useRunningSimulation } from '@hooks/useRunningSimulation';
-import { deleteSimulation, deleteMultipleSimulations, stopSimulation } from '@api';
+import {
+  deleteSimulation,
+  deleteMultipleSimulations,
+  stopSimulation,
+} from '@api/endpoints/simulations';
 import { toast } from 'sonner';
 
 export function Dashboard() {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, Row, Col, Spinner, Alert, Table, Badge } from 'react-bootstrap';
-import { getSimulationDetails, getSimulationStatus } from '../api';
+import { getSimulationDetails, getSimulationStatus } from '@api/endpoints/simulations';
 
 function ComparisonView() {
   const [searchParams] = useSearchParams();

@@ -6,7 +6,7 @@ import { QueueJobCard } from '@components/features/experiment-queue/QueueJobCard
 import { ConfirmModal } from '@components/common/Modal/ConfirmModal';
 import { MaterialIcon } from '@components/common/Icon/MaterialIcon';
 import { useQueueStatus } from '@hooks/useQueueStatus';
-import { stopSimulation } from '@api';
+import { stopSimulation } from '@api/endpoints/simulations';
 import { toast } from 'sonner';
 import { useState } from 'react';
 

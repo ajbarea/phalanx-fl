@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Form, Button, Spinner } from 'react-bootstrap';
-import { renameSimulation } from '../api';
+import { Form } from 'react-bootstrap';
+import { renameSimulation } from '@api/endpoints/simulations';
 
 /**
  * Inline editable simulation name component

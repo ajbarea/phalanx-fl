@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createSimulation } from '@api';
+import { createSimulation } from '@api/endpoints/simulations';
 
 export function useMultiSimulation() {
   const [isSubmitting, setIsSubmitting] = useState(false);
