@@ -1,13 +1,13 @@
 import numpy as np
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from src.data_models.client_info import ClientInfo
 from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
 
 from src.dataset_handlers.dataset_handler import DatasetHandler
+from src.attack_utils.poisoning import should_poison_this_round
 
 
 @dataclass
@@ -15,7 +15,7 @@ class SimulationStrategyHistory:
 
     strategy_config: StrategyConfig
     dataset_handler: DatasetHandler
-    rounds_history: Optional[RoundsInfo] = None
+    rounds_history: RoundsInfo = field(init=False)
     _clients_dict: dict = field(default_factory=dict)
 
     def __post_init__(self):
@@ -25,7 +25,7 @@ class SimulationStrategyHistory:
             self._clients_dict[i] = ClientInfo(
                 client_id=i,
                 num_of_rounds=self.strategy_config.num_of_rounds,
-                is_malicious=(i in self.dataset_handler.poisoned_client_ids)
+                is_malicious=False
             )
 
     def get_all_clients(self) -> list:
@@ -64,11 +64,11 @@ class SimulationStrategyHistory:
     ) -> None:
         """Append the round history info to the history. Only those values provided will be updated."""
 
-        if score_calculation_time_nanos:
+        if score_calculation_time_nanos is not None:
             self.rounds_history.score_calculation_time_nanos_history.append(score_calculation_time_nanos)
-        if removal_threshold:
+        if removal_threshold is not None:
             self.rounds_history.removal_threshold_history.append(removal_threshold)
-        if loss_aggregated:
+        if loss_aggregated is not None:
             self.rounds_history.aggregated_loss_history.append(loss_aggregated)
 
     def update_client_participation(
@@ -84,6 +84,17 @@ class SimulationStrategyHistory:
                 current_round=current_round,
                 aggregation_participation=0
             )
+
+    def update_client_malicious_status(self, current_round: int) -> None:
+        """Update client.is_malicious flag based on static and dynamic poisoning."""
+        for client_id in range(self.strategy_config.num_of_clients):
+            is_statically_poisoned = client_id in self.dataset_handler.poisoned_client_ids
+            is_dynamically_poisoned, _ = should_poison_this_round(
+                current_round=current_round,
+                client_id=client_id,
+                attack_schedule=self.strategy_config.attack_schedule
+            )
+            self._clients_dict[client_id].is_malicious = is_statically_poisoned or is_dynamically_poisoned
 
     def calculate_additional_rounds_data(self) -> None:
         """
@@ -122,7 +133,13 @@ class SimulationStrategyHistory:
 
             for client_info in self.get_all_clients():
 
-                client_is_malicious = client_info.is_malicious
+                is_statically_poisoned = client_info.client_id in self.dataset_handler.poisoned_client_ids
+                is_dynamically_poisoned, _ = should_poison_this_round(
+                    current_round=round_num + 1,
+                    client_id=client_info.client_id,
+                    attack_schedule=self.strategy_config.attack_schedule
+                )
+                client_is_malicious = is_statically_poisoned or is_dynamically_poisoned
                 client_was_aggregated = client_info.aggregation_participation_history[round_num] == 1
 
                 if self.strategy_config.remove_clients:
@@ -142,14 +159,19 @@ class SimulationStrategyHistory:
                 # sum of accuracies of aggregated clients
                 if client_was_aggregated:
                     num_aggregated_clients += 1
-                    sum_aggregated_accuracies += client_info.accuracy_history[round_num]
-                    round_client_accuracies.append(client_info.accuracy_history[round_num])
+                    accuracy = client_info.accuracy_history[round_num]
+                    if accuracy is not None:
+                        sum_aggregated_accuracies += accuracy
+                        round_client_accuracies.append(accuracy)
 
             self.rounds_history.append_tp_tn_fp_fn(round_tp_count, round_tn_count, round_fp_count, round_fn_count)
             self.rounds_history.average_accuracy_history.append(
                 float(f"{(sum_aggregated_accuracies / num_aggregated_clients * 100):.2f}") if num_aggregated_clients > 0 else 0.000
             )
-            self.rounds_history.average_accuracy_std_history.append(float( f"{np.std(round_client_accuracies) * 100:.2f}"))
+            # Only calculate std if we have at least 2 clients
+            self.rounds_history.average_accuracy_std_history.append(
+                float(f"{np.std(round_client_accuracies) * 100:.2f}") if len(round_client_accuracies) > 1 else 0.00
+            )
 
         if self.strategy_config.remove_clients:
             self.rounds_history.calculate_additional_metrics()

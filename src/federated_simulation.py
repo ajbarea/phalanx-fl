@@ -1,21 +1,26 @@
 import logging
+from pathlib import Path
 import sys
+
 import flwr
 
 from flwr.client import Client
 from flwr.common import ndarrays_to_parameters
-from typing import List, Tuple
 from peft import PeftModel, get_peft_model_state_dict
+from typing import List, Tuple
 
+from src.attack_utils.snapshot_html_reports import generate_snapshot_index, generate_summary_json
 from src.dataset_loaders.image_dataset_loader import ImageDatasetLoader
 from src.dataset_loaders.image_transformers.its_image_transformer import its_image_transformer
 from src.dataset_loaders.image_transformers.femnist_image_transformer import femnist_image_transformer
 from src.dataset_loaders.image_transformers.flair_image_transformer import flair_image_transformer
 from src.dataset_loaders.image_transformers.lung_photos_image_transformer import lung_cancer_image_transformer
 from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
+from src.dataset_loaders.medmentions_dataset_loader import MedMentionsNERDatasetLoader
+from src.network_models.gpt2_model_definition import load_gpt2_ner_model, load_gpt2_ner_with_lora
 from src.dataset_loaders.image_transformers.medmnist_2d_grayscale_image_transformer import medmnist_2d_grayscale_image_transformer
 from src.dataset_loaders.image_transformers.medmnist_2d_rgb_image_transformer import medmnist_2d_rgb_image_transformer
-from src.dataset_loaders.medmentions_dataset_loader import MedMentionsNERDatasetLoader
+
 
 from src.network_models.its_network_definition import ITSNetwork
 from src.network_models.femnist_reduced_iid_network_definition import FemnistReducedIIDNetwork
@@ -34,7 +39,6 @@ from src.network_models.organamnist_network_definition import OrganAMNISTNetwork
 from src.network_models.organcmnist_network_definition import OrganCMNISTNetwork
 from src.network_models.organsmnist_network_definition import OrganSMNISTNetwork
 from src.network_models.bert_model_definition import load_model, load_model_with_lora
-from src.network_models.gpt2_model_definition import load_gpt2_ner_model, load_gpt2_ner_with_lora
 
 from src.client_models.flower_client import FlowerClient
 
@@ -43,13 +47,12 @@ from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemoval
 from src.simulation_strategies.krum_based_removal_strategy import KrumBasedRemovalStrategy
 from src.simulation_strategies.multi_krum_based_removal_strategy import MultiKrumBasedRemovalStrategy
 from src.simulation_strategies.trimmed_mean_based_removal_strategy import TrimmedMeanBasedRemovalStrategy
-from src.simulation_strategies.mutli_krum_strategy import MultiKrumStrategy
+from src.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
 from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.data_models.round_info import RoundsInfo
 
 from src.dataset_handlers.dataset_handler import DatasetHandler
 
@@ -86,17 +89,18 @@ class FederatedSimulation:
             self,
             strategy_config: StrategyConfig,
             dataset_dir: str,
-            dataset_handler: DatasetHandler
+            dataset_handler: DatasetHandler,
+            directory_handler=None,
     ):
         self.strategy_config = strategy_config
         self.rounds_history = None
 
         self.dataset_handler = dataset_handler
+        self.directory_handler = directory_handler
 
         self.strategy_history = SimulationStrategyHistory(
             strategy_config=self.strategy_config,
-            dataset_handler=self.dataset_handler,
-            rounds_history=RoundsInfo(simulation_strategy_config=self.strategy_config)
+            dataset_handler=self.dataset_handler
         )
 
         self._dataset_dir = dataset_dir
@@ -123,6 +127,19 @@ class FederatedSimulation:
                 "num_gpus": self.strategy_config.gpus_per_client
             },
         )
+
+        if self.strategy_config.attack_schedule and self.directory_handler:
+            output_dir = getattr(self.directory_handler, 'dirname', None)
+            if output_dir:
+                try:
+                    run_config = {
+                        "num_of_clients": self.strategy_config.num_of_clients,
+                        "num_of_rounds": self.strategy_config.num_of_rounds,
+                    }
+                    generate_summary_json(output_dir, run_config, self.strategy_config.strategy_number)
+                    generate_snapshot_index(output_dir, run_config, self.strategy_config.strategy_number)
+                except Exception as e:
+                    logging.warning(f"Failed to generate attack snapshot index/summary: {e}")
 
     def _assign_all_properties(self) -> None:
         """Assign simulation properties based on strategy_dict"""
@@ -263,6 +280,7 @@ class FederatedSimulation:
                 chunk_size=self.strategy_config.llm_chunk_size,
                 mlm_probability=self.strategy_config.mlm_probability,
                 num_poisoned_clients=self.strategy_config.num_of_malicious_clients,
+                attack_schedule=self.strategy_config.attack_schedule,
                 **common_kwargs
             )
             if self.strategy_config.llm_finetuning == "lora":
@@ -271,35 +289,40 @@ class FederatedSimulation:
                     lora_rank=self.strategy_config.lora_rank,
                     lora_alpha=self.strategy_config.lora_alpha,
                     lora_dropout=self.strategy_config.lora_dropout,
-                    lora_target_modules=["query", "value"],
+                    lora_target_modules=self.strategy_config.lora_target_modules,
                 )
             else:
                 self._network_model = load_model(
                     model_name=self.strategy_config.llm_model,
                 )
+
         elif dataset_keyword == "medmentions":
             dataset_loader = MedMentionsNERDatasetLoader(
-                dataset_dir=self._dataset_dir,
-                num_of_clients= num_of_clients,
-                batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction,
+                dataset_dir=common_kwargs["dataset_dir"],
+                num_of_clients=common_kwargs["num_of_clients"],
+                batch_size=common_kwargs["batch_size"],
+                training_subset_fraction=common_kwargs["training_subset_fraction"],
                 model_name=self.strategy_config.llm_model,
             )
-            if self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora":
+            num_labels = len(dataset_loader.label_list)
+            id2label = dataset_loader.id2label
+            label2id = dataset_loader.label2id
+            if self.strategy_config.llm_finetuning == "lora":
                 self._network_model = load_gpt2_ner_with_lora(
-                    num_labels=len(dataset_loader.label_list),
-                    id2label=dataset_loader.id2label,
-                    label2id=dataset_loader.label2id,
-                    r = self.strategy_config.lora_rank,
+                    num_labels=num_labels,
+                    id2label=id2label,
+                    label2id=label2id,
+                    r=self.strategy_config.lora_rank,
                     alpha=self.strategy_config.lora_alpha,
                     dropout=self.strategy_config.lora_dropout,
                 )
             else:
                 self._network_model = load_gpt2_ner_model(
-                    num_labels=len(dataset_loader.label_list),
-                    id2label=dataset_loader.id2label,
-                    label2id=dataset_loader.label2id,
+                    num_labels=num_labels,
+                    id2label=id2label,
+                    label2id=label2id,
                 )
+
         else:
             logging.error(
                 f"You are parsing a strategy for dataset: {dataset_keyword}. "
@@ -392,6 +415,34 @@ class FederatedSimulation:
         trainloader = self._trainloaders[int(cid)]
         valloader = self._valloaders[int(cid)]
 
+        attacks_schedule = None
+        if self.strategy_config.attack_schedule:
+            attacks_schedule = self.strategy_config.attack_schedule
+
+        output_dir = None
+        if self.directory_handler:
+            output_dir = getattr(self.directory_handler, 'dirname', None)
+
+        save_attack_snapshots = getattr(self.strategy_config, 'save_attack_snapshots', False)
+        if isinstance(save_attack_snapshots, str):
+            save_attack_snapshots = save_attack_snapshots == "true"
+
+        attack_snapshot_format = getattr(self.strategy_config, 'attack_snapshot_format', 'pickle_and_visual')
+        snapshot_max_samples = getattr(self.strategy_config, 'snapshot_max_samples', 5)
+
+        experiment_info = None
+        if output_dir:
+            experiment_info = {
+                "run_id": Path(output_dir).name,
+                "total_clients": self.strategy_config.num_of_clients,
+                "total_rounds": self.strategy_config.num_of_rounds,
+            }
+
+        # Get tokenizer for transformer models
+        tokenizer = None
+        if self.strategy_config.model_type == "transformer" and hasattr(self._dataset_loader, 'tokenizer'):
+            tokenizer = self._dataset_loader.tokenizer
+
         return FlowerClient(
             client_id=int(cid),
             net=net,
@@ -402,6 +453,14 @@ class FederatedSimulation:
             model_type=self.strategy_config.model_type,
             use_lora=use_lora,
             num_malicious_clients=self.strategy_config.num_of_malicious_clients,
+            attacks_schedule=attacks_schedule,
+            save_attack_snapshots=save_attack_snapshots,
+            attack_snapshot_format=attack_snapshot_format,
+            snapshot_max_samples=snapshot_max_samples,
+            output_dir=output_dir,
+            experiment_info=experiment_info,
+            strategy_number=self.strategy_config.strategy_number,
+            tokenizer=tokenizer,
         ).to_client()
 
     @staticmethod

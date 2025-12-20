@@ -22,6 +22,11 @@ class DatasetHandler:
     def setup_dataset(self) -> None:
         """Copy the specified number of clients' subsets to runtime folder and perform poisoning"""
 
+        # Skip copying for HuggingFace datasets (loaded on-the-fly)
+        if self.src_dataset == "huggingface":
+            logging.info(f"Skipping dataset copy for HuggingFace dataset: {self._strategy_config.dataset_keyword}")
+            return
+
         self._copy_dataset(self._strategy_config.num_of_clients)
         self._poison_clients(self._strategy_config.attack_type, self._strategy_config.num_of_malicious_clients)
 
@@ -35,7 +40,7 @@ class DatasetHandler:
             except Exception as e:
                 logging.error(f"Error while cleaning up the dataset: {e}")
 
-    def _copy_dataset(self, num_to_copy: str) -> None:
+    def _copy_dataset(self, num_to_copy: int) -> None:
         """Copy dataset"""
 
         all_client_folders_list = [
@@ -57,7 +62,10 @@ class DatasetHandler:
                 logging.error(f"Error while preparing dataset: {e}")
 
     def _poison_clients(self, attack_type: str, num_to_poison: int) -> None:
-        """Poison data according to the specified parameters in the strategy config"""
+        """Apply static poisoning to client datasets before training begins."""
+        # Skip if no static poisoning configured
+        if attack_type is None or num_to_poison is None or num_to_poison == 0:
+            return
 
         client_dirs_to_poison = [
             client_dir for client_dir in sorted(
@@ -165,9 +173,9 @@ class DatasetHandler:
                 # Calculate signal power
                 signal_power = np.mean(image ** 2)
 
-                """    
-                Compute desired noise power for target SNR: 
-                
+                """
+                Compute desired noise power for target SNR:
+
                 SNR(dB) = 10 * log10(signal_power / noise_power)
                 → noise_power = signal_power / (10^(SNR/10))
                 """
@@ -282,8 +290,8 @@ class DatasetHandler:
             )
         except Exception as e:
             logging.error(f"Failed to mark poisoned client folder: {e}")
-        
-        
+
+
 
     def _assign_poisoned_client_ids(
             self, bad_client_dirs: list
