@@ -1,5 +1,5 @@
-# Force LF line endings for shell scripts
-*.sh text eol=lf
+# Force LF line endings for all text files
+* text=auto eol=lf
 
-# Default to auto for other text files
-* text=auto
+# Ensure shell scripts are always LF
+*.sh text eol=lf
