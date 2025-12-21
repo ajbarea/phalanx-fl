@@ -22,6 +22,7 @@ from flwr.server.strategy.aggregate import weighted_loss_avg
 
 from src.output_handlers.directory_handler import DirectoryHandler
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.utils.status_tracker import StatusTracker
 
 
 class BulyanStrategy(fl.server.strategy.FedAvg):
@@ -37,6 +38,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         num_krum_selections: int,  # n - f
         begin_removing_from_round: int,
         strategy_history: SimulationStrategyHistory,
+        status_tracker: Optional[StatusTracker] = None,
         *args,
         **kwargs,
     ):
@@ -48,6 +50,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         self.removed_client_ids: set[str] = set()
         self.current_round: int = 0
         self.strategy_history = strategy_history
+        self.status_tracker = status_tracker
         self.logger = logging.getLogger(f"bulyan_{id(self)}")
         self.logger.setLevel(logging.INFO)
         out_dir = DirectoryHandler.dirname
@@ -84,6 +87,10 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
             Tuple of (aggregated parameters, metrics dict).
         """
         self.current_round += 1
+
+        # Update status tracker with current round progress
+        if self.status_tracker:
+            self.status_tracker.update_round(self.current_round)
 
         # Update client.is_malicious based on attack_schedule for dynamic attacks
         if self.strategy_history:

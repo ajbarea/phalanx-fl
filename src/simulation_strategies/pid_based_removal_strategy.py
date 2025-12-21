@@ -13,6 +13,7 @@ from flwr.server.client_proxy import ClientProxy
 
 from src.output_handlers.directory_handler import DirectoryHandler
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.utils.status_tracker import StatusTracker
 
 
 class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
@@ -31,9 +32,10 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         kp: float,
         num_std_dev: float,
         strategy_history: SimulationStrategyHistory,
-        network_model,
-        use_lora,
-        aggregation_strategy_keyword: str,
+        status_tracker: Optional[StatusTracker] = None,
+        network_model=None,
+        use_lora=False,
+        aggregation_strategy_keyword: str = "pid",
         *args,
         **kwargs,
     ):
@@ -55,6 +57,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.current_threshold = None
 
         self.strategy_history = strategy_history
+        self.status_tracker = status_tracker
 
         self.network_model = network_model
         self.use_lora = use_lora
@@ -208,6 +211,10 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             Tuple of (aggregated parameters, metrics dict).
         """
         self.current_round += 1
+
+        # Update status tracker with current round progress
+        if self.status_tracker:
+            self.status_tracker.update_round(self.current_round)
 
         if self.strategy_history:
             self.strategy_history.update_client_malicious_status(server_round)

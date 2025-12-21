@@ -15,6 +15,7 @@ from flwr.common import EvaluateRes
 from flwr.server.client_proxy import ClientProxy
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.utils.status_tracker import StatusTracker
 
 
 class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
@@ -31,6 +32,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         trust_threshold: float,
         begin_removing_from_round: int,
         strategy_history: SimulationStrategyHistory,
+        status_tracker: Optional[StatusTracker] = None,
         *args,
         **kwargs,
     ):
@@ -47,6 +49,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.begin_removing_from_round = begin_removing_from_round
 
         self.strategy_history = strategy_history
+        self.status_tracker = status_tracker
 
     def calculate_reputation(self, client_id, truth_value):
         """Calculate reputation based on truth value."""
@@ -134,6 +137,10 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             return super().aggregate_fit(server_round, results, failures)
 
         self.current_round += 1
+
+        # Update status tracker with current round progress
+        if self.status_tracker:
+            self.status_tracker.update_round(self.current_round)
 
         if self.strategy_history:
             self.strategy_history.update_client_malicious_status(server_round)

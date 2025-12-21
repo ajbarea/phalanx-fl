@@ -7,6 +7,7 @@ from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.aggregate import weighted_loss_avg
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.utils.status_tracker import StatusTracker
 
 
 class FedAvgStrategy(fl.server.strategy.FedAvg):
@@ -19,11 +20,13 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
     def __init__(
         self,
         strategy_history: SimulationStrategyHistory,
+        status_tracker: Optional[StatusTracker] = None,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.strategy_history = strategy_history
+        self.status_tracker = status_tracker
         self.current_round = 0
         self.logger = logging.getLogger(f"fedavg_strategy_{id(self)}")
         self.logger.setLevel(logging.INFO)
@@ -36,6 +39,11 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
         """Aggregate fit results and track round number."""
         self.current_round = server_round
+
+        # Update status tracker with current round progress
+        if self.status_tracker:
+            self.status_tracker.update_round(self.current_round)
+
         return super().aggregate_fit(server_round, results, failures)
 
     def aggregate_evaluate(

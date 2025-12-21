@@ -29,6 +29,7 @@ class RFABasedRemovalStrategy(FedAvg):
         **kwargs,
     ):
         self.strategy_history = kwargs.pop("strategy_history", None)
+        self.status_tracker = kwargs.pop("status_tracker", None)
         kwargs.pop("num_of_malicious_clients", None)  # RFA doesn't use this parameter
         super().__init__(*args, **kwargs)
         self.remove_clients = remove_clients
@@ -61,6 +62,10 @@ class RFABasedRemovalStrategy(FedAvg):
             return super().aggregate_fit(server_round, results, failures)
 
         self.current_round += 1
+
+        # Update status tracker with current round progress
+        if self.status_tracker:
+            self.status_tracker.update_round(self.current_round)
 
         if self.strategy_history:
             self.strategy_history.update_client_malicious_status(server_round)

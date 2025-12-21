@@ -19,6 +19,7 @@ from flwr.server.strategy.krum import Krum
 from src.output_handlers.directory_handler import DirectoryHandler
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.utils.status_tracker import StatusTracker
 
 
 class MultiKrumBasedRemovalStrategy(Krum):
@@ -35,6 +36,7 @@ class MultiKrumBasedRemovalStrategy(Krum):
         num_krum_selections: int,
         begin_removing_from_round: int,
         strategy_history: SimulationStrategyHistory,
+        status_tracker: Optional[StatusTracker] = None,
         *args,
         **kwargs,
     ):
@@ -57,6 +59,7 @@ class MultiKrumBasedRemovalStrategy(Krum):
         self.logger.addHandler(console_handler)
         self.logger.propagate = False
         self.strategy_history = strategy_history
+        self.status_tracker = status_tracker
 
     def _calculate_multi_krum_scores(
         self, results: list[tuple[ClientProxy, FitRes]], distances: np.ndarray
@@ -105,6 +108,10 @@ class MultiKrumBasedRemovalStrategy(Krum):
             Tuple of (aggregated parameters, metrics dict).
         """
         self.current_round += 1
+
+        # Update status tracker with current round progress
+        if self.status_tracker:
+            self.status_tracker.update_round(self.current_round)
 
         if self.strategy_history:
             self.strategy_history.update_client_malicious_status(server_round)

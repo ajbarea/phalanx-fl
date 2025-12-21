@@ -12,6 +12,7 @@ from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.fedavg import FedAvg
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.utils.status_tracker import StatusTracker
 
 
 class TrimmedMeanBasedRemovalStrategy(FedAvg):
@@ -26,6 +27,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         remove_clients: bool,
         begin_removing_from_round: int,
         strategy_history: SimulationStrategyHistory,
+        status_tracker: Optional[StatusTracker] = None,
         trim_ratio: float = 0.1,
         *args,
         **kwargs,
@@ -38,6 +40,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         self.client_scores = {}
 
         self.strategy_history = strategy_history
+        self.status_tracker = status_tracker
 
     def aggregate_fit(
         self, server_round: int, results: List[Tuple], failures: List[BaseException]
@@ -57,6 +60,10 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             Tuple of (aggregated parameters, metrics dict).
         """
         self.current_round += 1
+
+        # Update status tracker with current round progress
+        if self.status_tracker:
+            self.status_tracker.update_round(self.current_round)
 
         if self.strategy_history:
             self.strategy_history.update_client_malicious_status(server_round)
