@@ -17,18 +17,21 @@ export function useSimulationDetails(simulationId) {
     enabled: !!simulationId,
   });
 
-  // Poll status while simulation is running
+  // Poll status while simulation is not in a terminal state
+  const terminalStatuses = ['completed', 'failed', 'stopped'];
+  const shouldPollStatus = !!simulationId && !terminalStatuses.includes(details?.status);
+
   const { data: statusData } = useQuery({
     queryKey: ['simulation-status', simulationId],
     queryFn: async () => {
       const data = await fetchApi(`/simulations/${simulationId}/status`);
-      // Refetch details when status changes to completed
-      if (data.status === 'completed' && details?.status !== 'completed') {
+      // Refetch details when status changes to a terminal state
+      if (terminalStatuses.includes(data.status) && !terminalStatuses.includes(details?.status)) {
         queryClient.invalidateQueries({ queryKey: ['simulation-details', simulationId] });
       }
       return data;
     },
-    enabled: !!simulationId && details?.status === 'running',
+    enabled: shouldPollStatus,
     refetchInterval: 2000,
   });
 
