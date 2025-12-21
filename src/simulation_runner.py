@@ -21,6 +21,7 @@ from src.dataset_handlers.dataset_handler import DatasetHandler
 from src.federated_simulation import FederatedSimulation
 from src.output_handlers import new_plot_handler
 from src.output_handlers.directory_handler import DirectoryHandler
+from src.utils.status_tracker import StatusTracker
 
 
 def _serialize_config_for_logging(config_dict: dict) -> str:
@@ -94,108 +95,124 @@ class SimulationRunner:
             "Set RAY_worker_register_timeout_seconds=60 for multi-strategy reliability"
         )
 
-        # Create .running marker to signal active execution (for UI status detection)
-        running_marker = Path(self._directory_handler.output_dir) / ".running"
-        try:
-            running_marker.touch()
-            logging.debug(f"Created running marker: {running_marker}")
-        except Exception as e:
-            logging.warning(f"Could not create running marker: {e}")
+        # Get total rounds from first strategy config (for progress calculation)
+        first_config = self._simulation_strategy_config_dicts[0]
+        total_rounds = first_config.get("num_of_rounds", 10)
+        total_strategies = len(self._simulation_strategy_config_dicts)
 
-        executed_simulation_strategies = []
-
-        for strategy_config_dict, strategy_number in zip(
-            self._simulation_strategy_config_dicts,
-            range(len(self._simulation_strategy_config_dicts)),
-        ):
-            dataset_handler = None
-            simulation_strategy = None
-
-            try:
-                logging.info(
-                    "\n"
-                    + "-" * 50
-                    + "Executing new strategy"
-                    + "-" * 50
-                    + "\n"
-                    + "Strategy config:\n"
-                    + _serialize_config_for_logging(strategy_config_dict)
-                )
-
-                strategy_config = StrategyConfig.from_dict(strategy_config_dict)
-                setattr(strategy_config, "strategy_number", strategy_number)
-
-                self._directory_handler.assign_dataset_dir(strategy_number)
-
-                dataset_handler = DatasetHandler(
-                    strategy_config=strategy_config,
-                    directory_handler=self._directory_handler,
-                    dataset_config_list=self._dataset_config_list,
-                )
-                dataset_handler.setup_dataset()
-
-                simulation_strategy = FederatedSimulation(
-                    strategy_config=strategy_config,
-                    dataset_dir=self._directory_handler.dataset_dir,
-                    dataset_handler=dataset_handler,
-                    directory_handler=self._directory_handler,
-                )
-                simulation_strategy.run_simulation()
-
-                executed_simulation_strategies.append(simulation_strategy)
-
-                # generate per-client plots
-                new_plot_handler.show_plots_within_strategy(
-                    simulation_strategy, self._directory_handler
-                )
-
-                simulation_strategy.strategy_history.calculate_additional_rounds_data()
-                self._directory_handler.save_csv_and_config(
-                    simulation_strategy.strategy_history
-                )
-
-            finally:
-                # Cleanup resources even if simulation crashes
-                if dataset_handler is not None:
-                    dataset_handler.teardown_dataset()
-
-                # Ensure Ray is initialized before shutting it down to prevent errors in multi-strategy runs
-                if ray.is_initialized():
-                    logging.debug("Shutting down Ray before cleanup...")
-                    ray.shutdown()
-                    time.sleep(3.0)
-                    logging.debug("Ray shutdown complete after 3s cleanup delay")
-
-                logging.debug(f"Cleaning up resources after strategy {strategy_number}")
-
-                # Clear GPU memory if available
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-                    logging.debug("GPU cache cleared")
-
-                # Keep only the strategy_history for plotting
-                if simulation_strategy is not None:
-                    simulation_strategy._network_model = None
-                    simulation_strategy._trainloaders = None
-                    simulation_strategy._valloaders = None
-                    simulation_strategy._dataset_loader = None
-
-                # Force garbage collection to free memory
-                gc.collect()
-                logging.debug("Garbage collection completed")
-
-        # after all strategies are executed, show comparison averaging plots
-        new_plot_handler.show_inter_strategy_plots(
-            executed_simulation_strategies, self._directory_handler
+        # Create status tracker for real-time progress updates
+        status_tracker = StatusTracker(
+            output_dir=Path(self._directory_handler.dirname),
+            total_rounds=total_rounds,
+            total_strategies=total_strategies,
         )
+        status_tracker.start()
+        logging.debug(f"Status tracker started: {status_tracker.status_file}")
 
-        # Remove .running marker to signal completion
         try:
-            if running_marker.exists():
-                running_marker.unlink()
-                logging.debug(f"Removed running marker: {running_marker}")
+            executed_simulation_strategies = []
+
+            for strategy_config_dict, strategy_number in zip(
+                self._simulation_strategy_config_dicts,
+                range(len(self._simulation_strategy_config_dicts)),
+            ):
+                dataset_handler = None
+                simulation_strategy = None
+
+                try:
+                    logging.info(
+                        "\n"
+                        + "-" * 50
+                        + "Executing new strategy"
+                        + "-" * 50
+                        + "\n"
+                        + "Strategy config:\n"
+                        + _serialize_config_for_logging(strategy_config_dict)
+                    )
+
+                    strategy_config = StrategyConfig.from_dict(strategy_config_dict)
+                    setattr(strategy_config, "strategy_number", strategy_number)
+
+                    self._directory_handler.assign_dataset_dir(strategy_number)
+
+                    dataset_handler = DatasetHandler(
+                        strategy_config=strategy_config,
+                        directory_handler=self._directory_handler,
+                        dataset_config_list=self._dataset_config_list,
+                    )
+                    dataset_handler.setup_dataset()
+
+                    simulation_strategy = FederatedSimulation(
+                        strategy_config=strategy_config,
+                        dataset_dir=self._directory_handler.dataset_dir,
+                        dataset_handler=dataset_handler,
+                        directory_handler=self._directory_handler,
+                        status_tracker=status_tracker,
+                    )
+                    simulation_strategy.run_simulation()
+
+                    executed_simulation_strategies.append(simulation_strategy)
+
+                    # generate per-client plots
+                    new_plot_handler.show_plots_within_strategy(
+                        simulation_strategy, self._directory_handler
+                    )
+
+                    simulation_strategy.strategy_history.calculate_additional_rounds_data()
+                    self._directory_handler.save_csv_and_config(
+                        simulation_strategy.strategy_history
+                    )
+
+                finally:
+                    # Cleanup resources even if simulation crashes
+                    if dataset_handler is not None:
+                        dataset_handler.teardown_dataset()
+
+                    # Ensure Ray is initialized before shutting it down to prevent errors in multi-strategy runs
+                    if ray.is_initialized():
+                        logging.debug("Shutting down Ray before cleanup...")
+                        ray.shutdown()
+                        time.sleep(3.0)
+                        logging.debug("Ray shutdown complete after 3s cleanup delay")
+
+                    logging.debug(
+                        f"Cleaning up resources after strategy {strategy_number}"
+                    )
+
+                    # Clear GPU memory if available
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                        logging.debug("GPU cache cleared")
+
+                    # Keep only the strategy_history for plotting
+                    if simulation_strategy is not None:
+                        simulation_strategy._network_model = None
+                        simulation_strategy._trainloaders = None
+                        simulation_strategy._valloaders = None
+                        simulation_strategy._dataset_loader = None
+
+                    # Force garbage collection to free memory
+                    gc.collect()
+                    logging.debug("Garbage collection completed")
+
+                # Update status tracker for next strategy (if any)
+                if strategy_number < total_strategies - 1:
+                    status_tracker.next_strategy()
+
+            # after all strategies are executed, show comparison averaging plots
+            new_plot_handler.show_inter_strategy_plots(
+                executed_simulation_strategies, self._directory_handler
+            )
+
+            # Mark simulation as completed
+            status_tracker.complete()
+            logging.debug("Status tracker marked as completed")
+
         except Exception as e:
-            logging.warning(f"Could not remove running marker: {e}")
+            # Mark simulation as failed on exception
+            status_tracker.fail(str(e))
+            logging.error(f"Simulation failed: {e}")
+            raise
 
 
 if __name__ == "__main__":

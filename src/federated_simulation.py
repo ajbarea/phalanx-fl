@@ -1,5 +1,6 @@
 import logging
 import sys
+from typing import Optional
 
 import flwr
 
@@ -7,6 +8,7 @@ from flwr.client import Client
 from flwr.common import ndarrays_to_parameters
 from peft import PeftModel, get_peft_model_state_dict
 from src.utils.gpu_monitor import GPUMemoryMonitor
+from src.utils.status_tracker import StatusTracker
 
 
 from src.dataset_loaders.image_dataset_loader import ImageDatasetLoader
@@ -116,12 +118,14 @@ class FederatedSimulation:
         dataset_dir: str,
         dataset_handler: DatasetHandler,
         directory_handler=None,
+        status_tracker: Optional[StatusTracker] = None,
     ):
         self.strategy_config = strategy_config
         self.rounds_history = None
 
         self.dataset_handler = dataset_handler
         self.directory_handler = directory_handler
+        self.status_tracker = status_tracker
 
         self.strategy_history = SimulationStrategyHistory(
             strategy_config=self.strategy_config, dataset_handler=self.dataset_handler
@@ -444,6 +448,7 @@ class FederatedSimulation:
             remove_clients=self.strategy_config.remove_clients,
             begin_removing_from_round=self.strategy_config.begin_removing_from_round,
             strategy_history=self.strategy_history,
+            status_tracker=self.status_tracker,
         )
 
         if aggregation_strategy_keyword == "trust":
@@ -509,6 +514,7 @@ class FederatedSimulation:
         elif aggregation_strategy_keyword == "fedavg":
             self._aggregation_strategy = FedAvgStrategy(
                 strategy_history=self.strategy_history,
+                status_tracker=self.status_tracker,
                 initial_parameters=ndarrays_to_parameters(
                     self._get_model_params(self._network_model)
                 ),

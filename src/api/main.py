@@ -565,7 +565,23 @@ def get_simulation_status(
     if stopped_exists:
         return {"status": "stopped", "progress": 0.0}
 
-    # Check for .running marker (indicates terminal-based execution is active)
+    # Check for status.json (for progress info)
+    status_file = sim_path / "status.json"
+    if status_file.is_file():
+        try:
+            with status_file.open("r") as f:
+                status_data = json.load(f)
+            return {
+                "status": status_data.get("status", "running"),
+                "progress": status_data.get("progress", 0.0),
+                "current_round": status_data.get("current_round"),
+                "total_rounds": status_data.get("total_rounds"),
+                "current_strategy": status_data.get("current_strategy"),
+                "total_strategies": status_data.get("total_strategies"),
+            }
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning(f"Could not read status.json: {e}")
+
     running_marker = sim_path / ".running"
     if running_marker.is_file():
         return {"status": "running", "progress": 0.0}
