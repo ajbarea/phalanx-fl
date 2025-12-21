@@ -37,7 +37,7 @@ export function useQueueStatus(simulationId) {
 
     const completedStrategies = [];
     for (let i = 0; i < totalStrategies; i++) {
-      const hasResults = resultFiles.some(f => f.includes(`csv/exec_stats_${i}.csv`));
+      const hasResults = resultFiles.some(f => f.includes(`csv/round_metrics_${i}.csv`));
       if (hasResults) {
         completedStrategies.push(i);
       }
