@@ -21,7 +21,7 @@ if ! command -v docker >/dev/null 2>&1; then
     exit 1
 fi
 
-echo "Starting FL Framework with Docker..."
+echo "Starting IntelliFL with Docker..."
 echo ""
 echo "Services:"
 echo "  - API:      http://localhost:8000"

@@ -3,16 +3,13 @@
 
 set -eu
 
-# Source common utilities
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/tests/scripts/common.sh"
 
-# Navigate to project root
 navigate_to_root
 
-log_info "🚀 Starting FL Framework Development Servers..."
+log_info "🚀 Starting IntelliFL Development Servers..."
 
-# Setup Python environment
 if ! ensure_virtual_environment; then
     log_warning "Virtual environment not found. Running reinstall_requirements.sh..."
     ./reinstall_requirements.sh
@@ -21,7 +18,6 @@ fi
 
 find_python_interpreter
 
-# Install frontend dependencies
 if [ -d "frontend" ] && [ -f "frontend/package.json" ]; then
     log_info "📦 Installing frontend dependencies..."
     (cd frontend && npm install)
@@ -40,18 +36,15 @@ echo ""
 log_info "Press Ctrl+C to stop both servers"
 echo ""
 
-# Create log directory and files
 mkdir -p tests/logs
 API_LOG="tests/logs/api_dev_$(date +%Y%m%d_%H%M%S).log"
 FRONTEND_LOG="tests/logs/frontend_dev_$(date +%Y%m%d_%H%M%S).log"
 : > "$API_LOG"
 : > "$FRONTEND_LOG"
 
-# Start API in background with logging
 uvicorn src.api.main:app --reload --port 8000 > "$API_LOG" 2>&1 &
 API_PID=$!
 
-# Start frontend in background with logging
 (cd frontend && npm run dev > "../$FRONTEND_LOG" 2>&1) &
 FRONTEND_PID=$!
 
@@ -72,7 +65,6 @@ if [ $attempt -eq $max_attempts ]; then
     log_error "API failed to start within 30 seconds"
 fi
 
-# Open browser
 if command_exists xdg-open; then
     xdg-open http://localhost:5173 2>/dev/null || true
 elif command_exists open; then
@@ -115,7 +107,6 @@ log_info "📋 Tailing logs (Ctrl+C to stop)..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# Tail both logs with prefixes
 tail -f "$API_LOG" "$FRONTEND_LOG" 2>/dev/null | while IFS= read -r line; do
     case "$line" in
         *"==> $API_LOG <=="*)
