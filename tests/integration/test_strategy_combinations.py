@@ -64,7 +64,6 @@ def _create_attack_defense_config(
             ],
         }
 
-        # Add attack-specific parameters
         if attack_type == "gaussian_noise":
             strategy_config["attack_schedule"][0].update(
                 {
@@ -75,7 +74,6 @@ def _create_attack_defense_config(
         elif attack_type == "label_flipping":
             strategy_config["attack_schedule"][0].update({})
 
-        # Add strategy-specific parameters
         if defense == "trust":
             strategy_config.update({"trust_threshold": 0.7, "beta_value": 0.5})
         elif defense in ["pid", "pid_scaled", "pid_standardized"]:
@@ -93,6 +91,8 @@ def _create_attack_defense_config(
 
 
 class TestMultiStrategyScenarios:
+    """Test multi-strategy execution scenarios."""
+
     @pytest.fixture
     def mock_simulation_components(self):
         with (
@@ -104,13 +104,12 @@ class TestMultiStrategyScenarios:
             ) as mock_federated_simulation,
             patch("src.simulation_runner.new_plot_handler") as mock_plot_handler,
         ):
-            # Configure mocks
             mock_loader_instance = Mock()
             mock_config_loader.return_value = mock_loader_instance
 
             mock_dir_instance = Mock()
             mock_dir_instance.dataset_dir = "/tmp/test_dataset"
-            mock_dir_instance.output_dir = "/tmp/test_output"
+            mock_dir_instance.dirname = "/tmp/test_output"
             mock_directory_handler.return_value = mock_dir_instance
 
             mock_dataset_instance = Mock()
@@ -154,15 +153,12 @@ class TestMultiStrategyScenarios:
         strategy_combination: List[str],
         expected_behavior: str,
     ) -> None:
-        # Arrange
         mocks = mock_simulation_components
 
-        # Create strategy configurations
         strategies = []
         for strategy in strategy_combination:
             strategy_config: Dict[str, Any] = {"aggregation_strategy_keyword": strategy}
 
-            # Add strategy-specific parameters
             if strategy == "trust":
                 strategy_config.update({"trust_threshold": 0.7, "beta_value": 0.5})
             elif strategy in ["pid", "pid_scaled", "pid_standardized"]:
@@ -172,7 +168,6 @@ class TestMultiStrategyScenarios:
 
             strategies.append(strategy_config)
 
-        # Configure mock to return strategy configurations
         config_dicts: List[Dict[str, Any]] = []
         for i, strategy_dict in enumerate(strategies):
             config_dict: Dict[str, Any] = {
@@ -194,18 +189,14 @@ class TestMultiStrategyScenarios:
 
         runner = SimulationRunner("multi_strategy_config.json")
 
-        # Act
         runner.run()
 
-        # Assert - Verify all strategies were executed
         assert mocks["federated_simulation"].call_count == len(strategy_combination)
         assert mocks["simulation_instance"].run_simulation.call_count == len(
             strategy_combination
         )
 
-        # Verify strategy-specific behavior based on expected_behavior
         if expected_behavior == "trust_overrides_pid_removal":
-            # Verify both trust and PID strategies were configured
             call_args_list = mocks["federated_simulation"].call_args_list
             strategy_keywords = [
                 call.kwargs["strategy_config"].aggregation_strategy_keyword
@@ -215,7 +206,6 @@ class TestMultiStrategyScenarios:
             assert "pid" in strategy_keywords
 
         elif expected_behavior == "consistent_client_selection":
-            # Verify Krum variants were executed with consistent parameters
             call_args_list = mocks["federated_simulation"].call_args_list
             krum_calls = [
                 call
@@ -225,7 +215,6 @@ class TestMultiStrategyScenarios:
             assert len(krum_calls) >= 2
 
         elif expected_behavior == "robust_aggregation_convergence":
-            # Verify Byzantine-robust strategies were all executed
             call_args_list = mocks["federated_simulation"].call_args_list
             strategy_keywords = [
                 call.kwargs["strategy_config"].aggregation_strategy_keyword
@@ -236,7 +225,6 @@ class TestMultiStrategyScenarios:
             assert "rfa" in strategy_keywords
 
         elif expected_behavior == "consistent_pid_behavior":
-            # Verify all PID variants were executed
             call_args_list = mocks["federated_simulation"].call_args_list
             pid_strategies = [
                 call.kwargs["strategy_config"].aggregation_strategy_keyword
@@ -246,7 +234,6 @@ class TestMultiStrategyScenarios:
             assert len(pid_strategies) == 3
 
         elif expected_behavior == "multi_layer_defense":
-            # Verify defense strategies were executed
             call_args_list = mocks["federated_simulation"].call_args_list
             strategy_keywords = [
                 call.kwargs["strategy_config"].aggregation_strategy_keyword
@@ -260,7 +247,6 @@ class TestMultiStrategyScenarios:
         self, mock_simulation_components
     ):
         """Verify shared parameters are inherited by all strategies."""
-        # Arrange
         mocks = mock_simulation_components
 
         shared_params = {
@@ -289,10 +275,8 @@ class TestMultiStrategyScenarios:
 
         runner = SimulationRunner("shared_params_config.json")
 
-        # Act
         runner.run()
 
-        # Assert - Verify shared parameters were applied to all strategies
         call_args_list = mocks["federated_simulation"].call_args_list
 
         for call in call_args_list:
@@ -301,7 +285,6 @@ class TestMultiStrategyScenarios:
             assert strategy_config.num_of_clients == 12
             assert strategy_config.dataset_keyword == "femnist_iid"
 
-        # Verify strategy-specific parameters were preserved
         trust_call = next(
             call
             for call in call_args_list
@@ -318,7 +301,6 @@ class TestMultiStrategyScenarios:
 
     def test_strategy_execution_order_consistency(self, mock_simulation_components):
         """Verify strategies execute in configuration order."""
-        # Arrange
         mocks = mock_simulation_components
 
         strategies = ["trust", "pid", "krum", "rfa", "bulyan"]
@@ -339,7 +321,6 @@ class TestMultiStrategyScenarios:
             {"its": "datasets/its"}
         ]
 
-        # Track execution order
         execution_order = []
 
         def track_execution(strategy_config, **kwargs):
@@ -350,10 +331,8 @@ class TestMultiStrategyScenarios:
 
         runner = SimulationRunner("order_test_config.json")
 
-        # Act
         runner.run()
 
-        # Assert - Verify execution order matches configuration order
         assert execution_order == strategies
         assert len(execution_order) == len(strategies)
 
@@ -433,11 +412,9 @@ class TestByzantineFaultTolerance:
         expected_robustness: str,
     ):
         """Verify Byzantine resilience for strategy combinations."""
-        # Arrange
         mocks = mock_federated_simulation_with_byzantine
 
         for strategy in defense_strategies:
-            # Create strategy configuration with Byzantine clients
             base_config = {
                 "aggregation_strategy_keyword": strategy,
                 "dataset_keyword": "its",
@@ -460,7 +437,6 @@ class TestByzantineFaultTolerance:
                 "use_llm": False,
             }
 
-            # Add strategy-specific parameters
             if strategy == "trust":
                 base_config.update({"trust_threshold": 0.7, "beta_value": 0.5})
             elif strategy in ["pid", "pid_scaled", "pid_standardized"]:
@@ -470,28 +446,24 @@ class TestByzantineFaultTolerance:
             elif strategy in ["krum", "multi-krum", "multi-krum-based"]:
                 base_config.update({"num_krum_selections": 6})
             elif strategy == "trimmed_mean":
-                base_config.update(
-                    {"trim_ratio": 0.3}
-                )  # Higher trim ratio for Byzantine tolerance
+                # Higher trim ratio for Byzantine tolerance
+                base_config.update({"trim_ratio": 0.3})
 
             strategy_config = StrategyConfig.from_dict(base_config)
             mock_dataset_handler = MockDatasetHandler(dataset_type="its")
             mock_dataset_handler.setup_dataset(num_clients=10)
 
-            # Act - Create simulation with Byzantine clients
             simulation = FederatedSimulation(
                 strategy_config=strategy_config,
                 dataset_dir="/tmp/test",
                 dataset_handler=mock_dataset_handler,
             )
 
-            # Simulate Byzantine client behavior by mocking client_fn
             def mock_client_fn_with_byzantine(cid: str):
                 client_id_int = int(cid)
 
-                # Mock Byzantine clients (first 3 clients are malicious)
+                # First 3 clients are malicious
                 if client_id_int < 3:
-                    # Simulate Byzantine behavior in client creation
                     byzantine_client = Mock()
                     byzantine_client.fit = Mock(
                         return_value=(
@@ -530,27 +502,21 @@ class TestByzantineFaultTolerance:
 
             simulation.client_fn = mock_client_fn_with_byzantine
 
-            # Act - Run simulation
             simulation.run_simulation()
 
-            # Assert - Verify simulation completed (Byzantine tolerance)
             mocks["start_simulation"].assert_called()
 
-            # Verify strategy-specific Byzantine handling
             if expected_robustness == "very_high_robustness":
-                # Should handle up to 40% Byzantine clients effectively
                 assert (
                     strategy_config.num_of_malicious_clients
                     <= strategy_config.num_of_clients * 0.4
                 )
             elif expected_robustness == "high_robustness":
-                # Should handle moderate Byzantine client ratios
                 assert (
                     strategy_config.num_of_malicious_clients
                     <= strategy_config.num_of_clients * 0.35
                 )
             elif expected_robustness == "medium_robustness":
-                # Should handle lower Byzantine client ratios
                 assert (
                     strategy_config.num_of_malicious_clients
                     <= strategy_config.num_of_clients * 0.3
@@ -560,17 +526,14 @@ class TestByzantineFaultTolerance:
         self, mock_federated_simulation_with_byzantine
     ):
         """Verify strategy combinations improve Byzantine resilience."""
-        # Arrange
-        # Test individual strategy vs combination
         individual_strategies = ["trust", "krum", "rfa"]
 
-        byzantine_ratios = [0.1, 0.2, 0.3, 0.4]  # Increasing Byzantine client ratios
+        byzantine_ratios = [0.1, 0.2, 0.3, 0.4]
 
         for byzantine_ratio in byzantine_ratios:
             num_clients = 10
             num_byzantine = int(num_clients * byzantine_ratio)
 
-            # Test individual strategies
             individual_results = []
             for strategy in individual_strategies:
                 base_config = {
@@ -595,7 +558,6 @@ class TestByzantineFaultTolerance:
                     "use_llm": False,
                 }
 
-                # Add strategy-specific parameters
                 if strategy == "trust":
                     base_config.update({"trust_threshold": 0.7, "beta_value": 0.5})
                 elif strategy == "krum":
@@ -614,23 +576,18 @@ class TestByzantineFaultTolerance:
                         dataset_handler=mock_dataset_handler,
                     )
 
-                    # Simulate execution success/failure
                     simulation.run_simulation()
                     individual_results.append(True)  # Success
 
                 except Exception:
-                    individual_results.append(False)  # Failure
+                    individual_results.append(False)
 
-            # Assert - Verify Byzantine resilience behavior
             success_rate = sum(individual_results) / len(individual_results)
 
             if byzantine_ratio <= 0.2:
-                # Low Byzantine ratio - most strategies should succeed
                 assert success_rate >= 0.6
             elif byzantine_ratio <= 0.3:
-                # Medium Byzantine ratio - some strategies should still succeed
                 assert success_rate >= 0.3
-            # High Byzantine ratios (>30%) may cause failures, which is expected
 
 
 class TestAttackDefenseScenarios:
@@ -645,24 +602,21 @@ class TestAttackDefenseScenarios:
             ) as mock_federated_simulation,
             patch("src.simulation_runner.new_plot_handler") as mock_plot_handler,
         ):
-            # Configure mocks for attack scenarios
             mock_loader_instance = Mock()
             mock_config_loader.return_value = mock_loader_instance
 
             mock_dir_instance = Mock()
             mock_dir_instance.dataset_dir = "/tmp/attack_test_dataset"
-            mock_dir_instance.output_dir = "/tmp/attack_test_output"
+            mock_dir_instance.dirname = "/tmp/attack_test_output"
             mock_directory_handler.return_value = mock_dir_instance
 
             mock_dataset_instance = Mock()
             mock_dataset_handler.return_value = mock_dataset_instance
 
-            # Mock simulation with attack metrics
             mock_simulation_instance = Mock()
             mock_simulation_instance.strategy_history = Mock()
             mock_simulation_instance.strategy_history.calculate_additional_rounds_data = Mock()
 
-            # Add attack-specific metrics to strategy history
             mock_simulation_instance.strategy_history.attack_detection_rate = 0.8
             mock_simulation_instance.strategy_history.defense_effectiveness = 0.9
 
@@ -732,13 +686,10 @@ class TestAttackDefenseScenarios:
         expected_effectiveness: str,
     ):
         """Verify defense effectiveness against attack types."""
-        # Arrange
         mocks = mock_attack_simulation_components
 
-        # Create attack-defense configuration
         config = _create_attack_defense_config(defense_strategies, attack_type)
 
-        # Configure mock to return attack-defense strategies
         config_dicts = []
         for i, strategy_config in enumerate(config["simulation_strategies"]):
             config_dict = config["shared_settings"].copy()
@@ -751,11 +702,9 @@ class TestAttackDefenseScenarios:
             {"its": "datasets/its"}
         ]
 
-        # Configure attack-specific simulation behavior
         def mock_simulation_with_attack_metrics(strategy_config, **kwargs):
             simulation = mocks["simulation_instance"]
 
-            # Simulate attack detection and defense effectiveness based on strategy
             strategy_name = strategy_config.aggregation_strategy_keyword
 
             if strategy_name in ["trust", "krum", "rfa", "bulyan"]:
@@ -774,29 +723,24 @@ class TestAttackDefenseScenarios:
 
         runner = SimulationRunner("attack_defense_config.json")
 
-        # Act
         runner.run()
 
-        # Assert - Verify attack-defense workflow execution
         assert mocks["federated_simulation"].call_count == len(defense_strategies)
         assert mocks["simulation_instance"].run_simulation.call_count == len(
             defense_strategies
         )
 
-        # Verify defense effectiveness based on expected_effectiveness
         call_args_list = mocks["federated_simulation"].call_args_list
 
         for call in call_args_list:
             strategy_config = call.kwargs["strategy_config"]
 
-            # Verify attack type is properly configured
             if (
                 hasattr(strategy_config, "attack_schedule")
                 and strategy_config.attack_schedule
             ):
                 assert strategy_config.attack_schedule[0]["attack_type"] == attack_type
 
-            # Verify strategy-specific defense parameters
             strategy_name = strategy_config.aggregation_strategy_keyword
 
             if strategy_name == "trust":
@@ -809,27 +753,20 @@ class TestAttackDefenseScenarios:
                 assert hasattr(strategy_config, "num_krum_selections")
                 assert strategy_config.num_krum_selections == 6
 
-        # Verify overall defense effectiveness expectations
         if expected_effectiveness == "very_high_effectiveness":
-            # Should have comprehensive defense coverage
             assert len(defense_strategies) >= 3
         elif expected_effectiveness == "high_effectiveness":
-            # Should have good defense coverage
             assert len(defense_strategies) >= 2
         elif expected_effectiveness in ["medium_effectiveness", "low_effectiveness"]:
-            # May have limited defense coverage
             assert len(defense_strategies) >= 1
 
     def test_multi_attack_defense_resilience(self, mock_attack_simulation_components):
         """Verify defense resilience against multiple attack types."""
-        # Arrange
         mocks = mock_attack_simulation_components
 
-        # Test defense against multiple attacks
         attack_types = ["gaussian_noise", "model_poisoning", "byzantine_perturbation"]
         defense_strategies = ["trust", "krum", "rfa", "bulyan", "trimmed_mean"]
 
-        # Create configurations for each attack type with all defense strategies
         all_config_dicts = []
         strategy_number = 0
 
@@ -867,7 +804,6 @@ class TestAttackDefenseScenarios:
                     "strategy_number": strategy_number,
                 }
 
-                # Add attack-specific parameters
                 if attack_type == "gaussian_noise":
                     config_dict["attack_schedule"][0].update(
                         {
@@ -878,7 +814,6 @@ class TestAttackDefenseScenarios:
                 elif attack_type == "label_flipping":
                     config_dict["attack_schedule"][0].update({})
 
-                # Add strategy-specific parameters
                 if defense_strategy == "trust":
                     config_dict.update({"trust_threshold": 0.7, "beta_value": 0.5})
                 elif "pid" in defense_strategy:
@@ -898,10 +833,8 @@ class TestAttackDefenseScenarios:
 
         runner = SimulationRunner("multi_attack_defense_config.json")
 
-        # Act
         runner.run()
 
-        # Assert - Verify defense testing
         expected_total_simulations = len(attack_types) * len(defense_strategies)
         assert mocks["federated_simulation"].call_count == expected_total_simulations
         assert (
@@ -909,13 +842,11 @@ class TestAttackDefenseScenarios:
             == expected_total_simulations
         )
 
-        # Verify all attack-defense combinations were tested
         call_args_list = mocks["federated_simulation"].call_args_list
 
         tested_combinations = set()
         for call in call_args_list:
             strategy_config = call.kwargs["strategy_config"]
-            # Extract attack_type from attack_schedule
             attack_type = "unknown"
             if (
                 hasattr(strategy_config, "attack_schedule")
@@ -928,28 +859,23 @@ class TestAttackDefenseScenarios:
             )
             tested_combinations.add(combination)
 
-        # Verify we tested all expected combinations
         expected_combinations = {
             (attack, defense)
             for attack in attack_types
             for defense in defense_strategies
         }
 
-        # Allow for some flexibility in attack_type attribute presence
         tested_defense_strategies = {combo[1] for combo in tested_combinations}
         assert tested_defense_strategies == set(defense_strategies)
 
-        # Verify that we tested the expected number of combinations
         assert len(tested_combinations) == len(expected_combinations)
 
     def test_attack_scenario_parameter_validation(
         self, mock_attack_simulation_components
     ):
         """Verify attack scenario parameter validation."""
-        # Arrange
         mocks = mock_attack_simulation_components
 
-        # Test various attack configurations
         attack_configs = [
             {
                 "attack_type": "gaussian_noise",
@@ -990,7 +916,6 @@ class TestAttackDefenseScenarios:
                 "strategy_number": 0,
             }
 
-            # Add attack-specific parameters
             attack_type = attack_config["attack_type"]
             if attack_type == "gaussian_noise":
                 config_dict["attack_schedule"][0].update(
@@ -1013,10 +938,8 @@ class TestAttackDefenseScenarios:
 
             runner = SimulationRunner("attack_param_test_config.json")
 
-            # Act
             runner.run()
 
-            # Assert - Verify attack parameters were properly configured
             call_args = mocks["federated_simulation"].call_args
             strategy_config = call_args.kwargs["strategy_config"]
 
@@ -1025,11 +948,9 @@ class TestAttackDefenseScenarios:
                 == attack_config["defense_strategy"]
             )
 
-            # Verify expected parameters are present
             for param_name, param_value in attack_config["expected_params"].items():
                 assert hasattr(strategy_config, param_name)
                 assert getattr(strategy_config, param_name) == param_value
 
-            # Reset mocks for next iteration
             mocks["federated_simulation"].reset_mock()
             mocks["simulation_instance"].run_simulation.reset_mock()

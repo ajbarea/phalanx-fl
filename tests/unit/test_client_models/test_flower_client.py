@@ -10,6 +10,7 @@ from typing import Any, Dict
 from unittest.mock import patch
 
 import torch
+import logging
 
 from src.client_models.flower_client import FlowerClient
 from tests.common import Mock, np, pytest
@@ -31,7 +32,6 @@ class TestFlowerClient:
     @pytest.fixture
     def mock_trainloader(self):
         """Create a mock training data loader."""
-        # Create mock data
         mock_data = [
             (torch.randn(4, 3, 32, 32), torch.randint(0, 10, (4,))) for _ in range(5)
         ]
@@ -47,7 +47,6 @@ class TestFlowerClient:
     @pytest.fixture
     def mock_valloader(self):
         """Create a mock validation data loader."""
-        # Create mock data
         mock_data = [
             (torch.randn(4, 3, 32, 32), torch.randint(0, 10, (4,))) for _ in range(3)
         ]
@@ -163,11 +162,9 @@ class TestFlowerClient:
         """Test get_parameters method without LoRA."""
         parameters = flower_client_cnn.get_parameters(config={})
 
-        # Should return list of numpy arrays
         assert isinstance(parameters, list)
         assert all(isinstance(param, np.ndarray) for param in parameters)
 
-        # Should match network parameters
         expected_params = [
             param.cpu().detach().numpy() for param in flower_client_cnn.net.parameters()
         ]
@@ -178,7 +175,6 @@ class TestFlowerClient:
         """Test get_parameters method with LoRA."""
         flower_client_cnn.use_lora = True
 
-        # Mock LoRA state dict
         mock_state_dict = OrderedDict(
             {"lora_A": torch.randn(10, 5), "lora_B": torch.randn(5, 10)}
         )
@@ -192,16 +188,12 @@ class TestFlowerClient:
 
     def test_set_parameters_without_lora(self, flower_client_cnn):
         """Test set_parameters method without LoRA."""
-        # Get original parameters
         original_params = flower_client_cnn.get_parameters(config={})
 
-        # Create new parameters with different values
         new_params = [param + 0.1 for param in original_params]
 
-        # Set new parameters
         flower_client_cnn.set_parameters(flower_client_cnn.net, new_params)
 
-        # Verify parameters were updated
         updated_params = flower_client_cnn.get_parameters(config={})
         for orig, new, updated in zip(original_params, new_params, updated_params):
             np.testing.assert_allclose(updated, new, rtol=1e-5)
@@ -214,12 +206,10 @@ class TestFlowerClient:
         """Test set_parameters method with LoRA."""
         flower_client_cnn.use_lora = True
 
-        # Mock LoRA state dict keys
         mock_get_peft.return_value = OrderedDict(
             {"lora_A": torch.randn(10, 5), "lora_B": torch.randn(5, 10)}
         )
 
-        # Create new parameters
         new_params = [np.random.randn(10, 5), np.random.randn(5, 10)]
 
         flower_client_cnn.set_parameters(flower_client_cnn.net, new_params)
@@ -233,7 +223,6 @@ class TestFlowerClient:
             mock_optimizer = Mock()
             mock_optimizer_class.return_value = mock_optimizer
 
-            # Mock the training loop
             flower_client_cnn.train(
                 net=flower_client_cnn.net,
                 trainloader=flower_client_cnn.trainloader,
@@ -241,9 +230,7 @@ class TestFlowerClient:
                 verbose=False,
             )
 
-            # Verify optimizer was created and used
             mock_optimizer_class.assert_called_once()
-            # Check that the optimizer was called with the network parameters
             call_args = mock_optimizer_class.call_args[0]
             assert len(list(call_args[0])) == len(
                 list(flower_client_cnn.net.parameters())
@@ -253,7 +240,6 @@ class TestFlowerClient:
 
     def test_train_transformer_model(self, flower_client_transformer):
         """Test training method for transformer model."""
-        # Mock transformer outputs
         mock_outputs = Mock()
         mock_outputs.loss = torch.tensor(0.5, requires_grad=True)
         mock_outputs.logits = torch.randn(2, 128, 10)
@@ -271,25 +257,21 @@ class TestFlowerClient:
                 verbose=False,
             )
 
-            # Verify optimizer was created and used
             mock_optimizer_class.assert_called_once()
             assert mock_optimizer.zero_grad.call_count >= 1
             assert mock_optimizer.step.call_count >= 1
 
     def test_train_with_fedprox(self, flower_client_transformer):
         """Test training with FedProx regularization."""
-        # Setup for FedProx
         flower_client_transformer.use_lora = True
-        flower_client_transformer.client_id = 5  # >= num_malicious_clients
+        flower_client_transformer.client_id = 5
 
-        # Mock transformer outputs
         mock_outputs = Mock()
         mock_outputs.loss = torch.tensor(0.5, requires_grad=True)
         mock_outputs.logits = torch.randn(2, 128, 10)
 
         flower_client_transformer.net.return_value = mock_outputs
 
-        # Mock global parameters
         global_params = [torch.randn(10, 5), torch.randn(10)]
 
         with (
@@ -311,7 +293,6 @@ class TestFlowerClient:
                 mu=0.01,
             )
 
-            # Verify training completed
             assert mock_optimizer.step.call_count >= 1
 
     def test_train_unsupported_model_type(self, flower_client_cnn):
@@ -337,7 +318,6 @@ class TestFlowerClient:
 
     def test_test_transformer_model(self, flower_client_transformer):
         """Test evaluation method for transformer model."""
-        # Mock transformer outputs
         mock_outputs = Mock()
         mock_outputs.loss = torch.tensor(0.3)
         mock_outputs.logits = torch.randn(2, 128, 10)
@@ -364,10 +344,8 @@ class TestFlowerClient:
 
     def test_fit_method(self, flower_client_cnn):
         """Test fit method integrates training and parameter handling."""
-        # Get initial parameters
         initial_params = flower_client_cnn.get_parameters(config={})
 
-        # Create new parameters
         new_params = [param + 0.1 for param in initial_params]
 
         with patch.object(flower_client_cnn, "train") as mock_train:
@@ -376,10 +354,8 @@ class TestFlowerClient:
                 new_params, config={}
             )
 
-            # Verify training was called
             mock_train.assert_called_once()
 
-            # Verify return values
             assert isinstance(result_params, list)
             assert isinstance(dataset_size, int)
             assert isinstance(metrics, dict)
@@ -388,9 +364,8 @@ class TestFlowerClient:
     def test_fit_method_transformer_with_lora(self, flower_client_transformer):
         """Test fit method for transformer with LoRA."""
         flower_client_transformer.use_lora = True
-        flower_client_transformer.client_id = 5  # >= num_malicious_clients
+        flower_client_transformer.client_id = 5
 
-        # Mock parameters
         mock_params = [np.random.randn(10, 5), np.random.randn(10)]
 
         with (
@@ -409,13 +384,11 @@ class TestFlowerClient:
                 mock_params, config={}
             )
 
-            # Verify methods were called
             mock_set_params.assert_called_once_with(
                 flower_client_transformer.net, mock_params
             )
             mock_train.assert_called_once()
 
-            # Verify return values
             assert isinstance(result_params, list)
             assert isinstance(dataset_size, int)
             assert isinstance(metrics, dict)
@@ -432,7 +405,6 @@ class TestFlowerClient:
 
     def test_evaluate_method(self, flower_client_cnn):
         """Test evaluate method."""
-        # Get initial parameters
         initial_params = flower_client_cnn.get_parameters(config={})
 
         with patch.object(flower_client_cnn, "test") as mock_test:
@@ -442,12 +414,10 @@ class TestFlowerClient:
                 initial_params, config={}
             )
 
-            # Verify test was called
             mock_test.assert_called_once_with(
                 flower_client_cnn.net, flower_client_cnn.valloader
             )
 
-            # Verify return values
             assert isinstance(loss, float)
             assert isinstance(dataset_size, int)
             assert isinstance(metrics, dict)
@@ -471,13 +441,11 @@ class TestFlowerClient:
     ):
         """Test that training uses correct loss function for different model types."""
         if model_type == "transformer":
-            # Use mock network for transformer
             mock_net = Mock()
             mock_outputs = Mock()
             mock_outputs.loss = torch.tensor(0.5, requires_grad=True)
             mock_outputs.logits = torch.randn(2, 128, 10)
             mock_net.return_value = mock_outputs
-            # Create mock transformer trainloader
             mock_data = []
             for _ in range(3):
                 batch = {
@@ -521,17 +489,15 @@ class TestFlowerClient:
     def test_malicious_client_behavior(self, flower_client_transformer):
         """Test that malicious clients don't use FedProx regularization."""
         flower_client_transformer.use_lora = True
-        flower_client_transformer.client_id = 0  # < num_malicious_clients
+        flower_client_transformer.client_id = 0
         flower_client_transformer.num_malicious_clients = 2
 
-        # Mock transformer outputs
         mock_outputs = Mock()
         mock_outputs.loss = torch.tensor(0.5, requires_grad=True)
         mock_outputs.logits = torch.randn(2, 128, 10)
 
         flower_client_transformer.net.return_value = mock_outputs
 
-        # Mock global parameters
         global_params = [torch.randn(10, 5), torch.randn(10)]
 
         with patch("torch.optim.AdamW") as mock_optimizer_class:
@@ -547,23 +513,22 @@ class TestFlowerClient:
                 mu=0.01,
             )
 
-            # Training should complete without FedProx regularization
             assert mock_optimizer.step.call_count >= 1
 
-    def test_verbose_training_output(self, flower_client_cnn, capsys):
+    def test_verbose_training_output(self, flower_client_cnn, caplog):
         """Test verbose training produces output."""
-        with patch("torch.optim.Adam"):
-            flower_client_cnn.train(
-                net=flower_client_cnn.net,
-                trainloader=flower_client_cnn.trainloader,
-                epochs=1,
-                verbose=True,
-            )
+        with caplog.at_level(logging.INFO):
+            with patch("torch.optim.Adam"):
+                flower_client_cnn.train(
+                    net=flower_client_cnn.net,
+                    trainloader=flower_client_cnn.trainloader,
+                    epochs=1,
+                    verbose=True,
+                )
 
-        captured = capsys.readouterr()
-        assert "Epoch 1:" in captured.out
-        assert "train loss" in captured.out
-        assert "accuracy" in captured.out
+        assert "Epoch 1:" in caplog.text
+        assert "train loss" in caplog.text
+        assert "accuracy" in caplog.text
 
     @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
     def test_device_handling(self, mock_network, mock_trainloader, mock_valloader):
@@ -582,66 +547,57 @@ class TestFlowerClient:
 
         assert client.training_device == "cuda"
 
-        # Test that device is used in training (mocked)
         with patch("torch.optim.Adam"):
             client.train(mock_network, mock_trainloader, epochs=1)
 
     def test_parameter_consistency(self, flower_client_cnn):
         """Test that parameters remain consistent through get/set operations."""
-        # Get initial parameters
         initial_params = flower_client_cnn.get_parameters(config={})
 
-        # Set the same parameters back
         flower_client_cnn.set_parameters(flower_client_cnn.net, initial_params)
 
-        # Get parameters again
         final_params = flower_client_cnn.get_parameters(config={})
 
-        # Should be the same (within floating point precision)
         for initial, final in zip(initial_params, final_params):
             np.testing.assert_allclose(initial, final, rtol=1e-5)
 
     def test_empty_dataloader_handling(self, flower_client_cnn):
         """Test handling of empty dataloaders."""
-        # Create empty dataloader
         empty_loader = Mock()
         empty_loader.__iter__ = Mock(return_value=iter([]))
         empty_loader.__len__ = Mock(return_value=0)
         empty_loader.dataset = Mock()
         empty_loader.dataset.__len__ = Mock(return_value=0)
 
-        # Training with empty loader should not crash
         with patch("torch.optim.Adam"):
             flower_client_cnn.train(flower_client_cnn.net, empty_loader, epochs=1)
 
-        # Evaluation with empty loader should return reasonable values
         loss, accuracy = flower_client_cnn.test(flower_client_cnn.net, empty_loader)
         assert isinstance(loss, float)
         assert isinstance(accuracy, float)
 
     def test_verbose_training_output_transformer(
-        self, flower_client_transformer, capsys
+        self, flower_client_transformer, caplog
     ):
         """Test verbose training produces output for transformer model."""
-        # Mock transformer outputs
         mock_outputs = Mock()
         mock_outputs.loss = torch.tensor(0.5, requires_grad=True)
         mock_outputs.logits = torch.randn(2, 128, 10)
 
         flower_client_transformer.net.return_value = mock_outputs
 
-        with patch("torch.optim.AdamW") as mock_optimizer_class:
-            mock_optimizer = Mock()
-            mock_optimizer_class.return_value = mock_optimizer
+        with caplog.at_level(logging.INFO):
+            with patch("torch.optim.AdamW") as mock_optimizer_class:
+                mock_optimizer = Mock()
+                mock_optimizer_class.return_value = mock_optimizer
 
-            flower_client_transformer.train(
-                net=flower_client_transformer.net,
-                trainloader=flower_client_transformer.trainloader,
-                epochs=1,
-                verbose=True,
-            )
+                flower_client_transformer.train(
+                    net=flower_client_transformer.net,
+                    trainloader=flower_client_transformer.trainloader,
+                    epochs=1,
+                    verbose=True,
+                )
 
-        captured = capsys.readouterr()
-        assert "Epoch 1:" in captured.out
-        assert "train loss" in captured.out
-        assert "accuracy" in captured.out
+        assert "Epoch 1:" in caplog.text
+        assert "train loss" in caplog.text
+        assert "accuracy" in caplog.text
