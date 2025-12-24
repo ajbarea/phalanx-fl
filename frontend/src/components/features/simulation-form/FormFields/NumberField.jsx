@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import { Form } from 'react-bootstrap';
 import { InfoTooltip } from '@components/common/Tooltip/InfoTooltip';
 
@@ -39,3 +40,16 @@ export function NumberField({
     </Form.Group>
   );
 }
+
+NumberField.propTypes = {
+  name: PropTypes.string.isRequired,
+  label: PropTypes.string.isRequired,
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  onChange: PropTypes.func.isRequired,
+  tooltip: PropTypes.string,
+  step: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  min: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  max: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  required: PropTypes.bool,
+  className: PropTypes.string,
+};

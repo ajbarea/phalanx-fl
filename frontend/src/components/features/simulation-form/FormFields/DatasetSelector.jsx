@@ -1,6 +1,14 @@
+import PropTypes from 'prop-types';
 import { Form, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { HUGGINGFACE_DATASETS } from '@constants/datasets';
 import { useDatasetValidation } from '@hooks/useDatasetValidation';
+
+const handleInfoKeyDown = e => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    e.target.click();
+  }
+};
 
 export function DatasetSelector({ config, onChange }) {
   const datasetValidation = useDatasetValidation(config);
@@ -19,7 +27,15 @@ export function DatasetSelector({ config, onChange }) {
               </Tooltip>
             }
           >
-            <span style={{ cursor: 'help' }}>ℹ️</span>
+            <span
+              style={{ cursor: 'help' }}
+              aria-label="Dataset information"
+              role="button"
+              tabIndex={0}
+              onKeyDown={handleInfoKeyDown}
+            >
+              ℹ️
+            </span>
           </OverlayTrigger>
         </Form.Label>
         <Form.Control
@@ -75,7 +91,15 @@ export function DatasetSelector({ config, onChange }) {
               </Tooltip>
             }
           >
-            <span style={{ cursor: 'help' }}>ℹ️</span>
+            <span
+              style={{ cursor: 'help' }}
+              aria-label="Partitioning strategy information"
+              role="button"
+              tabIndex={0}
+              onKeyDown={handleInfoKeyDown}
+            >
+              ℹ️
+            </span>
           </OverlayTrigger>
         </Form.Label>
         <Form.Select
@@ -91,18 +115,18 @@ export function DatasetSelector({ config, onChange }) {
           datasetValidation.info?.has_label === false &&
           (config.partitioning_strategy === 'dirichlet' ||
             config.partitioning_strategy === 'pathological') && (
-            <Form.Text className="d-block mt-1" style={{ color: '#d97706', fontWeight: '500' }}>
-              ⚠️ Warning: This dataset may not work with {config.partitioning_strategy} partitioning
-              (no "label" field detected). Consider using IID partitioning or switching to a
-              classification dataset.
+            <Form.Text className="d-block mt-1 text-warning-accessible fw-medium">
+              <span aria-hidden="true">⚠️</span> Warning: This dataset may not work with{' '}
+              {config.partitioning_strategy} partitioning (no "label" field detected). Consider
+              using IID partitioning or switching to a classification dataset.
             </Form.Text>
           )}
         {datasetValidation.valid &&
           datasetValidation.info?.has_label === false &&
           config.partitioning_strategy === 'iid' && (
-            <Form.Text className="d-block mt-1" style={{ color: '#0ea5e9', fontWeight: '500' }}>
-              ℹ️ This dataset works best with IID partitioning since no label field was detected.
-              Good choice!
+            <Form.Text className="d-block mt-1 text-info fw-medium">
+              <span aria-hidden="true">ℹ️</span> This dataset works best with IID partitioning since
+              no label field was detected. Good choice!
             </Form.Text>
           )}
       </Form.Group>
@@ -121,7 +145,15 @@ export function DatasetSelector({ config, onChange }) {
                 </Tooltip>
               }
             >
-              <span style={{ cursor: 'help' }}>ℹ️</span>
+              <span
+                style={{ cursor: 'help' }}
+                aria-label="Dirichlet alpha information"
+                role="button"
+                tabIndex={0}
+                onKeyDown={handleInfoKeyDown}
+              >
+                ℹ️
+              </span>
             </OverlayTrigger>
           </Form.Label>
           <Form.Control
@@ -148,7 +180,15 @@ export function DatasetSelector({ config, onChange }) {
                 </Tooltip>
               }
             >
-              <span style={{ cursor: 'help' }}>ℹ️</span>
+              <span
+                style={{ cursor: 'help' }}
+                aria-label="Classes per client information"
+                role="button"
+                tabIndex={0}
+                onKeyDown={handleInfoKeyDown}
+              >
+                ℹ️
+              </span>
             </OverlayTrigger>
           </Form.Label>
           <Form.Control
@@ -163,3 +203,13 @@ export function DatasetSelector({ config, onChange }) {
     </>
   );
 }
+
+DatasetSelector.propTypes = {
+  config: PropTypes.shape({
+    dataset_keyword: PropTypes.string,
+    partitioning_strategy: PropTypes.string,
+    dirichlet_alpha: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    num_classes_per_client: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  }).isRequired,
+  onChange: PropTypes.func.isRequired,
+};

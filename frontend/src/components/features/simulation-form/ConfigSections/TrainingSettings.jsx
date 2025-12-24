@@ -1,8 +1,9 @@
 import { SelectField } from '../FormFields/SelectField';
 import { NumberField } from '../FormFields/NumberField';
+import { GpuInfoChip } from '@components/common/Chip/GpuInfoChip';
 import { DEVICES } from '@constants/attacks';
 
-export function TrainingSettings({ config, onChange }) {
+export function TrainingSettings({ config, onChange, gpuInfo }) {
   return (
     <>
       <NumberField
@@ -25,14 +26,20 @@ export function TrainingSettings({ config, onChange }) {
         required
       />
 
-      <SelectField
-        name="training_device"
-        label="Training Device"
-        value={config.training_device}
-        onChange={onChange}
-        options={DEVICES}
-        tooltip="Hardware for training. 'cpu' = use CPU, 'gpu' = use NVIDIA GPU if available."
-      />
+      <div className="d-flex align-items-end gap-2 mb-3">
+        <div className="flex-grow-1">
+          <SelectField
+            name="training_device"
+            label="Training Device"
+            value={config.training_device}
+            onChange={onChange}
+            options={DEVICES}
+            tooltip="Hardware for training. 'cpu' = use CPU, 'gpu' = use NVIDIA GPU if available."
+            className="mb-0"
+          />
+        </div>
+        <GpuInfoChip gpuInfo={gpuInfo} />
+      </div>
 
       <NumberField
         name="cpus_per_client"

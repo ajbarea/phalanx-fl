@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import { Form } from 'react-bootstrap';
 import { InfoTooltip } from '@components/common/Tooltip/InfoTooltip';
 
@@ -24,3 +25,12 @@ export function SwitchField({ name, label, checked, onChange, tooltip, className
     </Form.Group>
   );
 }
+
+SwitchField.propTypes = {
+  name: PropTypes.string.isRequired,
+  label: PropTypes.string.isRequired,
+  checked: PropTypes.bool,
+  onChange: PropTypes.func.isRequired,
+  tooltip: PropTypes.string,
+  className: PropTypes.string,
+};

@@ -18,7 +18,6 @@ export function PresetSelector({ selectedPreset, onPresetChange }) {
     const isLocal = config.dataset_source === 'local';
     const sourceEmoji = isLocal ? '📁' : '☁️';
 
-    // Determine dataset name
     let datasetName;
     if (config.hf_dataset_name) {
       datasetName = config.hf_dataset_name.split('/').pop().toUpperCase();
@@ -32,7 +31,6 @@ export function PresetSelector({ selectedPreset, onPresetChange }) {
       datasetName = 'Custom';
     }
 
-    // Determine data type
     const isText = config.model_type === 'transformer' || config.text_column;
     const typeEmoji = isText ? '📝' : '🖼️';
     const dataType = isText ? 'Text' : 'Image';
@@ -101,8 +99,8 @@ export function PresetSelector({ selectedPreset, onPresetChange }) {
                         }
                       >
                         <span
-                          className="ms-2"
-                          style={{ cursor: 'help', color: '#ffc107' }}
+                          className="ms-2 text-warning"
+                          style={{ cursor: 'help' }}
                           aria-label="Model download warning"
                         >
                           ⚠️

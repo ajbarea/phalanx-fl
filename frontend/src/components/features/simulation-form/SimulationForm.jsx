@@ -11,6 +11,7 @@ import { LLMSettings } from './ConfigSections/LLMSettings';
 import { OutputSettings } from './ConfigSections/OutputSettings';
 import { DynamicAttacks } from './ConfigSections/DynamicAttacks';
 import ValidationSummary from '@components/ValidationSummary';
+import { TOOLTIP_DELAYS } from '@constants/ui';
 
 export function SimulationForm({
   config,
@@ -21,10 +22,10 @@ export function SimulationForm({
   isSubmitting,
   validation,
   error,
+  gpuInfo,
 }) {
   const [activeSection, setActiveSection] = useState(['0']);
 
-  // Helper function to get section preview text
   const getSectionPreview = section => {
     switch (section) {
       case 'common':
@@ -54,7 +55,6 @@ export function SimulationForm({
     }
   };
 
-  // Helper function to get tooltip explanations for section previews
   const getSectionPreviewTooltip = section => {
     switch (section) {
       case 'common':
@@ -190,10 +190,8 @@ export function SimulationForm({
 
   return (
     <Form onSubmit={onSubmit}>
-      {/* Preset Selector */}
       <PresetSelector selectedPreset={selectedPreset} onPresetChange={onPresetChange} />
 
-      {/* Display Name */}
       <Form.Group className="mb-4">
         <Form.Label>Simulation Name (Optional)</Form.Label>
         <Form.Control
@@ -208,17 +206,14 @@ export function SimulationForm({
         </Form.Text>
       </Form.Group>
 
-      {/* Validation Summary */}
       {validation && <ValidationSummary validation={validation} />}
 
-      {/* Error Alert */}
       {error && (
         <div className="alert alert-danger" role="alert">
           <strong>Error:</strong> {error}
         </div>
       )}
 
-      {/* Quick Navigation Menu */}
       <div className="section-nav-menu mb-4">
         <div className="small text-muted mb-2">Jump to section:</div>
         <div className="d-flex flex-wrap gap-2">
@@ -239,14 +234,11 @@ export function SimulationForm({
                 type="button"
                 className={`btn btn-sm ${isActive ? 'btn-primary' : 'btn-outline-secondary'}`}
                 onClick={() => {
-                  // Toggle the accordion: open if closed, close if open
                   if (activeSection.includes(item.key)) {
-                    // Close the accordion (no scroll)
                     setActiveSection(activeSection.filter(key => key !== item.key));
                   } else {
-                    // Open the accordion and scroll to it
                     setActiveSection([...activeSection, item.key]);
-                    // Delay scroll to allow accordion to start opening
+                    // Delay to allow accordion animation to start before scrolling
                     setTimeout(() => {
                       const element = document.querySelector(`[data-section-key="${item.key}"]`);
                       element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -261,7 +253,6 @@ export function SimulationForm({
         </div>
       </div>
 
-      {/* Configuration Sections */}
       <Accordion
         defaultActiveKey={['0']}
         alwaysOpen
@@ -276,7 +267,7 @@ export function SimulationForm({
               {!activeSection.includes('0') && (
                 <OverlayTrigger
                   placement="left"
-                  delay={{ show: 250, hide: 400 }}
+                  delay={TOOLTIP_DELAYS}
                   overlay={
                     <Tooltip id="tooltip-common" className="config-preview-tooltip">
                       {getSectionPreviewTooltip('common')}
@@ -302,7 +293,7 @@ export function SimulationForm({
               {!activeSection.includes('1') && (
                 <OverlayTrigger
                   placement="left"
-                  delay={{ show: 250, hide: 400 }}
+                  delay={TOOLTIP_DELAYS}
                   overlay={
                     <Tooltip id="tooltip-attack" className="config-preview-tooltip">
                       {getSectionPreviewTooltip('attack')}
@@ -328,7 +319,7 @@ export function SimulationForm({
               {!activeSection.includes('2') && (
                 <OverlayTrigger
                   placement="left"
-                  delay={{ show: 250, hide: 400 }}
+                  delay={TOOLTIP_DELAYS}
                   overlay={
                     <Tooltip id="tooltip-defense" className="config-preview-tooltip">
                       {getSectionPreviewTooltip('defense')}
@@ -354,7 +345,7 @@ export function SimulationForm({
               {!activeSection.includes('3') && (
                 <OverlayTrigger
                   placement="left"
-                  delay={{ show: 250, hide: 400 }}
+                  delay={TOOLTIP_DELAYS}
                   overlay={
                     <Tooltip id="tooltip-training" className="config-preview-tooltip">
                       {getSectionPreviewTooltip('training')}
@@ -369,7 +360,7 @@ export function SimulationForm({
             </div>
           </Accordion.Header>
           <Accordion.Body>
-            <TrainingSettings config={config} onChange={onConfigChange} />
+            <TrainingSettings config={config} onChange={onConfigChange} gpuInfo={gpuInfo} />
           </Accordion.Body>
         </Accordion.Item>
 
@@ -380,7 +371,7 @@ export function SimulationForm({
               {!activeSection.includes('4') && (
                 <OverlayTrigger
                   placement="left"
-                  delay={{ show: 250, hide: 400 }}
+                  delay={TOOLTIP_DELAYS}
                   overlay={
                     <Tooltip id="tooltip-flower" className="config-preview-tooltip">
                       {getSectionPreviewTooltip('flower')}
@@ -415,7 +406,7 @@ export function SimulationForm({
               {!activeSection.includes('6') && (
                 <OverlayTrigger
                   placement="left"
-                  delay={{ show: 250, hide: 400 }}
+                  delay={TOOLTIP_DELAYS}
                   overlay={
                     <Tooltip id="tooltip-llm" className="config-preview-tooltip">
                       {getSectionPreviewTooltip('llm')}
@@ -441,7 +432,7 @@ export function SimulationForm({
               {!activeSection.includes('7') && (
                 <OverlayTrigger
                   placement="left"
-                  delay={{ show: 250, hide: 400 }}
+                  delay={TOOLTIP_DELAYS}
                   overlay={
                     <Tooltip id="tooltip-output" className="config-preview-tooltip">
                       {getSectionPreviewTooltip('output')}
@@ -467,7 +458,7 @@ export function SimulationForm({
               {!activeSection.includes('8') && (
                 <OverlayTrigger
                   placement="left"
-                  delay={{ show: 250, hide: 400 }}
+                  delay={TOOLTIP_DELAYS}
                   overlay={
                     <Tooltip id="tooltip-dynamic" className="config-preview-tooltip">
                       {getSectionPreviewTooltip('dynamic')}
@@ -487,7 +478,6 @@ export function SimulationForm({
         </Accordion.Item>
       </Accordion>
 
-      {/* Submit Button */}
       <div className="d-flex gap-2">
         <Button
           variant="primary"
