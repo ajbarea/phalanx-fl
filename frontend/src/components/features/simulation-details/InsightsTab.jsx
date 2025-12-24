@@ -1,4 +1,5 @@
 import { Card, Alert, ListGroup, Spinner } from 'react-bootstrap';
+import { formatAccuracy, formatChange, formatDetectionMetric } from '@utils/formatters';
 
 export function InsightsTab({ details, csvData, status }) {
   // Check if CSV data is still loading (status is completed but no CSV data yet)
@@ -33,19 +34,19 @@ export function InsightsTab({ details, csvData, status }) {
       const lastAccuracy = parseFloat(
         roundMetrics[roundMetrics.length - 1].average_accuracy_history
       );
-      const improvement = (((lastAccuracy - firstAccuracy) / firstAccuracy) * 100).toFixed(1);
+      const improvement = formatChange(firstAccuracy, lastAccuracy);
 
-      if (improvement > 0) {
+      if (parseFloat(improvement) > 0) {
         insights.push({
           type: 'success',
           icon: '📈',
-          text: `Model accuracy improved by ${improvement}% over ${roundMetrics.length} rounds (from ${(firstAccuracy * 100).toFixed(1)}% to ${(lastAccuracy * 100).toFixed(1)}%)`,
+          text: `Model accuracy improved by ${improvement}% over ${roundMetrics.length} rounds (from ${formatAccuracy(firstAccuracy)} to ${formatAccuracy(lastAccuracy)})`,
         });
-      } else if (improvement < 0) {
+      } else if (parseFloat(improvement) < 0) {
         insights.push({
           type: 'warning',
           icon: '⚠️',
-          text: `Model accuracy decreased by ${Math.abs(improvement)}% - this may indicate attack or poor hyperparameters`,
+          text: `Model accuracy decreased by ${Math.abs(parseFloat(improvement))}% - this may indicate attack or poor hyperparameters`,
         });
       }
     }
@@ -78,13 +79,13 @@ export function InsightsTab({ details, csvData, status }) {
           insights.push({
             type: 'success',
             icon: '✓',
-            text: `Defense detected malicious clients with ${(removalAccuracy * 100).toFixed(0)}% accuracy (Precision: ${(removalPrecision * 100).toFixed(0)}%, Recall: ${(removalRecall * 100).toFixed(0)}%)`,
+            text: `Defense detected malicious clients with ${formatDetectionMetric(removalAccuracy)} accuracy (Precision: ${formatDetectionMetric(removalPrecision)}, Recall: ${formatDetectionMetric(removalRecall)})`,
           });
         } else if (removalAccuracy > 0) {
           insights.push({
             type: 'warning',
             icon: '⚠️',
-            text: `Defense partially effective: ${(removalAccuracy * 100).toFixed(0)}% accuracy in detecting malicious clients`,
+            text: `Defense partially effective: ${formatDetectionMetric(removalAccuracy)} accuracy in detecting malicious clients`,
           });
         }
       }

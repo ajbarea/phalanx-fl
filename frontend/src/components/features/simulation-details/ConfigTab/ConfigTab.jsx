@@ -29,12 +29,12 @@ export function ConfigTab({ config }) {
           <OutlineButton onClick={() => setShowRawJSON(false)}>View Human-Readable</OutlineButton>
         </div>
         <pre
+          className="text-body"
           style={{
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
             fontFamily: 'monospace',
             fontSize: '0.875rem',
-            color: '#E6E1E5', // Light text for dark mode
           }}
         >
           {JSON.stringify(config, null, 2)}

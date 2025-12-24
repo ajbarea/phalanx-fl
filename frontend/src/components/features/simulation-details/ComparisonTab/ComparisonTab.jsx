@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Alert, Spinner, Card, Table, Badge } from 'react-bootstrap';
+import PropTypes from 'prop-types';
 import { getAllPlotData } from '@api/endpoints/simulations';
 import { StrategyComparisonPlot } from './StrategyComparisonPlot';
 import { ConfigExplainer } from '@components/features/education/ConfigExplainer';
+import { getErrorMessage } from '@utils/errorMessages';
+import { formatAccuracy, formatLoss, formatDetectionMetric } from '@utils/formatters';
 
 export function ComparisonTab({ simulation, isMultiStrategy }) {
   const [allPlotData, setAllPlotData] = useState(null);
@@ -22,8 +25,7 @@ export function ComparisonTab({ simulation, isMultiStrategy }) {
         setAllPlotData(response.data.strategies);
         setLoading(false);
       } catch (err) {
-        console.error('Failed to fetch comparison data:', err);
-        setError(err.message);
+        setError(getErrorMessage(err));
         setLoading(false);
       }
     };
@@ -96,19 +98,63 @@ export function ComparisonTab({ simulation, isMultiStrategy }) {
 
   const performanceSummary = allPlotData.map(strategy => {
     const config = strategyConfigs[strategy.strategy_number];
-    const roundMetrics = strategy.data.round_metrics;
+    const perClientMetrics = strategy.data.per_client_metrics;
 
-    const finalAccuracy = roundMetrics?.average_accuracy_history
-      ? roundMetrics.average_accuracy_history[roundMetrics.average_accuracy_history.length - 1]
-      : null;
+    let finalAccuracy = null;
+    let finalLoss = null;
+    let removalAccuracy = null;
 
-    const finalLoss = roundMetrics?.average_loss_history
-      ? roundMetrics.average_loss_history[roundMetrics.average_loss_history.length - 1]
-      : null;
+    if (perClientMetrics && perClientMetrics.length > 0) {
+      const lastRoundAccuracies = perClientMetrics
+        .map(client => {
+          const history = client.metrics?.accuracy_history;
+          return history && history.length > 0 ? history[history.length - 1] : null;
+        })
+        .filter(v => v !== null);
 
-    const removalAccuracy = roundMetrics?.removal_accuracy_history
-      ? roundMetrics.removal_accuracy_history[roundMetrics.removal_accuracy_history.length - 1]
-      : null;
+      if (lastRoundAccuracies.length > 0) {
+        finalAccuracy = lastRoundAccuracies.reduce((a, b) => a + b, 0) / lastRoundAccuracies.length;
+      }
+
+      const lastRoundLosses = perClientMetrics
+        .map(client => {
+          const history = client.metrics?.loss_history;
+          return history && history.length > 0 ? history[history.length - 1] : null;
+        })
+        .filter(v => v !== null);
+
+      if (lastRoundLosses.length > 0) {
+        finalLoss = lastRoundLosses.reduce((a, b) => a + b, 0) / lastRoundLosses.length;
+      }
+
+      const hasRemovalData = perClientMetrics.some(c =>
+        c.metrics?.removal_criterion_history?.some(v => v !== null)
+      );
+      if (hasRemovalData) {
+        const maliciousClients = perClientMetrics.filter(c => c.is_malicious);
+        const nonMaliciousClients = perClientMetrics.filter(c => !c.is_malicious);
+
+        if (maliciousClients.length > 0 && nonMaliciousClients.length > 0) {
+          const getLastRemovalScore = client => {
+            const history = client.metrics?.removal_criterion_history?.filter(v => v !== null);
+            return history && history.length > 0 ? history[history.length - 1] : null;
+          };
+
+          const maliciousScores = maliciousClients.map(getLastRemovalScore).filter(v => v !== null);
+          const nonMaliciousScores = nonMaliciousClients
+            .map(getLastRemovalScore)
+            .filter(v => v !== null);
+
+          if (maliciousScores.length > 0 && nonMaliciousScores.length > 0) {
+            const avgMalicious =
+              maliciousScores.reduce((a, b) => a + b, 0) / maliciousScores.length;
+            const avgNonMalicious =
+              nonMaliciousScores.reduce((a, b) => a + b, 0) / nonMaliciousScores.length;
+            removalAccuracy = avgMalicious > avgNonMalicious ? 1.0 : 0.5;
+          }
+        }
+      }
+    }
 
     return {
       strategyNumber: strategy.strategy_number,
@@ -130,26 +176,29 @@ export function ComparisonTab({ simulation, isMultiStrategy }) {
 
   return (
     <div className="mt-3">
-      <h5 className="mb-3">🔬 Multi-Strategy Comparison</h5>
+      <h5 className="mb-3">
+        <span aria-hidden="true">🔬 </span>Multi-Strategy Comparison
+      </h5>
       <p className="text-muted mb-4">
         Comparing {allPlotData.length} strategy variations across different configurations and
         attack scenarios.
       </p>
 
-      {/* Performance Summary Table */}
       <Card className="mb-4">
         <Card.Body>
-          <h6 className="mb-3">📊 Performance Summary</h6>
+          <h6 className="mb-3">
+            <span aria-hidden="true">📊 </span>Performance Summary
+          </h6>
           <div className="table-responsive">
             <Table striped bordered hover size="sm">
               <thead>
                 <tr>
-                  <th>#</th>
-                  <th>Strategy</th>
-                  <th>Config</th>
-                  <th>Final Accuracy</th>
-                  <th>Final Loss</th>
-                  <th>Defense Accuracy</th>
+                  <th scope="col">#</th>
+                  <th scope="col">Strategy</th>
+                  <th scope="col">Config</th>
+                  <th scope="col">Final Accuracy</th>
+                  <th scope="col">Final Loss</th>
+                  <th scope="col">Defense Accuracy</th>
                 </tr>
               </thead>
               <tbody>
@@ -157,6 +206,16 @@ export function ComparisonTab({ simulation, isMultiStrategy }) {
                   <tr
                     key={summary.strategyNumber}
                     onClick={() => setSelectedStrategy(summary.strategyNumber)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedStrategy(summary.strategyNumber);
+                      }
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`Select strategy ${summary.strategyNumber}: ${summary.aggregationStrategy}`}
+                    aria-pressed={selectedStrategy === summary.strategyNumber}
                     style={{ cursor: 'pointer' }}
                     className={selectedStrategy === summary.strategyNumber ? 'table-active' : ''}
                   >
@@ -188,17 +247,11 @@ export function ComparisonTab({ simulation, isMultiStrategy }) {
                               : 'danger'
                         }
                       >
-                        {summary.finalAccuracy !== null
-                          ? `${(summary.finalAccuracy * 100).toFixed(1)}%`
-                          : 'N/A'}
+                        {formatAccuracy(summary.finalAccuracy)}
                       </Badge>
                     </td>
-                    <td>{summary.finalLoss !== null ? summary.finalLoss.toFixed(4) : 'N/A'}</td>
-                    <td>
-                      {summary.removalAccuracy !== null
-                        ? `${(summary.removalAccuracy * 100).toFixed(0)}%`
-                        : 'N/A'}
-                    </td>
+                    <td>{formatLoss(summary.finalLoss)}</td>
+                    <td>{formatDetectionMetric(summary.removalAccuracy)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -208,7 +261,6 @@ export function ComparisonTab({ simulation, isMultiStrategy }) {
         </Card.Body>
       </Card>
 
-      {/* Strategy Explanation (when selected) */}
       {selectedStrategy !== null && (
         <ConfigExplainer
           strategy={strategyConfigs[selectedStrategy].aggregation_strategy_keyword}
@@ -216,10 +268,11 @@ export function ComparisonTab({ simulation, isMultiStrategy }) {
         />
       )}
 
-      {/* Key Insights */}
       <Card className="mb-4">
         <Card.Body>
-          <h6 className="mb-3">🎯 Key Insights</h6>
+          <h6 className="mb-3">
+            <span aria-hidden="true">🎯 </span>Key Insights
+          </h6>
           <div className="d-flex flex-column gap-2">
             {bestPerformer && (
               <Alert variant="success" className="mb-2">
@@ -227,7 +280,7 @@ export function ComparisonTab({ simulation, isMultiStrategy }) {
                 {bestPerformer.aggregationStrategy}
                 {bestPerformer.numKrumSelections && ` k=${bestPerformer.numKrumSelections}`}) with{' '}
                 {bestPerformer.numMalicious} malicious clients achieved{' '}
-                {(bestPerformer.finalAccuracy * 100).toFixed(1)}% accuracy
+                {formatAccuracy(bestPerformer.finalAccuracy)} accuracy
               </Alert>
             )}
 
@@ -235,7 +288,7 @@ export function ComparisonTab({ simulation, isMultiStrategy }) {
               <Alert variant="warning" className="mb-2">
                 <strong>⚠️ Most Vulnerable:</strong> Strategy {worstPerformer.strategyNumber} (
                 {worstPerformer.aggregationStrategy}) with {worstPerformer.numMalicious} malicious
-                clients had lowest accuracy at {(worstPerformer.finalAccuracy * 100).toFixed(1)}%
+                clients had lowest accuracy at {formatAccuracy(worstPerformer.finalAccuracy)}
               </Alert>
             )}
 
@@ -249,13 +302,13 @@ export function ComparisonTab({ simulation, isMultiStrategy }) {
         </Card.Body>
       </Card>
 
-      {/* Interactive Comparison Plot */}
       <StrategyComparisonPlot allPlotData={allPlotData} strategyConfigs={strategyConfigs} />
 
-      {/* Educational Note */}
       <Card className="mb-4">
         <Card.Body>
-          <h6 className="mb-2">🎓 Understanding This Comparison</h6>
+          <h6 className="mb-2">
+            <span aria-hidden="true">🎓 </span>Understanding This Comparison
+          </h6>
           <p className="text-muted mb-0">
             This view allows you to compare how different aggregation strategies and configurations
             perform under varying attack conditions. Use the interactive plot above to toggle
@@ -267,3 +320,12 @@ export function ComparisonTab({ simulation, isMultiStrategy }) {
     </div>
   );
 }
+
+ComparisonTab.propTypes = {
+  simulation: PropTypes.shape({
+    id: PropTypes.string,
+    status: PropTypes.string,
+    config: PropTypes.object,
+  }).isRequired,
+  isMultiStrategy: PropTypes.bool,
+};

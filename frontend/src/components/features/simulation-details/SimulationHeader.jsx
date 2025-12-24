@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import { Badge } from 'react-bootstrap';
 import OutlineButton from '@components/common/Button/OutlineButton';
 import { MaterialIcon } from '@components/common/Icon/MaterialIcon';
@@ -54,3 +55,25 @@ export function SimulationHeader({ simulation, onRunAgain, isCloning, onStop, is
     </div>
   );
 }
+
+SimulationHeader.propTypes = {
+  simulation: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    status: PropTypes.string,
+    config: PropTypes.shape({
+      shared_settings: PropTypes.shape({
+        display_name: PropTypes.string,
+      }),
+      display_name: PropTypes.string,
+    }),
+  }).isRequired,
+  onRunAgain: PropTypes.func.isRequired,
+  isCloning: PropTypes.bool,
+  onStop: PropTypes.func.isRequired,
+  isStopping: PropTypes.bool,
+};
+
+SimulationHeader.defaultProps = {
+  isCloning: false,
+  isStopping: false,
+};

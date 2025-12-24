@@ -11,22 +11,10 @@ import {
   Brush,
 } from 'recharts';
 import { Form, ButtonGroup, Button, Card } from 'react-bootstrap';
+import PropTypes from 'prop-types';
 import { useTheme } from '@contexts/ThemeContext';
-
-const COLORS = [
-  '#8884d8',
-  '#82ca9d',
-  '#ffc658',
-  '#ff7c7c',
-  '#8dd1e1',
-  '#d084d0',
-  '#a4de6c',
-  '#ffab91',
-  '#ce93d8',
-  '#90caf9',
-  '#ff8a65',
-  '#81c784',
-];
+import { CHART_COLORS, CHART_UI_COLORS } from '@constants/ui';
+import { useResponsiveChartHeight } from '@hooks/useResponsiveChartHeight';
 
 const METRIC_LABELS = {
   average_loss_history: 'Average Loss',
@@ -58,6 +46,8 @@ export function StrategyComparisonPlot({ allPlotData, strategyConfigs }) {
   const [selectedMetric, setSelectedMetric] = useState('average_accuracy_history');
   const [visibleStrategies, setVisibleStrategies] = useState({});
   const [groupFilter, setGroupFilter] = useState('all');
+
+  const chartHeight = useResponsiveChartHeight();
 
   useEffect(() => {
     if (allPlotData && allPlotData.length > 0) {
@@ -132,27 +122,16 @@ export function StrategyComparisonPlot({ allPlotData, strategyConfigs }) {
     }
   };
 
-  const chartColors =
-    theme === 'dark'
-      ? {
-          grid: '#444',
-          axis: '#999',
-          text: '#ccc',
-        }
-      : {
-          grid: '#e0e0e0',
-          axis: '#666',
-          text: '#333',
-        };
-
-  const chartHeight = window.innerWidth < 768 ? 350 : 500;
+  const chartColors = CHART_UI_COLORS[theme] || CHART_UI_COLORS.light;
+  const COLORS = CHART_COLORS[theme] || CHART_COLORS.light;
 
   return (
     <Card className="mb-4">
       <Card.Body>
-        <h5 className="mb-3">📊 Strategy Comparison</h5>
+        <h5 className="mb-3">
+          <span aria-hidden="true">📊 </span>Strategy Comparison
+        </h5>
 
-        {/* Metric Selector */}
         <Form.Group className="mb-3" style={{ maxWidth: '60%', margin: '0 auto' }}>
           <Form.Label>Select Metric:</Form.Label>
           <Form.Select value={selectedMetric} onChange={e => setSelectedMetric(e.target.value)}>
@@ -164,13 +143,15 @@ export function StrategyComparisonPlot({ allPlotData, strategyConfigs }) {
           </Form.Select>
         </Form.Group>
 
-        {/* Group Filter */}
-        <div className="mb-3 text-center">
-          <small className="text-muted d-block mb-2">Filter by strategy type:</small>
-          <ButtonGroup size="sm">
+        <div className="mb-3 text-center" role="group" aria-label="Filter strategies by type">
+          <small className="text-muted d-block mb-2" id="filter-label">
+            Filter by strategy type:
+          </small>
+          <ButtonGroup size="sm" aria-labelledby="filter-label">
             <Button
               variant={groupFilter === 'all' ? 'primary' : 'outline-primary'}
               onClick={() => handleGroupFilter('all')}
+              aria-pressed={groupFilter === 'all'}
             >
               All Strategies ({allPlotData.length})
             </Button>
@@ -179,6 +160,7 @@ export function StrategyComparisonPlot({ allPlotData, strategyConfigs }) {
                 key={group}
                 variant={groupFilter === group ? 'primary' : 'outline-primary'}
                 onClick={() => handleGroupFilter(group)}
+                aria-pressed={groupFilter === group}
               >
                 {group} ({strategyGroups[group].length})
               </Button>
@@ -186,7 +168,6 @@ export function StrategyComparisonPlot({ allPlotData, strategyConfigs }) {
           </ButtonGroup>
         </div>
 
-        {/* Strategy Toggle Controls */}
         <div className="mb-3 text-center">
           <small className="text-muted d-block mb-2">Toggle individual strategies:</small>
           <div className="d-flex flex-wrap gap-2 justify-content-center">
@@ -217,7 +198,6 @@ export function StrategyComparisonPlot({ allPlotData, strategyConfigs }) {
           </div>
         </div>
 
-        {/* Chart */}
         <div style={{ width: '100%', minWidth: 300, height: chartHeight }}>
           <ResponsiveContainer
             width="100%"
@@ -252,7 +232,7 @@ export function StrategyComparisonPlot({ allPlotData, strategyConfigs }) {
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: theme === 'dark' ? '#2b2b2b' : '#fff',
+                  backgroundColor: chartColors.tooltipBg,
                   border: `1px solid ${chartColors.grid}`,
                   color: chartColors.text,
                   maxHeight: '300px',
@@ -264,7 +244,7 @@ export function StrategyComparisonPlot({ allPlotData, strategyConfigs }) {
                 dataKey="round"
                 height={30}
                 stroke={chartColors.axis}
-                fill={theme === 'dark' ? '#1a1a1a' : '#f5f5f5'}
+                fill={chartColors.brushFill}
                 y={chartHeight - 70}
               />
 
@@ -294,11 +274,17 @@ export function StrategyComparisonPlot({ allPlotData, strategyConfigs }) {
 
         <div className="mt-3 text-muted">
           <small>
-            📊 Zoom: Drag on brush | 👆 Filter: Use group buttons | 🔘 Toggle: Click strategy
-            buttons
+            <span aria-hidden="true">📊 </span>Zoom: Drag on brush |{' '}
+            <span aria-hidden="true">👆 </span>Filter: Use group buttons |{' '}
+            <span aria-hidden="true">🔘 </span>Toggle: Click strategy buttons
           </small>
         </div>
       </Card.Body>
     </Card>
   );
 }
+
+StrategyComparisonPlot.propTypes = {
+  allPlotData: PropTypes.array,
+  strategyConfigs: PropTypes.object,
+};

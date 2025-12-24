@@ -1,4 +1,5 @@
 import { Accordion, Table, Spinner } from 'react-bootstrap';
+import PropTypes from 'prop-types';
 import OutlineButton from '@components/common/Button/OutlineButton';
 import { InfoTooltip } from '@components/common/Tooltip/InfoTooltip';
 import { MaterialIcon } from '@components/common/Icon/MaterialIcon';
@@ -22,7 +23,9 @@ export function RawDataAccordion({ csvFiles, csvData, simulationId }) {
               return (
                 <div key={file} className="mb-4">
                   <h6 className="text-muted">{file}</h6>
-                  <Spinner animation="border" size="sm" />
+                  <Spinner animation="border" size="sm" role="status">
+                    <span className="visually-hidden">Loading {file}...</span>
+                  </Spinner>
                 </div>
               );
             }
@@ -40,24 +43,26 @@ export function RawDataAccordion({ csvFiles, csvData, simulationId }) {
                       download={file.split('/').pop()}
                       onClick={() => toast.success(`Downloading ${file.split('/').pop()}...`)}
                       title="Download CSV file to your computer"
+                      aria-label={`Download ${file.split('/').pop()}`}
                       style={{
                         padding: '0.25rem 0.5rem',
                         minWidth: 'auto',
                         border: 'none',
                       }}
                     >
-                      <MaterialIcon name="download" size={16} />
+                      <MaterialIcon name="download" size={16} aria-hidden="true" />
                     </OutlineButton>
                     <OutlineButton
                       onClick={() => copyCSVToClipboard(data, file, toast.success, toast.error)}
                       title="Copy data to clipboard for pasting into Excel/Google Sheets"
+                      aria-label={`Copy ${file.split('/').pop()} to clipboard`}
                       style={{
                         padding: '0.25rem 0.5rem',
                         minWidth: 'auto',
                         border: 'none',
                       }}
                     >
-                      <MaterialIcon name="content_copy" size={16} />
+                      <MaterialIcon name="content_copy" size={16} aria-hidden="true" />
                     </OutlineButton>
                   </div>
                 </div>
@@ -70,7 +75,7 @@ export function RawDataAccordion({ csvFiles, csvData, simulationId }) {
                           const tooltip = getMetricTooltip(col);
 
                           return (
-                            <th key={col}>
+                            <th key={col} scope="col">
                               {tooltip ? (
                                 <InfoTooltip text={tooltip} placement="top">
                                   {formattedName}
@@ -104,3 +109,9 @@ export function RawDataAccordion({ csvFiles, csvData, simulationId }) {
     </Accordion>
   );
 }
+
+RawDataAccordion.propTypes = {
+  csvFiles: PropTypes.array,
+  csvData: PropTypes.object,
+  simulationId: PropTypes.string,
+};

@@ -1,4 +1,6 @@
 import { Card, Table, OverlayTrigger, Tooltip } from 'react-bootstrap';
+import PropTypes from 'prop-types';
+import { formatAccuracy, formatLoss, formatDetectionMetric } from '@utils/formatters';
 
 export function RoundMetricsTable({ data, config }) {
   if (!data || data.length === 0) {
@@ -19,6 +21,7 @@ export function RoundMetricsTable({ data, config }) {
             <thead>
               <tr>
                 <th
+                  scope="col"
                   style={{
                     position: 'sticky',
                     left: 0,
@@ -28,7 +31,7 @@ export function RoundMetricsTable({ data, config }) {
                 >
                   Round
                 </th>
-                <th>
+                <th scope="col">
                   <OverlayTrigger
                     placement="top"
                     overlay={<Tooltip>Average accuracy across all clients (0-100%)</Tooltip>}
@@ -36,7 +39,7 @@ export function RoundMetricsTable({ data, config }) {
                     <span style={{ cursor: 'help' }}>Accuracy</span>
                   </OverlayTrigger>
                 </th>
-                <th>
+                <th scope="col">
                   <OverlayTrigger
                     placement="top"
                     overlay={<Tooltip>Average loss across all clients (lower is better)</Tooltip>}
@@ -46,7 +49,7 @@ export function RoundMetricsTable({ data, config }) {
                 </th>
                 {config.num_of_malicious_clients > 0 && config.remove_clients === 'true' && (
                   <>
-                    <th>
+                    <th scope="col">
                       <OverlayTrigger
                         placement="top"
                         overlay={
@@ -56,7 +59,7 @@ export function RoundMetricsTable({ data, config }) {
                         <span style={{ cursor: 'help' }}>Detection Accuracy</span>
                       </OverlayTrigger>
                     </th>
-                    <th>
+                    <th scope="col">
                       <OverlayTrigger
                         placement="top"
                         overlay={
@@ -66,7 +69,7 @@ export function RoundMetricsTable({ data, config }) {
                         <span style={{ cursor: 'help' }}>Precision</span>
                       </OverlayTrigger>
                     </th>
-                    <th>
+                    <th scope="col">
                       <OverlayTrigger
                         placement="top"
                         overlay={<Tooltip>Of all malicious clients, what % were caught</Tooltip>}
@@ -103,14 +106,40 @@ export function RoundMetricsTable({ data, config }) {
                         accuracy > 0.7
                           ? 'text-success fw-semibold'
                           : accuracy > 0.4
-                            ? 'text-warning'
+                            ? 'text-warning-accessible'
                             : 'text-danger'
                       }
+                      aria-label={
+                        accuracy > 0.7
+                          ? 'Good accuracy'
+                          : accuracy > 0.4
+                            ? 'Moderate accuracy'
+                            : 'Poor accuracy'
+                      }
                     >
-                      {(accuracy * 100).toFixed(1)}%
+                      <span aria-hidden="true">
+                        {accuracy > 0.7 ? '✓ ' : accuracy > 0.4 ? '◐ ' : '✗ '}
+                      </span>
+                      {formatAccuracy(accuracy)}
                     </td>
-                    <td className={loss < 0.1 ? 'text-success' : loss < 0.5 ? 'text-warning' : ''}>
-                      {loss.toFixed(4)}
+                    <td
+                      className={
+                        loss < 0.1
+                          ? 'text-success fw-semibold'
+                          : loss < 0.5
+                            ? 'text-warning-accessible'
+                            : ''
+                      }
+                      aria-label={
+                        loss < 0.1
+                          ? 'Excellent loss (very low)'
+                          : loss < 0.5
+                            ? 'Moderate loss'
+                            : 'High loss'
+                      }
+                    >
+                      <span aria-hidden="true">{loss < 0.1 ? '✓ ' : loss < 0.5 ? '◐ ' : ''}</span>
+                      {formatLoss(loss)}
                     </td>
                     {config.num_of_malicious_clients > 0 && config.remove_clients === 'true' && (
                       <>
@@ -121,22 +150,30 @@ export function RoundMetricsTable({ data, config }) {
                               : detectionAcc > 0.7
                                 ? 'text-success'
                                 : detectionAcc > 0
-                                  ? 'text-warning'
+                                  ? 'text-warning-accessible'
                                   : ''
                           }
+                          aria-label={
+                            detectionAcc === 1.0
+                              ? 'Perfect detection'
+                              : detectionAcc > 0.7
+                                ? 'Good detection'
+                                : 'Partial detection'
+                          }
                         >
-                          {isNaN(detectionAcc) || detectionAcc === 0
-                            ? '—'
-                            : (detectionAcc * 100).toFixed(0) + '%'}
+                          {isNaN(detectionAcc) || detectionAcc === 0 ? (
+                            '—'
+                          ) : (
+                            <>
+                              <span aria-hidden="true">
+                                {detectionAcc === 1.0 ? '★ ' : detectionAcc > 0.7 ? '✓ ' : '◐ '}
+                              </span>
+                              {formatDetectionMetric(detectionAcc)}
+                            </>
+                          )}
                         </td>
-                        <td>
-                          {isNaN(precision) || precision === 0
-                            ? '—'
-                            : (precision * 100).toFixed(0) + '%'}
-                        </td>
-                        <td>
-                          {isNaN(recall) || recall === 0 ? '—' : (recall * 100).toFixed(0) + '%'}
-                        </td>
+                        <td>{formatDetectionMetric(precision)}</td>
+                        <td>{formatDetectionMetric(recall)}</td>
                       </>
                     )}
                   </tr>
@@ -150,9 +187,9 @@ export function RoundMetricsTable({ data, config }) {
           <div className="mb-0 mt-2">
             <div>
               <strong>Accuracy:</strong> Higher is better.{' '}
-              <span className="text-success">Green (&gt;70%)</span> = good,{' '}
-              <span className="text-warning">yellow (40-70%)</span> = learning,{' '}
-              <span className="text-danger">red (&lt;40%)</span> = poor
+              <span className="text-success">✓ Green (&gt;70%)</span> = good,{' '}
+              <span className="text-warning-accessible">◐ Amber (40-70%)</span> = learning,{' '}
+              <span className="text-danger">✗ Red (&lt;40%)</span> = poor
             </div>
             <div>
               <strong>Loss:</strong> Lower is better. Shows how far predictions are from true values
@@ -178,3 +215,11 @@ export function RoundMetricsTable({ data, config }) {
     </Card>
   );
 }
+
+RoundMetricsTable.propTypes = {
+  data: PropTypes.array,
+  config: PropTypes.shape({
+    num_of_malicious_clients: PropTypes.number,
+    remove_clients: PropTypes.string,
+  }),
+};

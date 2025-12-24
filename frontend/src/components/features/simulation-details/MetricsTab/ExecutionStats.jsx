@@ -1,16 +1,32 @@
 import { Card, Badge } from 'react-bootstrap';
+import PropTypes from 'prop-types';
 import { InfoTooltip } from '@components/common/Tooltip/InfoTooltip';
+import { formatPercentage, formatLoss, formatTimeMs, METRIC_DECIMALS } from '@utils/formatters';
 
-export function ExecutionStats({ data, config }) {
-  if (!data || data.length === 0) {
+export function ExecutionStats({ data, roundMetrics, config }) {
+  if ((!data || data.length === 0) && (!roundMetrics || roundMetrics.length === 0)) {
     return null;
   }
 
-  const stats = data[0];
+  const stats = data?.[0] || {};
 
-  const finalAccuracy = parseFloat(stats.final_accuracy || 0) * 100;
-  const finalLoss = parseFloat(stats.final_loss || 0);
-  const avgScoreTime = parseFloat(stats.avg_score_calc_time_ms || 0);
+  let finalAccuracy = 0;
+  let finalLoss = 0;
+  let avgScoreTime = 0;
+
+  if (roundMetrics && roundMetrics.length > 0) {
+    const lastRound = roundMetrics[roundMetrics.length - 1];
+    finalAccuracy = parseFloat(lastRound.average_accuracy_history || 0) * 100;
+    finalLoss = parseFloat(lastRound.aggregated_loss_history || 0);
+
+    // Calculate average score time from all rounds (convert nanoseconds to ms)
+    const scoreTimes = roundMetrics
+      .map(r => parseFloat(r.score_calculation_time_nanos_history || 0))
+      .filter(t => t > 0);
+    if (scoreTimes.length > 0) {
+      avgScoreTime = scoreTimes.reduce((a, b) => a + b, 0) / scoreTimes.length / 1_000_000;
+    }
+  }
 
   const hasDefenseMetrics = stats.mean_average_accuracy_history !== undefined;
   const defenseAccuracy = hasDefenseMetrics ? stats.mean_average_accuracy_history : null;
@@ -37,7 +53,9 @@ export function ExecutionStats({ data, config }) {
                   Final Accuracy
                 </InfoTooltip>
               </div>
-              <div className="h4 mb-0 text-dark">{finalAccuracy.toFixed(2)}%</div>
+              <div className="h4 mb-0">
+                {formatPercentage(finalAccuracy, METRIC_DECIMALS.ACCURACY_DETAILED)}
+              </div>
             </div>
           </div>
           <div className="col-12 col-sm-6 col-lg-3">
@@ -47,7 +65,7 @@ export function ExecutionStats({ data, config }) {
                   Final Loss
                 </InfoTooltip>
               </div>
-              <div className="h4 mb-0 text-dark">{finalLoss.toFixed(4)}</div>
+              <div className="h4 mb-0">{formatLoss(finalLoss)}</div>
             </div>
           </div>
           <div className="col-12 col-sm-6 col-lg-3">
@@ -60,7 +78,7 @@ export function ExecutionStats({ data, config }) {
                   Avg Score Time
                 </InfoTooltip>
               </div>
-              <div className="h4 mb-0 text-dark">{avgScoreTime.toFixed(2)}ms</div>
+              <div className="h4 mb-0">{formatTimeMs(avgScoreTime)}</div>
             </div>
           </div>
           <div className="col-12 col-sm-6 col-lg-3">
@@ -95,7 +113,7 @@ export function ExecutionStats({ data, config }) {
                       Avg Accuracy
                     </InfoTooltip>
                   </div>
-                  <div className="h5 mb-0 text-dark">{defenseAccuracy}</div>
+                  <div className="h5 mb-0">{defenseAccuracy}%</div>
                 </div>
               </div>
               <div className="col-12 col-sm-6 col-lg-4">
@@ -108,7 +126,7 @@ export function ExecutionStats({ data, config }) {
                       Defense Precision
                     </InfoTooltip>
                   </div>
-                  <div className="h5 mb-0 text-dark">{defensePrecision}</div>
+                  <div className="h5 mb-0">{defensePrecision}%</div>
                 </div>
               </div>
               <div className="col-12 col-sm-6 col-lg-4">
@@ -121,7 +139,7 @@ export function ExecutionStats({ data, config }) {
                       Defense Recall
                     </InfoTooltip>
                   </div>
-                  <div className="h5 mb-0 text-dark">{defenseRecall}</div>
+                  <div className="h5 mb-0">{defenseRecall}%</div>
                 </div>
               </div>
             </div>
@@ -136,3 +154,12 @@ export function ExecutionStats({ data, config }) {
     </Card>
   );
 }
+
+ExecutionStats.propTypes = {
+  data: PropTypes.array,
+  roundMetrics: PropTypes.array,
+  config: PropTypes.shape({
+    num_of_rounds: PropTypes.number,
+    num_of_clients: PropTypes.number,
+  }),
+};
