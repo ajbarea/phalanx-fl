@@ -1,9 +1,10 @@
+import PropTypes from 'prop-types';
 import { Modal, Button } from 'react-bootstrap';
 import { MaterialIcon } from '@components/common/Icon/MaterialIcon';
 
 export function QueueChoiceModal({ show, onHide, onAddToQueue, onCreateSeparate }) {
   return (
-    <Modal show={show} onHide={onHide} centered>
+    <Modal show={show} onHide={onHide} centered backdrop="static">
       <Modal.Header closeButton>
         <Modal.Title>Simulation Already Running</Modal.Title>
       </Modal.Header>
@@ -54,3 +55,10 @@ export function QueueChoiceModal({ show, onHide, onAddToQueue, onCreateSeparate 
     </Modal>
   );
 }
+
+QueueChoiceModal.propTypes = {
+  show: PropTypes.bool.isRequired,
+  onHide: PropTypes.func.isRequired,
+  onAddToQueue: PropTypes.func.isRequired,
+  onCreateSeparate: PropTypes.func.isRequired,
+};

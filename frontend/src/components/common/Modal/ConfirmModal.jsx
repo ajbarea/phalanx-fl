@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import { Modal, Button } from 'react-bootstrap';
 import OutlineButton from '../Button/OutlineButton';
 
@@ -44,6 +45,23 @@ function ConfirmModal({
     </Modal>
   );
 }
+
+ConfirmModal.propTypes = {
+  show: PropTypes.bool.isRequired,
+  title: PropTypes.string.isRequired,
+  message: PropTypes.oneOfType([PropTypes.string, PropTypes.node]).isRequired,
+  onConfirm: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
+  variant: PropTypes.oneOf(['danger', 'warning', 'primary', 'info', 'success']),
+  confirmText: PropTypes.string,
+  cancelText: PropTypes.string,
+};
+
+ConfirmModal.defaultProps = {
+  variant: 'danger',
+  confirmText: 'Confirm',
+  cancelText: 'Cancel',
+};
 
 export default ConfirmModal;
 export { ConfirmModal };

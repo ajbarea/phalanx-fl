@@ -1,3 +1,5 @@
+import PropTypes from 'prop-types';
+
 /**
  * Material Symbols icon wrapper component
  *
@@ -30,3 +32,22 @@ export function MaterialIcon({
     </span>
   );
 }
+
+MaterialIcon.propTypes = {
+  name: PropTypes.string.isRequired,
+  size: PropTypes.number,
+  fill: PropTypes.oneOf([0, 1]),
+  weight: PropTypes.number,
+  grade: PropTypes.number,
+  className: PropTypes.string,
+  style: PropTypes.object,
+};
+
+MaterialIcon.defaultProps = {
+  size: 24,
+  fill: 0,
+  weight: 400,
+  grade: 0,
+  className: '',
+  style: {},
+};

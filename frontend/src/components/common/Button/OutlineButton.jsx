@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import { Button, OverlayTrigger, Tooltip } from 'react-bootstrap';
 
 /**
@@ -29,7 +30,6 @@ function OutlineButton({
   children,
   ...otherProps
 }) {
-  // Default styles for consistency
   const defaultStyle = {
     display: 'flex',
     alignItems: 'center',
@@ -53,7 +53,6 @@ function OutlineButton({
     </Button>
   );
 
-  // Wrap with tooltip if provided
   if (tooltip) {
     return (
       <OverlayTrigger placement={tooltipPlacement} overlay={<Tooltip>{tooltip}</Tooltip>}>
@@ -64,6 +63,29 @@ function OutlineButton({
 
   return button;
 }
+
+OutlineButton.propTypes = {
+  variant: PropTypes.string,
+  size: PropTypes.oneOf(['sm', 'md', 'lg']),
+  onClick: PropTypes.func,
+  disabled: PropTypes.bool,
+  tooltip: PropTypes.string,
+  tooltipPlacement: PropTypes.oneOf(['top', 'bottom', 'left', 'right']),
+  className: PropTypes.string,
+  style: PropTypes.object,
+  as: PropTypes.elementType,
+  htmlFor: PropTypes.string,
+  children: PropTypes.node,
+};
+
+OutlineButton.defaultProps = {
+  variant: 'outline-secondary',
+  size: 'sm',
+  disabled: false,
+  tooltipPlacement: 'bottom',
+  className: '',
+  style: {},
+};
 
 export default OutlineButton;
 export { OutlineButton };

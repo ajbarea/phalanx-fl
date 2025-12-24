@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import { Spinner as BSSpinner } from 'react-bootstrap';
 
 export function Spinner({ size = 'md', className = '' }) {
@@ -13,3 +14,13 @@ export function Spinner({ size = 'md', className = '' }) {
     </BSSpinner>
   );
 }
+
+Spinner.propTypes = {
+  size: PropTypes.oneOf(['sm', 'md', 'lg']),
+  className: PropTypes.string,
+};
+
+Spinner.defaultProps = {
+  size: 'md',
+  className: '',
+};
