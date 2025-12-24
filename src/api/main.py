@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import concurrent.futures
 from contextlib import asynccontextmanager
@@ -12,7 +14,7 @@ import struct
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 if sys.platform == "win32":
     import winpty
@@ -76,7 +78,7 @@ app.add_middleware(
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = BASE_DIR / "out"
 
-running_processes: Dict[str, subprocess.Popen] = {}
+running_processes: dict[str, subprocess.Popen] = {}
 
 
 class SimulationConfig(BaseModel):
@@ -149,8 +151,8 @@ class SimulationMetadata(BaseModel):
 
 
 class SimulationDetails(BaseModel):
-    config: Dict[str, Any]
-    result_files: List[str]
+    config: dict[str, Any]
+    result_files: list[str]
     status: str
 
 
@@ -175,6 +177,51 @@ def secure_join(base: Path, *paths: str) -> Path:
         raise HTTPException(status_code=400, detail="Invalid path specified.")
 
 
+# Patterns for sensitive environment variables to filter out
+SENSITIVE_ENV_PATTERNS = frozenset(
+    {
+        "API_KEY",
+        "API_SECRET",
+        "SECRET",
+        "TOKEN",
+        "PASSWORD",
+        "PASSWD",
+        "CREDENTIAL",
+        "AUTH",
+        "PRIVATE_KEY",
+        "AWS_",
+        "AZURE_",
+        "GCP_",
+        "GITHUB_TOKEN",
+        "GITLAB_TOKEN",
+        "NPM_TOKEN",
+        "PYPI_TOKEN",
+        "DATABASE_URL",
+        "REDIS_URL",
+        "MONGODB_URI",
+        "DB_PASSWORD",
+    }
+)
+
+
+def get_safe_env() -> dict:
+    """Returns a filtered copy of environment variables with sensitive data removed.
+
+    Filters out environment variables matching known sensitive patterns like
+    API keys, tokens, passwords, and cloud provider credentials.
+
+    Returns:
+        A dictionary of environment variables safe to pass to subprocesses.
+    """
+    safe_env = {}
+    for key, value in os.environ.items():
+        key_upper = key.upper()
+        if any(pattern in key_upper for pattern in SENSITIVE_ENV_PATTERNS):
+            continue
+        safe_env[key] = value
+    return safe_env
+
+
 def get_simulation_path(simulation_id: str) -> Path:
     """Validates and returns the path for a specific simulation ID.
 
@@ -187,7 +234,9 @@ def get_simulation_path(simulation_id: str) -> Path:
     Raises:
         HTTPException: If the ID is invalid format or the directory does not exist.
     """
-    if not simulation_id.isalnum() and "_" not in simulation_id:
+    # Security: Validate that ID contains only alphanumeric chars and underscores
+    # Prevents path traversal attacks like "api_run_../../etc/passwd"
+    if not all(c.isalnum() or c == "_" for c in simulation_id):
         raise HTTPException(status_code=400, detail="Invalid simulation ID format.")
 
     sim_path = secure_join(OUTPUT_DIR, simulation_id)
@@ -197,8 +246,8 @@ def get_simulation_path(simulation_id: str) -> Path:
     return sim_path
 
 
-@app.get("/api/simulations", response_model=List[SimulationMetadata])
-def get_simulations() -> List[SimulationMetadata]:
+@app.get("/api/simulations", response_model=list[SimulationMetadata])
+def get_simulations() -> list[SimulationMetadata]:
     """Retrieves metadata for all available simulation runs.
 
     Returns:
@@ -359,7 +408,7 @@ def get_result_file(
 
 
 @app.post("/api/simulations", status_code=201)
-async def create_simulation(request: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
+async def create_simulation(request: dict[str, Any] = Body(...)) -> dict[str, Any]:
     """Creates and initiates a new simulation based on the provided configuration.
 
     Args:
@@ -459,7 +508,7 @@ async def create_simulation(request: Dict[str, Any] = Body(...)) -> Dict[str, An
     try:
         error_log_path = output_sim_path / "execution.log"
 
-        env = dict(os.environ)
+        env = get_safe_env()
         try:
             physical_cores = (
                 psutil.cpu_count(logical=False) or psutil.cpu_count(logical=True) or 1
@@ -491,7 +540,7 @@ async def create_simulation(request: Dict[str, Any] = Body(...)) -> Dict[str, An
 
 
 @app.post("/api/simulations/prepare", status_code=201)
-async def prepare_simulation(request: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
+async def prepare_simulation(request: dict[str, Any] = Body(...)) -> dict[str, Any]:
     """Prepares a simulation by creating config but not starting the process.
 
     This endpoint is used when the frontend wants to run the simulation
@@ -550,7 +599,7 @@ async def prepare_simulation(request: Dict[str, Any] = Body(...)) -> Dict[str, A
 @app.get("/api/simulations/{simulation_id}/status")
 def get_simulation_status(
     sim_path: Path = Depends(get_simulation_path), simulation_id: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Retrieves the current execution status of a simulation.
 
     Args:
@@ -565,7 +614,6 @@ def get_simulation_status(
     if stopped_exists:
         return {"status": "stopped", "progress": 0.0}
 
-    # Check for status.json (for progress info)
     status_file = sim_path / "status.json"
     if status_file.is_file():
         try:
@@ -609,7 +657,8 @@ def get_simulation_status(
                 if execution_log_path.is_file():
                     try:
                         with execution_log_path.open("r") as f:
-                            error_message = f.read().strip()
+                            # Limit to 100KB to prevent memory issues with large logs
+                            error_message = f.read(102400).strip()
                     except IOError:
                         pass
                 return {"status": "failed", "progress": 0.0, "error": error_message}
@@ -622,7 +671,8 @@ def get_simulation_status(
     if execution_log_path.is_file() and not result_files:
         try:
             with execution_log_path.open("r") as f:
-                error_message = f.read().strip()
+                # Limit to 100KB to prevent memory issues with large logs
+                error_message = f.read(102400).strip()
             if error_message:
                 return {"status": "failed", "progress": 0.0, "error": error_message}
         except IOError:
@@ -634,7 +684,7 @@ def get_simulation_status(
 @app.delete("/api/simulations/{simulation_id}", status_code=200)
 def delete_simulation(
     sim_path: Path = Depends(get_simulation_path), simulation_id: str = ""
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Permanently deletes a simulation and all associated files.
 
     Args:
@@ -666,8 +716,8 @@ def delete_simulation(
 
 @app.delete("/api/simulations", status_code=200)
 def delete_multiple_simulations(
-    simulation_ids: List[str] = Body(..., embed=True),
-) -> Dict[str, Any]:
+    simulation_ids: list[str] = Body(..., embed=True),
+) -> dict[str, Any]:
     """Permanently deletes multiple simulations defined by their IDs.
 
     Args:
@@ -681,7 +731,8 @@ def delete_multiple_simulations(
 
     for simulation_id in simulation_ids:
         try:
-            if not simulation_id.isalnum() and "_" not in simulation_id:
+            # Security: Validate that ID contains only alphanumeric chars and underscores
+            if not all(c.isalnum() or c == "_" for c in simulation_id):
                 failed.append(
                     {"simulation_id": simulation_id, "error": "Invalid simulation ID"}
                 )
@@ -723,7 +774,7 @@ def rename_simulation(
     simulation_id: str,
     display_name: str = Body(..., embed=True),
     sim_path: Path = Depends(get_simulation_path),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Updates the display name of a simulation.
 
     Args:
@@ -786,18 +837,72 @@ def rename_simulation(
 
 
 @app.get("/")
-def read_root() -> Dict[str, str]:
+def read_root() -> dict[str, str]:
     return {"message": "Federated Learning Simulation Framework API"}
 
 
 @app.get("/api/health")
-def health_check() -> Dict[str, str]:
+def health_check() -> dict[str, str]:
     """Health check endpoint for startup detection and monitoring."""
     return {"status": "healthy"}
 
 
+class GpuInfo(BaseModel):
+    """GPU hardware information."""
+
+    name: str
+    vram_gb: float
+
+
+class SystemDevicesResponse(BaseModel):
+    """Response model for available training devices."""
+
+    available_devices: list[str]
+    gpu_available: bool
+    gpu_info: Optional[GpuInfo]
+    recommended_device: str
+
+
+@app.get("/api/system/devices", response_model=SystemDevicesResponse)
+async def get_system_devices() -> SystemDevicesResponse:
+    """Returns available training devices and GPU info.
+
+    Detects CUDA-capable GPUs and returns hardware information
+    for frontend device selection UI.
+
+    Returns:
+        SystemDevicesResponse with available devices, GPU info if present,
+        and recommended device for training.
+    """
+    result = SystemDevicesResponse(
+        available_devices=["cpu"],
+        gpu_available=False,
+        gpu_info=None,
+        recommended_device="cpu",
+    )
+
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            result.available_devices.append("gpu")
+            result.gpu_available = True
+            result.gpu_info = GpuInfo(
+                name=torch.cuda.get_device_name(0),
+                vram_gb=round(
+                    torch.cuda.get_device_properties(0).total_memory / (1024**3), 1
+                ),
+            )
+            result.recommended_device = "gpu"
+    except Exception:
+        # Graceful fallback if torch unavailable
+        pass
+
+    return result
+
+
 @app.get("/api/simulations/{simulation_id}/plot-data")
-async def get_plot_data(simulation_id: str) -> Dict:
+async def get_plot_data(simulation_id: str) -> dict:
     """Retrieves JSON plot data for a specific simulation.
 
     Args:
@@ -809,8 +914,12 @@ async def get_plot_data(simulation_id: str) -> Dict:
     Raises:
         HTTPException: If data is unavailable or not found.
     """
+    # Security: Validate simulation_id format
+    if not all(c.isalnum() or c == "_" for c in simulation_id):
+        raise HTTPException(status_code=400, detail="Invalid simulation ID format.")
+
     try:
-        sim_dir = OUTPUT_DIR / simulation_id
+        sim_dir = secure_join(OUTPUT_DIR, simulation_id)
 
         if not sim_dir.exists():
             raise HTTPException(
@@ -842,12 +951,15 @@ async def get_plot_data(simulation_id: str) -> Dict:
             status_code=404,
             detail=f"Plot data not found for simulation {simulation_id}",
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception(f"Error loading plot data for {simulation_id}")
+        raise HTTPException(
+            status_code=500, detail="Failed to load plot data. Check server logs."
+        )
 
 
 @app.get("/api/simulations/{simulation_id}/all-plot-data")
-async def get_all_plot_data(simulation_id: str) -> Dict:
+async def get_all_plot_data(simulation_id: str) -> dict:
     """Retrieves all plot data JSON files for a multi-strategy simulation.
 
     Args:
@@ -859,8 +971,12 @@ async def get_all_plot_data(simulation_id: str) -> Dict:
     Raises:
         HTTPException: If data is unavailable or not found.
     """
+    # Security: Validate simulation_id format
+    if not all(c.isalnum() or c == "_" for c in simulation_id):
+        raise HTTPException(status_code=400, detail="Invalid simulation ID format.")
+
     try:
-        sim_dir = OUTPUT_DIR / simulation_id
+        sim_dir = secure_join(OUTPUT_DIR, simulation_id)
 
         if not sim_dir.exists():
             raise HTTPException(
@@ -901,12 +1017,15 @@ async def get_all_plot_data(simulation_id: str) -> Dict:
             status_code=404,
             detail=f"Plot data not found for simulation {simulation_id}",
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception(f"Error loading all plot data for {simulation_id}")
+        raise HTTPException(
+            status_code=500, detail="Failed to load plot data. Check server logs."
+        )
 
 
 @app.post("/api/simulations/{simulation_id}/stop", status_code=200)
-def stop_simulation(simulation_id: str) -> Dict[str, str]:
+def stop_simulation(simulation_id: str) -> dict[str, str]:
     """Terminates a running simulation and all its child processes.
 
     Args:
@@ -975,7 +1094,7 @@ def stop_simulation(simulation_id: str) -> Dict[str, str]:
 @app.get("/api/simulations/{simulation_id}/attack-snapshots")
 async def get_attack_snapshots(
     simulation_id: str, sim_path: Path = Depends(get_simulation_path)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Retrieves attack snapshot data for visualization.
 
     Args:
@@ -1001,8 +1120,8 @@ async def get_attack_snapshots(
             try:
                 with summary_path.open("r") as f:
                     summary = json.load(f)
-            except (json.JSONDecodeError, IOError):
-                pass
+            except (json.JSONDecodeError, IOError) as e:
+                logger.warning(f"Failed to load attack summary: {summary_path}: {e}")
 
         snapshots = []
         for client_dir in sorted(snapshot_dir.glob("client_*")):
@@ -1023,8 +1142,10 @@ async def get_attack_snapshots(
                         try:
                             with metadata_path.open("r") as f:
                                 metadata = json.load(f)
-                        except (json.JSONDecodeError, IOError):
-                            pass
+                        except (json.JSONDecodeError, IOError) as e:
+                            logger.warning(
+                                f"Failed to load attack metadata: {metadata_path}: {e}"
+                            )
 
                     snapshots.append(
                         {
@@ -1053,7 +1174,7 @@ async def get_attack_snapshots(
 
 
 @app.get("/api/datasets/validate")
-async def validate_dataset(name: str) -> Dict[str, Any]:
+async def validate_dataset(name: str) -> dict[str, Any]:
     """Validates if a HuggingFace dataset exists and is compatible with Flower.
 
     Args:
@@ -1086,7 +1207,8 @@ async def validate_dataset(name: str) -> Dict[str, Any]:
                 feature_matches = [m[0] or m[1] for m in feature_matches]
                 if feature_matches:
                     key_features = list(dict.fromkeys(feature_matches))[:5]
-            except Exception:
+            except Exception as e:
+                logger.debug(f"Failed to parse dataset features: {e}")
                 key_features = []
 
         compatible = True
@@ -1143,7 +1265,7 @@ async def validate_dataset(name: str) -> Dict[str, Any]:
         }
 
 
-terminal_sessions: Dict[str, Dict[str, Any]] = {}
+terminal_sessions: dict[str, dict[str, Any]] = {}
 
 
 if sys.platform == "win32":
@@ -1166,7 +1288,7 @@ if sys.platform == "win32":
             shell_cmd = [shell_path]
             logger.info(f"Bash not found, using cmd.exe: {shell_path}")
 
-        env = os.environ.copy()
+        env = get_safe_env()
         env["TERM"] = "xterm-256color"
         env["COLORTERM"] = "truecolor"
 
@@ -1180,12 +1302,10 @@ if sys.platform == "win32":
         terminal_sessions[session_id] = {"process": proc}
 
         async def read_from_pty():
-            """Reads output from the PTY and sends it to the WebSocket."""
             loop = asyncio.get_event_loop()
             executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
             def blocking_read():
-                """Read with timeout using thread."""
                 try:
                     return proc.read()
                 except EOFError:
@@ -1235,12 +1355,13 @@ if sys.platform == "win32":
                         try:
                             msg = json.loads(text)
                             if msg.get("type") == "resize":
-                                rows = msg.get("rows", 24)
-                                cols = msg.get("cols", 80)
+                                # Validate and clamp terminal dimensions (1-500)
+                                rows = max(1, min(500, int(msg.get("rows", 24))))
+                                cols = max(1, min(500, int(msg.get("cols", 80))))
                                 proc.setwinsize(rows, cols)
                                 logger.debug(f"Terminal resized to {rows}x{cols}")
                                 continue
-                        except json.JSONDecodeError:
+                        except (json.JSONDecodeError, TypeError, ValueError):
                             pass
 
                     try:
@@ -1289,7 +1410,7 @@ else:
         flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
         fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
-        env = os.environ.copy()
+        env = get_safe_env()
         env["TERM"] = "xterm-256color"
         env["COLORTERM"] = "truecolor"
 
@@ -1311,7 +1432,6 @@ else:
         }
 
         async def read_from_pty():
-            """Reads output from the PTY and sends it to the WebSocket."""
             try:
                 while True:
                     await asyncio.sleep(0.01)
@@ -1349,12 +1469,13 @@ else:
                         try:
                             msg = json.loads(text)
                             if msg.get("type") == "resize":
-                                rows = msg.get("rows", 24)
-                                cols = msg.get("cols", 80)
+                                # Validate and clamp terminal dimensions (1-500)
+                                rows = max(1, min(500, int(msg.get("rows", 24))))
+                                cols = max(1, min(500, int(msg.get("cols", 80))))
                                 _set_terminal_size(master_fd, rows, cols)
                                 logger.debug(f"Terminal resized to {rows}x{cols}")
                                 continue
-                        except json.JSONDecodeError:
+                        except (json.JSONDecodeError, TypeError, ValueError):
                             pass
 
                     try:
