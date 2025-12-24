@@ -14,7 +14,7 @@ export function Navbar() {
     >
       <Container>
         <BSNavbar.Brand as={Link} to="/" style={{ color: 'var(--md-sys-color-primary)' }}>
-          FL Framework
+          IntelliFL
         </BSNavbar.Brand>
         <BSNavbar.Toggle aria-controls="navbar-nav" />
         <BSNavbar.Collapse id="navbar-nav">

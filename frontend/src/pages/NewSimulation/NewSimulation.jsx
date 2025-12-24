@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Alert } from 'react-bootstrap';
 import { PageContainer } from '@components/layout/PageContainer';
@@ -8,21 +8,24 @@ import { OutlineButton } from '@components/common/Button/OutlineButton';
 import { ConfirmModal } from '@components/common/Modal/ConfirmModal';
 import { QueueChoiceModal } from '@components/common/Modal/QueueChoiceModal';
 import { createSimulation, prepareSimulation } from '@api';
+import { getErrorMessage } from '@utils/errorMessages';
 import { useConfigValidation } from '@hooks/useConfigValidation';
 import { useRunningSimulation } from '@hooks/useRunningSimulation';
+import { useDeviceInfo } from '@hooks/useDeviceInfo';
 import { useTerminal } from '@contexts/TerminalContext';
 import { initialConfig } from '@constants/initialConfig';
 import { PRESETS } from '@constants/presets';
+import { TOAST_DURATION, POLLING_INTERVALS } from '@constants/ui';
+import { STORAGE_KEYS } from '@constants/storage';
 import { toast } from 'sonner';
 
 export function NewSimulation() {
   const [config, setConfig] = useState(() => {
-    const savedDraft = localStorage.getItem('simulation-draft');
+    const savedDraft = localStorage.getItem(STORAGE_KEYS.SIMULATION_DRAFT);
     if (savedDraft) {
       try {
         return JSON.parse(savedDraft);
-      } catch (e) {
-        console.error('Failed to parse saved draft:', e);
+      } catch {
         return initialConfig;
       }
     }
@@ -40,14 +43,43 @@ export function NewSimulation() {
   const validation = useConfigValidation(config);
   const { hasRunning, runningSimIds } = useRunningSimulation();
   const { openTerminal, interruptAndRun } = useTerminal();
+  const {
+    gpuAvailable,
+    gpuInfo,
+    recommendedDevice,
+    loading: deviceLoading,
+    hasBeenNotified,
+    markNotified,
+  } = useDeviceInfo();
+
+  const hasAppliedDevice = useRef(false);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      localStorage.setItem('simulation-draft', JSON.stringify(config));
-    }, 1000);
+      localStorage.setItem(STORAGE_KEYS.SIMULATION_DRAFT, JSON.stringify(config));
+    }, POLLING_INTERVALS.DRAFT_SAVE);
 
     return () => clearTimeout(timeoutId);
   }, [config]);
+
+  useEffect(() => {
+    if (!deviceLoading && gpuAvailable && gpuInfo && !hasBeenNotified()) {
+      toast.info(`GPU detected! Using ${gpuInfo.name} for training`, {
+        duration: TOAST_DURATION.DEFAULT,
+      });
+      markNotified();
+    }
+  }, [deviceLoading, gpuAvailable, gpuInfo, hasBeenNotified, markNotified]);
+
+  useEffect(() => {
+    if (!deviceLoading && recommendedDevice && !hasAppliedDevice.current) {
+      // Only update if current device is 'cpu' (don't override user's choice from draft)
+      if (config.training_device === 'cpu' && recommendedDevice === 'gpu') {
+        setConfig(prev => ({ ...prev, training_device: recommendedDevice }));
+      }
+      hasAppliedDevice.current = true;
+    }
+  }, [deviceLoading, recommendedDevice, config.training_device]);
 
   const handleConfigChange = e => {
     const { name, value, type } = e.target;
@@ -68,6 +100,8 @@ export function NewSimulation() {
         ...config,
         ...preset.config,
         display_name: preset.name,
+        // Override preset's training_device with recommended device (GPU if available)
+        training_device: recommendedDevice || preset.config.training_device || 'cpu',
       };
 
       // Sync attack_schedule to dynamic_attacks for UI
@@ -142,18 +176,16 @@ export function NewSimulation() {
       const configToSubmit = pendingConfig || sanitizeConfig(config);
 
       if (addToQueue === true) {
-        // Queue mode: use background process via createSimulation
         const response = await createSimulation(configToSubmit, addToQueue);
         const { simulation_id } = response.data;
-        localStorage.removeItem('simulation-draft');
+        localStorage.removeItem(STORAGE_KEYS.SIMULATION_DRAFT);
         setPendingConfig(null);
         toast.success('Added to experiment queue!');
         navigate(`/queue/${simulation_id}`);
       } else {
-        // Direct execution: prepare config and run in terminal
         const response = await prepareSimulation(configToSubmit);
         const { simulation_id, command } = response.data;
-        localStorage.removeItem('simulation-draft');
+        localStorage.removeItem(STORAGE_KEYS.SIMULATION_DRAFT);
         setPendingConfig(null);
 
         toast.success('Simulation started!');
@@ -167,26 +199,8 @@ export function NewSimulation() {
         navigate(`/simulations/${simulation_id}`);
       }
     } catch (err) {
-      console.error('Failed to create simulation:', err);
-
-      let errorMsg = 'An unexpected error occurred.';
-
-      if (err.response?.data?.detail) {
-        const detail = err.response.data.detail;
-
-        if (Array.isArray(detail)) {
-          errorMsg = detail.map(e => e.msg || JSON.stringify(e)).join(', ');
-        } else if (typeof detail === 'string') {
-          errorMsg = detail;
-        } else {
-          errorMsg = detail.msg || JSON.stringify(detail);
-        }
-      }
-
-      setError(errorMsg);
-      toast.error(errorMsg, {
-        duration: 5000,
-      });
+      // API interceptor shows toast; just update UI state
+      setError(getErrorMessage(err));
       setSubmitting(false);
     }
   };
@@ -196,7 +210,7 @@ export function NewSimulation() {
   };
 
   const confirmResetConfig = () => {
-    localStorage.removeItem('simulation-draft');
+    localStorage.removeItem(STORAGE_KEYS.SIMULATION_DRAFT);
     setConfig(initialConfig);
     setSelectedPreset(null);
     setShowClearModal(false);
@@ -222,6 +236,13 @@ export function NewSimulation() {
     const file = e.target.files[0];
     if (!file) return;
 
+    const MAX_FILE_SIZE = 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error('File too large. Maximum size is 1MB.');
+      e.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = event => {
       try {
@@ -229,8 +250,7 @@ export function NewSimulation() {
         setConfig(prev => ({ ...prev, ...uploadedConfig }));
         setSelectedPreset(null);
         toast.success('Configuration loaded from file');
-      } catch (err) {
-        console.error('Failed to parse JSON:', err);
+      } catch {
         toast.error('Invalid JSON file');
       }
     };
@@ -252,6 +272,7 @@ export function NewSimulation() {
           <OutlineButton
             onClick={() => document.getElementById('upload-json-input').click()}
             variant="outline-secondary"
+            aria-label="Upload simulation configuration from JSON file"
           >
             Upload JSON
           </OutlineButton>
@@ -292,6 +313,7 @@ export function NewSimulation() {
         isSubmitting={submitting}
         validation={validation}
         error={error}
+        gpuInfo={gpuInfo}
       />
 
       <ConfirmModal

@@ -26,8 +26,7 @@ export function QueueStatus() {
     try {
       await stopSimulation(simulationId);
       toast.success('Queue stopped successfully');
-    } catch (err) {
-      console.error('Failed to stop queue:', err);
+    } catch {
       toast.error('Failed to stop queue');
     } finally {
       setStopping(false);
@@ -117,7 +116,6 @@ export function QueueStatus() {
         </div>
       </PageHeader>
 
-      {/* Progress Overview */}
       <Alert variant={progress?.isComplete ? 'success' : 'info'} className="mb-4">
         <div className="d-flex justify-content-between align-items-center mb-2">
           <div>
@@ -146,7 +144,6 @@ export function QueueStatus() {
         </div>
       </Alert>
 
-      {/* Strategy Groups Overview */}
       {strategyGroups && Object.keys(strategyGroups).length > 1 && (
         <div className="mb-4">
           <h6 className="mb-3">📊 Strategy Groups</h6>
@@ -163,7 +160,6 @@ export function QueueStatus() {
         </div>
       )}
 
-      {/* Strategy Cards */}
       <h5 className="mb-3">Strategy Execution Progress</h5>
       {progress?.strategies.map(strategy => (
         <QueueJobCard

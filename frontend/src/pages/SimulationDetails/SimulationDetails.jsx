@@ -28,9 +28,8 @@ export function SimulationDetails() {
       const configToSend = details.config.shared_settings || details.config;
       const response = await createSimulation(configToSend);
       navigate(`/simulations/${response.data.simulation_id}`);
-    } catch (err) {
-      console.error('Failed to clone simulation:', err);
-      alert('Failed to start new simulation');
+    } catch {
+      toast.error('Failed to start new simulation');
       setIsCloning(false);
     }
   };
@@ -41,7 +40,6 @@ export function SimulationDetails() {
       await stopSimulation(simulationId);
       toast.success('Simulation stopped successfully');
     } catch (err) {
-      console.error('Failed to stop simulation:', err);
       toast.error(`Failed to stop: ${err.response?.data?.detail || err.message}`);
     } finally {
       setIsStopping(false);
@@ -147,6 +145,7 @@ export function SimulationDetails() {
             csvFiles={csvFiles}
             config={details.config}
             simulationId={simulationId}
+            status={displayStatus}
           />
         </Tab>
 
