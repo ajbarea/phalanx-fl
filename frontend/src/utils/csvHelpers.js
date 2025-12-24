@@ -1,5 +1,3 @@
-// CSV utility functions for exporting and copying data
-
 export const copyCSVToClipboard = (jsonData, filename, showSuccess, showError) => {
   try {
     if (!jsonData || jsonData.length === 0) {
@@ -9,7 +7,6 @@ export const copyCSVToClipboard = (jsonData, filename, showSuccess, showError) =
       return;
     }
 
-    // Convert JSON to CSV string
     const columns = Object.keys(jsonData[0]);
     const header = columns.join(',');
     const rows = jsonData.map(row =>
@@ -26,7 +23,6 @@ export const copyCSVToClipboard = (jsonData, filename, showSuccess, showError) =
     );
     const csvString = [header, ...rows].join('\n');
 
-    // Copy to clipboard
     navigator.clipboard.writeText(csvString).then(
       () => {
         if (showSuccess) {
@@ -39,8 +35,7 @@ export const copyCSVToClipboard = (jsonData, filename, showSuccess, showError) =
         }
       }
     );
-  } catch (error) {
-    console.error('Error copying to clipboard:', error);
+  } catch {
     if (showError) {
       showError('Failed to copy to clipboard. Please try again.');
     }
@@ -77,7 +72,6 @@ export const filterEmptyColumns = data => {
   const allColumns = Object.keys(data[0]);
 
   return allColumns.filter(col => {
-    // Check if all values in this column are "not collected"
     return !data.every(row => row[col] === 'not collected');
   });
 };
@@ -88,28 +82,21 @@ export const filterEmptyColumns = data => {
  * @returns {string} Formatted column name
  */
 export const formatColumnName = columnName => {
-  // Handle special case for "round #"
   if (columnName.toLowerCase() === 'round #') {
     return 'Round';
   }
 
-  return (
-    columnName
-      // Remove "_history" suffix
-      .replace(/_history$/i, '')
-      // Replace underscores with spaces
-      .replace(/_/g, ' ')
-      // Convert to title case
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ')
-      // Common abbreviations
-      .replace(/\bAverage\b/g, 'Avg')
-      .replace(/\bTp\b/g, 'TP')
-      .replace(/\bTn\b/g, 'TN')
-      .replace(/\bFp\b/g, 'FP')
-      .replace(/\bFn\b/g, 'FN')
-      .replace(/\bF1\b/g, 'F1')
-      .replace(/\bNanos\b/g, '(ns)')
-  );
+  return columnName
+    .replace(/_history$/i, '')
+    .replace(/_/g, ' ')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+    .replace(/\bAverage\b/g, 'Avg')
+    .replace(/\bTp\b/g, 'TP')
+    .replace(/\bTn\b/g, 'TN')
+    .replace(/\bFp\b/g, 'FP')
+    .replace(/\bFn\b/g, 'FN')
+    .replace(/\bF1\b/g, 'F1')
+    .replace(/\bNanos\b/g, '(ns)');
 };

@@ -5,6 +5,7 @@ import { SimulationDetails } from './pages/SimulationDetails/SimulationDetails';
 import { NewSimulation } from './pages/NewSimulation/NewSimulation';
 import { ExperimentQueue } from './pages/ExperimentQueue/ExperimentQueue';
 import { QueueStatus } from './pages/QueueStatus/QueueStatus';
+import { NotFound } from './pages/NotFound/NotFound';
 import ComparisonView from './components/ComparisonView';
 import TerminalPanel from './components/TerminalPanel';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -26,10 +27,9 @@ function App() {
       setTheme(currentTheme);
     };
 
-    // Listen for theme changes
     window.addEventListener('storage', handleThemeChange);
 
-    // Also check for theme changes via MutationObserver on document.documentElement
+    // MutationObserver catches theme changes from ThemeToggle component
     const observer = new MutationObserver(() => {
       const htmlElement = document.documentElement;
       const isDark = htmlElement.getAttribute('data-bs-theme') === 'dark';
@@ -67,7 +67,7 @@ function App() {
         >
           <Container>
             <Navbar.Brand as={Link} to="/">
-              FL Framework
+              IntelliFL
             </Navbar.Brand>
             <Navbar.Toggle aria-controls="navbar-nav" />
             <Navbar.Collapse id="navbar-nav">
@@ -102,6 +102,8 @@ function App() {
             <Route path="/queue/:simulationId" element={<QueueStatus />} />
             <Route path="/simulations/:simulationId" element={<SimulationDetails />} />
             <Route path="/compare" element={<ComparisonView />} />
+            {/* Catch-all 404 route - must be last */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Container>
         <TerminalPanel />
