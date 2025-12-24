@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PropTypes from 'prop-types';
 import { Card, Badge, ProgressBar, Button } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 import { StrategyConfigModal } from './StrategyConfigModal';
@@ -166,3 +167,14 @@ export function QueueJobCard({ strategy, simulationId, sharedConfig, onConfigUpd
     </>
   );
 }
+
+QueueJobCard.propTypes = {
+  strategy: PropTypes.shape({
+    index: PropTypes.number.isRequired,
+    config: PropTypes.object.isRequired,
+    status: PropTypes.oneOf(['queued', 'running', 'completed', 'failed']),
+  }).isRequired,
+  simulationId: PropTypes.string,
+  sharedConfig: PropTypes.object,
+  onConfigUpdate: PropTypes.func,
+};

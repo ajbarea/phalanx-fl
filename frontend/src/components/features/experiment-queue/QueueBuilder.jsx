@@ -69,7 +69,6 @@ export function QueueBuilder() {
       toast.success(`Experiment queue created! (${strategyVariations.length} ${strategyWord})`);
       navigate(`/queue/${simulation_id}`);
     } catch (err) {
-      console.error('Failed to create experiment queue:', err);
       const errorMsg = err.response?.data?.detail || 'An unexpected error occurred.';
       toast.error(errorMsg, { duration: 5000 });
     }
