@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PropTypes from 'prop-types';
 import { Form } from 'react-bootstrap';
 import { renameSimulation } from '@api/endpoints/simulations';
 
@@ -98,6 +99,12 @@ function EditableSimName({ simulationId, displayName, onRename }) {
   return (
     <span
       onClick={handleEdit}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleEdit();
+        }
+      }}
       className="mb-0"
       style={{
         overflow: 'hidden',
@@ -108,10 +115,19 @@ function EditableSimName({ simulationId, displayName, onRename }) {
         minWidth: 0,
       }}
       title="Click to rename"
+      role="button"
+      tabIndex={0}
+      aria-label={`Rename simulation: ${displayName || simulationId}`}
     >
       {displayName || simulationId}
     </span>
   );
 }
+
+EditableSimName.propTypes = {
+  simulationId: PropTypes.string.isRequired,
+  displayName: PropTypes.string,
+  onRename: PropTypes.func.isRequired,
+};
 
 export default EditableSimName;

@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import { Alert } from 'react-bootstrap';
 
 /**
@@ -9,11 +10,10 @@ import { Alert } from 'react-bootstrap';
  * @param {Object} validation - Validation object containing errors, warnings, infos arrays
  */
 function ValidationSummary({ validation }) {
-  // Extract arrays from validation object, with defaults
   const errors = validation?.errors || [];
   const warnings = validation?.warnings || [];
   const infos = validation?.infos || [];
-  // If no validation messages, show success
+
   if (errors.length === 0 && warnings.length === 0 && infos.length === 0) {
     return (
       <Alert variant="success" className="mb-3 py-2 validation-success-alert">
@@ -24,7 +24,6 @@ function ValidationSummary({ validation }) {
 
   return (
     <div className="validation-summary mb-3">
-      {/* Errors */}
       {errors.length > 0 && (
         <Alert variant="danger" className="mb-2">
           <strong>
@@ -40,7 +39,6 @@ function ValidationSummary({ validation }) {
         </Alert>
       )}
 
-      {/* Warnings */}
       {warnings.length > 0 && (
         <Alert variant="warning" className="mb-2">
           <strong>
@@ -56,7 +54,6 @@ function ValidationSummary({ validation }) {
         </Alert>
       )}
 
-      {/* Infos */}
       {infos.length > 0 && (
         <Alert variant="info" className="mb-2">
           <strong>ℹ️ Information</strong>
@@ -72,5 +69,22 @@ function ValidationSummary({ validation }) {
     </div>
   );
 }
+
+const validationItemShape = PropTypes.shape({
+  field: PropTypes.string.isRequired,
+  message: PropTypes.string.isRequired,
+});
+
+ValidationSummary.propTypes = {
+  validation: PropTypes.shape({
+    errors: PropTypes.arrayOf(validationItemShape),
+    warnings: PropTypes.arrayOf(validationItemShape),
+    infos: PropTypes.arrayOf(validationItemShape),
+  }),
+};
+
+ValidationSummary.defaultProps = {
+  validation: { errors: [], warnings: [], infos: [] },
+};
 
 export default ValidationSummary;

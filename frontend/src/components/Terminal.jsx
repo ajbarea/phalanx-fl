@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
+import PropTypes from 'prop-types';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { Button, ButtonGroup } from 'react-bootstrap';
 import { useTheme } from '../contexts/ThemeContext';
 import '@xterm/xterm/css/xterm.css';
 
-const WEBSOCKET_URL = 'ws://127.0.0.1:8000/api/terminal';
+// Derive WebSocket URL from current page location for portability
+const getWebSocketUrl = () => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}/api/terminal`;
+};
 
 /** Quick command definitions. */
 const QUICK_COMMANDS = [
@@ -91,7 +96,7 @@ const Terminal = forwardRef(function Terminal(
     }
 
     setError(null);
-    const ws = new WebSocket(WEBSOCKET_URL);
+    const ws = new WebSocket(getWebSocketUrl());
 
     ws.onopen = () => {
       setConnected(true);
@@ -108,7 +113,6 @@ const Terminal = forwardRef(function Terminal(
         messageQueueRef.current = [];
       }
 
-      // Focus terminal after connection is established
       if (xtermRef.current) {
         xtermRef.current.focus();
       }
@@ -145,7 +149,6 @@ const Terminal = forwardRef(function Terminal(
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(cmd);
     } else {
-      // Queue the message to be sent when WebSocket connects
       messageQueueRef.current.push(cmd);
     }
   }, []);
@@ -216,8 +219,8 @@ const Terminal = forwardRef(function Terminal(
         initTimer = setTimeout(() => {
           try {
             fitAddon.fit();
-          } catch (err) {
-            console.warn('Terminal fit failed:', err.message);
+          } catch {
+            // Fit may fail if terminal dimensions are not ready
           }
           connect();
         }, 150);
@@ -239,6 +242,9 @@ const Terminal = forwardRef(function Terminal(
       } else {
         // Queue input to be sent when WebSocket connects
         messageQueueRef.current.push(data);
+        // Local echo for queued input so user sees what they're typing
+        // This prevents "missing first characters" bug when typing before connection is ready
+        xterm.write(data);
       }
     });
 
@@ -276,8 +282,8 @@ const Terminal = forwardRef(function Terminal(
       setTimeout(() => {
         try {
           fitAddonRef.current?.fit();
-        } catch (err) {
-          console.warn('Terminal fit failed during initialization:', err.message);
+        } catch {
+          // Fit may fail if terminal dimensions are not ready
         }
         if (!connected) {
           connect();
@@ -286,7 +292,6 @@ const Terminal = forwardRef(function Terminal(
     }
   }, [isVisible, connected, connect]);
 
-  // Focus terminal when it becomes visible
   useEffect(() => {
     if (isVisible && xtermRef.current) {
       // Small delay to ensure terminal is rendered
@@ -305,8 +310,8 @@ const Terminal = forwardRef(function Terminal(
           if (parentRect && parentRect.width > 0 && parentRect.height > 0) {
             fitAddonRef.current.fit();
           }
-        } catch (err) {
-          console.warn('Terminal fit failed during resize:', err.message);
+        } catch {
+          // Fit may fail during resize if terminal is unmounted
         }
       }
     };
@@ -323,8 +328,8 @@ const Terminal = forwardRef(function Terminal(
           if (parentRect && parentRect.width > 0 && parentRect.height > 0) {
             fitAddonRef.current.fit();
           }
-        } catch (err) {
-          console.warn('Terminal fit failed during height change:', err.message);
+        } catch {
+          // Fit may fail during height change
         }
       }, 0);
     }
@@ -360,6 +365,9 @@ const Terminal = forwardRef(function Terminal(
           <span
             className={`badge ${connected ? 'bg-success' : 'bg-danger'}`}
             style={{ fontSize: '0.7rem' }}
+            role="status"
+            aria-live="polite"
+            aria-label={`WebSocket connection status: ${connected ? 'Connected' : 'Disconnected'}`}
           >
             {connected ? 'Connected' : 'Disconnected'}
           </span>
@@ -403,5 +411,17 @@ const Terminal = forwardRef(function Terminal(
     </div>
   );
 });
+
+Terminal.propTypes = {
+  height: PropTypes.number,
+  showQuickCommands: PropTypes.bool,
+  isVisible: PropTypes.bool,
+};
+
+Terminal.defaultProps = {
+  height: 400,
+  showQuickCommands: true,
+  isVisible: true,
+};
 
 export default Terminal;

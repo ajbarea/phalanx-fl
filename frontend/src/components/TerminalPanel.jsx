@@ -31,14 +31,12 @@ export default function TerminalPanel() {
     toast.info('Terminal reset');
   };
 
-  // Toggle terminal with keyboard shortcut (Ctrl+` or Cmd+`)
   useEffect(() => {
     const handleKeyDown = e => {
       if ((e.ctrlKey || e.metaKey) && e.key === '`') {
         e.preventDefault();
         setIsOpen(prev => !prev);
       }
-      // Also support Escape to close
       if (e.key === 'Escape' && isOpen) {
         setIsOpen(false);
       }
@@ -48,7 +46,6 @@ export default function TerminalPanel() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, setIsOpen]);
 
-  // Handle resize drag
   const handleMouseDown = useCallback(
     e => {
       e.preventDefault();
@@ -76,6 +73,24 @@ export default function TerminalPanel() {
     [height]
   );
 
+  const handleResizeKeyDown = useCallback(e => {
+    const step = 20;
+    const maxHeight = getMaxHeight();
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHeight(h => Math.min(maxHeight, h + step));
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHeight(h => Math.max(MIN_HEIGHT, h - step));
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setHeight(maxHeight);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      setHeight(DEFAULT_HEIGHT);
+    }
+  }, []);
+
   const colors =
     theme === 'dark'
       ? {
@@ -97,7 +112,6 @@ export default function TerminalPanel() {
 
   return (
     <>
-      {/* Floating toggle button - always visible */}
       <button
         onClick={() => setIsOpen(prev => !prev)}
         className="terminal-toggle-btn"
@@ -111,7 +125,7 @@ export default function TerminalPanel() {
           height: 48,
           borderRadius: '50%',
           border: 'none',
-          backgroundColor: isOpen ? '#28a745' : colors.buttonBg,
+          backgroundColor: isOpen ? 'var(--bs-success)' : colors.buttonBg,
           color: isOpen ? 'white' : colors.text,
           boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
           cursor: 'pointer',
@@ -125,7 +139,6 @@ export default function TerminalPanel() {
         {isOpen ? '▼' : '>_'}
       </button>
 
-      {/* Terminal panel */}
       <div
         className="terminal-panel"
         style={{
@@ -146,12 +159,19 @@ export default function TerminalPanel() {
           pointerEvents: isOpen ? 'auto' : 'none',
         }}
       >
-        {/* Resize handle - double-click to toggle max/default size */}
         <div
           onMouseDown={handleMouseDown}
           onDoubleClick={() =>
             setHeight(height >= getMaxHeight() - 50 ? DEFAULT_HEIGHT : getMaxHeight())
           }
+          onKeyDown={handleResizeKeyDown}
+          tabIndex={0}
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label="Resize terminal panel. Use Up/Down arrows to adjust, Home/End for max/default"
+          aria-valuenow={height}
+          aria-valuemin={MIN_HEIGHT}
+          aria-valuemax={getMaxHeight()}
           style={{
             height: 6,
             cursor: 'ns-resize',
@@ -174,7 +194,6 @@ export default function TerminalPanel() {
           />
         </div>
 
-        {/* Header bar */}
         <div
           style={{
             display: 'flex',
@@ -200,10 +219,11 @@ export default function TerminalPanel() {
             <button
               onClick={() => setShowPurgeConfirm(true)}
               title="Purge all simulation data, logs & caches"
+              aria-label="Purge all simulation data, logs and caches"
               style={{
                 border: 'none',
                 background: 'transparent',
-                color: '#dc3545',
+                color: 'var(--bs-danger)',
                 cursor: 'pointer',
                 padding: '2px 6px',
                 fontSize: '11px',
@@ -212,11 +232,12 @@ export default function TerminalPanel() {
               onMouseEnter={e => (e.target.style.opacity = 1)}
               onMouseLeave={e => (e.target.style.opacity = 0.7)}
             >
-              ⚠️
+              <span aria-hidden="true">⚠️</span>
             </button>
             <button
               onClick={() => setShowResetConfirm(true)}
               title="Reset terminal"
+              aria-label="Reset terminal"
               style={{
                 border: 'none',
                 background: 'transparent',
@@ -226,11 +247,12 @@ export default function TerminalPanel() {
                 fontSize: '14px',
               }}
             >
-              ↻
+              <span aria-hidden="true">↻</span>
             </button>
             <button
               onClick={() => setIsOpen(false)}
               title="Minimize (Ctrl+`)"
+              aria-label="Minimize terminal"
               style={{
                 border: 'none',
                 background: 'transparent',
@@ -240,7 +262,7 @@ export default function TerminalPanel() {
                 fontSize: '14px',
               }}
             >
-              −
+              <span aria-hidden="true">−</span>
             </button>
             <button
               onClick={() => {
@@ -248,6 +270,7 @@ export default function TerminalPanel() {
                 terminalRef.current?.reset();
               }}
               title="Close terminal"
+              aria-label="Close terminal"
               style={{
                 border: 'none',
                 background: 'transparent',
@@ -257,7 +280,7 @@ export default function TerminalPanel() {
                 fontSize: '14px',
               }}
             >
-              ✕
+              <span aria-hidden="true">✕</span>
             </button>
           </div>
         </div>
@@ -280,7 +303,6 @@ export default function TerminalPanel() {
         </div>
       </div>
 
-      {/* Keyboard shortcut hint (shows briefly on first load) */}
       <style>{`
         .terminal-toggle-btn:hover {
           transform: scale(1.1);
@@ -290,7 +312,6 @@ export default function TerminalPanel() {
         }
       `}</style>
 
-      {/* Purge confirmation modal */}
       <ConfirmModal
         show={showPurgeConfirm}
         title="⚠️ Purge All Data"
@@ -317,7 +338,6 @@ export default function TerminalPanel() {
         onCancel={() => setShowPurgeConfirm(false)}
       />
 
-      {/* Reset confirmation modal */}
       <ConfirmModal
         show={showResetConfirm}
         title="Reset Terminal"

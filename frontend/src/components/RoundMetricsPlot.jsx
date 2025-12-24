@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { Card, Form } from 'react-bootstrap';
 import { useTheme } from '../contexts/ThemeContext';
+import { CHART_UI_COLORS } from '@constants/ui';
 
 const METRIC_LABELS = {
   aggregated_loss_history: 'Aggregated Loss',
@@ -22,19 +23,16 @@ export default function RoundMetricsPlot({ plotData }) {
   const { theme } = useTheme();
   const [selectedMetric, setSelectedMetric] = useState('');
 
-  // Get available round metrics
   const availableMetrics = plotData.round_metrics
     ? Object.keys(plotData.round_metrics).filter(
         key => plotData.round_metrics[key] && plotData.round_metrics[key].length > 0
       )
     : [];
 
-  // Set default metric if not set
   if (!selectedMetric && availableMetrics.length > 0) {
     setSelectedMetric(availableMetrics[0]);
   }
 
-  // Transform data for Recharts
   const chartData = plotData.rounds.map((round, idx) => {
     const point = { round };
     if (plotData.round_metrics && plotData.round_metrics[selectedMetric]) {
@@ -43,21 +41,7 @@ export default function RoundMetricsPlot({ plotData }) {
     return point;
   });
 
-  // Theme-aware chart colors
-  const chartColors =
-    theme === 'dark'
-      ? {
-          grid: '#444',
-          axis: '#999',
-          text: '#ccc',
-          line: '#82ca9d',
-        }
-      : {
-          grid: '#e0e0e0',
-          axis: '#666',
-          text: '#333',
-          line: '#6750A4',
-        };
+  const chartColors = CHART_UI_COLORS[theme] || CHART_UI_COLORS.light;
 
   if (availableMetrics.length === 0) {
     return (
@@ -73,7 +57,6 @@ export default function RoundMetricsPlot({ plotData }) {
         <h5>Round-Level Convergence Metrics</h5>
       </Card.Header>
       <Card.Body>
-        {/* Metric Selector */}
         <Form.Group className="mb-3">
           <Form.Label>Select Metric:</Form.Label>
           <Form.Select value={selectedMetric} onChange={e => setSelectedMetric(e.target.value)}>
@@ -85,7 +68,6 @@ export default function RoundMetricsPlot({ plotData }) {
           </Form.Select>
         </Form.Group>
 
-        {/* Chart */}
         <div style={{ width: '100%', minWidth: 300, height: 400 }}>
           <ResponsiveContainer
             width="100%"
@@ -113,7 +95,7 @@ export default function RoundMetricsPlot({ plotData }) {
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: theme === 'dark' ? '#2b2930' : '#fff',
+                  backgroundColor: chartColors.tooltipBg,
                   border: `1px solid ${chartColors.grid}`,
                   color: chartColors.text,
                 }}

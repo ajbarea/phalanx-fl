@@ -1,7 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, Row, Col, Spinner, Alert, Table, Badge } from 'react-bootstrap';
-import { getSimulationDetails, getSimulationStatus } from '@api/endpoints/simulations';
+import {
+  getSimulationDetails,
+  getSimulationStatus,
+  getResultFile,
+} from '@api/endpoints/simulations';
+import { getErrorMessage } from '@utils/errorMessages';
+import { formatAccuracy, formatChange, METRIC_DECIMALS } from '@utils/formatters';
 
 function ComparisonView() {
   const [searchParams] = useSearchParams();
@@ -25,9 +31,25 @@ function ComparisonView() {
             getSimulationDetails(id),
             getSimulationStatus(id),
           ]);
+
+          const resultFiles = detailsRes.data.result_files || [];
+          const csvFiles = resultFiles.filter(file => file.endsWith('.csv'));
+          const csvData = {};
+
+          await Promise.all(
+            csvFiles.map(async file => {
+              try {
+                const response = await getResultFile(id, file);
+                csvData[file] = response.data;
+              } catch {
+                // CSV file may not exist yet or failed to load
+              }
+            })
+          );
+
           return {
             id,
-            details: detailsRes.data,
+            details: { ...detailsRes.data, csv_data: csvData },
             status: statusRes.data,
           };
         });
@@ -36,7 +58,7 @@ function ComparisonView() {
         setSimulations(results);
         setLoading(false);
       } catch (err) {
-        setError(`Failed to load simulations: ${err.message}`);
+        setError(getErrorMessage(err));
         setLoading(false);
       }
     };
@@ -77,19 +99,16 @@ function ComparisonView() {
 
         const settings = sim.details.config.shared_settings || sim.details.config;
 
+        // Use average_accuracy_history from the CSV (the actual column name)
+        const initialAccuracy = firstRound?.average_accuracy_history || 0;
+        const finalAccuracy = lastRound?.average_accuracy_history || 0;
+
         return {
           id: sim.id,
           strategyName: settings.aggregation_strategy_keyword,
-          initialAccuracy: firstRound?.test_accuracy || 0,
-          finalAccuracy: lastRound?.test_accuracy || 0,
-          improvement:
-            lastRound?.test_accuracy && firstRound?.test_accuracy
-              ? (
-                  ((lastRound.test_accuracy - firstRound.test_accuracy) /
-                    firstRound.test_accuracy) *
-                  100
-                ).toFixed(1)
-              : 'N/A',
+          initialAccuracy,
+          finalAccuracy,
+          improvement: formatChange(initialAccuracy, finalAccuracy),
           rounds: settings.num_of_rounds,
           clients: settings.num_of_clients,
         };
@@ -196,8 +215,12 @@ function ComparisonView() {
                 {metricsComparison.map(metric => (
                   <tr key={metric.id}>
                     <td>{metric.strategyName}</td>
-                    <td>{(metric.initialAccuracy * 100).toFixed(2)}%</td>
-                    <td>{(metric.finalAccuracy * 100).toFixed(2)}%</td>
+                    <td>
+                      {formatAccuracy(metric.initialAccuracy, METRIC_DECIMALS.ACCURACY_DETAILED)}
+                    </td>
+                    <td>
+                      {formatAccuracy(metric.finalAccuracy, METRIC_DECIMALS.ACCURACY_DETAILED)}
+                    </td>
                     <td>
                       <Badge bg={parseFloat(metric.improvement) > 0 ? 'success' : 'warning'}>
                         {metric.improvement}%
@@ -279,7 +302,7 @@ function ComparisonView() {
                           {plotFiles.map((filename, plotIdx) => (
                             <div key={plotIdx}>
                               <a
-                                href={`http://localhost:8000/api/simulations/${sim.id}/results/${filename}`}
+                                href={`/api/simulations/${sim.id}/results/${filename}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-decoration-none"

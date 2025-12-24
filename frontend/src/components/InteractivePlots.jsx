@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import {
   LineChart,
   Line,
@@ -10,26 +11,13 @@ import {
   ResponsiveContainer,
   Brush,
 } from 'recharts';
-import { Card, Form, ButtonGroup, Button } from 'react-bootstrap';
+import { Form, Button } from 'react-bootstrap';
 import { useTheme } from '../contexts/ThemeContext';
 import RoundMetricsPlot from './RoundMetricsPlot';
+import { getAllPlotData } from '@api/endpoints/simulations';
+import { CHART_COLORS, CHART_UI_COLORS, MALICIOUS_COLORS } from '@constants/ui';
+import { useResponsiveChartHeight } from '@hooks/useResponsiveChartHeight';
 
-const COLORS = [
-  '#8884d8',
-  '#82ca9d',
-  '#ffc658',
-  '#ff7c7c',
-  '#8dd1e1',
-  '#d084d0',
-  '#a4de6c',
-  '#ffab91',
-  '#ce93d8',
-  '#90caf9',
-];
-
-const MALICIOUS_COLOR = '#ff4444';
-
-// Human-readable metric labels
 const METRIC_LABELS = {
   removal_criterion_history: 'Removal Criterion',
   absolute_distance_history: 'Model Distance',
@@ -40,6 +28,16 @@ const METRIC_LABELS = {
   aggregation_participation_history: 'Aggregation Participation',
 };
 
+const getAvailableMetrics = perClientMetrics => {
+  if (!perClientMetrics || perClientMetrics.length === 0) return [];
+  const allMetrics = Object.keys(perClientMetrics[0].metrics);
+  return allMetrics.filter(metricName =>
+    perClientMetrics.some(client =>
+      client.metrics[metricName]?.some(value => value !== null && value !== undefined)
+    )
+  );
+};
+
 export default function InteractivePlots({ simulation }) {
   const { theme } = useTheme();
   const [plotData, setPlotData] = useState(null);
@@ -48,7 +46,6 @@ export default function InteractivePlots({ simulation }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Only fetch plot data if simulation is completed
     if (simulation.status !== 'completed') {
       setLoading(false);
       return;
@@ -56,14 +53,12 @@ export default function InteractivePlots({ simulation }) {
 
     const fetchPlotData = async () => {
       try {
-        const response = await fetch(
-          `http://localhost:8000/api/simulations/${simulation.id}/plot-data`
-        );
-        if (!response.ok) throw new Error('Failed to fetch plot data');
-        const data = await response.json();
+        const response = await getAllPlotData(simulation.id);
+        const apiData = response.data;
+        // Handle multi-strategy format: extract first strategy's data for single-strategy sims
+        const data = apiData.strategies ? apiData.strategies[0].data : apiData;
         setPlotData(data);
 
-        // Set first available metric as default
         if (data.per_client_metrics.length > 0) {
           const metrics = Object.keys(data.per_client_metrics[0].metrics);
           if (metrics.length > 0) {
@@ -71,7 +66,6 @@ export default function InteractivePlots({ simulation }) {
           }
         }
 
-        // Initialize all clients as visible
         const clientsVisibility = {};
         data.per_client_metrics.forEach(client => {
           clientsVisibility[`client_${client.client_id}`] = true;
@@ -82,8 +76,7 @@ export default function InteractivePlots({ simulation }) {
         setVisibleClients(clientsVisibility);
 
         setLoading(false);
-      } catch (error) {
-        console.error('Error fetching plot data:', error);
+      } catch {
         setLoading(false);
       }
     };
@@ -91,41 +84,17 @@ export default function InteractivePlots({ simulation }) {
     fetchPlotData();
   }, [simulation.id, simulation.status]);
 
-  // Auto-select first available metric if current selection is not available
   useEffect(() => {
     if (!plotData) return;
 
-    const allMetrics =
-      plotData.per_client_metrics.length > 0
-        ? Object.keys(plotData.per_client_metrics[0].metrics)
-        : [];
-
-    const metrics = allMetrics.filter(metricName =>
-      plotData.per_client_metrics.some(client =>
-        client.metrics[metricName]?.some(value => value !== null && value !== undefined)
-      )
-    );
+    const metrics = getAvailableMetrics(plotData.per_client_metrics);
 
     if (metrics.length > 0 && (!selectedMetric || !metrics.includes(selectedMetric))) {
       setSelectedMetric(metrics[0]);
     }
   }, [plotData, selectedMetric]);
 
-  // Responsive chart dimensions
-  const [chartHeight, setChartHeight] = useState(window.innerWidth < 768 ? 350 : 500);
-  const [, setChartWidth] = useState(Math.max(450, window.innerWidth - 32));
-
-  useEffect(() => {
-    const updateDimensions = () => {
-      const isMobile = window.innerWidth < 768;
-      setChartHeight(isMobile ? 350 : 500);
-      setChartWidth(Math.max(450, window.innerWidth - 32));
-    };
-
-    updateDimensions();
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
-  }, []);
+  const chartHeight = useResponsiveChartHeight();
 
   if (loading) return <div className="text-center p-4">Loading interactive plots...</div>;
   if (!plotData) {
@@ -139,26 +108,13 @@ export default function InteractivePlots({ simulation }) {
     return <div className="text-center p-4">No plot data available</div>;
   }
 
-  // Get all metric names
-  const allMetrics =
-    plotData.per_client_metrics.length > 0
-      ? Object.keys(plotData.per_client_metrics[0].metrics)
-      : [];
+  const metrics = getAvailableMetrics(plotData.per_client_metrics);
 
-  // Filter to only show metrics that have non-null data
-  const metrics = allMetrics.filter(metricName =>
-    plotData.per_client_metrics.some(client =>
-      client.metrics[metricName]?.some(value => value !== null && value !== undefined)
-    )
-  );
-
-  // Check if all metrics are null (empty data)
   if (metrics.length === 0) {
     // Show round-level metrics instead
     return <RoundMetricsPlot plotData={plotData} />;
   }
 
-  // Transform data for Recharts
   const chartData = plotData.rounds.map((round, idx) => {
     const point = { round, name: `Round ${round}` }; // Add 'name' for Brush aria-label
 
@@ -183,27 +139,14 @@ export default function InteractivePlots({ simulation }) {
     }));
   };
 
-  // Theme-aware chart colors
-  const chartColors =
-    theme === 'dark'
-      ? {
-          grid: '#444',
-          axis: '#999',
-          text: '#ccc',
-          brush: '#666',
-        }
-      : {
-          grid: '#e0e0e0',
-          axis: '#666',
-          text: '#333',
-          brush: '#8884d8',
-        };
+  const chartColors = CHART_UI_COLORS[theme] || CHART_UI_COLORS.light;
+  const COLORS = CHART_COLORS[theme] || CHART_COLORS.light;
+  const MALICIOUS_COLOR = MALICIOUS_COLORS[theme] || MALICIOUS_COLORS.light;
 
   return (
     <div className="mb-4">
       <h5 className="mb-3">Interactive Plots</h5>
       <div>
-        {/* Metric Selector */}
         <Form.Group className="mb-3" style={{ maxWidth: '60%', margin: '0 auto' }}>
           <Form.Label>Select Metric:</Form.Label>
           <Form.Select value={selectedMetric} onChange={e => setSelectedMetric(e.target.value)}>
@@ -215,7 +158,6 @@ export default function InteractivePlots({ simulation }) {
           </Form.Select>
         </Form.Group>
 
-        {/* Legend Controls */}
         <div className="mb-3 text-center">
           <small className="text-muted d-block mb-2">Toggle clients:</small>
           <div className="d-flex flex-wrap gap-2 justify-content-center">
@@ -254,7 +196,6 @@ export default function InteractivePlots({ simulation }) {
           </div>
         </div>
 
-        {/* Chart */}
         <div style={{ width: '100%', minWidth: 300, height: chartHeight }}>
           <ResponsiveContainer
             width="100%"
@@ -291,9 +232,9 @@ export default function InteractivePlots({ simulation }) {
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: theme === 'dark' ? '#2b2b2b' : '#fff',
+                  backgroundColor: 'var(--bs-body-bg)',
                   border: `1px solid ${chartColors.grid}`,
-                  color: chartColors.text,
+                  color: 'var(--bs-body-color)',
                 }}
               />
               <Legend wrapperStyle={{ color: chartColors.text }} />
@@ -301,7 +242,7 @@ export default function InteractivePlots({ simulation }) {
                 dataKey="round"
                 height={30}
                 stroke={chartColors.brush}
-                fill={theme === 'dark' ? '#1a1a1a' : '#f5f5f5'}
+                fill={chartColors.brushFill}
                 y={chartHeight - 70}
               />
 
@@ -343,11 +284,19 @@ export default function InteractivePlots({ simulation }) {
 
         <div className="mt-3 text-muted">
           <small>
-            📊 Zoom: Drag on brush below chart | 👆 Toggle: Tap client buttons to show/hide lines |
-            ℹ️ Tap chart: View exact values
+            <span aria-hidden="true">📊</span> Zoom: Drag on brush below chart |{' '}
+            <span aria-hidden="true">👆</span> Toggle: Tap client buttons to show/hide lines |{' '}
+            <span aria-hidden="true">ℹ️</span> Tap chart: View exact values
           </small>
         </div>
       </div>
     </div>
   );
 }
+
+InteractivePlots.propTypes = {
+  simulation: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    status: PropTypes.string.isRequired,
+  }).isRequired,
+};
