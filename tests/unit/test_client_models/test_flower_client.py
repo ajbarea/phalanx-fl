@@ -5,12 +5,12 @@ Tests client parameter handling, model operations, training and evaluation
 with mocked PyTorch operations and data.
 """
 
+import logging
 from collections import OrderedDict
 from typing import Any, Dict
 from unittest.mock import patch
 
 import torch
-import logging
 
 from src.client_models.flower_client import FlowerClient
 from tests.common import Mock, np, pytest

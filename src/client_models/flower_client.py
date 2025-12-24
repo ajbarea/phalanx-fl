@@ -66,20 +66,10 @@ class FlowerClient(fl.client.NumPyClient):
         original_data_sample=None,
         original_labels_sample=None,
     ):
-        """Helper method to save attack snapshots for both CNN and transformer models.
-
-        Args:
-            current_round: Current training round
-            attack_configs: List of attack configurations applied
-            data_sample: Poisoned data (images for CNN, input_ids for transformer)
-            labels_sample: Poisoned labels
-            original_data_sample: Original unpoisoned data (images for CNN, input_ids for transformer)
-            original_labels_sample: Original unpoisoned labels (for label flipping)
-        """
+        """Save attack snapshots for both CNN and transformer models."""
         if not (self.save_attack_snapshots and self.output_dir):
             return
 
-        # Save pickle/JSON snapshot
         save_attack_snapshot(
             client_id=self.client_id,
             round_num=current_round,
@@ -94,7 +84,6 @@ class FlowerClient(fl.client.NumPyClient):
             strategy_number=self.strategy_number,
         )
 
-        # Save visual snapshot (PNG for CNN, TXT for transformer)
         if self.attack_snapshot_format in ["visual", "pickle_and_visual"]:
             if self.model_type == "cnn" and original_data_sample is not None:
                 save_visual_snapshot(
@@ -188,7 +177,6 @@ class FlowerClient(fl.client.NumPyClient):
                         original_images = images.clone()
                         original_labels = labels.clone()
 
-                        # Apply all attacks sequentially
                         for attack_config in attack_configs:
                             images, labels = apply_poisoning_attack(
                                 images,
@@ -198,7 +186,6 @@ class FlowerClient(fl.client.NumPyClient):
                                 num_classes=num_classes,
                             )
 
-                        # Save snapshot after all attacks applied
                         if epoch == 0 and batch_idx == 0:
                             self._save_attack_snapshots(
                                 current_round=current_round,
@@ -219,12 +206,9 @@ class FlowerClient(fl.client.NumPyClient):
                     loss.backward()
                     optimizer.step()
 
-                    # Metrics
                     epoch_loss += loss
                     total += labels.size(0)
                     correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
-
-                    # Free intermediate tensors
                     del outputs, loss
 
                 epoch_loss /= (
@@ -232,7 +216,7 @@ class FlowerClient(fl.client.NumPyClient):
                 )
                 epoch_acc = correct / total if total > 0 else 0.0
                 if verbose:
-                    print(
+                    logging.info(
                         f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}"
                     )
 
@@ -254,11 +238,9 @@ class FlowerClient(fl.client.NumPyClient):
                         current_round, self.client_id, self.attacks_schedule
                     )
                     if should_poison and attack_configs:
-                        # Capture original data before poisoning
                         original_input_ids = batch["input_ids"].clone()
                         original_labels = batch["labels"].clone()
 
-                        # Stack multiple attacks sequentially
                         for attack_config in attack_configs:
                             if attack_config.get("attack_type") == "token_replacement":
                                 batch["input_ids"], batch["labels"] = (
@@ -270,7 +252,6 @@ class FlowerClient(fl.client.NumPyClient):
                                     )
                                 )
 
-                        # Save snapshot after all attacks applied
                         if epoch == 0 and batch_idx == 0:
                             self._save_attack_snapshots(
                                 current_round=current_round,
@@ -287,7 +268,6 @@ class FlowerClient(fl.client.NumPyClient):
                     outputs = net(**batch)
                     loss = outputs.loss
 
-                    # Apply FedProx only if global_params are provided
                     if (
                         global_params is not None
                         and self.client_id >= self.num_malicious_clients
@@ -314,13 +294,11 @@ class FlowerClient(fl.client.NumPyClient):
                         correct += (preds[mask] == labels[mask]).sum().item()
                         total += mask.sum().item()
 
-                    # Log progress every 10 batches
                     if (batch_idx + 1) % 10 == 0:
                         logging.debug(
                             f"[Client {self.client_id}] Batch {batch_idx + 1}/{len(trainloader)} - Loss: {loss.item():.4f}"
                         )
 
-                    # Free intermediate tensors
                     del outputs, loss, batch
 
                 epoch_loss = total_loss / len(trainloader)
@@ -330,7 +308,7 @@ class FlowerClient(fl.client.NumPyClient):
                 )
 
                 if verbose:
-                    print(
+                    logging.info(
                         f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}"
                     )
 
@@ -364,7 +342,6 @@ class FlowerClient(fl.client.NumPyClient):
             accuracy = correct / total if total > 0 else 0.0
             return loss, accuracy
 
-        # add check for mlm as well
         elif self.model_type == "transformer":
             net.eval()
             total_loss = 0
@@ -400,7 +377,6 @@ class FlowerClient(fl.client.NumPyClient):
         )
         self.set_parameters(self.net, parameters)
 
-        # Capture global LoRA parameters for FedProx
         global_params = None
         if (
             self.model_type == "transformer"
@@ -429,16 +405,13 @@ class FlowerClient(fl.client.NumPyClient):
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-        # Get trained parameters
         trained_parameters = self.get_parameters(self.net)
 
-        # Apply weight-level poisoning if scheduled
         current_round = config.get("server_round", 1) if config else 1
         should_poison, attack_configs = should_poison_this_round(
             current_round, self.client_id, self.attacks_schedule
         )
 
-        # Filter to only weight-level attacks
         weight_attack_configs = [
             cfg
             for cfg in attack_configs
@@ -451,17 +424,14 @@ class FlowerClient(fl.client.NumPyClient):
                 f"{[cfg.get('attack_type') for cfg in weight_attack_configs]}"
             )
 
-            # Save snapshot before poisoning if configured
             params_before = None
             if self.save_attack_snapshots and self.output_dir:
                 params_before = [p.copy() for p in trained_parameters]
 
-            # Apply weight poisoning
             poisoned_parameters = apply_weight_poisoning(
                 trained_parameters, weight_attack_configs
             )
 
-            # Save weight snapshot after poisoning
             if self.save_attack_snapshots and self.output_dir and params_before:
                 for attack_cfg in weight_attack_configs:
                     save_weight_snapshot(

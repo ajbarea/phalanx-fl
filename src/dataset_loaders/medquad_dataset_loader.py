@@ -35,10 +35,7 @@ class MedQuADDatasetLoader:
         self.tokenizer = None
 
     def load_datasets(self):
-        """
-        Loads and tokenizes dataset for masked language modeling (MLM).
-        """
-
+        """Load and tokenize dataset for masked language modeling."""
         trainloaders = []
         valloaders = []
 
@@ -64,15 +61,14 @@ class MedQuADDatasetLoader:
 
             client_dataset = load_dataset("json", data_files=json_files)
 
-            # Tokenize answers
+            # Large max_length avoids truncation warnings; chunking handles splitting
             def tokenize_function(examples):
                 texts = [
                     " ".join(row)
                     for row in zip(*[examples[col] for col in self.tokenize_columns])
                 ]
-                return tokenizer(texts, truncation=False)
+                return tokenizer(texts, truncation=True, max_length=100000)
 
-            # Chunk tokens into fixed-length blocks
             def chunk_function(examples):
                 concatenated = {k: sum(examples[k], []) for k in examples.keys()}
                 total_len = len(concatenated["input_ids"])
@@ -103,10 +99,7 @@ class MedQuADDatasetLoader:
 
             client_folder_num = int(client_folder.split("_")[1])
 
-            # Poisoned clients will have half of their tokens selected for masking
-            # then replaced with random tokens
-
-            # DataLoader preparation
+            # Poisoned clients get higher masking with random token replacement
             collate_fn = DataCollatorForLanguageModeling(
                 tokenizer=tokenizer,
                 mlm=True,
