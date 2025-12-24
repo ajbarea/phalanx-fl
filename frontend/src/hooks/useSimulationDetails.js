@@ -1,11 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@api/client';
 import { useMemo } from 'react';
+import { POLLING_INTERVALS } from '@constants/ui';
 
 export function useSimulationDetails(simulationId) {
   const queryClient = useQueryClient();
 
-  // Fetch simulation details
   const {
     data: details,
     isLoading: loading,
@@ -32,7 +32,7 @@ export function useSimulationDetails(simulationId) {
       return data;
     },
     enabled: shouldPollStatus,
-    refetchInterval: 2000,
+    refetchInterval: POLLING_INTERVALS.SIMULATION_DETAILS,
   });
 
   const status = statusData?.status ?? details?.status ?? null;

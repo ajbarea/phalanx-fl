@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { fetchApi } from '@api/client';
 
 /**
  * Real-time HuggingFace dataset validation hook
@@ -31,15 +31,13 @@ export function useDatasetValidation(datasetName) {
       setStatus(prev => ({ ...prev, loading: true }));
 
       try {
-        const response = await axios.get(
-          `/api/datasets/validate?name=${encodeURIComponent(datasetName)}`
-        );
+        const data = await fetchApi(`/datasets/validate?name=${encodeURIComponent(datasetName)}`);
         setStatus({
           loading: false,
-          valid: response.data.valid,
-          compatible: response.data.compatible,
-          info: response.data.info,
-          error: response.data.error,
+          valid: data.valid,
+          compatible: data.compatible,
+          info: data.info,
+          error: data.error,
         });
       } catch {
         setStatus({

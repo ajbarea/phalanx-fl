@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchApi } from '@api/client';
 import { useMemo } from 'react';
+import { POLLING_INTERVALS } from '@constants/ui';
 
 export function useQueueStatus(simulationId) {
-  // Fetch simulation details
   const {
     data: simulation,
     isLoading: detailsLoading,
@@ -12,10 +12,9 @@ export function useQueueStatus(simulationId) {
     queryKey: ['simulation-details', simulationId],
     queryFn: () => fetchApi(`/simulations/${simulationId}`),
     enabled: !!simulationId,
-    refetchInterval: 5000,
+    refetchInterval: POLLING_INTERVALS.SIMULATIONS,
   });
 
-  // Fetch simulation status
   const {
     data: status,
     isLoading: statusLoading,
@@ -24,7 +23,7 @@ export function useQueueStatus(simulationId) {
     queryKey: ['simulation-status', simulationId],
     queryFn: () => fetchApi(`/simulations/${simulationId}/status`),
     enabled: !!simulationId,
-    refetchInterval: 5000,
+    refetchInterval: POLLING_INTERVALS.SIMULATIONS,
   });
 
   const progress = useMemo(() => {

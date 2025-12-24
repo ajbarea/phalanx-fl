@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getSimulations, getSimulationStatus } from '@api/endpoints/simulations';
+import { POLLING_INTERVALS } from '@constants/ui';
 
 /**
  * Hook to detect if any simulation is currently running
@@ -9,6 +10,7 @@ export function useRunningSimulation() {
   const [hasRunning, setHasRunning] = useState(false);
   const [runningSimIds, setRunningSimIds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     let intervalId;
@@ -18,7 +20,6 @@ export function useRunningSimulation() {
         const response = await getSimulations();
         const simulations = response.data;
 
-        // Check status for each simulation
         const statusPromises = simulations.map(sim =>
           getSimulationStatus(sim.simulation_id).catch(() => ({ data: { status: 'unknown' } }))
         );
@@ -30,17 +31,16 @@ export function useRunningSimulation() {
 
         setRunningSimIds(running);
         setHasRunning(running.length > 0);
+        setError(null);
         setLoading(false);
       } catch (err) {
-        console.error('Failed to check running simulations:', err);
+        setError(err.message || 'Failed to check running simulations');
         setLoading(false);
       }
     };
 
     checkRunning();
-
-    // Poll every 10 seconds
-    intervalId = setInterval(checkRunning, 10000);
+    intervalId = setInterval(checkRunning, POLLING_INTERVALS.RUNNING_CHECK);
 
     return () => {
       if (intervalId) clearInterval(intervalId);
@@ -51,5 +51,6 @@ export function useRunningSimulation() {
     hasRunning,
     runningSimIds,
     loading,
+    error,
   };
 }

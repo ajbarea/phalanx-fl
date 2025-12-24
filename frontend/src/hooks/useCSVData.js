@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getResultFile } from '@api/endpoints/simulations';
 
 export function useCSVData(simulationId, resultFiles) {
   const [csvData, setCsvData] = useState({});
   const [loading, setLoading] = useState(false);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     if (!resultFiles) return;
 
     const csvFiles = resultFiles.filter(file => file.endsWith('.csv'));
@@ -18,12 +21,14 @@ export function useCSVData(simulationId, resultFiles) {
         try {
           const response = await getResultFile(simulationId, file);
           return { file, data: response.data };
-        } catch (err) {
-          console.error(`Failed to load CSV ${file}:`, err);
+        } catch {
           return { file, data: null };
         }
       })
     ).then(results => {
+      // Only update state if component is still mounted
+      if (!isMountedRef.current) return;
+
       const newData = results.reduce(
         (acc, { file, data }) => (data ? { ...acc, [file]: data } : acc),
         {}
@@ -31,6 +36,10 @@ export function useCSVData(simulationId, resultFiles) {
       setCsvData(newData);
       setLoading(false);
     });
+
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [simulationId, resultFiles]);
 
   return { csvData, loading };

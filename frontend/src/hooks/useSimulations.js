@@ -1,8 +1,8 @@
 import { useQuery, useQueries } from '@tanstack/react-query';
 import { fetchApi } from '@api/client';
+import { POLLING_INTERVALS } from '@constants/ui';
 
 export function useSimulations() {
-  // Fetch all simulations
   const {
     data: simulations = [],
     isLoading: loading,
@@ -11,20 +11,18 @@ export function useSimulations() {
   } = useQuery({
     queryKey: ['simulations'],
     queryFn: () => fetchApi('/simulations'),
-    refetchInterval: 5000, // Poll every 5 seconds
+    refetchInterval: POLLING_INTERVALS.SIMULATIONS,
   });
 
-  // Fetch statuses for all simulations in parallel
   const statusQueries = useQueries({
     queries: simulations.map(sim => ({
       queryKey: ['simulation-status', sim.simulation_id],
       queryFn: () => fetchApi(`/simulations/${sim.simulation_id}/status`),
       enabled: !!sim.simulation_id,
-      refetchInterval: 5000,
+      refetchInterval: POLLING_INTERVALS.SIMULATIONS,
     })),
   });
 
-  // Build statuses object from parallel queries
   const statuses = simulations.reduce((acc, sim, index) => {
     const query = statusQueries[index];
     acc[sim.simulation_id] = query?.data ?? { status: 'unknown' };
