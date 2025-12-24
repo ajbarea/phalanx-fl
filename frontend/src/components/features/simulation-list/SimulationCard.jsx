@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import { Card, Alert } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { MaterialIcon } from '@components/common/Icon/MaterialIcon';
@@ -23,7 +24,7 @@ export function SimulationCard({
   return (
     <Card
       onClick={e => onCardClick(simulation_id, e)}
-      className={`simulation-card ${isFailed ? 'border-danger' : isSelected ? 'selected' : ''}`}
+      className={isSelected ? 'border-primary' : ''}
       style={{ cursor: 'pointer', position: 'relative' }}
     >
       <button
@@ -53,30 +54,29 @@ export function SimulationCard({
       </button>
       <Card.Body>
         <div
-          className="d-flex justify-content-between align-items-start mb-2"
-          style={{ minWidth: 0, paddingRight: '70px' }}
+          className="d-flex align-items-center mb-2"
+          style={{ minWidth: 0, paddingRight: '40px', gap: '8px', overflow: 'hidden' }}
         >
-          <div
+          <Card.Title
+            className="mb-0"
             style={{
               minWidth: 0,
-              flex: '0 1 auto',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
+              flex: '1 1 auto',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}
           >
-            <Card.Title className="mb-0" style={{ display: 'inline' }}>
-              <div className="editable-sim-name" style={{ display: 'inline' }}>
-                <EditableSimName
-                  simulationId={simulation_id}
-                  displayName={display_name}
-                  onRename={onRename}
-                />
-              </div>
-            </Card.Title>
-            <div style={{ display: 'inline-block' }}>
-              <StatusBadge status={statusData?.status} error={statusData?.error} />
+            <div className="editable-sim-name" style={{ display: 'inline' }}>
+              <EditableSimName
+                simulationId={simulation_id}
+                displayName={display_name}
+                onRename={onRename}
+              />
             </div>
+          </Card.Title>
+          <div style={{ flexShrink: 0 }}>
+            <StatusBadge status={statusData?.status} error={statusData?.error} />
           </div>
         </div>
         <Card.Subtitle className="mb-2 text-muted">
@@ -107,3 +107,30 @@ export function SimulationCard({
     </Card>
   );
 }
+
+SimulationCard.propTypes = {
+  simulation: PropTypes.shape({
+    simulation_id: PropTypes.string.isRequired,
+    display_name: PropTypes.string,
+    created_at: PropTypes.string,
+    num_of_rounds: PropTypes.number,
+    num_of_clients: PropTypes.number,
+  }).isRequired,
+  statusData: PropTypes.shape({
+    status: PropTypes.string,
+    error: PropTypes.string,
+  }),
+  isSelected: PropTypes.bool,
+  onCardClick: PropTypes.func.isRequired,
+  onDelete: PropTypes.func.isRequired,
+  onRename: PropTypes.func.isRequired,
+  onStop: PropTypes.func.isRequired,
+  deleting: PropTypes.bool,
+  stopping: PropTypes.bool,
+};
+
+SimulationCard.defaultProps = {
+  isSelected: false,
+  deleting: false,
+  stopping: false,
+};
