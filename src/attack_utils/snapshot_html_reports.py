@@ -15,20 +15,13 @@ from .attack_snapshots import (
     list_attack_snapshots,
     load_attack_snapshot,
 )
+from .snapshot_animation import save_attack_timeline_gif
 
 
 def _get_snapshots_dir_checked(
     output_dir: str, strategy_number: int = 0
 ) -> Optional[Path]:
-    """Get snapshots directory and verify it exists.
-
-    Args:
-        output_dir: Base output directory
-        strategy_number: Strategy index (default: 0)
-
-    Returns:
-        Path to snapshots directory, or None if it doesn not exist
-    """
+    """Get snapshots directory path, returning None if it doesn't exist."""
     snapshots_dir = Path(output_dir) / f"attack_snapshots_{strategy_number}"
     if not snapshots_dir.exists():
         logging.warning(
@@ -39,15 +32,7 @@ def _get_snapshots_dir_checked(
 
 
 def _extract_attack_params_for_display(attack_type: str, attack_config: dict) -> list:
-    """Extract attack parameters formatted for HTML display.
-
-    Args:
-        attack_type: Attack type string
-        attack_config: Attack configuration dict
-
-    Returns:
-        List of tuples (param_name, param_value) for display
-    """
+    """Extract attack parameters formatted as strings for HTML display."""
     html_attack_params = []
     if attack_type == "label_flipping":
         pass
@@ -68,15 +53,7 @@ def _extract_attack_params_for_display(attack_type: str, attack_config: dict) ->
 
 
 def _split_composite_attack_info(attack_type: str, attack_configs: list) -> list:
-    """Split composite attack type into individual attack entries for display.
-
-    Args:
-        attack_type: Composite attack type string (e.g., "label_flipping_gaussian_noise")
-        attack_configs: List of attack configuration dicts
-
-    Returns:
-        List of dicts with attack_type and params for each individual attack
-    """
+    """Split composite attack into individual entries with type and params."""
     attack_info = []
     for config in attack_configs:
         config_type = config.get("attack_type", "unknown")
@@ -147,6 +124,24 @@ def generate_summary_json(
         logging.info(f"Generated attack summary: {summary_path}")
     except Exception as e:
         logging.warning(f"Failed to generate summary.json: {e}")
+
+    # Generate attack timeline animation if there are attacks
+    if full_summary["attack_timeline"]:
+        try:
+            total_rounds = full_summary["experiment"].get("total_rounds", 10)
+            total_clients = full_summary["experiment"].get("total_clients", 5)
+            attack_types = full_summary["attack_summary"].get("attack_types", [])
+
+            timeline_gif_path = snapshots_dir / "attack_timeline.gif"
+            save_attack_timeline_gif(
+                attack_timeline=full_summary["attack_timeline"],
+                filepath=timeline_gif_path,
+                total_rounds=total_rounds,
+                total_clients=total_clients,
+                attack_types=attack_types,
+            )
+        except Exception as e:
+            logging.warning(f"Failed to generate attack timeline animation: {e}")
 
 
 def generate_snapshot_index(

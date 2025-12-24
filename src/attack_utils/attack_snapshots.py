@@ -12,22 +12,16 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 import torch
 
-from .snapshot_image_viz import save_image_grid
-from .snapshot_text_viz import save_text_samples
+from .snapshot_image_viz import (
+    save_image_grid,
+    save_label_confusion_matrix,
+    save_noise_difference_heatmap,
+)
+from .snapshot_text_viz import save_text_samples, save_text_samples_html
 
 
 def _extract_attack_type(attack_config: Union[dict, List[dict]]) -> str:
-    """Extract attack type(s) from attack configuration.
-
-    Handles both single attack and composite multi-attack configs.
-
-    Args:
-        attack_config: Attack configuration dict or list of dicts
-
-    Returns:
-        Attack type string, or composite type for multiple attacks
-        (e.g., "label_flipping" or "label_flipping_gaussian_noise")
-    """
+    """Extract attack type string from config, joining multiple with underscore."""
     if isinstance(attack_config, list):
         if attack_config:
             attack_types = [
@@ -44,19 +38,7 @@ def _extract_attack_type(attack_config: Union[dict, List[dict]]) -> str:
 def _get_snapshot_dir(
     output_dir: str, client_id: int, round_num: int, strategy_number: int = 0
 ) -> Path:
-    """Get or create the directory for saving snapshots.
-
-    Creates nested directory structure: output_dir/attack_snapshots/strategy_{N}/
-
-    Args:
-        output_dir: Base output directory path
-        client_id: Client ID for the snapshot
-        round_num: Round number for the snapshot
-        strategy_number: Strategy index for multi-strategy runs (default: 0)
-
-    Returns:
-        Path object for the snapshot directory
-    """
+    """Get or create nested snapshot directory for client/round."""
     snapshots_base = Path(output_dir) / f"attack_snapshots_{strategy_number}"
     snapshot_dir = snapshots_base / f"client_{client_id}" / f"round_{round_num}"
     snapshot_dir.mkdir(parents=True, exist_ok=True)
@@ -73,21 +55,7 @@ def _create_snapshot_metadata(
     labels_shape: Optional[list] = None,
     experiment_info: Optional[Dict[str, Any]] = None,
 ) -> dict:
-    """Create metadata dictionary for attack snapshot.
-
-    Args:
-        client_id: Client ID for the snapshot
-        round_num: Round number for the snapshot
-        attack_type: Attack type string
-        attack_config: Attack configuration dict or list of dicts
-        num_samples: Number of samples in the snapshot
-        data_shape: Shape of data tensor as list (optional)
-        labels_shape: Shape of labels tensor as list (optional)
-        experiment_info: Additional experiment metadata (optional)
-
-    Returns:
-        Dictionary containing snapshot metadata
-    """
+    """Create metadata dictionary for attack snapshot."""
     metadata = {
         "client_id": client_id,
         "round_num": round_num,
@@ -108,12 +76,7 @@ def _create_snapshot_metadata(
 
 
 def _save_metadata_json(filepath: Path, metadata: dict) -> None:
-    """Save metadata dictionary as JSON file.
-
-    Args:
-        filepath: Path where JSON file will be saved
-        metadata: Metadata dictionary to serialize
-    """
+    """Save metadata dictionary as JSON file."""
     with open(filepath, "w") as f:
         json.dump(metadata, f, indent=2)
 
@@ -128,18 +91,7 @@ def _save_pickle_snapshot(
     client_id: int,
     round_num: int,
 ) -> None:
-    """Save attack snapshot as a pickle file.
-
-    Args:
-        snapshot_dir: Directory where pickle file will be saved
-        attack_type: Attack type string for filename
-        data_sample: Sample data tensor
-        labels_sample: Sample labels tensor
-        original_labels_sample: Original labels before poisoning (optional)
-        metadata: Snapshot metadata dict
-        client_id: Client ID
-        round_num: Round number
-    """
+    """Save attack snapshot data and metadata as pickle and JSON files."""
     pickle_path = snapshot_dir / f"{attack_type}.pickle"
     json_path = snapshot_dir / f"{attack_type}_metadata.json"
 
@@ -371,6 +323,7 @@ def save_visual_snapshot(
 
     try:
         if len(data_sample.shape) == 4:
+            # Save main image grid visualization
             filename = f"{attack_type}_visual.png"
             save_image_grid(
                 data_sample,
@@ -380,12 +333,51 @@ def save_visual_snapshot(
                 attack_config,
                 original_images=original_data_sample,
             )
+
+            # Save additional publication-quality visualizations based on attack type
+            if "label_flipping" in attack_type:
+                # Generate confusion matrix for label flipping attacks
+                confusion_filename = f"{attack_type}_confusion_matrix.png"
+                save_label_confusion_matrix(
+                    original_labels_sample,
+                    labels_sample,
+                    snapshot_dir / confusion_filename,
+                    attack_config=attack_config,
+                )
+                logging.debug(
+                    f"Saved label flipping confusion matrix: {snapshot_dir / confusion_filename}"
+                )
+
+            if "gaussian_noise" in attack_type and original_data_sample is not None:
+                # Generate difference heatmap for noise attacks
+                heatmap_filename = f"{attack_type}_difference_heatmap.png"
+                save_noise_difference_heatmap(
+                    original_data_sample,
+                    data_sample,
+                    snapshot_dir / heatmap_filename,
+                    attack_config=attack_config,
+                )
+                logging.debug(
+                    f"Saved noise difference heatmap: {snapshot_dir / heatmap_filename}"
+                )
         else:
+            # Save plain text version
             filename = f"{attack_type}_samples.txt"
             save_text_samples(
                 labels_sample,
                 original_labels_sample,
                 snapshot_dir / filename,
+                attack_config=attack_config,
+                tokenizer=tokenizer,
+                input_ids_original=original_data_sample,
+                input_ids_poisoned=data_sample,
+            )
+            # Save HTML version with syntax-highlighted diff
+            html_filename = f"{attack_type}_samples.html"
+            save_text_samples_html(
+                labels_sample,
+                original_labels_sample,
+                snapshot_dir / html_filename,
                 attack_config=attack_config,
                 tokenizer=tokenizer,
                 input_ids_original=original_data_sample,
