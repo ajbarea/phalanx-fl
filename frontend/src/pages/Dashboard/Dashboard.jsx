@@ -10,11 +10,7 @@ import { ConfirmModal } from '@components/common/Modal/ConfirmModal';
 import { useSimulations } from '@hooks/useSimulations';
 import { useSimulationStatus } from '@hooks/useSimulationStatus';
 import { useRunningSimulation } from '@hooks/useRunningSimulation';
-import {
-  deleteSimulation,
-  deleteMultipleSimulations,
-  stopSimulation,
-} from '@api/endpoints/simulations';
+import { deleteMultipleSimulations, stopSimulation } from '@api/endpoints/simulations';
 import { toast } from 'sonner';
 
 export function Dashboard() {
@@ -30,7 +26,7 @@ export function Dashboard() {
     show: false,
     title: '',
     message: '',
-    onConfirm: () => {},
+    onConfirm: () => { },
     variant: 'danger',
   });
 
@@ -38,9 +34,13 @@ export function Dashboard() {
     if (
       e.target.closest('a') ||
       e.target.closest('button') ||
-      e.target.closest('input') ||
       e.target.closest('.editable-sim-name')
     ) {
+      return;
+    }
+
+    const inputEl = e.target.closest('input');
+    if (inputEl && inputEl.type !== 'checkbox') {
       return;
     }
     setSelectedSims(prev =>
@@ -73,35 +73,6 @@ export function Dashboard() {
           toast.error(`Failed to stop: ${err.response?.data?.detail || err.message}`);
         } finally {
           setStopping(false);
-        }
-      },
-    });
-  };
-
-  const handleDeleteOne = async simId => {
-    const statusData = statuses[simId];
-    if (statusData?.status === 'running') {
-      toast.error('Cannot delete a running simulation');
-      return;
-    }
-
-    setConfirmModal({
-      show: true,
-      title: 'Delete Simulation',
-      message: `Delete simulation "${simId}"?`,
-      variant: 'danger',
-      onConfirm: async () => {
-        setConfirmModal({ ...confirmModal, show: false });
-        setDeleting(true);
-        try {
-          await deleteSimulation(simId);
-          setSelectedSims(prev => prev.filter(id => id !== simId));
-          await refetch();
-          toast.success('Simulation deleted successfully');
-        } catch (err) {
-          toast.error(`Failed to delete: ${err.response?.data?.detail || err.message}`);
-        } finally {
-          setDeleting(false);
         }
       },
     });
@@ -248,10 +219,8 @@ export function Dashboard() {
         statuses={statuses}
         selectedSims={selectedSims}
         onCardClick={handleCardClick}
-        onDelete={handleDeleteOne}
         onRename={refetch}
         onStop={handleStop}
-        deleting={deleting}
         stopping={stopping}
       />
 
