@@ -1,7 +1,6 @@
 import PropTypes from 'prop-types';
-import { Card, Alert } from 'react-bootstrap';
+import { Card, Alert, Form } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
-import { MaterialIcon } from '@components/common/Icon/MaterialIcon';
 import { StatusBadge } from '@components/common/Badge/StatusBadge';
 import EditableSimName from '@components/EditableSimName';
 import { getRelativeTime, parseErrorMessage } from '@utils/formatters';
@@ -11,98 +10,104 @@ export function SimulationCard({
   statusData,
   isSelected,
   onCardClick,
-  onDelete,
   onRename,
   onStop,
-  deleting,
   stopping,
 }) {
   const { simulation_id, display_name, created_at, num_of_rounds, num_of_clients } = simulation;
   const isFailed = statusData?.status === 'failed';
   const isRunning = statusData?.status === 'running';
 
+  const handleCheckboxChange = e => {
+    e.stopPropagation();
+    onCardClick(simulation_id, e);
+  };
+
+  const handleCardClick = e => {
+    // Don't select if clicking on links or buttons
+    if (e.target.closest('a') || e.target.closest('button') || e.target.closest('input')) {
+      return;
+    }
+    onCardClick(simulation_id, e);
+  };
+
   return (
-    <Card
-      onClick={e => onCardClick(simulation_id, e)}
-      className={isSelected ? 'border-primary' : ''}
-      style={{ cursor: 'pointer', position: 'relative' }}
-    >
-      <button
-        className="stop-btn"
-        onClick={e => {
-          e.stopPropagation();
-          onStop(simulation_id);
-        }}
-        disabled={stopping || !isRunning}
-        title="Stop simulation"
-        aria-label="Stop simulation"
-        style={{ visibility: isRunning ? 'visible' : 'hidden' }}
-      >
-        <MaterialIcon name="stop_circle" size={16} />
-      </button>
-      <button
-        className="delete-btn"
-        onClick={e => {
-          e.stopPropagation();
-          onDelete(simulation_id);
-        }}
-        disabled={deleting || statusData?.status === 'running'}
-        title="Delete simulation"
-        aria-label="Delete simulation"
-      >
-        <MaterialIcon name="delete" size={16} />
-      </button>
-      <Card.Body>
-        <div
-          className="d-flex align-items-center mb-2"
-          style={{ minWidth: 0, paddingRight: '40px', gap: '8px', overflow: 'hidden' }}
-        >
-          <Card.Title
-            className="mb-0"
-            style={{
-              minWidth: 0,
-              flex: '1 1 auto',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <div className="editable-sim-name" style={{ display: 'inline' }}>
+    <Card onClick={handleCardClick} className={`simulation-card ${isSelected ? 'selected' : ''}`}>
+      <Card.Body className="d-flex gap-3">
+        {/* Selection checkbox - LEFT side, always visible */}
+        <div className="card-checkbox">
+          <Form.Check
+            type="checkbox"
+            checked={isSelected}
+            onChange={handleCheckboxChange}
+            aria-label={`Select ${display_name || simulation_id}`}
+            className="simulation-checkbox"
+          />
+        </div>
+
+        {/* Main content area */}
+        <div className="card-content flex-grow-1 min-width-0">
+          {/* Title row with name and status */}
+          <div className="card-title-row">
+            <div className="card-title-name">
               <EditableSimName
                 simulationId={simulation_id}
                 displayName={display_name}
                 onRename={onRename}
               />
             </div>
-          </Card.Title>
-          <div style={{ flexShrink: 0 }}>
-            <StatusBadge status={statusData?.status} error={statusData?.error} />
+            <div className="card-title-status">
+              <StatusBadge status={statusData?.status} error={statusData?.error} />
+              {/* Stop button - only for running simulations */}
+              {isRunning && (
+                <button
+                  className="btn btn-sm btn-outline-warning ms-2"
+                  onClick={e => {
+                    e.stopPropagation();
+                    onStop(simulation_id);
+                  }}
+                  disabled={stopping}
+                  title="Stop simulation"
+                  aria-label="Stop simulation"
+                >
+                  Stop
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* Metadata row */}
+          <div className="card-meta text-muted small mb-2">
+            ID: <code>{simulation_id}</code>
+            {created_at && (
+              <>
+                <span className="mx-2">•</span>
+                {getRelativeTime(created_at)}
+              </>
+            )}
+          </div>
+
+          {/* Error alert for failed simulations */}
+          {isFailed && statusData.error && (
+            <Alert variant="danger" className="mb-2 py-1 px-2 small">
+              {parseErrorMessage(statusData.error)}
+            </Alert>
+          )}
+
+          {/* Stats row */}
+          <div className="card-stats small text-muted mb-2">
+            {num_of_rounds} rounds • {num_of_clients} clients
+          </div>
+
+          {/* Action link */}
+          <Link
+            to={`/simulations/${simulation_id}`}
+            className="btn btn-sm btn-outline-primary"
+            onClick={e => e.stopPropagation()}
+          >
+            View Details →
+          </Link>
         </div>
-        <Card.Subtitle className="mb-2 text-muted">
-          {display_name && (
-            <span className="small">
-              ID: <code>{simulation_id}</code>
-              <span className="mx-2">•</span>
-            </span>
-          )}
-          {!display_name && <code>{simulation_id}</code>}
-          {created_at && (
-            <span className="ms-2 small">
-              {display_name && ''}
-              {getRelativeTime(created_at)}
-            </span>
-          )}
-        </Card.Subtitle>
-        {isFailed && statusData.error && (
-          <Alert variant="danger" className="mb-2 py-2">
-            {parseErrorMessage(statusData.error)}
-          </Alert>
-        )}
-        <Card.Text>
-          Rounds: {num_of_rounds} | Clients: {num_of_clients}
-        </Card.Text>
-        <Link to={`/simulations/${simulation_id}`}>View Details</Link>
       </Card.Body>
     </Card>
   );
@@ -122,15 +127,12 @@ SimulationCard.propTypes = {
   }),
   isSelected: PropTypes.bool,
   onCardClick: PropTypes.func.isRequired,
-  onDelete: PropTypes.func.isRequired,
   onRename: PropTypes.func.isRequired,
   onStop: PropTypes.func.isRequired,
-  deleting: PropTypes.bool,
   stopping: PropTypes.bool,
 };
 
 SimulationCard.defaultProps = {
   isSelected: false,
-  deleting: false,
   stopping: false,
 };

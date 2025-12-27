@@ -9,10 +9,8 @@ export function SimulationList({
   statuses,
   selectedSims,
   onCardClick,
-  onDelete,
   onRename,
   onStop,
-  deleting,
   stopping,
 }) {
   if (!simulations || simulations.length === 0) {
@@ -48,10 +46,8 @@ export function SimulationList({
             statusData={statuses[sim.simulation_id]}
             isSelected={selectedSims.includes(sim.simulation_id)}
             onCardClick={onCardClick}
-            onDelete={onDelete}
             onRename={onRename}
             onStop={onStop}
-            deleting={deleting}
             stopping={stopping}
           />
         </Col>
@@ -78,10 +74,8 @@ SimulationList.propTypes = {
   ),
   selectedSims: PropTypes.arrayOf(PropTypes.string),
   onCardClick: PropTypes.func,
-  onDelete: PropTypes.func,
   onRename: PropTypes.func,
   onStop: PropTypes.func,
-  deleting: PropTypes.objectOf(PropTypes.bool),
   stopping: PropTypes.objectOf(PropTypes.bool),
 };
 
@@ -90,9 +84,7 @@ SimulationList.defaultProps = {
   statuses: {},
   selectedSims: [],
   onCardClick: () => {},
-  onDelete: () => {},
   onRename: () => {},
   onStop: () => {},
-  deleting: {},
   stopping: {},
 };

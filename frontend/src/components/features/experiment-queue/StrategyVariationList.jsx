@@ -1,37 +1,57 @@
-import { Table, Button, Form, Dropdown, Badge } from 'react-bootstrap';
-import { QUICK_PATTERNS, AGGREGATION_STRATEGIES } from '@constants/strategyVariations';
+import { Table, Button, Form, Dropdown, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
+import {
+  QUICK_PATTERNS,
+  AGGREGATION_STRATEGIES,
+  STRATEGY_DEFAULTS,
+} from '@constants/strategyVariations';
 import { ATTACKS } from '@constants/attacks';
 import { formatAttackName } from '@constants/strategyLabels';
 import { InfoTooltip } from '@components/common/Tooltip/InfoTooltip';
 import { MaterialIcon } from '@components/common/Icon/MaterialIcon';
 
-export function StrategyVariationList({ variations, onChange, numOfClients }) {
-  const applyStrategyDefaults = strategy => {
-    const strategyType = strategy.aggregation_strategy_keyword;
+// Helper to check which parameters a strategy needs
+const strategyNeeds = {
+  krumSelections: s => ['krum', 'multi-krum', 'bulyan'].includes(s),
+  trustParams: s => s === 'trust',
+  pidParams: s => s === 'pid',
+  trimRatio: s => s === 'trimmed_mean',
+  removeFromRound: s => ['trust', 'pid', 'bulyan', 'trimmed_mean', 'rfa'].includes(s),
+};
 
-    if (
-      (strategyType === 'krum' || strategyType === 'multi-krum') &&
-      strategy.num_krum_selections === undefined
-    ) {
+export function StrategyVariationList({ variations, onChange, numOfClients }) {
+  // Apply strategy-specific defaults when switching strategies
+  const applyStrategyDefaults = (strategy, previousStrategy = null) => {
+    const strategyType = strategy.aggregation_strategy_keyword;
+    const defaults = STRATEGY_DEFAULTS[strategyType] || {};
+
+    // If switching strategies, apply new defaults
+    if (previousStrategy && previousStrategy !== strategyType) {
       return {
         ...strategy,
-        num_krum_selections: strategyType === 'krum' ? 1 : 3,
+        ...defaults,
       };
     }
 
-    return strategy;
+    // Just fill in missing values
+    const result = { ...strategy };
+    Object.entries(defaults).forEach(([key, value]) => {
+      if (result[key] === undefined) {
+        result[key] = value;
+      }
+    });
+    return result;
   };
 
   const handleAddRow = () => {
     const nextNumber = variations.length + 1;
 
-    const newVariation = {
+    const newVariation = applyStrategyDefaults({
       id: Date.now(),
       name: `strategy_${nextNumber}`,
       aggregation_strategy_keyword: 'fedavg',
       num_of_malicious_clients: 0,
       remove_clients: 'false',
-    };
+    });
     onChange([...variations, newVariation]);
   };
 
@@ -45,6 +65,7 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
         if (v.id === id) {
           const updated = { ...v, [field]: value };
 
+          // Auto-generate name from strategy + malicious count
           if (field === 'aggregation_strategy_keyword' || field === 'num_of_malicious_clients') {
             const strategy =
               field === 'aggregation_strategy_keyword' ? value : v.aggregation_strategy_keyword;
@@ -53,8 +74,9 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
             updated.name = `${strategy}_mal${malCount}`;
           }
 
+          // Apply defaults when switching strategy
           if (field === 'aggregation_strategy_keyword') {
-            return applyStrategyDefaults(updated);
+            return applyStrategyDefaults(updated, v.aggregation_strategy_keyword);
           }
 
           return updated;
@@ -70,7 +92,7 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
       const baseStrategy =
         variations.length > 0 ? variations[0].aggregation_strategy_keyword : 'fedavg';
       const generated = pattern.generate(baseStrategy);
-      const withDefaults = generated.map(applyStrategyDefaults);
+      const withDefaults = generated.map(v => applyStrategyDefaults(v));
       const withIds = withDefaults.map((v, i) => ({
         ...v,
         id: Date.now() + i,
@@ -78,6 +100,34 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
       onChange(withIds);
     }
   };
+
+  // Validation helpers
+  const getKrumValidation = variation => {
+    if (!strategyNeeds.krumSelections(variation.aggregation_strategy_keyword)) return null;
+    const maxSelections = numOfClients - variation.num_of_malicious_clients;
+    const selections = variation.num_krum_selections || 1;
+    if (selections > maxSelections) {
+      return `Max: ${maxSelections}`;
+    }
+    return null;
+  };
+
+  const getMaliciousValidation = variation => {
+    if (variation.num_of_malicious_clients > numOfClients) {
+      return `Max: ${numOfClients}`;
+    }
+    return null;
+  };
+
+  // Render validation warning
+  const ValidationBadge = ({ message }) =>
+    message ? (
+      <OverlayTrigger overlay={<Tooltip>{message}</Tooltip>}>
+        <Badge bg="warning" className="ms-1" style={{ cursor: 'help' }}>
+          !
+        </Badge>
+      </OverlayTrigger>
+    ) : null;
 
   return (
     <div className="strategy-variation-list">
@@ -118,89 +168,85 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
           </p>
         </div>
       ) : (
-        <>
-          <div className="table-responsive">
-            <Table hover className="variation-table">
-              <thead>
-                <tr>
-                  <th style={{ width: '8%' }}>#</th>
-                  <th style={{ width: '20%' }}>
-                    <InfoTooltip text="Descriptive name for this strategy variation">
-                      Name
-                    </InfoTooltip>
-                  </th>
-                  <th style={{ width: '20%' }}>
-                    <InfoTooltip text="Federated learning aggregation method (FedAvg, Krum, Multi-Krum, Trust, PID)">
-                      Aggregation Strategy
-                    </InfoTooltip>
-                  </th>
-                  <th style={{ width: '17%' }}>
-                    <InfoTooltip text="Number of Byzantine/malicious clients to simulate poisoning attacks">
-                      Malicious Clients
-                    </InfoTooltip>
-                  </th>
-                  <th style={{ width: '17%' }}>
-                    <InfoTooltip text="Number of closest clients to aggregate. Lower = more Byzantine robustness but less data diversity.">
-                      Krum Selections
-                    </InfoTooltip>
-                  </th>
-                  <th style={{ width: '15%' }}>
-                    <InfoTooltip text="Enable client removal based on trust scores">
-                      Remove Clients
-                    </InfoTooltip>
-                  </th>
-                  <th style={{ width: '15%' }}>
-                    <InfoTooltip text="Type of Byzantine attack (Gaussian noise or Label flipping)">
-                      Attack Type
-                    </InfoTooltip>
-                  </th>
-                  <th style={{ width: '15%' }}>
-                    <InfoTooltip text="Standard deviation for Gaussian noise attack">
-                      Noise Std Dev
-                    </InfoTooltip>
-                  </th>
-                  <th style={{ width: '15%' }}>
-                    <InfoTooltip text="Trust score threshold below which clients are flagged (Trust strategy)">
-                      Trust Threshold
-                    </InfoTooltip>
-                  </th>
-                  <th style={{ width: '12%' }}>
-                    <InfoTooltip text="Beta decay parameter for trust score calculation (Trust strategy)">
-                      Beta Value
-                    </InfoTooltip>
-                  </th>
-                  <th style={{ width: '15%' }}>
-                    <InfoTooltip text="Round number to begin removing untrusted clients">
-                      Remove From Round
-                    </InfoTooltip>
-                  </th>
-                  <th style={{ width: '10%' }}>
-                    <InfoTooltip text="Proportional gain for PID controller">Kp</InfoTooltip>
-                  </th>
-                  <th style={{ width: '10%' }}>
-                    <InfoTooltip text="Integral gain for PID controller">Ki</InfoTooltip>
-                  </th>
-                  <th style={{ width: '10%' }}>
-                    <InfoTooltip text="Derivative gain for PID controller">Kd</InfoTooltip>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {variations.map((variation, index) => (
+        <div className="table-responsive">
+          <Table hover size="sm" className="variation-table" style={{ minWidth: '1100px' }}>
+            <thead>
+              <tr>
+                <th style={{ width: '55px' }}>#</th>
+                <th style={{ minWidth: '120px' }}>
+                  <InfoTooltip text="Descriptive name for this strategy variation">
+                    Name
+                  </InfoTooltip>
+                </th>
+                <th style={{ minWidth: '140px' }}>
+                  <InfoTooltip text="Federated learning aggregation method">Strategy</InfoTooltip>
+                </th>
+                <th style={{ width: '70px' }}>
+                  <InfoTooltip text="Number of Byzantine/malicious clients">Mal.</InfoTooltip>
+                </th>
+                <th style={{ minWidth: '110px' }}>
+                  <InfoTooltip text="Type of attack when malicious clients > 0">Attack</InfoTooltip>
+                </th>
+                <th style={{ width: '60px' }}>
+                  <InfoTooltip text="Remove untrusted clients from aggregation">Rem.</InfoTooltip>
+                </th>
+                <th style={{ width: '70px' }}>
+                  <InfoTooltip text="Round to begin removing clients (Trust/PID/Bulyan/TrimMean/RFA)">
+                    Start
+                  </InfoTooltip>
+                </th>
+                <th style={{ width: '70px' }}>
+                  <InfoTooltip text="Krum selections (Krum/Multi-Krum/Bulyan) or Trim ratio (Trimmed Mean)">
+                    K / Trim
+                  </InfoTooltip>
+                </th>
+                <th style={{ width: '70px' }}>
+                  <InfoTooltip text="Trust threshold (Trust) or Std Dev multiplier (PID)">
+                    Thresh
+                  </InfoTooltip>
+                </th>
+                <th style={{ width: '60px' }}>
+                  <InfoTooltip text="Beta decay for trust scores (Trust strategy)">
+                    Beta
+                  </InfoTooltip>
+                </th>
+                <th style={{ width: '55px' }}>
+                  <InfoTooltip text="Proportional gain (PID)">Kp</InfoTooltip>
+                </th>
+                <th style={{ width: '55px' }}>
+                  <InfoTooltip text="Integral gain (PID)">Ki</InfoTooltip>
+                </th>
+                <th style={{ width: '55px' }}>
+                  <InfoTooltip text="Derivative gain (PID)">Kd</InfoTooltip>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {variations.map((variation, index) => {
+                const strategy = variation.aggregation_strategy_keyword;
+                const krumError = getKrumValidation(variation);
+                const malError = getMaliciousValidation(variation);
+
+                return (
                   <tr key={variation.id}>
+                    {/* Row number and delete */}
                     <td>
-                      <div className="d-flex align-items-center gap-2">
-                        <Badge bg="secondary">{index + 1}</Badge>
+                      <div className="d-flex align-items-center gap-1">
+                        <Badge bg="secondary" className="me-1">
+                          {index + 1}
+                        </Badge>
                         <button
                           onClick={() => handleDeleteRow(variation.id)}
                           title="Delete strategy"
                           aria-label="Delete strategy"
                           className="strategy-delete-btn"
                         >
-                          <MaterialIcon name="delete" size={18} />
+                          <MaterialIcon name="delete" size={16} />
                         </button>
                       </div>
                     </td>
+
+                    {/* Name */}
                     <td>
                       <Form.Control
                         type="text"
@@ -208,13 +254,14 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
                         value={variation.name}
                         title={variation.name}
                         onChange={e => handleFieldChange(variation.id, 'name', e.target.value)}
-                        style={{ minWidth: '100px' }}
                       />
                     </td>
+
+                    {/* Strategy */}
                     <td>
                       <Form.Select
                         size="sm"
-                        value={variation.aggregation_strategy_keyword}
+                        value={strategy}
                         onChange={e =>
                           handleFieldChange(
                             variation.id,
@@ -230,74 +277,31 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
                         ))}
                       </Form.Select>
                     </td>
+
+                    {/* Malicious clients */}
                     <td>
-                      <Form.Control
-                        type="number"
-                        size="sm"
-                        min="0"
-                        max={numOfClients}
-                        value={variation.num_of_malicious_clients}
-                        onChange={e =>
-                          handleFieldChange(
-                            variation.id,
-                            'num_of_malicious_clients',
-                            parseInt(e.target.value)
-                          )
-                        }
-                        isInvalid={variation.num_of_malicious_clients > numOfClients}
-                      />
-                      {variation.num_of_malicious_clients > numOfClients && (
-                        <Form.Control.Feedback type="invalid">
-                          Cannot exceed {numOfClients} clients
-                        </Form.Control.Feedback>
-                      )}
+                      <div className="d-flex align-items-center">
+                        <Form.Control
+                          type="number"
+                          size="sm"
+                          min="0"
+                          max={numOfClients}
+                          value={variation.num_of_malicious_clients}
+                          isInvalid={!!malError}
+                          onChange={e =>
+                            handleFieldChange(
+                              variation.id,
+                              'num_of_malicious_clients',
+                              parseInt(e.target.value) || 0
+                            )
+                          }
+                          style={{ width: '60px' }}
+                        />
+                        <ValidationBadge message={malError} />
+                      </div>
                     </td>
-                    <td>
-                      {variation.aggregation_strategy_keyword === 'multi-krum' ? (
-                        <>
-                          <Form.Control
-                            type="number"
-                            size="sm"
-                            min="1"
-                            max={numOfClients - variation.num_of_malicious_clients}
-                            value={variation.num_krum_selections || 18}
-                            onChange={e =>
-                              handleFieldChange(
-                                variation.id,
-                                'num_krum_selections',
-                                parseInt(e.target.value)
-                              )
-                            }
-                            isInvalid={
-                              (variation.num_krum_selections || 18) >
-                              numOfClients - variation.num_of_malicious_clients
-                            }
-                          />
-                          {(variation.num_krum_selections || 18) >
-                            numOfClients - variation.num_of_malicious_clients && (
-                            <Form.Control.Feedback type="invalid">
-                              Cannot exceed {numOfClients - variation.num_of_malicious_clients}{' '}
-                              (total clients minus malicious clients)
-                            </Form.Control.Feedback>
-                          )}
-                        </>
-                      ) : (
-                        <span className="text-muted small">-</span>
-                      )}
-                    </td>
-                    <td>
-                      <Form.Check
-                        type="switch"
-                        checked={variation.remove_clients === 'true'}
-                        onChange={e =>
-                          handleFieldChange(
-                            variation.id,
-                            'remove_clients',
-                            e.target.checked ? 'true' : 'false'
-                          )
-                        }
-                      />
-                    </td>
+
+                    {/* Attack type */}
                     <td>
                       {variation.num_of_malicious_clients > 0 ? (
                         <Form.Select
@@ -314,74 +318,28 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
                           ))}
                         </Form.Select>
                       ) : (
-                        <span className="text-muted small">-</span>
+                        <span className="text-muted">—</span>
                       )}
                     </td>
+
+                    {/* Remove clients toggle */}
                     <td>
-                      {variation.num_of_malicious_clients > 0 &&
-                      (variation.attack_type || 'gaussian_noise') === 'gaussian_noise' ? (
-                        <Form.Control
-                          type="number"
-                          size="sm"
-                          min="0"
-                          value={variation.gaussian_noise_std || 75}
-                          onChange={e =>
-                            handleFieldChange(
-                              variation.id,
-                              'gaussian_noise_std',
-                              parseInt(e.target.value)
-                            )
-                          }
-                        />
-                      ) : (
-                        <span className="text-muted small">-</span>
-                      )}
+                      <Form.Check
+                        type="switch"
+                        checked={variation.remove_clients === 'true'}
+                        onChange={e =>
+                          handleFieldChange(
+                            variation.id,
+                            'remove_clients',
+                            e.target.checked ? 'true' : 'false'
+                          )
+                        }
+                      />
                     </td>
+
+                    {/* Begin removing from round */}
                     <td>
-                      {variation.aggregation_strategy_keyword === 'trust' ? (
-                        <Form.Control
-                          type="number"
-                          size="sm"
-                          step="0.01"
-                          min="0"
-                          max="1"
-                          value={variation.trust_threshold || 0.15}
-                          onChange={e =>
-                            handleFieldChange(
-                              variation.id,
-                              'trust_threshold',
-                              parseFloat(e.target.value)
-                            )
-                          }
-                        />
-                      ) : (
-                        <span className="text-muted small">-</span>
-                      )}
-                    </td>
-                    <td>
-                      {variation.aggregation_strategy_keyword === 'trust' ? (
-                        <Form.Control
-                          type="number"
-                          size="sm"
-                          step="0.01"
-                          min="0"
-                          max="1"
-                          value={variation.beta_value || 0.75}
-                          onChange={e =>
-                            handleFieldChange(
-                              variation.id,
-                              'beta_value',
-                              parseFloat(e.target.value)
-                            )
-                          }
-                        />
-                      ) : (
-                        <span className="text-muted small">-</span>
-                      )}
-                    </td>
-                    <td>
-                      {(variation.aggregation_strategy_keyword === 'trust' ||
-                        variation.aggregation_strategy_keyword === 'pid') &&
+                      {strategyNeeds.removeFromRound(strategy) &&
                       variation.remove_clients === 'true' ? (
                         <Form.Control
                           type="number"
@@ -392,76 +350,187 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
                             handleFieldChange(
                               variation.id,
                               'begin_removing_from_round',
-                              parseInt(e.target.value)
+                              parseInt(e.target.value) || 1
                             )
                           }
+                          style={{ width: '60px' }}
                         />
                       ) : (
-                        <span className="text-muted small">-</span>
+                        <span className="text-muted">—</span>
                       )}
                     </td>
+
+                    {/* Krum selections / Trim ratio */}
                     <td>
-                      {variation.aggregation_strategy_keyword === 'pid' ? (
+                      {strategyNeeds.krumSelections(strategy) ? (
+                        <div className="d-flex align-items-center">
+                          <Form.Control
+                            type="number"
+                            size="sm"
+                            min="1"
+                            max={numOfClients - variation.num_of_malicious_clients}
+                            value={variation.num_krum_selections || 1}
+                            isInvalid={!!krumError}
+                            onChange={e =>
+                              handleFieldChange(
+                                variation.id,
+                                'num_krum_selections',
+                                parseInt(e.target.value) || 1
+                              )
+                            }
+                            style={{ width: '55px' }}
+                          />
+                          <ValidationBadge message={krumError} />
+                        </div>
+                      ) : strategyNeeds.trimRatio(strategy) ? (
+                        <Form.Control
+                          type="number"
+                          size="sm"
+                          step="0.05"
+                          min="0"
+                          max="0.5"
+                          value={variation.trim_ratio || 0.1}
+                          onChange={e =>
+                            handleFieldChange(
+                              variation.id,
+                              'trim_ratio',
+                              parseFloat(e.target.value) || 0.1
+                            )
+                          }
+                          style={{ width: '60px' }}
+                        />
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+
+                    {/* Threshold (trust_threshold or num_std_dev) */}
+                    <td>
+                      {strategyNeeds.trustParams(strategy) ? (
                         <Form.Control
                           type="number"
                           size="sm"
                           step="0.01"
                           min="0"
-                          value={variation.Kp || 1}
+                          max="1"
+                          value={variation.trust_threshold ?? 0.15}
+                          onChange={e =>
+                            handleFieldChange(
+                              variation.id,
+                              'trust_threshold',
+                              parseFloat(e.target.value)
+                            )
+                          }
+                          style={{ width: '60px' }}
+                        />
+                      ) : strategyNeeds.pidParams(strategy) ? (
+                        <Form.Control
+                          type="number"
+                          size="sm"
+                          step="0.5"
+                          min="0"
+                          value={variation.num_std_dev ?? 2.0}
+                          title="Standard deviation multiplier for removal threshold"
+                          onChange={e =>
+                            handleFieldChange(
+                              variation.id,
+                              'num_std_dev',
+                              parseFloat(e.target.value)
+                            )
+                          }
+                          style={{ width: '60px' }}
+                        />
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+
+                    {/* Beta value (trust only) */}
+                    <td>
+                      {strategyNeeds.trustParams(strategy) ? (
+                        <Form.Control
+                          type="number"
+                          size="sm"
+                          step="0.05"
+                          min="0"
+                          max="1"
+                          value={variation.beta_value ?? 0.75}
+                          onChange={e =>
+                            handleFieldChange(
+                              variation.id,
+                              'beta_value',
+                              parseFloat(e.target.value)
+                            )
+                          }
+                          style={{ width: '55px' }}
+                        />
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+
+                    {/* Kp (PID only) */}
+                    <td>
+                      {strategyNeeds.pidParams(strategy) ? (
+                        <Form.Control
+                          type="number"
+                          size="sm"
+                          step="0.1"
+                          min="0"
+                          value={variation.Kp ?? 1.0}
                           onChange={e =>
                             handleFieldChange(variation.id, 'Kp', parseFloat(e.target.value))
                           }
+                          style={{ width: '50px' }}
                         />
                       ) : (
-                        <span className="text-muted small">-</span>
+                        <span className="text-muted">—</span>
                       )}
                     </td>
+
+                    {/* Ki (PID only) */}
                     <td>
-                      {variation.aggregation_strategy_keyword === 'pid' ? (
+                      {strategyNeeds.pidParams(strategy) ? (
                         <Form.Control
                           type="number"
                           size="sm"
                           step="0.01"
                           min="0"
-                          value={variation.Ki || 0.05}
+                          value={variation.Ki ?? 0.05}
                           onChange={e =>
                             handleFieldChange(variation.id, 'Ki', parseFloat(e.target.value))
                           }
+                          style={{ width: '50px' }}
                         />
                       ) : (
-                        <span className="text-muted small">-</span>
+                        <span className="text-muted">—</span>
                       )}
                     </td>
+
+                    {/* Kd (PID only) */}
                     <td>
-                      {variation.aggregation_strategy_keyword === 'pid' ? (
+                      {strategyNeeds.pidParams(strategy) ? (
                         <Form.Control
                           type="number"
                           size="sm"
                           step="0.01"
                           min="0"
-                          value={variation.Kd || 0.05}
+                          value={variation.Kd ?? 0.05}
                           onChange={e =>
                             handleFieldChange(variation.id, 'Kd', parseFloat(e.target.value))
                           }
+                          style={{ width: '50px' }}
                         />
                       ) : (
-                        <span className="text-muted small">-</span>
+                        <span className="text-muted">—</span>
                       )}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </Table>
-          </div>
-
-          {variations.length === 0 && (
-            <div className="alert alert-info mt-3">
-              <i className="bi bi-info-circle me-2"></i>
-              Add at least 1 strategy to create an experiment queue. Multiple strategies will run
-              sequentially for comparison.
-            </div>
-          )}
-        </>
+                );
+              })}
+            </tbody>
+          </Table>
+        </div>
       )}
     </div>
   );
