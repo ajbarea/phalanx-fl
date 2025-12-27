@@ -1024,6 +1024,56 @@ async def get_all_plot_data(simulation_id: str) -> dict:
         )
 
 
+def _find_simulation_process(simulation_id: str) -> psutil.Process | None:
+    """Find a running simulation process by its simulation ID.
+
+    Searches for processes by:
+    1. Command line pattern matching simulation_runner with config path
+    2. PID stored in status.json file
+
+    Args:
+        simulation_id: The simulation identifier.
+
+    Returns:
+        The psutil.Process if found, None otherwise.
+    """
+    # Method 1: Search by command line pattern
+    config_pattern = f"out/{simulation_id}/config.json"
+    alt_config_pattern = f"out\\{simulation_id}\\config.json"
+
+    for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+        try:
+            cmdline = proc.info.get("cmdline") or []
+            cmdline_str = " ".join(cmdline) if cmdline else ""
+
+            if "simulation_runner" in cmdline_str and (
+                config_pattern in cmdline_str or alt_config_pattern in cmdline_str
+            ):
+                return proc
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            continue
+
+    # Method 2: Try to find process by PID from status.json
+    status_path = OUTPUT_DIR / simulation_id / "status.json"
+    if status_path.exists():
+        try:
+            with status_path.open() as f:
+                status_data = json.load(f)
+            pid = status_data.get("pid")
+            if pid:
+                try:
+                    proc = psutil.Process(pid)
+                    # Verify it's still a Python process (simulation might have reused PID)
+                    if proc.is_running() and "python" in proc.name().lower():
+                        return proc
+                except psutil.NoSuchProcess:
+                    pass
+        except (IOError, json.JSONDecodeError):
+            pass
+
+    return None
+
+
 @app.post("/api/simulations/{simulation_id}/stop", status_code=200)
 def stop_simulation(simulation_id: str) -> dict[str, str]:
     """Terminates a running simulation and all its child processes.
@@ -1037,19 +1087,60 @@ def stop_simulation(simulation_id: str) -> dict[str, str]:
     Raises:
         HTTPException: If the simulation is not running or termination fails.
     """
-    if simulation_id not in running_processes:
-        raise HTTPException(
-            status_code=404, detail="Simulation is not running or does not exist."
-        )
+    process = None
+    parent = None
 
-    process = running_processes[simulation_id]
+    # First check if process is tracked in running_processes dict
+    if simulation_id in running_processes:
+        process = running_processes[simulation_id]
+        if process.poll() is not None:
+            del running_processes[simulation_id]
+            process = None
 
-    if process.poll() is not None:
-        del running_processes[simulation_id]
-        raise HTTPException(status_code=409, detail="Simulation has already completed.")
+    # If not found in dict, search for terminal-spawned processes by cmdline/PID
+    if process is None:
+        found_proc = _find_simulation_process(simulation_id)
+        if found_proc:
+            parent = found_proc
+        else:
+            # Check if status.json shows "running" but process is dead (orphaned status)
+            status_path = OUTPUT_DIR / simulation_id / "status.json"
+            if status_path.exists():
+                try:
+                    with status_path.open() as f:
+                        status_data = json.load(f)
+                    if status_data.get("status") == "running":
+                        # Process died but status wasn't updated - mark as stopped
+                        status_data["status"] = "stopped"
+                        status_data["stopped_at"] = datetime.datetime.now(
+                            tz=datetime.timezone.utc
+                        ).isoformat()
+                        status_data["error"] = "Process terminated unexpectedly"
+                        with status_path.open("w") as f:
+                            json.dump(status_data, f, indent=2)
+                        logger.info(
+                            f"Marked orphaned simulation {simulation_id} as stopped"
+                        )
+                        return {"message": "stopped", "simulation_id": simulation_id}
+                except (IOError, json.JSONDecodeError) as e:
+                    logger.warning(
+                        f"Failed to update orphaned status for {simulation_id}: {e}"
+                    )
+
+            raise HTTPException(
+                status_code=404, detail="Simulation is not running or does not exist."
+            )
+    else:
+        # Process found in running_processes dict
+        try:
+            parent = psutil.Process(process.pid)
+        except psutil.NoSuchProcess:
+            del running_processes[simulation_id]
+            raise HTTPException(
+                status_code=409, detail="Simulation has already completed."
+            )
 
     try:
-        parent = psutil.Process(process.pid)
         children = parent.children(recursive=True)
 
         parent.terminate()
@@ -1070,7 +1161,9 @@ def stop_simulation(simulation_id: str) -> dict[str, str]:
                     pass
             parent.wait()
 
-        del running_processes[simulation_id]
+        # Clean up running_processes dict if it was tracked there
+        if simulation_id in running_processes:
+            del running_processes[simulation_id]
 
         sim_path = OUTPUT_DIR / simulation_id
         stopped_marker = sim_path / ".stopped"
@@ -1083,7 +1176,8 @@ def stop_simulation(simulation_id: str) -> dict[str, str]:
         logger.info(f"Stopped simulation {simulation_id} and all child processes")
         return {"message": "stopped", "simulation_id": simulation_id}
     except psutil.NoSuchProcess:
-        del running_processes[simulation_id]
+        if simulation_id in running_processes:
+            del running_processes[simulation_id]
         logger.info(f"Simulation {simulation_id} already terminated")
         return {"message": "stopped", "simulation_id": simulation_id}
     except Exception:
