@@ -1,6 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Card, Row, Col, Spinner, Alert, Table, Badge } from 'react-bootstrap';
+import {
+  Card,
+  Row,
+  Col,
+  Spinner,
+  Alert,
+  Table,
+  Badge,
+  Accordion,
+  OverlayTrigger,
+  Tooltip,
+} from 'react-bootstrap';
 import {
   getSimulationDetails,
   getSimulationStatus,
@@ -8,6 +19,7 @@ import {
 } from '@api/endpoints/simulations';
 import { getErrorMessage } from '@utils/errorMessages';
 import { formatAccuracy, formatChange, METRIC_DECIMALS } from '@utils/formatters';
+import { groupPlotsByCategory, getPlotDisplayInfo, CATEGORY_INFO } from '@constants/plotMetadata';
 
 function ComparisonView() {
   const [searchParams] = useSearchParams();
@@ -240,12 +252,14 @@ function ComparisonView() {
             <h5>⚙️ Configuration Differences</h5>
           </Card.Header>
           <Card.Body>
-            <Table responsive>
+            <Table responsive style={{ tableLayout: 'fixed' }}>
               <thead>
                 <tr>
-                  <th>Parameter</th>
+                  <th style={{ width: `${100 / (simulations.length + 1)}%` }}>Parameter</th>
                   {simulations.map((sim, idx) => (
-                    <th key={idx}>Sim {idx + 1}</th>
+                    <th key={idx} style={{ width: `${100 / (simulations.length + 1)}%` }}>
+                      Sim {idx + 1}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -256,8 +270,10 @@ function ComparisonView() {
                       <strong>{diff.key}</strong>
                     </td>
                     {diff.values.map((value, idx) => (
-                      <td key={idx}>
-                        <code>{JSON.stringify(value)}</code>
+                      <td key={idx} style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                        <code style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                          {JSON.stringify(value)}
+                        </code>
                       </td>
                     ))}
                   </tr>
@@ -283,6 +299,45 @@ function ComparisonView() {
 
               const settings = sim.details.config.shared_settings || sim.details.config;
               const displayName = settings.display_name;
+              const strategyKeyword = settings.aggregation_strategy_keyword;
+
+              // Group plots by category with filtering
+              const plotGroups = groupPlotsByCategory(plotFiles, strategyKeyword);
+
+              const renderPlotLink = (plot, simId) => {
+                const meta = getPlotDisplayInfo(plot.filename);
+                const linkContent = (
+                  <a
+                    href={`/api/simulations/${simId}/results/${plot.filename}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-decoration-none d-block py-1"
+                    aria-label={meta?.description || plot.displayName}
+                  >
+                    {plot.displayName}
+                  </a>
+                );
+
+                if (meta?.description) {
+                  return (
+                    <OverlayTrigger
+                      key={plot.filename}
+                      placement="right"
+                      overlay={<Tooltip>{meta.description}</Tooltip>}
+                    >
+                      {linkContent}
+                    </OverlayTrigger>
+                  );
+                }
+
+                return <div key={plot.filename}>{linkContent}</div>;
+              };
+
+              const hasPlots =
+                plotGroups.training.length > 0 ||
+                plotGroups.defense.length > 0 ||
+                plotGroups.advanced.length > 0 ||
+                plotGroups.other.length > 0;
 
               return (
                 <Col key={idx}>
@@ -297,20 +352,57 @@ function ComparisonView() {
                       </div>
                     </Card.Header>
                     <Card.Body>
-                      {plotFiles.length > 0 ? (
-                        <div className="d-flex flex-column gap-2">
-                          {plotFiles.map((filename, plotIdx) => (
-                            <div key={plotIdx}>
-                              <a
-                                href={`/api/simulations/${sim.id}/results/${filename}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-decoration-none"
-                              >
-                                📈 {filename.replace('.pdf', '').replace(/_/g, ' ')}
-                              </a>
+                      {hasPlots ? (
+                        <div className="d-flex flex-column gap-3">
+                          {/* Training Progress */}
+                          {plotGroups.training.length > 0 && (
+                            <div>
+                              <h6 className="text-muted mb-2">
+                                {CATEGORY_INFO.training.icon} {CATEGORY_INFO.training.title}
+                              </h6>
+                              <div className="ps-2">
+                                {plotGroups.training.map(plot => renderPlotLink(plot, sim.id))}
+                              </div>
                             </div>
-                          ))}
+                          )}
+
+                          {/* Defense Effectiveness */}
+                          {plotGroups.defense.length > 0 && (
+                            <div>
+                              <h6 className="text-muted mb-2">
+                                {CATEGORY_INFO.defense.icon} {CATEGORY_INFO.defense.title}
+                              </h6>
+                              <div className="ps-2">
+                                {plotGroups.defense.map(plot => renderPlotLink(plot, sim.id))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Advanced Metrics (Collapsible) */}
+                          {plotGroups.advanced.length > 0 && (
+                            <Accordion>
+                              <Accordion.Item eventKey="0">
+                                <Accordion.Header>
+                                  <span className="text-muted small">
+                                    {CATEGORY_INFO.advanced.icon} {CATEGORY_INFO.advanced.title}
+                                  </span>
+                                </Accordion.Header>
+                                <Accordion.Body className="py-2">
+                                  {plotGroups.advanced.map(plot => renderPlotLink(plot, sim.id))}
+                                </Accordion.Body>
+                              </Accordion.Item>
+                            </Accordion>
+                          )}
+
+                          {/* Other/Unknown Plots */}
+                          {plotGroups.other.length > 0 && (
+                            <div>
+                              <h6 className="text-muted mb-2">Other</h6>
+                              <div className="ps-2">
+                                {plotGroups.other.map(plot => renderPlotLink(plot, sim.id))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <p className="text-muted">No plots available</p>

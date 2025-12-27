@@ -18,15 +18,40 @@ import { getAllPlotData } from '@api/endpoints/simulations';
 import { CHART_COLORS, CHART_UI_COLORS, MALICIOUS_COLORS } from '@constants/ui';
 import { useResponsiveChartHeight } from '@hooks/useResponsiveChartHeight';
 
-const METRIC_LABELS = {
-  removal_criterion_history: 'Removal Criterion',
-  absolute_distance_history: 'Model Distance',
-  loss_history: 'Training Loss',
-  accuracy_history: 'Training Accuracy',
-  trust_score_history: 'Trust Score',
-  participation_history: 'Participation',
-  aggregation_participation_history: 'Aggregation Participation',
+const METRIC_INFO = {
+  removal_criterion_history: {
+    label: 'Client Removal Scores',
+    description: 'Per-client scores used for removal decisions',
+  },
+  absolute_distance_history: {
+    label: 'Model Distances',
+    description: 'Distance from each client model to the cluster center',
+  },
+  loss_history: {
+    label: 'Training Loss',
+    description: 'Per-client loss values showing learning progress',
+  },
+  accuracy_history: {
+    label: 'Model Accuracy',
+    description: 'Per-client accuracy over training rounds',
+  },
+  trust_score_history: {
+    label: 'Trust Scores',
+    description: 'Client trustworthiness score computed by defense strategy',
+  },
+  participation_history: {
+    label: 'Participation',
+    description: 'Whether client participated in each round',
+  },
+  aggregation_participation_history: {
+    label: 'Aggregation Status',
+    description: "Whether client's update was included in aggregation",
+  },
 };
+
+const METRIC_LABELS = Object.fromEntries(
+  Object.entries(METRIC_INFO).map(([key, { label }]) => [key, label])
+);
 
 const getAvailableMetrics = perClientMetrics => {
   if (!perClientMetrics || perClientMetrics.length === 0) return [];
@@ -156,6 +181,9 @@ export default function InteractivePlots({ simulation }) {
               </option>
             ))}
           </Form.Select>
+          {selectedMetric && METRIC_INFO[selectedMetric]?.description && (
+            <Form.Text className="text-muted">{METRIC_INFO[selectedMetric].description}</Form.Text>
+          )}
         </Form.Group>
 
         <div className="mb-3 text-center">
