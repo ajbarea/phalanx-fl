@@ -26,8 +26,13 @@ apiClient.interceptors.response.use(
 
     const message = getErrorMessage(error);
     const title = getErrorTitle(error);
+    const status = error.response?.status || 'network';
+
+    // Use toast id for deduplication - prevents spam when multiple requests fail
+    const toastId = `api-error-${status}-${message.slice(0, 50)}`;
 
     toast.error(message, {
+      id: toastId,
       description: title !== 'Error' ? title : undefined,
       duration: 5000,
     });
