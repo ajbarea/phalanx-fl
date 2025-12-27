@@ -63,7 +63,7 @@ function App() {
         <Navbar
           expand="md"
           className="mb-3"
-          style={{ backgroundColor: 'var(--md-sys-color-surface-variant)' }}
+          style={{ backgroundColor: 'var(--color-surface-variant)' }}
         >
           <Container>
             <Navbar.Brand as={Link} to="/">
