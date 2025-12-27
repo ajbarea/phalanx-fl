@@ -110,6 +110,13 @@ export function NewSimulation() {
           enabled: true,
           schedule: preset.config.attack_schedule,
         };
+      } else {
+        // Clear dynamic_attacks when preset has no attacks
+        newConfig.dynamic_attacks = {
+          enabled: false,
+          schedule: [],
+        };
+        newConfig.attack_schedule = [];
       }
 
       setConfig(newConfig);
