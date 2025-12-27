@@ -26,7 +26,7 @@ export function Dashboard() {
     show: false,
     title: '',
     message: '',
-    onConfirm: () => { },
+    onConfirm: () => {},
     variant: 'danger',
   });
 
