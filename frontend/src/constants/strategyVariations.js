@@ -17,8 +17,8 @@ export const QUICK_PATTERNS = {
 
   compareStrategies: {
     id: 'compareStrategies',
-    name: 'Compare Aggregation Strategies',
-    description: 'Compare FedAvg, Krum, Multi-Krum, and Trust strategies with no attacks',
+    name: 'Compare All Strategies',
+    description: 'Compare all 8 aggregation strategies with no attacks',
     generate: () => {
       return [
         {
@@ -42,9 +42,41 @@ export const QUICK_PATTERNS = {
           remove_clients: 'false',
         },
         {
+          name: 'bulyan_baseline',
+          aggregation_strategy_keyword: 'bulyan',
+          num_of_malicious_clients: 0,
+          num_krum_selections: 4,
+          remove_clients: 'false',
+        },
+        {
+          name: 'trimmed_mean_baseline',
+          aggregation_strategy_keyword: 'trimmed_mean',
+          num_of_malicious_clients: 0,
+          trim_ratio: 0.1,
+          remove_clients: 'false',
+        },
+        {
+          name: 'rfa_baseline',
+          aggregation_strategy_keyword: 'rfa',
+          num_of_malicious_clients: 0,
+          remove_clients: 'false',
+        },
+        {
           name: 'trust_baseline',
           aggregation_strategy_keyword: 'trust',
           num_of_malicious_clients: 0,
+          trust_threshold: 0.15,
+          beta_value: 0.75,
+          remove_clients: 'false',
+        },
+        {
+          name: 'pid_baseline',
+          aggregation_strategy_keyword: 'pid',
+          num_of_malicious_clients: 0,
+          Kp: 1.0,
+          Ki: 0.05,
+          Kd: 0.05,
+          num_std_dev: 2.0,
           remove_clients: 'false',
         },
       ];
@@ -68,37 +100,101 @@ export const QUICK_PATTERNS = {
 
   defenseComparison: {
     id: 'defenseComparison',
-    name: 'Defense Comparison (1 Malicious)',
-    description: 'Compare defense strategies under attack (1 malicious client)',
+    name: 'Defense Comparison (2 Malicious)',
+    description: 'Compare Byzantine-resilient defenses under attack (2 malicious clients)',
     generate: () => {
       return [
         {
-          name: 'fedavg_1mal',
+          name: 'fedavg_2mal',
           aggregation_strategy_keyword: 'fedavg',
-          num_of_malicious_clients: 1,
+          num_of_malicious_clients: 2,
           remove_clients: 'false',
         },
         {
-          name: 'krum_1mal',
+          name: 'krum_2mal',
           aggregation_strategy_keyword: 'krum',
-          num_of_malicious_clients: 1,
+          num_of_malicious_clients: 2,
           num_krum_selections: 1,
           remove_clients: 'true',
+          begin_removing_from_round: 2,
         },
         {
-          name: 'multi_krum_1mal',
+          name: 'multi_krum_2mal',
           aggregation_strategy_keyword: 'multi-krum',
-          num_of_malicious_clients: 1,
+          num_of_malicious_clients: 2,
           num_krum_selections: 3,
           remove_clients: 'true',
+          begin_removing_from_round: 2,
         },
         {
-          name: 'trust_1mal',
-          aggregation_strategy_keyword: 'trust',
-          num_of_malicious_clients: 1,
+          name: 'bulyan_2mal',
+          aggregation_strategy_keyword: 'bulyan',
+          num_of_malicious_clients: 2,
+          num_krum_selections: 4,
           remove_clients: 'true',
+          begin_removing_from_round: 2,
+        },
+        {
+          name: 'trimmed_mean_2mal',
+          aggregation_strategy_keyword: 'trimmed_mean',
+          num_of_malicious_clients: 2,
+          trim_ratio: 0.1,
+          remove_clients: 'true',
+          begin_removing_from_round: 2,
+        },
+        {
+          name: 'rfa_2mal',
+          aggregation_strategy_keyword: 'rfa',
+          num_of_malicious_clients: 2,
+          remove_clients: 'true',
+          begin_removing_from_round: 2,
+        },
+        {
+          name: 'trust_2mal',
+          aggregation_strategy_keyword: 'trust',
+          num_of_malicious_clients: 2,
+          trust_threshold: 0.15,
+          beta_value: 0.75,
+          remove_clients: 'true',
+          begin_removing_from_round: 2,
+        },
+        {
+          name: 'pid_2mal',
+          aggregation_strategy_keyword: 'pid',
+          num_of_malicious_clients: 2,
+          Kp: 1.0,
+          Ki: 0.05,
+          Kd: 0.05,
+          num_std_dev: 2.0,
+          remove_clients: 'true',
+          begin_removing_from_round: 2,
         },
       ];
+    },
+  },
+
+  byzantineRobustness: {
+    id: 'byzantineRobustness',
+    name: 'Byzantine Robustness Sweep',
+    description:
+      'Test Byzantine-resilient strategies with increasing attack severity (0-4 malicious)',
+    generate: () => {
+      const strategies = ['krum', 'multi-krum', 'bulyan', 'trimmed_mean'];
+      const variations = [];
+      for (const strategy of strategies) {
+        for (let mal = 0; mal <= 4; mal++) {
+          variations.push({
+            name: `${strategy}_mal${mal}`,
+            aggregation_strategy_keyword: strategy,
+            num_of_malicious_clients: mal,
+            num_krum_selections: strategy === 'trimmed_mean' ? undefined : 3,
+            trim_ratio: strategy === 'trimmed_mean' ? 0.1 : undefined,
+            remove_clients: mal > 0 ? 'true' : 'false',
+            begin_removing_from_round: mal > 0 ? 2 : undefined,
+          });
+        }
+      }
+      return variations;
     },
   },
 };
@@ -115,15 +211,65 @@ export const OVERRIDABLE_FIELDS = [
   'Kp',
   'Ki',
   'Kd',
+  'num_std_dev',
+  'trim_ratio',
   'attack_type',
-  'gaussian_noise_std',
 ];
 
 // Aggregation strategy options
 export const AGGREGATION_STRATEGIES = [
-  { value: 'fedavg', label: 'FedAvg' },
-  { value: 'krum', label: 'Krum' },
-  { value: 'multi-krum', label: 'Multi-Krum' },
-  { value: 'trust', label: 'Trust' },
-  { value: 'pid', label: 'PID Controller' },
+  { value: 'fedavg', label: 'FedAvg', group: 'baseline' },
+  { value: 'krum', label: 'Krum', group: 'byzantine' },
+  { value: 'multi-krum', label: 'Multi-Krum', group: 'byzantine' },
+  { value: 'bulyan', label: 'Bulyan', group: 'byzantine' },
+  { value: 'trimmed_mean', label: 'Trimmed Mean', group: 'byzantine' },
+  { value: 'rfa', label: 'RFA (Geometric Median)', group: 'byzantine' },
+  { value: 'trust', label: 'Trust-Based', group: 'adaptive' },
+  { value: 'pid', label: 'PID Controller', group: 'adaptive' },
 ];
+
+// Strategy-specific required parameters
+export const STRATEGY_REQUIRED_PARAMS = {
+  trust: ['trust_threshold', 'beta_value', 'begin_removing_from_round'],
+  pid: ['Kp', 'Ki', 'Kd', 'num_std_dev'],
+  'multi-krum': ['num_krum_selections'],
+  krum: ['num_krum_selections'],
+  bulyan: ['num_krum_selections'],
+  trimmed_mean: ['trim_ratio'],
+  rfa: [],
+  fedavg: [],
+};
+
+// Default values for strategy-specific parameters
+export const STRATEGY_DEFAULTS = {
+  trust: {
+    trust_threshold: 0.15,
+    beta_value: 0.75,
+    begin_removing_from_round: 2,
+  },
+  pid: {
+    Kp: 1.0,
+    Ki: 0.05,
+    Kd: 0.05,
+    num_std_dev: 2.0,
+    begin_removing_from_round: 2,
+  },
+  krum: {
+    num_krum_selections: 1,
+  },
+  'multi-krum': {
+    num_krum_selections: 3,
+  },
+  bulyan: {
+    num_krum_selections: 3,
+    begin_removing_from_round: 2,
+  },
+  trimmed_mean: {
+    trim_ratio: 0.1,
+    begin_removing_from_round: 2,
+  },
+  rfa: {
+    begin_removing_from_round: 2,
+  },
+  fedavg: {},
+};
