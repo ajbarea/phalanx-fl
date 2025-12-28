@@ -10,6 +10,7 @@ import ComparisonView from './components/ComparisonView';
 import TerminalPanel from './components/TerminalPanel';
 import ErrorBoundary from './components/ErrorBoundary';
 import ThemeToggle from './components/ThemeToggle';
+import { DeviceIndicator } from './components/layout/DeviceIndicator';
 import { Toaster } from 'sonner';
 import { useEffect, useState } from 'react';
 import { useTerminal } from './contexts/TerminalContext';
@@ -82,7 +83,8 @@ function App() {
                   Experiment Queue
                 </Nav.Link>
               </Nav>
-              <Nav>
+              <Nav className="align-items-center">
+                <DeviceIndicator />
                 <ThemeToggle />
               </Nav>
             </Navbar.Collapse>

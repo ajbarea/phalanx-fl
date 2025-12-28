@@ -7,6 +7,7 @@ import './index.css';
 import App from './App.jsx';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { TerminalProvider } from './contexts/TerminalContext';
+import { DeviceProvider } from './contexts/DeviceContext';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,9 +23,11 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <TerminalProvider>
-          <App />
-        </TerminalProvider>
+        <DeviceProvider>
+          <TerminalProvider>
+            <App />
+          </TerminalProvider>
+        </DeviceProvider>
       </ThemeProvider>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
