@@ -8,9 +8,9 @@ import pytest
 from numpy.typing import NDArray
 
 from src.attack_utils.weight_snapshots import (
-    _compute_weight_diff_statistics,
     _compute_weight_statistics,
     _get_weight_snapshot_dir,
+    compute_weight_diff_statistics,
     list_weight_snapshots,
     load_weight_snapshot,
     save_weight_snapshot,
@@ -49,9 +49,9 @@ class TestWeightStatistics:
         assert stats["min"] == 1.0
         assert stats["max"] == 4.0
 
-    def test_compute_weight_diff_statistics(self, mock_params, mock_params_after):
+    def testcompute_weight_diff_statistics(self, mock_params, mock_params_after):
         """Tests difference statistics calculation."""
-        stats = _compute_weight_diff_statistics(mock_params, mock_params_after)
+        stats = compute_weight_diff_statistics(mock_params, mock_params_after)
 
         assert "diff_mean" in stats
         assert "diff_l2_norm" in stats
