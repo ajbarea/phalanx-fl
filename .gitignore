@@ -25,3 +25,4 @@ tests/logs/
 timing_db.json
 logs/
 cache/huggingface/
+MagicMock/
