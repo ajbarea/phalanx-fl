@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Form, Button, Accordion, OverlayTrigger, Tooltip, Spinner } from 'react-bootstrap';
+import { Form, Accordion, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { PresetSelector } from './PresetSelector';
 import { CommonSettings } from './ConfigSections/CommonSettings';
 import { AttackSettings } from './ConfigSections/AttackSettings';
@@ -11,7 +11,41 @@ import { LLMSettings } from './ConfigSections/LLMSettings';
 import { OutputSettings } from './ConfigSections/OutputSettings';
 import { DynamicAttacks } from './ConfigSections/DynamicAttacks';
 import ValidationSummary from '@components/ValidationSummary';
+import { StickyFormFooter } from '@components/common/StickyFormFooter';
 import { TOOLTIP_DELAYS } from '@constants/ui';
+
+// Map field names to accordion section keys for error navigation
+const FIELD_TO_SECTION = {
+  aggregation_strategy_keyword: '0',
+  dataset_keyword: '0',
+  dataset_source: '0',
+  num_of_rounds: '0',
+  num_of_clients: '0',
+  num_of_malicious_clients: '1',
+  attack_type: '1',
+  poison_rate: '1',
+  scale_factor: '1',
+  Kp: '2',
+  Ki: '2',
+  Kd: '2',
+  num_of_client_epochs: '3',
+  batch_size: '3',
+  learning_rate: '3',
+  training_device: '3',
+  training_subset_fraction: '3',
+  min_fit_clients: '4',
+  min_evaluate_clients: '4',
+  fraction_fit: '4',
+  fraction_evaluate: '4',
+  use_llm: '6',
+  llm_model: '6',
+  llm_task: '6',
+  preserve_dataset: '7',
+  save_csv: '7',
+  save_plots: '7',
+  dynamic_attacks: '8',
+  attack_schedule: '8',
+};
 
 export function SimulationForm({
   config,
@@ -22,7 +56,6 @@ export function SimulationForm({
   isSubmitting,
   validation,
   error,
-  gpuInfo,
 }) {
   const [activeSection, setActiveSection] = useState(['0']);
 
@@ -188,8 +221,24 @@ export function SimulationForm({
     }
   };
 
+  // Handle clicking on error in sticky footer - scroll to and open the relevant section
+  const handleErrorClick = error => {
+    const sectionKey = FIELD_TO_SECTION[error.field];
+    if (sectionKey) {
+      // Open the accordion section if not already open
+      if (!activeSection.includes(sectionKey)) {
+        setActiveSection([...activeSection, sectionKey]);
+      }
+      // Scroll to the section after a brief delay for accordion animation
+      setTimeout(() => {
+        const element = document.querySelector(`[data-section-key="${sectionKey}"]`);
+        element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  };
+
   return (
-    <Form onSubmit={onSubmit}>
+    <Form onSubmit={onSubmit} className="simulation-form-container">
       <PresetSelector selectedPreset={selectedPreset} onPresetChange={onPresetChange} />
 
       <Form.Group className="mb-4">
@@ -360,7 +409,7 @@ export function SimulationForm({
             </div>
           </Accordion.Header>
           <Accordion.Body>
-            <TrainingSettings config={config} onChange={onConfigChange} gpuInfo={gpuInfo} />
+            <TrainingSettings config={config} onChange={onConfigChange} />
           </Accordion.Body>
         </Accordion.Item>
 
@@ -478,30 +527,11 @@ export function SimulationForm({
         </Accordion.Item>
       </Accordion>
 
-      <div className="d-flex gap-2">
-        <Button
-          variant="primary"
-          type="submit"
-          disabled={isSubmitting || (validation && validation.errors.length > 0)}
-          className="flex-grow-1"
-        >
-          {isSubmitting ? (
-            <>
-              <Spinner
-                as="span"
-                animation="border"
-                size="sm"
-                role="status"
-                aria-hidden="true"
-                className="me-2"
-              />
-              Creating Simulation...
-            </>
-          ) : (
-            'Create Simulation'
-          )}
-        </Button>
-      </div>
+      <StickyFormFooter
+        validation={validation}
+        isSubmitting={isSubmitting}
+        onErrorClick={handleErrorClick}
+      />
     </Form>
   );
 }

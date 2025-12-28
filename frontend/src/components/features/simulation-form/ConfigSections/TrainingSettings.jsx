@@ -1,9 +1,6 @@
-import { SelectField } from '../FormFields/SelectField';
 import { NumberField } from '../FormFields/NumberField';
-import { GpuInfoChip } from '@components/common/Chip/GpuInfoChip';
-import { DEVICES } from '@constants/attacks';
 
-export function TrainingSettings({ config, onChange, gpuInfo }) {
+export function TrainingSettings({ config, onChange }) {
   return (
     <>
       <NumberField
@@ -24,40 +21,6 @@ export function TrainingSettings({ config, onChange, gpuInfo }) {
         min={1}
         tooltip="Number of complete passes over local data each client performs before sending updates to server. More epochs = better local training but higher computation cost."
         required
-      />
-
-      <div className="d-flex align-items-end gap-2 mb-3">
-        <div className="flex-grow-1">
-          <SelectField
-            name="training_device"
-            label="Training Device"
-            value={config.training_device}
-            onChange={onChange}
-            options={DEVICES}
-            tooltip="Hardware for training. 'cpu' = use CPU, 'gpu' = use NVIDIA GPU if available."
-            className="mb-0"
-          />
-        </div>
-        <GpuInfoChip gpuInfo={gpuInfo} />
-      </div>
-
-      <NumberField
-        name="cpus_per_client"
-        label="CPUs per Client"
-        value={config.cpus_per_client}
-        onChange={onChange}
-        min={1}
-        tooltip="Number of CPU cores allocated to each simulated client for parallel processing. Adjust based on available system resources."
-      />
-
-      <NumberField
-        name="gpus_per_client"
-        label="GPUs per Client"
-        value={config.gpus_per_client}
-        onChange={onChange}
-        step={0.1}
-        min={0}
-        tooltip="Fraction of GPU allocated to each client. 0 = CPU only, 0.25 = 4 clients share GPU, 0.5 = 2 clients share GPU, 1.0 = 1 client uses full GPU."
       />
 
       <NumberField

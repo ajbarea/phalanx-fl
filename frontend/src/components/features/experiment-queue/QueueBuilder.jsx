@@ -25,7 +25,17 @@ export function QueueBuilder() {
       finalValue = value.includes('.') ? parseFloat(value) : parseInt(value, 10);
     }
 
-    setSharedConfig(prev => ({ ...prev, [name]: finalValue }));
+    setSharedConfig(prev => {
+      const updated = { ...prev, [name]: finalValue };
+
+      // Auto-update gpus_per_client when training_device changes
+      if (name === 'training_device') {
+        updated.gpus_per_client = finalValue === 'gpu' ? 0.9 : 0;
+        updated.cpus_per_client = 1;
+      }
+
+      return updated;
+    });
   };
 
   const buildMultiSimConfig = () => {

@@ -19,17 +19,33 @@ const strategyNeeds = {
 };
 
 export function StrategyVariationList({ variations, onChange, numOfClients }) {
+  // Calculate valid krum selections based on research constraints
+  const getValidKrumSelections = (strategyType, maliciousCount) => {
+    const honestClients = numOfClients - maliciousCount;
+    const defaultK = STRATEGY_DEFAULTS[strategyType]?.num_krum_selections || 1;
+    // Cap at honest clients to respect constraints
+    return Math.max(1, Math.min(defaultK, honestClients));
+  };
+
   // Apply strategy-specific defaults when switching strategies
   const applyStrategyDefaults = (strategy, previousStrategy = null) => {
     const strategyType = strategy.aggregation_strategy_keyword;
     const defaults = STRATEGY_DEFAULTS[strategyType] || {};
 
-    // If switching strategies, apply new defaults
+    // If switching strategies, apply new defaults with constraint validation
     if (previousStrategy && previousStrategy !== strategyType) {
-      return {
+      const result = {
         ...strategy,
         ...defaults,
       };
+      // Ensure krum selections respect constraints for krum-based strategies
+      if (['krum', 'multi-krum', 'bulyan'].includes(strategyType)) {
+        result.num_krum_selections = getValidKrumSelections(
+          strategyType,
+          strategy.num_of_malicious_clients || 0
+        );
+      }
+      return result;
     }
 
     // Just fill in missing values
@@ -79,6 +95,19 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
             return applyStrategyDefaults(updated, v.aggregation_strategy_keyword);
           }
 
+          // Auto-adjust krum selections when malicious count changes
+          if (field === 'num_of_malicious_clients') {
+            const strategy = v.aggregation_strategy_keyword;
+            if (['krum', 'multi-krum', 'bulyan'].includes(strategy)) {
+              const honestClients = numOfClients - value;
+              const currentK = v.num_krum_selections || 1;
+              // Cap krum selections if they exceed honest clients
+              if (currentK > honestClients) {
+                updated.num_krum_selections = Math.max(1, honestClients);
+              }
+            }
+          }
+
           return updated;
         }
         return v;
@@ -91,7 +120,8 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
     if (pattern) {
       const baseStrategy =
         variations.length > 0 ? variations[0].aggregation_strategy_keyword : 'fedavg';
-      const generated = pattern.generate(baseStrategy);
+      // Pass numOfClients to pattern generators for proper validation
+      const generated = pattern.generate(baseStrategy, numOfClients);
       const withDefaults = generated.map(v => applyStrategyDefaults(v));
       const withIds = withDefaults.map((v, i) => ({
         ...v,
@@ -101,21 +131,42 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
     }
   };
 
-  // Validation helpers
+  // Validation helpers based on research constraints
+  // Krum: n > 2f + 2 (Blanchard et al., NeurIPS 2017)
+  // Bulyan: n ≥ 4f + 3 (El Mhamdi et al., MLSys 2019)
   const getKrumValidation = variation => {
     if (!strategyNeeds.krumSelections(variation.aggregation_strategy_keyword)) return null;
-    const maxSelections = numOfClients - variation.num_of_malicious_clients;
+    const honestClients = numOfClients - variation.num_of_malicious_clients;
     const selections = variation.num_krum_selections || 1;
-    if (selections > maxSelections) {
-      return `Max: ${maxSelections}`;
+    if (selections > honestClients) {
+      return `Max: ${honestClients} (honest clients)`;
     }
     return null;
   };
 
   const getMaliciousValidation = variation => {
-    if (variation.num_of_malicious_clients > numOfClients) {
+    const strategy = variation.aggregation_strategy_keyword;
+    const mal = variation.num_of_malicious_clients;
+
+    if (mal > numOfClients) {
       return `Max: ${numOfClients}`;
     }
+
+    // Research-backed Byzantine fault tolerance constraints
+    if (strategy === 'bulyan') {
+      // Bulyan: n ≥ 4f + 3 → max f = floor((n-3)/4)
+      const maxMal = Math.floor((numOfClients - 3) / 4);
+      if (mal > maxMal) {
+        return `Bulyan max: ${maxMal} (n ≥ 4f+3)`;
+      }
+    } else if (['krum', 'multi-krum'].includes(strategy)) {
+      // Krum: n > 2f + 2 → max f = floor((n-2)/2)
+      const maxMal = Math.floor((numOfClients - 2) / 2);
+      if (mal > maxMal) {
+        return `Krum max: ${maxMal} (n > 2f+2)`;
+      }
+    }
+
     return null;
   };
 
@@ -172,8 +223,8 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
           <Table hover size="sm" className="variation-table" style={{ minWidth: '1100px' }}>
             <thead>
               <tr>
-                <th style={{ width: '55px' }}>#</th>
-                <th style={{ minWidth: '120px' }}>
+                <th style={{ width: '32px' }}>#</th>
+                <th style={{ minWidth: '100px' }}>
                   <InfoTooltip text="Descriptive name for this strategy variation">
                     Name
                   </InfoTooltip>

@@ -40,7 +40,7 @@ export function SharedConfigEditor({ config, onConfigChange }) {
               <Form.Control
                 type="number"
                 name="num_of_clients"
-                value={config.num_of_clients || 5}
+                value={config.num_of_clients || 7}
                 onChange={onConfigChange}
                 min={1}
               />
