@@ -8,7 +8,7 @@ export function useSimulationDetails(simulationId) {
 
   const {
     data: details,
-    isLoading: loading,
+    isPending: loading,
     error,
     refetch,
   } = useQuery({

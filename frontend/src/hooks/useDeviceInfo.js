@@ -17,7 +17,7 @@ import { STORAGE_KEYS } from '@constants/storage';
  * }}
  */
 export function useDeviceInfo() {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isPending, isError } = useQuery({
     queryKey: ['system-devices'],
     queryFn: getSystemDevices,
     staleTime: CACHE_DURATION.FIVE_MINUTES,
@@ -34,7 +34,7 @@ export function useDeviceInfo() {
     gpuAvailable: data?.gpu_available ?? false,
     gpuInfo: data?.gpu_info ?? null,
     recommendedDevice: isError ? 'cpu' : (data?.recommended_device ?? 'cpu'),
-    loading: isLoading,
+    loading: isPending,
     hasBeenNotified,
     markNotified,
   };

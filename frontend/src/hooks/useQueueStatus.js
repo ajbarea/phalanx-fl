@@ -6,7 +6,7 @@ import { POLLING_INTERVALS } from '@constants/ui';
 export function useQueueStatus(simulationId) {
   const {
     data: simulation,
-    isLoading: detailsLoading,
+    isPending: detailsLoading,
     error: detailsError,
   } = useQuery({
     queryKey: ['simulation-details', simulationId],
@@ -17,7 +17,7 @@ export function useQueueStatus(simulationId) {
 
   const {
     data: status,
-    isLoading: statusLoading,
+    isPending: statusLoading,
     error: statusError,
   } = useQuery({
     queryKey: ['simulation-status', simulationId],

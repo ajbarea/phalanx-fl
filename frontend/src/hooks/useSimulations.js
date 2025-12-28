@@ -5,7 +5,7 @@ import { POLLING_INTERVALS } from '@constants/ui';
 export function useSimulations() {
   const {
     data: simulations = [],
-    isLoading: loading,
+    isPending: loading,
     error,
     refetch,
   } = useQuery({
