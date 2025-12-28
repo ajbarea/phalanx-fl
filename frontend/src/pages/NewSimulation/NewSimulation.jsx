@@ -7,6 +7,8 @@ import { SimulationForm } from '@components/features/simulation-form/SimulationF
 import { OutlineButton } from '@components/common/Button/OutlineButton';
 import { ConfirmModal } from '@components/common/Modal/ConfirmModal';
 import { QueueChoiceModal } from '@components/common/Modal/QueueChoiceModal';
+import { PresetConfirmModal } from '@components/common/Modal/PresetConfirmModal';
+import { DraftIndicator } from '@components/common/DraftIndicator';
 import { createSimulation, prepareSimulation } from '@api';
 import { getErrorMessage } from '@utils/errorMessages';
 import { useConfigValidation } from '@hooks/useConfigValidation';
@@ -21,12 +23,16 @@ import { toast } from 'sonner';
 
 export function NewSimulation() {
   const [config, setConfig] = useState(() => {
-    const savedDraft = localStorage.getItem(STORAGE_KEYS.SIMULATION_DRAFT);
-    if (savedDraft) {
-      try {
-        return JSON.parse(savedDraft);
-      } catch {
-        return initialConfig;
+    // Only restore draft if it was from user input (not from preset selection)
+    const draftSource = localStorage.getItem(STORAGE_KEYS.DRAFT_SOURCE);
+    if (draftSource === 'user-input') {
+      const savedDraft = localStorage.getItem(STORAGE_KEYS.SIMULATION_DRAFT);
+      if (savedDraft) {
+        try {
+          return JSON.parse(savedDraft);
+        } catch {
+          return initialConfig;
+        }
       }
     }
     return initialConfig;
@@ -38,6 +44,9 @@ export function NewSimulation() {
   const [showClearModal, setShowClearModal] = useState(false);
   const [showQueueChoiceModal, setShowQueueChoiceModal] = useState(false);
   const [pendingConfig, setPendingConfig] = useState(null);
+  const [draftInfo, setDraftInfo] = useState(null);
+  const [showPresetConfirmModal, setShowPresetConfirmModal] = useState(false);
+  const [pendingPreset, setPendingPreset] = useState(null);
   const navigate = useNavigate();
 
   const validation = useConfigValidation(config);
@@ -54,13 +63,27 @@ export function NewSimulation() {
 
   const hasAppliedDevice = useRef(false);
 
+  // Check for existing draft on mount
   useEffect(() => {
+    const draftSource = localStorage.getItem(STORAGE_KEYS.DRAFT_SOURCE);
+    const draftTimestamp = localStorage.getItem(STORAGE_KEYS.DRAFT_TIMESTAMP);
+    if (draftSource === 'user-input') {
+      setDraftInfo({ source: 'user-input', timestamp: draftTimestamp });
+    }
+  }, []);
+
+  // Auto-save draft - only save if source is user-input
+  useEffect(() => {
+    // Only save drafts for user input, not for preset selections
+    if (draftInfo?.source !== 'user-input') return;
+
     const timeoutId = setTimeout(() => {
       localStorage.setItem(STORAGE_KEYS.SIMULATION_DRAFT, JSON.stringify(config));
+      localStorage.setItem(STORAGE_KEYS.DRAFT_TIMESTAMP, new Date().toISOString());
     }, POLLING_INTERVALS.DRAFT_SAVE);
 
     return () => clearTimeout(timeoutId);
-  }, [config]);
+  }, [config, draftInfo]);
 
   useEffect(() => {
     if (!deviceLoading && gpuAvailable && gpuInfo && !hasBeenNotified()) {
@@ -89,38 +112,95 @@ export function NewSimulation() {
       finalValue = value.includes('.') ? parseFloat(value) : parseInt(value, 10);
     }
 
+    // Mark as user input to enable draft saving
+    if (!draftInfo || draftInfo.source !== 'user-input') {
+      const timestamp = new Date().toISOString();
+      setDraftInfo({ source: 'user-input', timestamp });
+      localStorage.setItem(STORAGE_KEYS.DRAFT_SOURCE, 'user-input');
+      localStorage.setItem(STORAGE_KEYS.DRAFT_TIMESTAMP, timestamp);
+    }
+
     setConfig(prev => ({ ...prev, [name]: finalValue }));
   };
 
-  const handlePresetChange = presetKey => {
-    setSelectedPreset(presetKey);
-    if (presetKey && PRESETS[presetKey]) {
-      const preset = PRESETS[presetKey];
-      const newConfig = {
-        ...config,
-        ...preset.config,
-        display_name: preset.name,
-        // Override preset's training_device with recommended device (GPU if available)
-        training_device: recommendedDevice || preset.config.training_device || 'cpu',
-      };
+  /**
+   * Apply a preset cleanly - clears localStorage and starts fresh from initialConfig
+   */
+  const applyPreset = presetKey => {
+    // Clear any existing draft data
+    localStorage.removeItem(STORAGE_KEYS.SIMULATION_DRAFT);
+    localStorage.removeItem(STORAGE_KEYS.DRAFT_SOURCE);
+    localStorage.removeItem(STORAGE_KEYS.DRAFT_TIMESTAMP);
+    setDraftInfo(null);
 
-      // Sync attack_schedule to dynamic_attacks for UI
-      if (preset.config.attack_schedule?.length > 0) {
-        newConfig.dynamic_attacks = {
-          enabled: true,
-          schedule: preset.config.attack_schedule,
-        };
-      } else {
-        // Clear dynamic_attacks when preset has no attacks
-        newConfig.dynamic_attacks = {
-          enabled: false,
-          schedule: [],
-        };
-        newConfig.attack_schedule = [];
-      }
-
-      setConfig(newConfig);
+    if (!presetKey || !PRESETS[presetKey]) {
+      setSelectedPreset(null);
+      setConfig(initialConfig);
+      return;
     }
+
+    const preset = PRESETS[presetKey];
+    // Start from initialConfig, not current config - prevents stale data
+    const newConfig = {
+      ...initialConfig,
+      ...preset.config,
+      display_name: preset.name,
+      // Override preset's training_device with recommended device (GPU if available)
+      training_device: recommendedDevice || preset.config.training_device || 'cpu',
+    };
+
+    // Sync attack_schedule to dynamic_attacks for UI
+    if (preset.config.attack_schedule?.length > 0) {
+      newConfig.dynamic_attacks = {
+        enabled: true,
+        schedule: preset.config.attack_schedule,
+      };
+    } else {
+      // Clear dynamic_attacks when preset has no attacks
+      newConfig.dynamic_attacks = {
+        enabled: false,
+        schedule: [],
+      };
+      newConfig.attack_schedule = [];
+    }
+
+    setSelectedPreset(presetKey);
+    setConfig(newConfig);
+  };
+
+  const handlePresetChange = presetKey => {
+    // If user has unsaved changes (draft), show confirmation modal
+    if (draftInfo?.source === 'user-input' && presetKey && PRESETS[presetKey]) {
+      setPendingPreset(presetKey);
+      setShowPresetConfirmModal(true);
+      return;
+    }
+
+    // No unsaved changes, apply preset directly
+    applyPreset(presetKey);
+  };
+
+  const handleConfirmPresetChange = () => {
+    setShowPresetConfirmModal(false);
+    if (pendingPreset) {
+      applyPreset(pendingPreset);
+      setPendingPreset(null);
+    }
+  };
+
+  const handleCancelPresetChange = () => {
+    setShowPresetConfirmModal(false);
+    setPendingPreset(null);
+  };
+
+  const handleDiscardDraft = () => {
+    localStorage.removeItem(STORAGE_KEYS.SIMULATION_DRAFT);
+    localStorage.removeItem(STORAGE_KEYS.DRAFT_SOURCE);
+    localStorage.removeItem(STORAGE_KEYS.DRAFT_TIMESTAMP);
+    setDraftInfo(null);
+    setConfig(initialConfig);
+    setSelectedPreset(null);
+    toast.success('Draft discarded');
   };
 
   /**
@@ -254,8 +334,15 @@ export function NewSimulation() {
     reader.onload = event => {
       try {
         const uploadedConfig = JSON.parse(event.target.result);
-        setConfig(prev => ({ ...prev, ...uploadedConfig }));
+        // Handle both flat config and API-style config with shared_settings wrapper
+        const configValues = uploadedConfig.shared_settings || uploadedConfig;
+        setConfig(prev => ({ ...prev, ...configValues }));
         setSelectedPreset(null);
+        // Mark as user input so draft saving is enabled
+        const timestamp = new Date().toISOString();
+        setDraftInfo({ source: 'user-input', timestamp });
+        localStorage.setItem(STORAGE_KEYS.DRAFT_SOURCE, 'user-input');
+        localStorage.setItem(STORAGE_KEYS.DRAFT_TIMESTAMP, timestamp);
         toast.success('Configuration loaded from file');
       } catch {
         toast.error('Invalid JSON file');
@@ -311,6 +398,10 @@ export function NewSimulation() {
         </Alert>
       )}
 
+      {draftInfo?.source === 'user-input' && (
+        <DraftIndicator timestamp={draftInfo.timestamp} onDiscard={handleDiscardDraft} />
+      )}
+
       <SimulationForm
         config={config}
         onConfigChange={handleConfigChange}
@@ -341,6 +432,17 @@ export function NewSimulation() {
         onAddToQueue={() => submitSimulation(true)}
         onCreateSeparate={() => submitSimulation(false)}
       />
+
+      {pendingPreset && PRESETS[pendingPreset] && (
+        <PresetConfirmModal
+          show={showPresetConfirmModal}
+          presetName={PRESETS[pendingPreset].name}
+          currentConfig={config}
+          presetConfig={PRESETS[pendingPreset].config}
+          onConfirm={handleConfirmPresetChange}
+          onCancel={handleCancelPresetChange}
+        />
+      )}
     </PageContainer>
   );
 }
