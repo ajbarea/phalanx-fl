@@ -80,12 +80,39 @@ export const CHART_DIMENSIONS = {
 
 /**
  * Colorblind-safe chart palettes (WCAG 2.1 AA compliant).
- * Based on Okabe-Ito palette with theme-specific adjustments.
+ * Extended to 12 colors for large federations. All colors tested for visibility,
+ * white text readability on buttons, and colorblind accessibility.
  * @see https://jfly.uni-koeln.de/color/
  */
 export const CHART_COLORS = {
-  light: ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#E69F00', '#56B4E9', '#785EF0', '#404040'],
-  dark: ['#56B4E9', '#E69F00', '#00D084', '#F0E442', '#FF7EB6', '#82CFFF', '#BE95FF', '#FFFFFF'],
+  light: [
+    '#0072B2', // Strong blue
+    '#D55E00', // Vermillion
+    '#009E73', // Bluish green
+    '#CC79A7', // Reddish purple
+    '#E69F00', // Orange
+    '#56B4E9', // Sky blue
+    '#785EF0', // Purple
+    '#404040', // Dark gray
+    '#117733', // Forest green
+    '#882255', // Wine
+    '#44AA99', // Teal
+    '#999933', // Olive
+  ],
+  dark: [
+    '#56B4E9', // Sky blue
+    '#E69F00', // Orange
+    '#00D084', // Bright green
+    '#CC79A7', // Reddish purple
+    '#FF7EB6', // Pink
+    '#82CFFF', // Light blue
+    '#BE95FF', // Lavender
+    '#33B1FF', // Cyan
+    '#08BDBA', // Teal
+    '#FF6F61', // Coral
+    '#FFB000', // Amber
+    '#6FDC8C', // Mint green
+  ],
 };
 
 /**

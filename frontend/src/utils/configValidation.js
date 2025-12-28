@@ -233,6 +233,8 @@ export function validateStrategyParams(config) {
   }
 
   // Krum-based strategies
+  // Research: Krum requires n > 2f + 2 (Blanchard et al., NeurIPS 2017)
+  // https://proceedings.neurips.cc/paper_files/paper/2017/file/f4b9ec30ad9f68f89b29639786cb62ef-Paper.pdf
   if (['multi-krum', 'krum', 'multi-krum-based'].includes(aggregation_strategy_keyword)) {
     if (
       config.num_krum_selections === undefined ||
@@ -254,6 +256,25 @@ export function validateStrategyParams(config) {
         });
       }
 
+      // Byzantine fault tolerance constraint: n > 2f + 2
+      // This means max malicious f < (n - 2) / 2
+      const maxMaliciousForKrum = Math.floor((num_of_clients - 2) / 2);
+      if (num_of_malicious_clients > maxMaliciousForKrum) {
+        errors.push({
+          field: 'num_of_malicious_clients',
+          message: `Krum requires n > 2f + 2. With ${num_of_clients} clients, max malicious is ${maxMaliciousForKrum} (you have ${num_of_malicious_clients})`,
+        });
+      }
+
+      // Krum selections should not exceed honest clients
+      const honestClients = num_of_clients - num_of_malicious_clients;
+      if (num_krum_selections > honestClients) {
+        errors.push({
+          field: 'num_krum_selections',
+          message: `Krum Selections (${num_krum_selections}) cannot exceed honest clients (${honestClients})`,
+        });
+      }
+
       // Warning: Recommend optimal value
       const recommended = num_of_clients - num_of_malicious_clients - 2;
       if (recommended > 0 && num_krum_selections > recommended) {
@@ -266,6 +287,8 @@ export function validateStrategyParams(config) {
   }
 
   // Bulyan strategy - special validation
+  // Research: Bulyan requires n ≥ 4f + 3 (El Mhamdi et al., MLSys 2019)
+  // https://mlsys.org/Conferences/2019/doc/2019/54.pdf
   if (aggregation_strategy_keyword === 'bulyan') {
     if (
       config.num_krum_selections === undefined ||
@@ -277,7 +300,17 @@ export function validateStrategyParams(config) {
         message: 'Krum Selections is required for bulyan strategy',
       });
     } else {
-      const { num_krum_selections, num_of_clients } = config;
+      const { num_krum_selections, num_of_clients, num_of_malicious_clients = 0 } = config;
+
+      // Byzantine fault tolerance constraint: n ≥ 4f + 3
+      // This means max malicious f ≤ (n - 3) / 4
+      const maxMaliciousForBulyan = Math.floor((num_of_clients - 3) / 4);
+      if (num_of_malicious_clients > maxMaliciousForBulyan) {
+        errors.push({
+          field: 'num_of_malicious_clients',
+          message: `Bulyan requires n ≥ 4f + 3. With ${num_of_clients} clients, max malicious is ${maxMaliciousForBulyan} (you have ${num_of_malicious_clients})`,
+        });
+      }
 
       // Bulyan constraint: (n - C) must be even for n - C = 2f
       const diff = num_of_clients - num_krum_selections;
@@ -292,6 +325,15 @@ export function validateStrategyParams(config) {
         errors.push({
           field: 'num_krum_selections',
           message: `Krum Selections (${num_krum_selections}) must be less than total clients (${num_of_clients})`,
+        });
+      }
+
+      // Krum selections should not exceed honest clients
+      const honestClients = num_of_clients - num_of_malicious_clients;
+      if (num_krum_selections > honestClients) {
+        errors.push({
+          field: 'num_krum_selections',
+          message: `Krum Selections (${num_krum_selections}) cannot exceed honest clients (${honestClients})`,
         });
       }
     }

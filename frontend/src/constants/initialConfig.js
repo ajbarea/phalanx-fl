@@ -5,7 +5,7 @@ export const initialConfig = {
 
   // Core Simulation Settings
   num_of_rounds: 4,
-  num_of_clients: 5,
+  num_of_clients: 7,
   num_of_malicious_clients: 1,
   attack_ratio: 1.0,
 
@@ -52,9 +52,9 @@ export const initialConfig = {
   training_subset_fraction: 0.9,
 
   // Client Requirements
-  min_fit_clients: 5,
-  min_evaluate_clients: 5,
-  min_available_clients: 5,
+  min_fit_clients: 7,
+  min_evaluate_clients: 7,
+  min_available_clients: 7,
   evaluate_metrics_aggregation_fn: 'weighted_average',
 
   // Output Settings
