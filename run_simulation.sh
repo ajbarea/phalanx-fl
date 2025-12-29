@@ -9,7 +9,6 @@ if ! ensure_virtual_environment; then
     setup_virtual_environment
 fi
 
-
 find_python_interpreter
 setup_joblib_env
 
