@@ -1,21 +1,25 @@
-from unittest.mock import patch
-
+import json
 import matplotlib
-
 from src.data_models.client_info import ClientInfo
 from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.federated_simulation import FederatedSimulation
 from src.output_handlers.new_plot_handler import (
+    ATTACK_ABBREV,
+    _add_attack_background_shading,
     _generate_multi_string_strategy_label,
     _generate_single_string_strategy_label,
+    _get_client_attack_summary,
+    _is_client_malicious,
     bar_width,
     plot_size,
+    save_plot_data_json,
     show_inter_strategy_plots,
     show_plots_within_strategy,
 )
 from tests.common import Mock, np, pytest
+from unittest.mock import patch
 
 matplotlib.use("Agg")
 
@@ -715,3 +719,727 @@ class TestPlotHandler:
         assert len(plot_size) == 2
         assert isinstance(bar_width, (int, float))
         assert bar_width > 0
+
+
+class TestGetClientAttackSummary:
+    """Tests for _get_client_attack_summary function."""
+
+    def test_empty_attack_schedule_returns_empty_string(self):
+        """Returns empty string when no attack schedule provided."""
+        result = _get_client_attack_summary(client_id=0, attack_schedule=[])
+        assert result == ""
+
+    def test_none_attack_schedule_returns_empty_string(self):
+        """Returns empty string when attack schedule is None."""
+        # Test defensive behavior - code handles None even if not typed
+        result = _get_client_attack_summary(client_id=0, attack_schedule=None)  # type: ignore[arg-type]
+        assert result == ""
+
+    def test_specific_selection_targeted_client(self):
+        """Returns attack summary for specifically targeted client."""
+        schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [0, 2],
+                "attack_type": "label_flipping",
+                "start_round": 2,
+                "end_round": 6,
+            }
+        ]
+        result = _get_client_attack_summary(client_id=0, attack_schedule=schedule)
+        assert result == " (lf r2-6)"
+
+    def test_specific_selection_non_targeted_client(self):
+        """Returns empty string for client not specifically targeted."""
+        schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [1, 3],
+                "attack_type": "label_flipping",
+                "start_round": 2,
+                "end_round": 6,
+            }
+        ]
+        result = _get_client_attack_summary(client_id=0, attack_schedule=schedule)
+        assert result == ""
+
+    def test_random_selection_with_selected_clients(self):
+        """Returns attack summary for randomly selected client."""
+        schedule = [
+            {
+                "selection_strategy": "random",
+                "_selected_clients": [0, 4],
+                "attack_type": "gaussian_noise",
+                "start_round": 3,
+                "end_round": 8,
+            }
+        ]
+        result = _get_client_attack_summary(client_id=0, attack_schedule=schedule)
+        assert result == " (gn r3-8)"
+
+    def test_percentage_selection_with_selected_clients(self):
+        """Returns attack summary for percentage-selected client."""
+        schedule = [
+            {
+                "selection_strategy": "percentage",
+                "_selected_clients": [2, 5],
+                "attack_type": "token_replacement",
+                "start_round": 1,
+                "end_round": 4,
+            }
+        ]
+        result = _get_client_attack_summary(client_id=2, attack_schedule=schedule)
+        assert result == " (tr r1-4)"
+
+    def test_multiple_attacks_on_single_client(self):
+        """Returns comma-separated summary for multiple attacks."""
+        schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [0],
+                "attack_type": "label_flipping",
+                "start_round": 2,
+                "end_round": 5,
+            },
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [0],
+                "attack_type": "gaussian_noise",
+                "start_round": 6,
+                "end_round": 10,
+            },
+        ]
+        result = _get_client_attack_summary(client_id=0, attack_schedule=schedule)
+        assert result == " (lf r2-5, gn r6-10)"
+
+    def test_unknown_attack_type_uses_first_two_chars(self):
+        """Unknown attack types are abbreviated to first 2 characters."""
+        schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [0],
+                "attack_type": "custom_attack",
+                "start_round": 1,
+                "end_round": 3,
+            }
+        ]
+        result = _get_client_attack_summary(client_id=0, attack_schedule=schedule)
+        assert result == " (cu r1-3)"
+
+    def test_attack_abbrev_constant(self):
+        """Verifies ATTACK_ABBREV contains expected mappings."""
+        assert ATTACK_ABBREV["label_flipping"] == "lf"
+        assert ATTACK_ABBREV["gaussian_noise"] == "gn"
+        assert ATTACK_ABBREV["token_replacement"] == "tr"
+
+
+class TestIsClientMalicious:
+    """Tests for _is_client_malicious function."""
+
+    def test_empty_attack_schedule_returns_false(self):
+        """Returns False when no attack schedule provided."""
+        result = _is_client_malicious(client_id=0, attack_schedule=[])
+        assert result is False
+
+    def test_none_attack_schedule_returns_false(self):
+        """Returns False when attack schedule is None."""
+        # Test defensive behavior - code handles None even if not typed
+        result = _is_client_malicious(client_id=0, attack_schedule=None)  # type: ignore[arg-type]
+        assert result is False
+
+    def test_specific_selection_targeted_returns_true(self):
+        """Returns True for specifically targeted client."""
+        schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [0, 2],
+                "attack_type": "label_flipping",
+                "start_round": 1,
+                "end_round": 5,
+            }
+        ]
+        assert _is_client_malicious(client_id=0, attack_schedule=schedule) is True
+        assert _is_client_malicious(client_id=2, attack_schedule=schedule) is True
+
+    def test_specific_selection_non_targeted_returns_false(self):
+        """Returns False for client not specifically targeted."""
+        schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [1, 3],
+                "attack_type": "label_flipping",
+                "start_round": 1,
+                "end_round": 5,
+            }
+        ]
+        assert _is_client_malicious(client_id=0, attack_schedule=schedule) is False
+
+    def test_random_selection_with_selected_clients(self):
+        """Returns True for randomly selected client."""
+        schedule = [
+            {
+                "selection_strategy": "random",
+                "_selected_clients": [0, 4],
+                "attack_type": "gaussian_noise",
+                "start_round": 2,
+                "end_round": 8,
+            }
+        ]
+        assert _is_client_malicious(client_id=0, attack_schedule=schedule) is True
+        assert _is_client_malicious(client_id=4, attack_schedule=schedule) is True
+        assert _is_client_malicious(client_id=1, attack_schedule=schedule) is False
+
+    def test_percentage_selection_with_selected_clients(self):
+        """Returns True for percentage-selected client."""
+        schedule = [
+            {
+                "selection_strategy": "percentage",
+                "_selected_clients": [2, 5],
+                "attack_type": "token_replacement",
+                "start_round": 1,
+                "end_round": 4,
+            }
+        ]
+        assert _is_client_malicious(client_id=2, attack_schedule=schedule) is True
+        assert _is_client_malicious(client_id=5, attack_schedule=schedule) is True
+        assert _is_client_malicious(client_id=0, attack_schedule=schedule) is False
+
+    def test_multiple_attack_entries_any_match(self):
+        """Returns True if client is targeted by any attack entry."""
+        schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [1],
+                "attack_type": "label_flipping",
+                "start_round": 1,
+                "end_round": 3,
+            },
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [0],
+                "attack_type": "gaussian_noise",
+                "start_round": 4,
+                "end_round": 6,
+            },
+        ]
+        assert _is_client_malicious(client_id=0, attack_schedule=schedule) is True
+
+    def test_missing_selection_strategy_returns_false(self):
+        """Returns False when selection_strategy is missing."""
+        schedule = [
+            {
+                "malicious_client_ids": [0],
+                "attack_type": "label_flipping",
+                "start_round": 1,
+                "end_round": 3,
+            }
+        ]
+        assert _is_client_malicious(client_id=0, attack_schedule=schedule) is False
+
+
+class TestAddAttackBackgroundShading:
+    """Tests for _add_attack_background_shading function."""
+
+    @pytest.fixture
+    def mock_axes(self):
+        """Returns a mock Matplotlib axes object."""
+        ax = Mock()
+        return ax
+
+    def test_empty_attack_schedule_no_shading(self, mock_axes):
+        """No shading added when attack schedule is empty."""
+        _add_attack_background_shading(mock_axes, attack_schedule=[])
+        mock_axes.axvspan.assert_not_called()
+
+    def test_none_attack_schedule_no_shading(self, mock_axes):
+        """No shading added when attack schedule is None."""
+        # Test defensive behavior - code handles None even if not typed
+        _add_attack_background_shading(mock_axes, attack_schedule=None)  # type: ignore[arg-type]
+        mock_axes.axvspan.assert_not_called()
+
+    def test_shading_for_label_flipping_attack(self, mock_axes):
+        """Adds red shading for label_flipping attacks."""
+        schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [0],
+                "attack_type": "label_flipping",
+                "start_round": 2,
+                "end_round": 6,
+            }
+        ]
+        _add_attack_background_shading(mock_axes, schedule)
+        mock_axes.axvspan.assert_called_once()
+        call_kwargs = mock_axes.axvspan.call_args[1]
+        assert call_kwargs["facecolor"] == "#ff9999"  # Red for label_flipping
+        assert call_kwargs["hatch"] == "////"
+
+    def test_shading_for_gaussian_noise_attack(self, mock_axes):
+        """Adds blue shading for gaussian_noise attacks."""
+        schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [0],
+                "attack_type": "gaussian_noise",
+                "start_round": 3,
+                "end_round": 7,
+            }
+        ]
+        _add_attack_background_shading(mock_axes, schedule)
+        mock_axes.axvspan.assert_called_once()
+        call_kwargs = mock_axes.axvspan.call_args[1]
+        assert call_kwargs["facecolor"] == "#9999ff"  # Blue for gaussian_noise
+        assert call_kwargs["hatch"] == "\\\\\\\\"
+
+    def test_shading_for_token_replacement_attack(self, mock_axes):
+        """Adds green shading for token_replacement attacks."""
+        schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [0],
+                "attack_type": "token_replacement",
+                "start_round": 1,
+                "end_round": 4,
+            }
+        ]
+        _add_attack_background_shading(mock_axes, schedule)
+        mock_axes.axvspan.assert_called_once()
+        call_kwargs = mock_axes.axvspan.call_args[1]
+        assert call_kwargs["facecolor"] == "#99ff99"  # Green for token_replacement
+        assert call_kwargs["hatch"] == "xxxx"
+
+    def test_unknown_attack_type_uses_default_color(self, mock_axes):
+        """Unknown attack types use default gray color."""
+        schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [0],
+                "attack_type": "custom_attack",
+                "start_round": 1,
+                "end_round": 3,
+            }
+        ]
+        _add_attack_background_shading(mock_axes, schedule)
+        call_kwargs = mock_axes.axvspan.call_args[1]
+        assert call_kwargs["facecolor"] == "#dddddd"  # Default gray
+        assert call_kwargs["hatch"] == ""
+
+    def test_shading_with_specific_client_id_filter(self, mock_axes):
+        """Only shades attacks targeting the specified client."""
+        schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [0],
+                "attack_type": "label_flipping",
+                "start_round": 2,
+                "end_round": 6,
+            },
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [1],
+                "attack_type": "gaussian_noise",
+                "start_round": 3,
+                "end_round": 7,
+            },
+        ]
+        _add_attack_background_shading(mock_axes, schedule, client_id=0)
+        # Only label_flipping should be shaded (client 0)
+        assert mock_axes.axvspan.call_count == 1
+        call_kwargs = mock_axes.axvspan.call_args[1]
+        assert call_kwargs["facecolor"] == "#ff9999"
+
+    def test_shading_with_no_client_id_shows_all_attacks(self, mock_axes):
+        """Shows all attacks when client_id is None."""
+        schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [0],
+                "attack_type": "label_flipping",
+                "start_round": 2,
+                "end_round": 6,
+            },
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [1],
+                "attack_type": "gaussian_noise",
+                "start_round": 3,
+                "end_round": 7,
+            },
+        ]
+        # client_id=None is the default; tests show-all behavior
+        _add_attack_background_shading(mock_axes, schedule, client_id=None)  # type: ignore[arg-type]
+        assert mock_axes.axvspan.call_count == 2
+
+    def test_duplicate_attack_periods_not_repeated(self, mock_axes):
+        """Duplicate attack periods are only added once."""
+        schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [0],
+                "attack_type": "label_flipping",
+                "start_round": 2,
+                "end_round": 6,
+            },
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [1],
+                "attack_type": "label_flipping",
+                "start_round": 2,
+                "end_round": 6,
+            },
+        ]
+        # client_id=None is the default; shows all attacks
+        _add_attack_background_shading(mock_axes, schedule, client_id=None)  # type: ignore[arg-type]
+        # Should only add shading once despite two entries with same period
+        assert mock_axes.axvspan.call_count == 1
+
+    def test_random_selection_shows_for_all_clients(self, mock_axes):
+        """Random selection shows shading for any client."""
+        schedule = [
+            {
+                "selection_strategy": "random",
+                "_selected_clients": [2, 5],
+                "attack_type": "gaussian_noise",
+                "start_round": 3,
+                "end_round": 8,
+            }
+        ]
+        # Client 0 should still see the shading for random selection
+        _add_attack_background_shading(mock_axes, schedule, client_id=0)
+        assert mock_axes.axvspan.call_count == 1
+
+    def test_axvspan_called_with_correct_round_range(self, mock_axes):
+        """Verifies axvspan is called with correct start and end rounds."""
+        schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [0],
+                "attack_type": "label_flipping",
+                "start_round": 5,
+                "end_round": 10,
+            }
+        ]
+        _add_attack_background_shading(mock_axes, schedule)
+        call_args = mock_axes.axvspan.call_args[0]
+        assert call_args[0] == 5  # start_round
+        assert call_args[1] == 10  # end_round
+
+
+class TestSavePlotDataJson:
+    """Tests for save_plot_data_json function."""
+
+    @pytest.fixture
+    def mock_client_info_with_metrics(self):
+        """Returns mock ClientInfo with plottable metrics."""
+        client = Mock(spec=ClientInfo)
+        client.client_id = 0
+        client.rounds = [1, 2, 3]
+        client.plottable_metrics = ["loss_history", "accuracy_history"]
+        client.get_metric_by_name = Mock(
+            side_effect=lambda name: [0.5, 0.4, 0.3]
+            if name == "loss_history"
+            else [0.7, 0.8, 0.9]
+        )
+        return client
+
+    @pytest.fixture
+    def mock_simulation_for_json(self, mock_client_info_with_metrics, tmp_path):
+        """Returns mock FederatedSimulation for JSON export tests."""
+        simulation = Mock(spec=FederatedSimulation)
+
+        config = Mock(spec=StrategyConfig)
+        config.attack_schedule = []
+        config.strategy_number = 0
+        simulation.strategy_config = config
+
+        strategy_history = Mock(spec=SimulationStrategyHistory)
+        strategy_history.get_all_clients.return_value = [mock_client_info_with_metrics]
+
+        rounds_history = Mock(spec=RoundsInfo)
+        rounds_history.removal_threshold_history = []
+        strategy_history.rounds_history = rounds_history
+
+        simulation.strategy_history = strategy_history
+
+        return simulation
+
+    @pytest.fixture
+    def mock_directory_handler_for_json(self, tmp_path):
+        """Returns mock directory handler for JSON tests."""
+        handler = Mock()
+        handler.dirname = str(tmp_path)
+        handler.new_plots_dirname = str(tmp_path)
+        return handler
+
+    def test_json_export_creates_file(
+        self, mock_simulation_for_json, mock_directory_handler_for_json, tmp_path
+    ):
+        """Verifies JSON file is created."""
+        save_plot_data_json(mock_simulation_for_json, mock_directory_handler_for_json)
+
+        expected_path = tmp_path / "plot_data_0.json"
+        assert expected_path.exists()
+
+    def test_json_export_structure(
+        self, mock_simulation_for_json, mock_directory_handler_for_json, tmp_path
+    ):
+        """Verifies exported JSON has correct structure."""
+        save_plot_data_json(mock_simulation_for_json, mock_directory_handler_for_json)
+
+        with open(tmp_path / "plot_data_0.json") as f:
+            data = json.load(f)
+
+        assert "per_client_metrics" in data
+        assert "rounds" in data
+        assert "removal_threshold_history" in data
+        assert "strategy_number" in data
+
+    def test_json_export_per_client_metrics(
+        self, mock_simulation_for_json, mock_directory_handler_for_json, tmp_path
+    ):
+        """Verifies per-client metrics are correctly exported."""
+        save_plot_data_json(mock_simulation_for_json, mock_directory_handler_for_json)
+
+        with open(tmp_path / "plot_data_0.json") as f:
+            data = json.load(f)
+
+        client_data = data["per_client_metrics"][0]
+        assert client_data["client_id"] == 0
+        assert "is_malicious" in client_data
+        assert "metrics" in client_data
+        assert "loss_history" in client_data["metrics"]
+        assert "accuracy_history" in client_data["metrics"]
+
+    def test_json_export_rounds(
+        self, mock_simulation_for_json, mock_directory_handler_for_json, tmp_path
+    ):
+        """Verifies rounds are correctly exported."""
+        save_plot_data_json(mock_simulation_for_json, mock_directory_handler_for_json)
+
+        with open(tmp_path / "plot_data_0.json") as f:
+            data = json.load(f)
+
+        assert data["rounds"] == [1, 2, 3]
+
+    def test_json_export_with_attack_schedule(
+        self, mock_simulation_for_json, mock_directory_handler_for_json, tmp_path
+    ):
+        """Verifies malicious flag is set correctly with attacks."""
+        mock_simulation_for_json.strategy_config.attack_schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [0],
+                "attack_type": "label_flipping",
+                "start_round": 1,
+                "end_round": 3,
+            }
+        ]
+
+        save_plot_data_json(mock_simulation_for_json, mock_directory_handler_for_json)
+
+        with open(tmp_path / "plot_data_0.json") as f:
+            data = json.load(f)
+
+        assert data["per_client_metrics"][0]["is_malicious"] is True
+
+    def test_json_export_with_removal_threshold(
+        self, mock_simulation_for_json, mock_directory_handler_for_json, tmp_path
+    ):
+        """Verifies removal threshold history is exported."""
+        mock_simulation_for_json.strategy_history.rounds_history.removal_threshold_history = [
+            0.5,
+            0.6,
+            0.7,
+        ]
+
+        save_plot_data_json(mock_simulation_for_json, mock_directory_handler_for_json)
+
+        with open(tmp_path / "plot_data_0.json") as f:
+            data = json.load(f)
+
+        assert data["removal_threshold_history"] == [0.5, 0.6, 0.7]
+
+    def test_json_export_empty_clients_returns_early(
+        self, mock_simulation_for_json, mock_directory_handler_for_json, tmp_path
+    ):
+        """Verifies early return when no clients."""
+        mock_simulation_for_json.strategy_history.get_all_clients.return_value = []
+
+        save_plot_data_json(mock_simulation_for_json, mock_directory_handler_for_json)
+
+        # No file should be created
+        json_files = list(tmp_path.glob("*.json"))
+        assert len(json_files) == 0
+
+    def test_json_export_handles_none_metric_values(
+        self, mock_simulation_for_json, mock_directory_handler_for_json, tmp_path
+    ):
+        """Verifies None values in metrics are exported as null."""
+        mock_client = (
+            mock_simulation_for_json.strategy_history.get_all_clients.return_value[0]
+        )
+        mock_client.get_metric_by_name = Mock(return_value=[0.5, None, 0.7])
+
+        save_plot_data_json(mock_simulation_for_json, mock_directory_handler_for_json)
+
+        with open(tmp_path / "plot_data_0.json") as f:
+            data = json.load(f)
+
+        metrics = data["per_client_metrics"][0]["metrics"]["loss_history"]
+        assert metrics[0] == 0.5
+        assert metrics[1] is None
+        assert metrics[2] == 0.7
+
+    def test_json_export_strategy_number(
+        self, mock_simulation_for_json, mock_directory_handler_for_json, tmp_path
+    ):
+        """Verifies strategy number is included in export."""
+        mock_simulation_for_json.strategy_config.strategy_number = 5
+
+        save_plot_data_json(mock_simulation_for_json, mock_directory_handler_for_json)
+
+        expected_path = tmp_path / "plot_data_5.json"
+        assert expected_path.exists()
+
+        with open(expected_path) as f:
+            data = json.load(f)
+
+        assert data["strategy_number"] == 5
+
+    def test_json_export_multiple_clients(
+        self, mock_directory_handler_for_json, tmp_path
+    ):
+        """Verifies multiple clients are correctly exported."""
+        # Create multiple client mocks
+        clients = []
+        for i in range(3):
+            client = Mock(spec=ClientInfo)
+            client.client_id = i
+            client.rounds = [1, 2, 3]
+            client.plottable_metrics = ["loss_history"]
+            client.get_metric_by_name = Mock(return_value=[0.5 - i * 0.1, 0.4, 0.3])
+            clients.append(client)
+
+        simulation = Mock(spec=FederatedSimulation)
+        config = Mock(spec=StrategyConfig)
+        config.attack_schedule = []
+        config.strategy_number = 0
+        simulation.strategy_config = config
+
+        strategy_history = Mock(spec=SimulationStrategyHistory)
+        strategy_history.get_all_clients.return_value = clients
+        rounds_history = Mock(spec=RoundsInfo)
+        rounds_history.removal_threshold_history = []
+        strategy_history.rounds_history = rounds_history
+        simulation.strategy_history = strategy_history
+
+        save_plot_data_json(simulation, mock_directory_handler_for_json)
+
+        with open(tmp_path / "plot_data_0.json") as f:
+            data = json.load(f)
+
+        assert len(data["per_client_metrics"]) == 3
+        for i, client_data in enumerate(data["per_client_metrics"]):
+            assert client_data["client_id"] == i
+
+
+class TestShowPlotsWithAttackShading:
+    """Tests for attack shading integration in show_plots_within_strategy."""
+
+    @pytest.fixture
+    def simulation_with_attacks(self, tmp_path):
+        """Returns mock simulation with attack schedule."""
+        simulation = Mock(spec=FederatedSimulation)
+
+        config = StrategyConfig(
+            aggregation_strategy_keyword="fedavg",
+            dataset_keyword="femnist",
+            remove_clients=False,
+            num_of_clients=5,
+            num_of_malicious_clients=1,
+            num_of_client_epochs=2,
+            batch_size=32,
+            show_plots=True,
+            save_plots=False,
+        )
+        config.attack_schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [0],
+                "attack_type": "label_flipping",
+                "start_round": 2,
+                "end_round": 5,
+            }
+        ]
+        simulation.strategy_config = config
+
+        client = Mock(spec=ClientInfo)
+        client.client_id = 0
+        client.rounds = [1, 2, 3, 4, 5]
+        client.plottable_metrics = ["loss_history"]
+        client.loss_history = [0.5, 0.4, 0.3, 0.25, 0.2]
+        client.get_metric_by_name = Mock(return_value=[0.5, 0.4, 0.3, 0.25, 0.2])
+        client.aggregation_participation_history = [1, 1, 1, 1, 1]
+
+        strategy_history = Mock(spec=SimulationStrategyHistory)
+        strategy_history.get_all_clients.return_value = [client]
+        rounds_history = Mock(spec=RoundsInfo)
+        rounds_history.removal_threshold_history = []
+        strategy_history.rounds_history = rounds_history
+        simulation.strategy_history = strategy_history
+
+        return simulation
+
+    @pytest.fixture
+    def dir_handler(self, tmp_path):
+        """Returns mock directory handler."""
+        handler = Mock()
+        handler.dirname = str(tmp_path)
+        handler.new_plots_dirname = str(tmp_path)
+        return handler
+
+    @patch("matplotlib.pyplot.figure")
+    @patch("matplotlib.pyplot.show")
+    @patch("matplotlib.pyplot.gca")
+    def test_attack_shading_called_with_schedule(
+        self,
+        mock_gca,
+        mock_show,
+        mock_figure,
+        simulation_with_attacks,
+        dir_handler,
+    ):
+        """Verifies attack shading is applied when schedule exists."""
+        mock_ax = Mock()
+        mock_ax.xaxis = Mock()
+        mock_ax.xaxis.set_major_locator = Mock()
+        mock_gca.return_value = mock_ax
+
+        show_plots_within_strategy(simulation_with_attacks, dir_handler)
+
+        # Verify axvspan was called for attack shading
+        assert mock_ax.axvspan.called
+
+    @patch("matplotlib.pyplot.figure")
+    @patch("matplotlib.pyplot.show")
+    @patch("matplotlib.pyplot.gca")
+    def test_no_attack_shading_without_schedule(
+        self,
+        mock_gca,
+        mock_show,
+        mock_figure,
+        simulation_with_attacks,
+        dir_handler,
+    ):
+        """Verifies no shading when attack schedule is empty."""
+        simulation_with_attacks.strategy_config.attack_schedule = []
+
+        mock_ax = Mock()
+        mock_ax.xaxis = Mock()
+        mock_ax.xaxis.set_major_locator = Mock()
+        mock_gca.return_value = mock_ax
+
+        show_plots_within_strategy(simulation_with_attacks, dir_handler)
+
+        # axvspan should not be called
+        mock_ax.axvspan.assert_not_called()
