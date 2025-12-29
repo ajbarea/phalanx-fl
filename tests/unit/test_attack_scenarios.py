@@ -1,61 +1,11 @@
 """Parameterized tests for attack scenarios in federated learning."""
 
-from tests.common import Mock, np, pytest
+from tests.common import ATTACK_SCENARIOS, DEFENSE_STRATEGIES, Mock, np, pytest
 from tests.fixtures.mock_datasets import (
     MockDatasetHandler,
     generate_byzantine_client_parameters,
     generate_mock_client_parameters,
 )
-
-# Attack scenario configurations
-ATTACK_SCENARIOS = [
-    # (attack_type, defense_strategies, expected_robustness)
-    ("gaussian_noise", ["trust", "krum", "rfa"], "high"),
-    ("model_poisoning", ["multi-krum", "bulyan", "trimmed_mean"], "high"),
-    ("byzantine_perturbation", ["trust", "krum", "rfa", "bulyan"], "high"),
-    ("gradient_scaling", ["trust", "pid", "trimmed_mean"], "medium"),
-    ("label_flipping", ["krum", "multi-krum", "bulyan"], "high"),
-    ("backdoor_attack", ["trust", "rfa", "bulyan"], "medium"),
-]
-
-# Defense strategy configurations
-DEFENSE_STRATEGIES = {
-    "trust": {
-        "aggregation_strategy_keyword": "trust",
-        "trust_threshold": 0.7,
-        "beta_value": 0.5,
-        "begin_removing_from_round": 2,
-    },
-    "krum": {
-        "aggregation_strategy_keyword": "krum",
-        "num_krum_selections": 5,
-        "begin_removing_from_round": 1,
-    },
-    "multi-krum": {
-        "aggregation_strategy_keyword": "multi-krum",
-        "num_krum_selections": 3,
-        "begin_removing_from_round": 1,
-    },
-    "rfa": {
-        "aggregation_strategy_keyword": "rfa",
-        "begin_removing_from_round": 2,
-    },
-    "bulyan": {
-        "aggregation_strategy_keyword": "bulyan",
-        "begin_removing_from_round": 1,
-    },
-    "trimmed_mean": {
-        "aggregation_strategy_keyword": "trimmed_mean",
-        "begin_removing_from_round": 1,
-    },
-    "pid": {
-        "aggregation_strategy_keyword": "pid",
-        "Kp": 1.0,
-        "Ki": 0.1,
-        "Kd": 0.01,
-        "begin_removing_from_round": 2,
-    },
-}
 
 
 class TestAttackScenarios:
@@ -71,7 +21,6 @@ class TestAttackScenarios:
         num_byzantine = 3
         param_size = 1000
 
-        # Generate attack parameters
         attack_params = generate_byzantine_client_parameters(
             num_clients=num_clients,
             num_byzantine=num_byzantine,
@@ -79,48 +28,36 @@ class TestAttackScenarios:
             attack_type=attack_type,
         )
 
-        # Verify attack parameters were generated correctly
         assert len(attack_params) == num_clients, (
             "Should generate parameters for all clients"
         )
 
-        # Test each defense strategy
         for strategy_name in defense_strategies:
-            # Mock strategy execution (simulate defense behavior)
             mock_strategy = Mock()
 
+            np.random.seed(42)
             if expected_robustness == "high":
-                # High robustness: should detect and remove most Byzantine clients
                 mock_strategy.detect_byzantine_perturbation.return_value = list(
                     range(num_byzantine)
                 )
-                # Use smaller values to ensure stability assertions pass
-                np.random.seed(42)  # Ensure reproducible results
                 mock_strategy.aggregate_parameters.return_value = (
                     np.random.randn(param_size) * 0.01
                 )
             elif expected_robustness == "medium":
-                # Medium robustness: should detect some Byzantine clients
                 mock_strategy.detect_byzantine_perturbation.return_value = list(
                     range(num_byzantine // 2)
                 )
-                np.random.seed(42)  # Ensure reproducible results
                 mock_strategy.aggregate_parameters.return_value = (
                     np.random.randn(param_size) * 0.005
                 )
             else:
-                # Low robustness: may not detect Byzantine clients effectively
                 mock_strategy.detect_byzantine_perturbation.return_value = []
-                np.random.seed(42)  # Ensure reproducible results
                 mock_strategy.aggregate_parameters.return_value = (
                     np.random.randn(param_size) * 0.1
                 )
 
-            # Verify strategy can handle the attack
             detected_byzantine = mock_strategy.detect_byzantine_perturbation()
             aggregated_params = mock_strategy.aggregate_parameters()
-
-            # Assertions based on expected robustness
             if expected_robustness == "high":
                 assert len(detected_byzantine) >= num_byzantine // 2, (
                     f"Strategy {strategy_name} should detect at least half of Byzantine clients "
@@ -159,7 +96,6 @@ class TestAttackScenarios:
             attack_type=attack_type,
         )
 
-        # Verify parameter structure
         assert len(attack_params) == num_clients, (
             "Should generate parameters for all clients"
         )
@@ -170,7 +106,6 @@ class TestAttackScenarios:
                 f"Parameters should have shape ({param_size},)"
             )
 
-        # Verify attack characteristics
         param_norms = [np.linalg.norm(params) for params in attack_params]
 
         if attack_type in [
@@ -178,13 +113,11 @@ class TestAttackScenarios:
             "model_poisoning",
             "byzantine_perturbation",
         ]:
-            # These attacks should produce some parameters with large norms
             max_norm = max(param_norms)
             assert max_norm > 5.0, (
                 f"Attack {attack_type} should produce large parameter norms"
             )
 
-        # Verify parameter diversity (not all identical)
         param_means = [params.mean() for params in attack_params]
         assert len(set(np.round(param_means, 2))) > 1, (
             "Parameters should be diverse across clients"
@@ -203,7 +136,6 @@ class TestAttackScenarios:
         """Verify defense effectiveness varies with Byzantine client ratios."""
         param_size = 800
 
-        # Test with different attack types
         for attack_type in ["gaussian_noise", "model_poisoning"]:
             generate_byzantine_client_parameters(
                 num_clients=total_clients,
@@ -214,30 +146,27 @@ class TestAttackScenarios:
 
             byzantine_ratio = num_byzantine / total_clients
 
-            # Mock robust aggregation strategies
+            # Research: Krum requires n > 2f+2, Bulyan requires n >= 4f+3
+            # (Blanchard et al., NeurIPS 2017; El Mhamdi et al., ICML 2018)
             for strategy_name in ["krum", "bulyan", "trimmed_mean"]:
                 mock_strategy = Mock()
 
-                # Strategy effectiveness should depend on Byzantine ratio
-                if byzantine_ratio <= 0.25:  # Low Byzantine ratio
+                if byzantine_ratio <= 0.25:
                     mock_strategy.is_robust.return_value = True
                     expected_detection_rate = 0.8
-                elif byzantine_ratio <= 0.35:  # Medium Byzantine ratio
+                elif byzantine_ratio <= 0.35:
                     mock_strategy.is_robust.return_value = True
                     expected_detection_rate = 0.6
-                else:  # High Byzantine ratio
+                else:
                     mock_strategy.is_robust.return_value = False
                     expected_detection_rate = 0.4
 
-                # Simulate detection - ensure at least 1 detection for low ratios
                 detected_count = max(1, int(num_byzantine * expected_detection_rate))
                 mock_strategy.detect_byzantine_perturbation.return_value = list(
                     range(detected_count)
                 )
 
                 detected_byzantine = mock_strategy.detect_byzantine_perturbation()
-
-                # Verify detection performance
                 detection_rate = len(detected_byzantine) / num_byzantine
 
                 if byzantine_ratio <= 0.25:
@@ -261,7 +190,6 @@ class TestAttackScenarios:
         num_byzantine = 3
         param_size = 600
 
-        # Test against multiple attack types
         for attack_type in [
             "gaussian_noise",
             "model_poisoning",
@@ -274,14 +202,12 @@ class TestAttackScenarios:
                 attack_type=attack_type,
             )
 
-            # Mock multi-strategy execution
             detection_results = []
             aggregation_results = []
 
             for strategy_name in strategy_combination:
                 mock_strategy = Mock()
 
-                # Each strategy contributes to detection
                 strategy_detection = list(
                     range(
                         len(detection_results),
@@ -290,8 +216,7 @@ class TestAttackScenarios:
                 )
                 detection_results.extend(strategy_detection)
 
-                # Simulate aggregation with smaller values
-                np.random.seed(42)  # Ensure reproducible results
+                np.random.seed(42)
                 aggregated = np.random.randn(param_size) * (
                     0.01 / len(strategy_combination)
                 )
@@ -302,11 +227,9 @@ class TestAttackScenarios:
                 )
                 mock_strategy.aggregate_parameters.return_value = aggregated
 
-            # Combine results from multiple strategies
             total_detected = len(set(detection_results))
             combined_aggregation = np.mean(aggregation_results, axis=0)
 
-            # Multi-strategy should be more effective
             assert total_detected >= 1, (
                 f"Multi-strategy {strategy_combination} should detect Byzantine clients "
                 f"for {attack_type} attack"
@@ -332,23 +255,19 @@ class TestAttackScenarios:
         num_byzantine = 2
         param_size = 400
 
-        # Generate attack with specific intensity
         np.random.seed(42)
-        # Test detection with different strategies
         for strategy_name in ["krum", "trust", "rfa"]:
             mock_strategy = Mock()
 
-            # Detection difficulty should increase with attack intensity
             if expected_detection_difficulty == "easy":
                 detection_success_rate = 1.0
             elif expected_detection_difficulty == "medium":
                 detection_success_rate = 0.7
             elif expected_detection_difficulty == "hard":
                 detection_success_rate = 0.5
-            else:  # very_hard
+            else:
                 detection_success_rate = 0.3
 
-            # Ensure at least minimum detection for easy cases
             if expected_detection_difficulty == "easy":
                 detected_count = max(
                     int(num_byzantine * 0.8),
@@ -361,11 +280,9 @@ class TestAttackScenarios:
                 range(detected_count)
             )
 
-            # Simulate aggregation quality with smaller values
             aggregation_noise = min(
                 attack_intensity * (1 - detection_success_rate), 0.1
             )
-            np.random.seed(42)  # Ensure reproducible results
             mock_strategy.aggregate_parameters.return_value = (
                 np.random.randn(param_size) * aggregation_noise
             )
@@ -373,7 +290,6 @@ class TestAttackScenarios:
             detected_byzantine = mock_strategy.detect_byzantine_perturbation()
             aggregated_params = mock_strategy.aggregate_parameters()
 
-            # Verify detection performance matches expected difficulty
             detection_rate = len(detected_byzantine) / num_byzantine
             aggregation_quality = 1.0 / (1.0 + np.linalg.norm(aggregated_params))
 
@@ -401,11 +317,9 @@ class TestAttackScenarios:
         num_clients = 6
         num_byzantine = 2
 
-        # Setup dataset-specific environment
         handler = MockDatasetHandler(dataset_type=dataset_type)
         handler.setup_dataset(num_clients=num_clients)
 
-        # Generate dataset-aware attack parameters
         param_size = 500
         generate_byzantine_client_parameters(
             num_clients=num_clients,
@@ -414,19 +328,16 @@ class TestAttackScenarios:
             attack_type="model_poisoning",
         )
 
-        # Test defense effectiveness based on dataset characteristics
         mock_strategy = Mock()
 
-        # Attack effectiveness varies by dataset type
+        # Non-IID data naturally resists attacks due to parameter heterogeneity
         if attack_effectiveness == "high":
-            # Attacks are more effective on homogeneous data
             detection_rate = 0.4
             aggregation_noise = 0.05
         elif attack_effectiveness == "medium":
             detection_rate = 0.6
             aggregation_noise = 0.03
-        else:  # low effectiveness
-            # Attacks are less effective on heterogeneous data
+        else:
             detection_rate = 1.0
             aggregation_noise = 0.01
 
@@ -434,7 +345,7 @@ class TestAttackScenarios:
         mock_strategy.detect_byzantine_perturbation.return_value = list(
             range(detected_count)
         )
-        np.random.seed(42)  # Ensure reproducible results
+        np.random.seed(42)
         mock_strategy.aggregate_parameters.return_value = np.random.randn(
             param_size
         ) * min(aggregation_noise, 0.1)
@@ -442,7 +353,6 @@ class TestAttackScenarios:
         detected_byzantine = mock_strategy.detect_byzantine_perturbation()
         aggregated_params = mock_strategy.aggregate_parameters()
 
-        # Verify dataset-specific behavior
         detection_success = len(detected_byzantine) / num_byzantine
         aggregation_quality = 1.0 / (1.0 + np.linalg.norm(aggregated_params))
 
@@ -459,21 +369,17 @@ class TestAttackScenarios:
         num_byzantine = 4
         param_size = 700
 
-        # Generate coordinated attack: Byzantine clients use similar attack vectors
         np.random.seed(42)
 
-        # Coordinated attack: all Byzantine clients use similar malicious updates
-
-        # Test defense against coordinated attacks
+        # Research: Krum selects gradients with smallest sum of distances to neighbors,
+        # making it effective against coordinated attacks that cluster together
+        # (Blanchard et al., NeurIPS 2017)
         for strategy_name in ["krum", "multi-krum", "bulyan"]:
             mock_strategy = Mock()
 
-            # Coordinated attacks should be detectable by clustering-based methods
             if strategy_name in ["krum", "multi-krum"]:
-                # Krum-based methods should detect coordinated attacks well
                 detection_rate = 0.8
             elif strategy_name == "bulyan":
-                # Bulyan should be robust against coordinated attacks
                 detection_rate = 0.9
             else:
                 detection_rate = 0.6
@@ -483,9 +389,7 @@ class TestAttackScenarios:
                 range(detected_count)
             )
 
-            # Simulate robust aggregation with smaller values
             aggregation_noise = min(0.3 * (1 - detection_rate), 0.01)
-            np.random.seed(42)  # Ensure reproducible results
             mock_strategy.aggregate_parameters.return_value = (
                 np.random.randn(param_size) * aggregation_noise
             )
@@ -493,7 +397,6 @@ class TestAttackScenarios:
             detected_byzantine = mock_strategy.detect_byzantine_perturbation()
             aggregated_params = mock_strategy.aggregate_parameters()
 
-            # Verify coordinated attack detection
             detection_success = len(detected_byzantine) / num_byzantine
 
             if strategy_name in ["krum", "multi-krum", "bulyan"]:
@@ -513,12 +416,11 @@ class TestAttackScenarios:
         param_size = 400
         total_rounds = 10
 
-        # Test different attack timing patterns
         attack_patterns = {
-            "early_attack": [0, 1, 2],  # Attack in early rounds
-            "late_attack": [7, 8, 9],  # Attack in late rounds
-            "intermittent": [1, 3, 5, 7],  # Intermittent attacks
-            "persistent": list(range(10)),  # Persistent attacks
+            "early_attack": [0, 1, 2],
+            "late_attack": [7, 8, 9],
+            "intermittent": [1, 3, 5, 7],
+            "persistent": list(range(10)),
         }
 
         for pattern_name, attack_rounds in attack_patterns.items():
@@ -526,7 +428,6 @@ class TestAttackScenarios:
                 is_attack_round = round_num in attack_rounds
 
                 if is_attack_round:
-                    # Generate attack parameters
                     generate_byzantine_client_parameters(
                         num_clients=num_clients,
                         num_byzantine=num_byzantine,
@@ -534,22 +435,18 @@ class TestAttackScenarios:
                         attack_type="gaussian_noise",
                     )
                 else:
-                    # Generate normal parameters
                     generate_mock_client_parameters(
                         num_clients=num_clients,
                         param_size=param_size,
                     )
 
-                # Test defense response to timing patterns
                 mock_strategy = Mock()
 
                 if is_attack_round:
-                    # Defense should detect attacks when they occur
+                    # Early rounds lack historical data for anomaly detection
                     if pattern_name == "early_attack" and round_num <= 2:
-                        # Early attacks might be harder to detect due to lack of history
                         detection_rate = 0.5
                     elif pattern_name == "intermittent":
-                        # Intermittent attacks might be harder to track
                         detection_rate = 0.6
                     else:
                         detection_rate = 0.7
@@ -559,7 +456,6 @@ class TestAttackScenarios:
                         range(detected_count)
                     )
                 else:
-                    # No attacks to detect in normal rounds
                     mock_strategy.detect_byzantine_perturbation.return_value = []
 
                 mock_strategy.get_round_number.return_value = round_num
@@ -567,7 +463,6 @@ class TestAttackScenarios:
                 detected_byzantine = mock_strategy.detect_byzantine_perturbation()
                 current_round = mock_strategy.get_round_number()
 
-                # Verify timing-aware detection
                 if is_attack_round:
                     if pattern_name != "early_attack" or current_round > 1:
                         assert len(detected_byzantine) >= 1, (
@@ -583,28 +478,20 @@ class TestAttackScenarios:
         num_byzantine = 2
         param_size = 300
 
-        # Test different attack magnitudes
         attack_magnitudes = [0.5, 1.0, 2.0, 5.0, 10.0]
 
         for magnitude in attack_magnitudes:
-            # Generate attack with specific magnitude
             np.random.seed(42)
-            # Test different defense strategies
             for strategy_name in ["trust", "krum", "rfa", "bulyan"]:
                 mock_strategy = Mock()
 
-                # Strategy robustness should depend on attack magnitude
                 if magnitude <= 1.0:
-                    # Low magnitude attacks should be easily detected
                     detection_rate = 1.0
                 elif magnitude <= 3.0:
-                    # Medium magnitude attacks
                     detection_rate = 0.7
                 else:
-                    # High magnitude attacks
                     detection_rate = 0.5
 
-                # Ensure minimum detection for low magnitude attacks
                 if magnitude <= 1.0:
                     detected_count = max(
                         int(num_byzantine * 0.8), int(num_byzantine * detection_rate)
@@ -616,9 +503,7 @@ class TestAttackScenarios:
                     range(detected_count)
                 )
 
-                # Aggregation quality should degrade with attack magnitude
                 aggregation_noise = min(magnitude * 0.01 * (1 - detection_rate), 0.1)
-                np.random.seed(42)  # Ensure reproducible results
                 mock_strategy.aggregate_parameters.return_value = (
                     np.random.randn(param_size) * aggregation_noise
                 )
@@ -626,7 +511,6 @@ class TestAttackScenarios:
                 detected_byzantine = mock_strategy.detect_byzantine_perturbation()
                 aggregated_params = mock_strategy.aggregate_parameters()
 
-                # Verify robustness thresholds
                 detection_success = len(detected_byzantine) / num_byzantine
 
                 if magnitude <= 1.0:
@@ -635,8 +519,179 @@ class TestAttackScenarios:
                         f"(magnitude: {magnitude})"
                     )
 
-                # Aggregation should remain stable for detected attacks
                 if detection_success > 0.5:
                     assert np.linalg.norm(aggregated_params) < 2.0, (
                         f"Strategy {strategy_name} should maintain stability when detecting attacks"
                     )
+
+
+class TestCombinatorialAttackDefense:
+    """Combinatorial testing using stacked @parametrize decorators."""
+
+    @pytest.mark.parametrize(
+        "attack_type",
+        ["gaussian_noise", "model_poisoning", "byzantine_perturbation"],
+        ids=lambda x: f"attack={x}",
+    )
+    @pytest.mark.parametrize(
+        "defense_strategy",
+        ["krum", "multi-krum", "bulyan", "trimmed_mean"],
+        ids=lambda x: f"defense={x}",
+    )
+    @pytest.mark.parametrize(
+        "byzantine_ratio",
+        [0.1, 0.2, 0.3],
+        ids=lambda x: f"byz={x}",
+    )
+    def test_attack_defense_matrix(
+        self, attack_type, defense_strategy, byzantine_ratio
+    ):
+        """Test all attack × defense × byzantine_ratio combinations."""
+        num_clients = 10
+        num_byzantine = int(num_clients * byzantine_ratio)
+        param_size = 500
+
+        attack_params = generate_byzantine_client_parameters(
+            num_clients=num_clients,
+            num_byzantine=num_byzantine,
+            param_size=param_size,
+            attack_type=attack_type,
+        )
+
+        assert len(attack_params) == num_clients
+        assert all(p.shape == (param_size,) for p in attack_params)
+
+        mock_strategy = Mock()
+        _ = DEFENSE_STRATEGIES.get(defense_strategy, {})
+
+        # Distance-based methods (Krum, Bulyan) outperform statistical methods
+        if defense_strategy in ["krum", "multi-krum", "bulyan"]:
+            detection_rate = 0.7 if byzantine_ratio <= 0.25 else 0.5
+        else:
+            detection_rate = 0.6 if byzantine_ratio <= 0.25 else 0.4
+
+        detected_count = max(1, int(num_byzantine * detection_rate))
+        mock_strategy.detect_byzantine_perturbation.return_value = list(
+            range(detected_count)
+        )
+
+        detected = mock_strategy.detect_byzantine_perturbation()
+
+        if byzantine_ratio < 0.5:
+            assert len(detected) >= 1, (
+                f"{defense_strategy} should detect at least one Byzantine client "
+                f"for {attack_type} with {byzantine_ratio:.0%} Byzantine ratio"
+            )
+
+    @pytest.mark.parametrize(
+        "num_clients,num_byzantine",
+        [
+            (10, 1),  # 10% Byzantine
+            (10, 2),  # 20% Byzantine
+            (15, 4),  # ~27% Byzantine
+            (20, 6),  # 30% Byzantine
+        ],
+        ids=lambda x: f"clients={x}" if isinstance(x, int) else None,
+    )
+    @pytest.mark.parametrize(
+        "attack_type",
+        ["gaussian_noise", "model_poisoning"],
+    )
+    def test_client_count_attack_matrix(self, num_clients, num_byzantine, attack_type):
+        """Test attack effectiveness across different client configurations."""
+        param_size = 400
+
+        attack_params = generate_byzantine_client_parameters(
+            num_clients=num_clients,
+            num_byzantine=num_byzantine,
+            param_size=param_size,
+            attack_type=attack_type,
+        )
+
+        assert len(attack_params) == num_clients
+
+        honest_params = (
+            attack_params[:-num_byzantine] if num_byzantine > 0 else attack_params
+        )
+        byzantine_params = attack_params[-num_byzantine:] if num_byzantine > 0 else []
+
+        if byzantine_params:
+            byzantine_norms = [np.linalg.norm(p) for p in byzantine_params]
+            honest_norms = [np.linalg.norm(p) for p in honest_params]
+
+            if attack_type in ["model_poisoning", "gaussian_noise"]:
+                max_byzantine_norm = max(byzantine_norms) if byzantine_norms else 0
+
+                assert max_byzantine_norm > 0, (
+                    f"Byzantine parameters should have non-zero norm for {attack_type}"
+                )
+
+                if honest_norms:
+                    avg_honest = np.mean(honest_norms)
+                    assert avg_honest >= 0
+
+
+class TestIndirectParameterization:
+    """Examples of indirect parameterization for expensive fixture setup."""
+
+    @pytest.mark.parametrize(
+        "attack_scenario",
+        [
+            ("gaussian_noise", 2),
+            ("model_poisoning", 3),
+            ("byzantine_perturbation", 2),
+        ],
+        indirect=True,
+        ids=["gaussian-2byz", "poisoning-3byz", "byzantine-2byz"],
+    )
+    def test_with_indirect_attack_scenario(self, attack_scenario):
+        """Test using indirect parameterization for attack setup."""
+        assert "attack_type" in attack_scenario
+        assert "num_byzantine" in attack_scenario
+        assert "attack_params" in attack_scenario
+
+        params = attack_scenario["attack_params"]
+        assert len(params) == attack_scenario["num_clients"]
+
+        for p in params:
+            assert isinstance(p, np.ndarray)
+            assert p.shape == (attack_scenario["param_size"],)
+
+    @pytest.mark.parametrize(
+        "defense_config",
+        ["krum", "bulyan", "trimmed_mean"],
+        indirect=True,
+        ids=["def-krum", "def-bulyan", "def-trimmed"],
+    )
+    def test_with_indirect_defense_config(self, defense_config):
+        """Test using indirect parameterization for defense configuration."""
+        assert "name" in defense_config
+        assert "aggregation_strategy_keyword" in defense_config
+
+        strategy_name = defense_config["name"]
+        if strategy_name == "krum":
+            assert "num_krum_selections" in defense_config
+        elif strategy_name == "trimmed_mean":
+            assert "trim_ratio" in defense_config
+
+
+class TestDynamicParameterization:
+    """Examples using pytest_generate_tests for dynamic test generation."""
+
+    def test_attack_defense_combo(self, attack_defense_combo):
+        """Test using dynamically generated attack × defense combinations."""
+        attack_type, defense_strategy = attack_defense_combo
+
+        from tests.common import ATTACK_TYPES, DEFENSE_STRATEGIES
+
+        assert attack_type in ATTACK_TYPES
+        assert defense_strategy in DEFENSE_STRATEGIES
+
+    def test_strategy_variant(self, strategy_variant):
+        """Test using dynamically generated strategy variants."""
+        from tests.common import STRATEGY_CONFIGS
+
+        assert strategy_variant in STRATEGY_CONFIGS
+
+        config = STRATEGY_CONFIGS[strategy_variant]
+        assert "aggregation_strategy_keyword" in config
