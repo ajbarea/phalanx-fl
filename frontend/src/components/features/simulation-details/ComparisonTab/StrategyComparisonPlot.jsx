@@ -204,7 +204,8 @@ export function StrategyComparisonPlot({ allPlotData, strategyConfigs }) {
             height="100%"
             minWidth={300}
             minHeight={300}
-            debounce={1}
+            debounce={50}
+            initialDimension={{ width: 300, height: 300 }}
           >
             <LineChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 80 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />

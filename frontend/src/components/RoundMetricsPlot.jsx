@@ -74,7 +74,8 @@ export default function RoundMetricsPlot({ plotData }) {
             height="100%"
             minWidth={300}
             minHeight={300}
-            debounce={1}
+            debounce={50}
+            initialDimension={{ width: 300, height: 300 }}
           >
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />

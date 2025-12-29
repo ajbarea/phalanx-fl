@@ -14,6 +14,7 @@ import { getErrorMessage } from '@utils/errorMessages';
 import { useConfigValidation } from '@hooks/useConfigValidation';
 import { useRunningSimulation } from '@hooks/useRunningSimulation';
 import { useDeviceInfo } from '@hooks/useDeviceInfo';
+import { useDevice } from '@contexts/DeviceContext';
 import { useTerminal } from '@contexts/TerminalContext';
 import { initialConfig } from '@constants/initialConfig';
 import { PRESETS } from '@constants/presets';
@@ -60,6 +61,7 @@ export function NewSimulation() {
     hasBeenNotified,
     markNotified,
   } = useDeviceInfo();
+  const { deviceSettings } = useDevice();
 
   const hasAppliedDevice = useRef(false);
 
@@ -145,8 +147,10 @@ export function NewSimulation() {
       ...initialConfig,
       ...preset.config,
       display_name: preset.name,
-      // Override preset's training_device with recommended device (GPU if available)
-      training_device: recommendedDevice || preset.config.training_device || 'cpu',
+      // Apply device settings from DeviceContext (user's preference from Device Settings modal)
+      training_device: deviceSettings.training_device || recommendedDevice || 'cpu',
+      cpus_per_client: deviceSettings.cpus_per_client ?? initialConfig.cpus_per_client,
+      gpus_per_client: deviceSettings.gpus_per_client ?? initialConfig.gpus_per_client,
     };
 
     // Sync attack_schedule to dynamic_attacks for UI
