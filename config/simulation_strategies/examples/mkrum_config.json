@@ -28,6 +28,9 @@
     "num_of_client_epochs": 2,
     "batch_size": 20,
     "preserve_dataset": "false",
+    "save_attack_snapshots": "true",
+    "attack_snapshot_format": "pickle_and_visual",
+    "snapshot_max_samples": 5,
     "aggregation_strategy_keyword": "krum",
     "attack_schedule": [
       {
