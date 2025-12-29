@@ -50,6 +50,7 @@ export const initialConfig = {
   num_of_client_epochs: 1,
   batch_size: 20,
   training_subset_fraction: 0.9,
+  learning_rate: null,
 
   // Client Requirements
   min_fit_clients: 7,
