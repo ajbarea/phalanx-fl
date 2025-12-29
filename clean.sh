@@ -30,3 +30,9 @@ log_info "Cleaned __pycache__ directories."
 # Clean setuptools egg-info
 rm -rf *.egg-info
 log_info "Cleaned egg-info directories."
+
+# Clean Playwright MCP artifacts
+if [ -d ".playwright-mcp" ]; then
+    rm -rf .playwright-mcp
+    log_info "Cleaned .playwright-mcp directory."
+fi
