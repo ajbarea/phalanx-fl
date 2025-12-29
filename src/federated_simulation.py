@@ -1,16 +1,17 @@
+from src.attack_utils.snapshot_html_reports import (
+    generate_snapshot_index,
+    generate_summary_json,
+)
 import logging
 import sys
-from typing import Optional
-
 import flwr
-
+from pathlib import Path
 from flwr.client import Client
 from flwr.common import ndarrays_to_parameters
 from peft import PeftModel, get_peft_model_state_dict
 from src.utils.gpu_monitor import GPUMemoryMonitor
 from src.utils.status_tracker import StatusTracker
-
-
+from typing import Optional
 from src.dataset_loaders.image_dataset_loader import ImageDatasetLoader
 from src.dataset_loaders.image_transformers.its_image_transformer import (
     its_image_transformer,
@@ -34,8 +35,6 @@ from src.dataset_loaders.image_transformers.medmnist_2d_grayscale_image_transfor
 from src.dataset_loaders.image_transformers.medmnist_2d_rgb_image_transformer import (
     medmnist_2d_rgb_image_transformer,
 )
-
-
 from src.network_models.its_network_definition import ITSNetwork
 from src.network_models.femnist_reduced_iid_network_definition import (
     FemnistReducedIIDNetwork,
@@ -57,9 +56,7 @@ from src.network_models.organamnist_network_definition import OrganAMNISTNetwork
 from src.network_models.organcmnist_network_definition import OrganCMNISTNetwork
 from src.network_models.organsmnist_network_definition import OrganSMNISTNetwork
 from src.network_models.bert_model_definition import load_model, load_model_with_lora
-
 from src.client_models.flower_client import FlowerClient
-
 from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
@@ -76,11 +73,10 @@ from src.simulation_strategies.trimmed_mean_based_removal_strategy import (
 from src.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
 from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
+from src.simulation_strategies.arkrum_strategy import ArKrumStrategy
 from src.simulation_strategies.fedavg_strategy import FedAvgStrategy
-
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-
 from src.dataset_handlers.dataset_handler import DatasetHandler
 
 
@@ -89,12 +85,10 @@ def weighted_average(metrics: list[tuple[int, dict]]) -> dict:
     if not metrics:
         return {}
 
-    # Extract metric names from the first client
     metric_names = set()
     for _, client_metrics in metrics:
         metric_names.update(client_metrics.keys())
 
-    # Calculate weighted average for each metric
     weighted_metrics = {}
     for metric_name in metric_names:
         total_samples = 0
@@ -145,8 +139,6 @@ class FederatedSimulation:
 
     def run_simulation(self) -> None:
         """Start federated simulation"""
-
-        # Log GPU memory before simulation starts
         self.gpu_monitor.log_memory_usage("before simulation start")
 
         flwr.simulation.start_simulation(
@@ -162,17 +154,10 @@ class FederatedSimulation:
             },
         )
 
-        # Log GPU memory after simulation completes
         self.gpu_monitor.log_memory_usage("after simulation complete")
         self.gpu_monitor.check_memory_threshold(threshold_percent=85.0)
 
         if self.strategy_config.attack_schedule and self.directory_handler:
-            from src.attack_utils.snapshot_html_reports import (
-                generate_snapshot_index,
-                generate_summary_json,
-            )
-            import logging
-
             output_dir = getattr(self.directory_handler, "dirname", None)
             if output_dir:
                 try:
@@ -436,6 +421,13 @@ class FederatedSimulation:
 
         aggregation_strategy_keyword = self.strategy_config.aggregation_strategy_keyword
 
+        eval_fn = (
+            weighted_average
+            if self.strategy_config.evaluate_metrics_aggregation_fn
+            == "weighted_average"
+            else None
+        )
+
         common_kwargs = dict(
             initial_parameters=ndarrays_to_parameters(
                 self._get_model_params(self._network_model)
@@ -443,7 +435,7 @@ class FederatedSimulation:
             min_fit_clients=self.strategy_config.min_fit_clients,
             min_evaluate_clients=self.strategy_config.min_evaluate_clients,
             min_available_clients=self.strategy_config.min_available_clients,
-            evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+            evaluate_metrics_aggregation_fn=eval_fn,
             fit_metrics_aggregation_fn=weighted_average,
             remove_clients=self.strategy_config.remove_clients,
             begin_removing_from_round=self.strategy_config.begin_removing_from_round,
@@ -511,6 +503,11 @@ class FederatedSimulation:
                 **common_kwargs,
             )
 
+        elif aggregation_strategy_keyword == "arkrum":
+            self._aggregation_strategy = ArKrumStrategy(
+                **common_kwargs,
+            )
+
         elif aggregation_strategy_keyword == "fedavg":
             self._aggregation_strategy = FedAvgStrategy(
                 strategy_history=self.strategy_history,
@@ -521,7 +518,7 @@ class FederatedSimulation:
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                evaluate_metrics_aggregation_fn=eval_fn,
                 fit_metrics_aggregation_fn=weighted_average,
             )
 
@@ -566,15 +563,12 @@ class FederatedSimulation:
 
         experiment_info = None
         if output_dir:
-            from pathlib import Path
-
             experiment_info = {
                 "run_id": Path(output_dir).name,
                 "total_clients": self.strategy_config.num_of_clients,
                 "total_rounds": self.strategy_config.num_of_rounds,
             }
 
-        # Get tokenizer for transformer models
         tokenizer = None
         if self.strategy_config.model_type == "transformer" and hasattr(
             self._dataset_loader, "tokenizer"
@@ -599,6 +593,7 @@ class FederatedSimulation:
             experiment_info=experiment_info,
             strategy_number=self.strategy_config.strategy_number,
             tokenizer=tokenizer,
+            learning_rate=getattr(self.strategy_config, "learning_rate", None),
         ).to_client()
 
     @staticmethod

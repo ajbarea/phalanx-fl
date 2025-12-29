@@ -45,6 +45,8 @@ class StrategyConfig:
 
     trim_ratio: float = None
 
+    learning_rate: float = None
+
     strict_mode: bool = None
 
     strategy_number: int = None

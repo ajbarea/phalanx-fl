@@ -20,6 +20,7 @@ config_schema = {
                 "rfa",
                 "bulyan",
                 "fedavg",
+                "arkrum",
             ],
         },
         "strict_mode": {"type": "string", "enum": ["true", "false"]},
