@@ -299,35 +299,28 @@ def save_label_confusion_matrix(
     """
     matplotlib.use("Agg")
 
-    # Determine unique classes from both arrays
     all_labels = np.concatenate([original_labels, poisoned_labels])
     unique_classes = sorted(np.unique(all_labels).tolist())
     num_classes = len(unique_classes)
 
-    # Build confusion matrix
     confusion = np.zeros((num_classes, num_classes), dtype=int)
     for orig, pois in zip(original_labels, poisoned_labels):
         orig_idx = unique_classes.index(int(orig))
         pois_idx = unique_classes.index(int(pois))
         confusion[orig_idx, pois_idx] += 1
 
-    # Calculate percentages for annotation
     row_sums = confusion.sum(axis=1, keepdims=True)
-    row_sums[row_sums == 0] = 1  # Avoid division by zero
+    row_sums[row_sums == 0] = 1
     percentages = confusion / row_sums * 100
 
-    # Create figure with appropriate size
     fig_size = max(6, num_classes * 0.8)
     fig, ax = plt.subplots(figsize=(fig_size, fig_size), dpi=100)
 
-    # Create heatmap using imshow (publication-quality approach)
     im = ax.imshow(confusion, cmap="Blues", aspect="equal")
 
-    # Add colorbar with label
     cbar = ax.figure.colorbar(im, ax=ax, shrink=0.8)
     cbar.ax.set_ylabel("Count", rotation=-90, va="bottom", fontsize=11)
 
-    # Set axis labels
     if class_names and len(class_names) >= num_classes:
         tick_labels = [class_names[c] for c in unique_classes]
     else:
@@ -342,7 +335,6 @@ def save_label_confusion_matrix(
     if num_classes > 6:
         plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
 
-    # Add annotations with count and percentage
     thresh = confusion.max() / 2.0
     for i in range(num_classes):
         for j in range(num_classes):
@@ -364,7 +356,6 @@ def save_label_confusion_matrix(
                     fontweight=weight,
                 )
 
-    # Set labels and title
     ax.set_xlabel("Poisoned Label", fontsize=12, fontweight="bold")
     ax.set_ylabel("Original Label", fontsize=12, fontweight="bold")
     ax.set_title(
@@ -374,7 +365,6 @@ def save_label_confusion_matrix(
         pad=15,
     )
 
-    # Add summary statistics as text below the plot
     total_samples = len(original_labels)
     flipped_count = np.sum(original_labels != poisoned_labels)
     flip_rate = flipped_count / total_samples * 100 if total_samples > 0 else 0
@@ -438,12 +428,10 @@ def save_noise_difference_heatmap(
             img = (img * 0.5) + 0.5
         return np.clip(img, 0, 1)
 
-    # Calculate differences
     orig_norm = normalize_for_display(original_images)
     noisy_norm = normalize_for_display(noisy_images)
     differences = noisy_norm - orig_norm
 
-    # Create figure: 3 columns (original, noisy, difference) x num_samples rows
     fig, axes = plt.subplots(
         num_samples,
         3,
@@ -451,21 +439,18 @@ def save_noise_difference_heatmap(
         gridspec_kw={"wspace": 0.3, "hspace": 0.4},
     )
 
-    # Handle single sample case
     if num_samples == 1:
         axes = axes.reshape(1, -1)
 
-    # Extract SNR if available
     snr = None
     if attack_config:
         snr = _extract_attack_param(attack_config, "target_noise_snr", default=None)
 
-    # Find global min/max for consistent colormap scaling across all samples
+    # Consistent colormap scaling across all samples for visual comparison
     global_max_diff = np.max(np.abs(differences))
     if global_max_diff == 0:
-        global_max_diff = 0.1  # Fallback if no difference
+        global_max_diff = 0.1
 
-    # Create normalization centered at zero
     norm = TwoSlopeNorm(vmin=-global_max_diff, vcenter=0, vmax=global_max_diff)
 
     for i in range(num_samples):
@@ -473,7 +458,6 @@ def save_noise_difference_heatmap(
         noisy_img = noisy_norm[i]
         diff_img = differences[i]
 
-        # Prepare images for display (C, H, W) -> (H, W) or (H, W, C)
         if orig_img.shape[0] == 1:
             orig_disp = orig_img[0]
             noisy_disp = noisy_img[0]
@@ -482,10 +466,9 @@ def save_noise_difference_heatmap(
         else:
             orig_disp = orig_img.transpose(1, 2, 0)
             noisy_disp = noisy_img.transpose(1, 2, 0)
-            diff_disp = np.mean(diff_img, axis=0)  # Average across channels for diff
-            cmap_img = None  # RGB
+            diff_disp = np.mean(diff_img, axis=0)
+            cmap_img = None
 
-        # Original image
         ax_orig = axes[i, 0]
         if cmap_img:
             ax_orig.imshow(orig_disp, cmap=cmap_img, vmin=0, vmax=1)
@@ -494,7 +477,6 @@ def save_noise_difference_heatmap(
         ax_orig.set_title("Original", fontsize=11, fontweight="bold", color="#2c3e50")
         ax_orig.axis("off")
 
-        # Noisy image
         ax_noisy = axes[i, 1]
         if cmap_img:
             ax_noisy.imshow(noisy_disp, cmap=cmap_img, vmin=0, vmax=1)
@@ -507,18 +489,15 @@ def save_noise_difference_heatmap(
         ax_noisy.set_title(noisy_title, fontsize=11, fontweight="bold", color="#c0392b")
         ax_noisy.axis("off")
 
-        # Difference heatmap
         ax_diff = axes[i, 2]
         im = ax_diff.imshow(diff_disp, cmap="RdBu_r", norm=norm)
         ax_diff.axis("off")
 
-        # Per-sample statistics
         mean_diff = np.mean(np.abs(diff_img))
         max_diff = np.max(np.abs(diff_img))
         stats_title = f"Difference\nMean: {mean_diff:.4f} | Max: {max_diff:.4f}"
         ax_diff.set_title(stats_title, fontsize=10, fontweight="bold", color="#8e44ad")
 
-        # Add row label on left side
         if i == 0:
             ax_orig.text(
                 -0.15,
@@ -543,7 +522,6 @@ def save_noise_difference_heatmap(
                 rotation=90,
             )
 
-    # Add colorbar for difference
     cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])
     cbar = fig.colorbar(im, cax=cbar_ax)
     cbar.set_label(
@@ -553,13 +531,11 @@ def save_noise_difference_heatmap(
         fontsize=11,
     )
 
-    # Main title
     title = "Gaussian Noise Attack: Pixel-Level Difference Analysis"
     if snr is not None:
         title += f"\nTarget SNR: {snr} dB"
     fig.suptitle(title, fontsize=14, fontweight="bold", y=0.98)
 
-    # Aggregate statistics at bottom
     total_mean_diff = np.mean(np.abs(differences))
     total_max_diff = np.max(np.abs(differences))
     total_std_diff = np.std(differences)
@@ -581,4 +557,228 @@ def save_noise_difference_heatmap(
     )
 
     plt.savefig(filepath, dpi=300, bbox_inches="tight", facecolor="white")
+    plt.close()
+
+
+def save_weight_attack_prediction_grid(
+    images: np.ndarray,
+    labels: np.ndarray,
+    predictions_before: List[List[tuple]],
+    predictions_after: List[List[tuple]],
+    weight_stats: dict,
+    filepath: Path,
+    attack_config: Union[dict, List[dict]],
+    class_names: Optional[List[str]] = None,
+    full_probs_before: Optional[np.ndarray] = None,
+    full_probs_after: Optional[np.ndarray] = None,
+) -> None:
+    """Save visualization showing prediction changes from weight poisoning attacks.
+
+    Creates a grid visualization with bar charts showing top-K predictions
+    BEFORE and AFTER weight poisoning, always including the true class.
+
+    Args:
+        images: Sample images array of shape (N, C, H, W).
+        labels: Ground truth labels array.
+        predictions_before: List of lists of (class_idx, confidence) tuples before poisoning.
+        predictions_after: List of lists of (class_idx, confidence) tuples after poisoning.
+        weight_stats: Dictionary with weight change statistics.
+        filepath: Output file path for the visualization.
+        attack_config: Attack configuration dict or list of dicts.
+        class_names: Optional human-readable class names for labels.
+        full_probs_before: Full probability arrays (N, num_classes) before poisoning.
+        full_probs_after: Full probability arrays (N, num_classes) after poisoning.
+    """
+    matplotlib.use("Agg")
+
+    num_samples = min(len(images), 4)  # Limit to 4 samples for cleaner layout
+    attack_type = _extract_attack_type(attack_config)
+
+    def get_class_name(idx):
+        if class_names and idx < len(class_names):
+            return class_names[idx]
+        return str(idx)
+
+    def get_display_classes(preds_list, true_label, full_probs=None, top_k=4):
+        """Get top-K classes to display, always including true label."""
+        display_classes = {}
+        for cls_idx, conf in preds_list[:top_k]:
+            display_classes[cls_idx] = conf
+
+        if true_label not in display_classes:
+            if full_probs is not None:
+                display_classes[true_label] = float(full_probs[true_label])
+            else:
+                # Find true label confidence from predictions list
+                true_conf = 0.0
+                for cls_idx, conf in preds_list:
+                    if cls_idx == true_label:
+                        true_conf = conf
+                        break
+                display_classes[true_label] = true_conf
+
+        sorted_classes = sorted(display_classes.items(), key=lambda x: -x[1])
+        return sorted_classes[:top_k]
+
+    fig = plt.figure(figsize=(16, 5 * num_samples + 1))
+
+    for i in range(num_samples):
+        preds_before = predictions_before[i]
+        preds_after = predictions_after[i]
+        true_label = int(labels[i])
+
+        # Get full probs if available
+        probs_before = full_probs_before[i] if full_probs_before is not None else None
+        probs_after = full_probs_after[i] if full_probs_after is not None else None
+
+        # Get confidences for all classes
+        before_confs = {}
+        after_confs = {}
+
+        for cls_idx, conf in preds_before:
+            before_confs[cls_idx] = conf
+        for cls_idx, conf in preds_after:
+            after_confs[cls_idx] = conf
+
+        # Get full probability arrays if available
+        if probs_before is not None:
+            for cls in range(len(probs_before)):
+                if cls not in before_confs:
+                    before_confs[cls] = float(probs_before[cls])
+        if probs_after is not None:
+            for cls in range(len(probs_after)):
+                if cls not in after_confs:
+                    after_confs[cls] = float(probs_after[cls])
+
+        # Sort by BEFORE confidence descending, take top 5
+        all_classes = sorted(
+            before_confs.keys(),
+            key=lambda c: before_confs.get(c, 0),
+            reverse=True,
+        )[:5]
+
+        # Ensure true label is in the list
+        if true_label not in all_classes:
+            all_classes = all_classes[:4] + [true_label]
+
+        # Sort for display: highest BEFORE confidence at top
+        # barh displays in list order (top to bottom), so use reverse=True
+        all_classes = sorted(
+            all_classes,
+            key=lambda c: before_confs.get(c, 0),
+            reverse=True,  # descending - highest first = top of chart
+        )
+
+        # Create subplot grid for this sample
+        gs = fig.add_gridspec(
+            num_samples,
+            3,
+            width_ratios=[1, 1.5, 1.5],
+            hspace=0.4,
+            wspace=0.3,
+            left=0.05,
+            right=0.95,
+            top=0.92,
+            bottom=0.08,
+        )
+
+        ax_img = fig.add_subplot(gs[i, 0])
+        _display_image(ax_img, images[i])
+        ax_img.axis("off")
+        ax_img.set_title(f"Sample {i + 1}", fontsize=11, fontweight="bold")
+
+        ax_before = fig.add_subplot(gs[i, 1])
+        bar_labels = [
+            f"*{get_class_name(c)}*" if c == true_label else get_class_name(c)
+            for c in all_classes
+        ]
+        bar_values = [before_confs.get(c, 0) * 100 for c in all_classes]
+        bar_colors = ["#27ae60" if c == true_label else "#3498db" for c in all_classes]
+
+        bars = ax_before.barh(bar_labels, bar_values, color=bar_colors, height=0.6)
+        ax_before.invert_yaxis()  # Flip so highest confidence is at top
+        ax_before.set_xlim(0, 105)
+        ax_before.set_xlabel("Confidence %", fontsize=9)
+        ax_before.set_title(
+            "BEFORE Attack", fontsize=11, fontweight="bold", color="#27ae60"
+        )
+        ax_before.tick_params(axis="y", labelsize=10)
+
+        for bar, val in zip(bars, bar_values):
+            ax_before.text(
+                val + 1,
+                bar.get_y() + bar.get_height() / 2,
+                f"{val:.0f}%",
+                va="center",
+                fontsize=9,
+            )
+
+        ax_after = fig.add_subplot(gs[i, 2])
+        bar_values_after = [after_confs.get(c, 0) * 100 for c in all_classes]
+        bar_colors_after = [
+            "#27ae60" if c == true_label else "#e74c3c" for c in all_classes
+        ]
+
+        bars_after = ax_after.barh(
+            bar_labels, bar_values_after, color=bar_colors_after, height=0.6
+        )
+        ax_after.invert_yaxis()  # Match BEFORE chart orientation
+        ax_after.set_xlim(0, 105)
+        ax_after.set_xlabel("Confidence %", fontsize=9)
+        ax_after.set_title(
+            "AFTER Attack", fontsize=11, fontweight="bold", color="#c0392b"
+        )
+        ax_after.tick_params(axis="y", labelsize=10)
+
+        for bar, val in zip(bars_after, bar_values_after):
+            ax_after.text(
+                val + 1,
+                bar.get_y() + bar.get_height() / 2,
+                f"{val:.0f}%",
+                va="center",
+                fontsize=9,
+            )
+
+    attack_display = attack_type.replace("_", " ").title()
+    fig.suptitle(
+        f"Weight Attack Prediction Impact: {attack_display}\n"
+        f"(* = True Label, shown in green)",
+        fontsize=14,
+        fontweight="bold",
+    )
+
+    pct_changed = weight_stats.get("pct_changed", 0)
+    diff_mean = weight_stats.get("diff_mean", 0)
+    diff_max = weight_stats.get("diff_max", 0)
+    diff_l2 = weight_stats.get("diff_l2_norm", 0)
+
+    pred_changes = sum(
+        1
+        for pb, pa in zip(predictions_before, predictions_after)
+        if pb and pa and pb[0][0] != pa[0][0]
+    )
+    pred_change_pct = (
+        (pred_changes / len(predictions_before) * 100) if predictions_before else 0
+    )
+
+    stats_text = (
+        f"Weight Stats: {pct_changed:.1f}% changed | "
+        f"Mean diff: {diff_mean:.4f} | "
+        f"Max diff: {diff_max:.4f} | "
+        f"L2 norm: {diff_l2:.2f} | "
+        f"Predictions changed: {pred_changes}/{len(predictions_before)} ({pred_change_pct:.0f}%)"
+    )
+
+    fig.text(
+        0.5,
+        0.02,
+        stats_text,
+        ha="center",
+        fontsize=10,
+        style="italic",
+        color="#555555",
+        bbox=dict(boxstyle="round,pad=0.5", facecolor="#f8f9fa", edgecolor="#dee2e6"),
+    )
+
+    plt.savefig(filepath, dpi=150, bbox_inches="tight", facecolor="white")
     plt.close()
