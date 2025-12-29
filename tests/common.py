@@ -18,7 +18,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional, Tuple, Union
+from typing import Any, Generator, Optional, Union
 from unittest.mock import Mock
 
 import numpy as np
@@ -28,8 +28,8 @@ from flwr.server.client_proxy import ClientProxy
 
 # Type definitions
 NDArray = Any  # Will be np.ndarray when numpy is available
-Config = Dict[str, Any]
-Metrics = Dict[str, Any]
+Config = dict[str, Any]
+Metrics = dict[str, Any]
 
 # =============================================================================
 # UNICODE UTILITIES (Cross-platform support)
@@ -58,12 +58,10 @@ def setup_unicode_output() -> None:
 def unicode_safe_output() -> Generator[None, None, None]:
     """Context manager for temporary Unicode-safe output."""
     if sys.platform.startswith("win") and hasattr(sys.stdout, "buffer"):
-        # Store original stdout/stderr
         original_stdout = sys.stdout
         original_stderr = sys.stderr
 
         try:
-            # Temporarily reconfigure for Unicode
             sys.stdout = io.TextIOWrapper(
                 sys.stdout.buffer, encoding="utf-8", errors="replace"
             )
@@ -72,7 +70,6 @@ def unicode_safe_output() -> Generator[None, None, None]:
             )
             yield
         finally:
-            # Restore original configuration
             sys.stdout = original_stdout
             sys.stderr = original_stderr
     else:
@@ -165,7 +162,7 @@ def init_test_environment(
 @contextlib.contextmanager
 def mock_medquad_dependencies(
     mock_dataset_dict, glob_return=None, tokenizer_return=None
-) -> Generator[Dict[str, Any], None, None]:
+) -> Generator[dict[str, Any], None, None]:
     """
     Context manager for patching MedQuAD dataset loader dependencies.
 
@@ -224,10 +221,10 @@ def mock_medquad_dependencies(
 
 
 def generate_mock_client_data(
-    num_clients: int, param_shape: Tuple[int, int] = (10, 5)
-) -> "List[Tuple[Any, Any]]":
+    num_clients: int, param_shape: tuple[int, int] = (10, 5)
+) -> list[tuple[Any, Any]]:
     """Generate mock client results (ClientProxy, FitRes)."""
-    results: "List[Tuple[Any, Any]]" = []
+    results: list[tuple[Any, Any]] = []
     if np is None:
         raise ImportError("numpy is required for generate_mock_client_data")
     rng = np.random.default_rng(42)
@@ -236,7 +233,6 @@ def generate_mock_client_data(
         client_proxy = Mock(spec=ClientProxy)
         client_proxy.cid = str(i)
 
-        # Create varied mock parameters
         if i < 2:  # Similar parameters for first two clients
             mock_params = [
                 rng.standard_normal(param_shape) * 0.1,
@@ -272,7 +268,7 @@ class FLTestHelpers:
 
     @staticmethod
     def assert_valid_fl_result(
-        result: Any, expected_shape: "Optional[Tuple[int, ...]]" = None
+        result: Any, expected_shape: Optional[tuple[int, ...]] = None
     ) -> None:
         """Validate FL aggregation result structure and content."""
         assert result is not None, "FL result should not be None"
@@ -283,7 +279,7 @@ class FLTestHelpers:
             )
 
     @staticmethod
-    def create_byzantine_clients(num_clients: int, byzantine_count: int) -> List[int]:
+    def create_byzantine_clients(num_clients: int, byzantine_count: int) -> list[int]:
         """Generate indices for Byzantine (malicious) clients."""
         if byzantine_count > num_clients:
             raise ValueError("Byzantine count cannot exceed total clients")
@@ -293,15 +289,41 @@ class FLTestHelpers:
 
     @staticmethod
     def validate_aggregation_invariants(
-        client_results: "List[Tuple[Any, Any]]", aggregated_result: Any
+        client_results: list[tuple[Any, Any]], aggregated_result: Any
     ) -> None:
         """Validate common FL aggregation invariants."""
         assert len(client_results) > 0, "Should have client results to aggregate"
         assert aggregated_result is not None, "Aggregated result should not be None"
 
+    @staticmethod
+    def create_mock_results(
+        param_vectors: list[np.ndarray],
+    ) -> list[tuple[Mock, Mock]]:
+        """
+        Create mock FL client results from parameter vectors.
+
+        Create properly formatted Flower client results for testing
+        aggregation strategies.
+
+        Args:
+            param_vectors: List of numpy arrays representing client parameters
+
+        Returns:
+            List of (ClientProxy mock, FitRes mock) tuples
+        """
+        results = []
+        for i, params in enumerate(param_vectors):
+            client = Mock()
+            client.cid = str(i)
+            fit_res = Mock()
+            fit_res.parameters = ndarrays_to_parameters([params])
+            fit_res.num_examples = 100
+            results.append((client, fit_res))
+        return results
+
 
 def assert_valid_fl_result(
-    result: Any, expected_shape: "Optional[Tuple[int, ...]]" = None
+    result: Any, expected_shape: Optional[tuple[int, ...]] = None
 ) -> None:
     """Convenience function for FL result validation."""
     FLTestHelpers.assert_valid_fl_result(result, expected_shape)
@@ -310,6 +332,19 @@ def assert_valid_fl_result(
 def create_mock_flower_client(client_id: int) -> Mock:
     """Convenience function for creating mock Flower clients."""
     return FLTestHelpers.create_mock_flower_client(client_id)
+
+
+def create_mock_results(param_vectors: list) -> list:
+    """
+    Convenience function for creating mock FL client results.
+
+    Args:
+        param_vectors: List of numpy arrays representing client parameters
+
+    Returns:
+        List of (ClientProxy mock, FitRes mock) tuples
+    """
+    return FLTestHelpers.create_mock_results(param_vectors)
 
 
 # =============================================================================
@@ -505,6 +540,81 @@ DEFAULT_PARAM_SHAPE = (10, 5)
 DEFAULT_NUM_CLIENTS = 5
 DEFAULT_NUM_EXAMPLES = 100
 
+# =============================================================================
+# ATTACK AND DEFENSE SCENARIOS
+# =============================================================================
+
+# Attack types supported by the framework
+ATTACK_TYPES = [
+    "gaussian_noise",
+    "model_poisoning",
+    "byzantine_perturbation",
+    "gradient_scaling",
+    "label_flipping",
+    "backdoor_attack",
+    "token_replacement",
+]
+
+# Attack scenario configurations: (attack_type, effective_defenses, robustness_level)
+ATTACK_SCENARIOS = [
+    ("gaussian_noise", ["trust", "krum", "rfa"], "high"),
+    ("model_poisoning", ["multi-krum", "bulyan", "trimmed_mean"], "high"),
+    ("byzantine_perturbation", ["trust", "krum", "rfa", "bulyan"], "high"),
+    ("gradient_scaling", ["trust", "pid", "trimmed_mean"], "medium"),
+    ("label_flipping", ["krum", "multi-krum", "bulyan"], "high"),
+    ("backdoor_attack", ["trust", "rfa", "bulyan"], "medium"),
+]
+
+# Defense strategy configurations
+DEFENSE_STRATEGIES = {
+    "trust": {
+        "aggregation_strategy_keyword": "trust",
+        "trust_threshold": 0.7,
+        "beta_value": 0.5,
+        "begin_removing_from_round": 2,
+    },
+    "krum": {
+        "aggregation_strategy_keyword": "krum",
+        "num_krum_selections": 5,
+        "begin_removing_from_round": 1,
+    },
+    "multi-krum": {
+        "aggregation_strategy_keyword": "multi-krum",
+        "num_krum_selections": 3,
+        "begin_removing_from_round": 1,
+    },
+    "rfa": {
+        "aggregation_strategy_keyword": "rfa",
+        "begin_removing_from_round": 2,
+    },
+    "bulyan": {
+        "aggregation_strategy_keyword": "bulyan",
+        "begin_removing_from_round": 1,
+    },
+    "trimmed_mean": {
+        "aggregation_strategy_keyword": "trimmed_mean",
+        "trim_ratio": 0.2,
+        "begin_removing_from_round": 1,
+    },
+    "pid": {
+        "aggregation_strategy_keyword": "pid",
+        "Kp": 1.0,
+        "Ki": 0.1,
+        "Kd": 0.01,
+        "begin_removing_from_round": 2,
+    },
+}
+
+# Dataset types for parameterized testing
+DATASET_TYPES = ["its", "femnist_iid", "femnist_niid", "bloodmnist", "pneumoniamnist"]
+
+# Byzantine client ratio thresholds
+BYZANTINE_THRESHOLDS = {
+    "low": 0.25,  # <= 25% Byzantine clients
+    "medium": 0.35,  # <= 35% Byzantine clients
+    "high": 0.50,  # > 35% Byzantine clients
+}
+
 # Strategy configurations for testing
 STRATEGY_CONFIGS = {
     "trust": {
@@ -581,6 +691,7 @@ __all__ = [
     "FLTestHelpers",
     "assert_valid_fl_result",
     "create_mock_flower_client",
+    "create_mock_results",
     # Attack snapshot testing utilities
     "create_sample_tensors",
     "create_attack_config",
@@ -593,4 +704,10 @@ __all__ = [
     "DEFAULT_NUM_CLIENTS",
     "DEFAULT_NUM_EXAMPLES",
     "STRATEGY_CONFIGS",
+    # Attack and Defense constants
+    "ATTACK_TYPES",
+    "ATTACK_SCENARIOS",
+    "DEFENSE_STRATEGIES",
+    "DATASET_TYPES",
+    "BYZANTINE_THRESHOLDS",
 ]

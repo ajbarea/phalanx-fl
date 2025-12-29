@@ -1,17 +1,186 @@
-"""Pytest configuration and fixtures for federated learning simulation tests."""
+"""Pytest configuration and fixtures for federated learning simulation tests.
+
+This module provides:
+- Root-level fixtures shared across all test files
+- Advanced parameterization patterns (indirect, dynamic)
+- Autouse fixtures for test isolation
+- Failure logging hooks for debugging
+
+For fixture architecture details, see demo/TESTING.md
+"""
 
 import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Callable, Dict, Tuple
 
 import pytest
 
-from tests.common import STRATEGY_CONFIGS, np
+from tests.common import ATTACK_TYPES, DEFENSE_STRATEGIES, STRATEGY_CONFIGS, np
 
 os.environ["LOKY_MAX_CPU_COUNT"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
+
+
+# =============================================================================
+# DYNAMIC TEST GENERATION HOOK
+# =============================================================================
+
+
+def pytest_generate_tests(metafunc):
+    """Dynamically generate test parameters based on fixture names.
+
+    This hook enables dynamic test parameterization at collection time.
+    Tests can request specific fixture names to receive dynamic parameters.
+
+    Supported fixtures:
+    - attack_defense_combo: All (attack_type, defense_strategy) combinations
+    - strategy_variant: All strategy configurations from STRATEGY_CONFIGS
+    """
+    # Generate attack × defense combinatorial tests
+    if "attack_defense_combo" in metafunc.fixturenames:
+        combos = [
+            (attack, defense)
+            for attack in ATTACK_TYPES[:6]  # Limit to main attack types
+            for defense in DEFENSE_STRATEGIES.keys()
+        ]
+        metafunc.parametrize(
+            "attack_defense_combo",
+            combos,
+            ids=[f"{a}-vs-{d}" for a, d in combos],
+        )
+
+    # Generate strategy variant tests
+    if "strategy_variant" in metafunc.fixturenames:
+        strategies = list(STRATEGY_CONFIGS.keys())
+        metafunc.parametrize(
+            "strategy_variant",
+            strategies,
+            ids=[f"strategy-{s}" for s in strategies],
+        )
+
+
+# =============================================================================
+# INDIRECT PARAMETERIZATION FIXTURES
+# =============================================================================
+
+
+@pytest.fixture
+def attack_scenario(request) -> Dict[str, Any]:
+    """Fixture for indirect parameterization of attack scenarios.
+
+    Usage:
+        @pytest.mark.parametrize(
+            "attack_scenario",
+            [("gaussian_noise", 2), ("model_poisoning", 3)],
+            indirect=True,
+        )
+        def test_with_attack(attack_scenario):
+            # attack_scenario contains full setup
+
+    Args:
+        request: pytest request with param tuple (attack_type, num_byzantine)
+
+    Returns:
+        Dict with attack configuration and generated parameters
+    """
+    from tests.fixtures.mock_datasets import generate_byzantine_client_parameters
+
+    attack_type, num_byzantine = request.param
+    num_clients = max(10, num_byzantine * 3)  # Ensure enough honest clients
+    param_size = 500
+
+    return {
+        "attack_type": attack_type,
+        "num_byzantine": num_byzantine,
+        "num_clients": num_clients,
+        "param_size": param_size,
+        "attack_params": generate_byzantine_client_parameters(
+            num_clients=num_clients,
+            num_byzantine=num_byzantine,
+            param_size=param_size,
+            attack_type=attack_type,
+        ),
+    }
+
+
+@pytest.fixture
+def defense_config(request) -> Dict[str, Any]:
+    """Fixture for indirect parameterization of defense strategies.
+
+    Usage:
+        @pytest.mark.parametrize(
+            "defense_config",
+            ["krum", "bulyan", "trimmed_mean"],
+            indirect=True,
+        )
+        def test_with_defense(defense_config):
+            # defense_config contains full strategy configuration
+
+    Args:
+        request: pytest request with strategy name
+
+    Returns:
+        Dict with full strategy configuration
+    """
+    strategy_name = request.param
+    if strategy_name not in DEFENSE_STRATEGIES:
+        pytest.skip(f"Unknown defense strategy: {strategy_name}")
+    return {
+        "name": strategy_name,
+        **DEFENSE_STRATEGIES[strategy_name],
+    }
+
+
+# =============================================================================
+# ATTACK SNAPSHOT PARAMETERIZED FIXTURES
+# =============================================================================
+
+
+@pytest.fixture(scope="session")
+def sample_tensors_factory() -> Callable:
+    """Factory for creating sample tensors with various configurations.
+
+    Returns:
+        Callable that creates (data, labels) tensors with specified parameters
+    """
+    from tests.common import create_sample_tensors
+
+    def _create(
+        batch_size: int = 5,
+        image_shape: tuple = (1, 28, 28),
+        num_classes: int = 10,
+    ) -> Tuple[Any, Any]:
+        return create_sample_tensors(
+            batch_size=batch_size,
+            image_shape=image_shape,
+            num_classes=num_classes,
+        )
+
+    return _create
+
+
+@pytest.fixture(params=ATTACK_TYPES[:6])  # Main attack types
+def attack_type_param(request) -> str:
+    """Parameterized fixture providing each attack type."""
+    return request.param
+
+
+@pytest.fixture(params=list(DEFENSE_STRATEGIES.keys()))
+def defense_strategy_param(request) -> str:
+    """Parameterized fixture providing each defense strategy name."""
+    return request.param
+
+
+@pytest.fixture(params=[(5, 3), (10, 5), (3, 10)])
+def batch_max_samples_combo(request) -> Tuple[int, int]:
+    """Parameterized fixture for batch_size × max_samples combinations.
+
+    Yields:
+        Tuple of (batch_size, max_samples)
+    """
+    return request.param
 
 
 @pytest.fixture
@@ -47,6 +216,25 @@ def prevent_real_output_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
 def mock_strategy_configs() -> Dict[str, Dict[str, Any]]:
     """Returns strategy configurations for parameterized tests."""
     return STRATEGY_CONFIGS
+
+
+@pytest.fixture
+def strategy_history():
+    """
+    Reusable SimulationStrategyHistory mock fixture.
+
+    Provides pre-configured mock with common methods stubbed.
+    """
+    from unittest.mock import MagicMock
+
+    from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+
+    history = MagicMock(spec=SimulationStrategyHistory)
+    history.insert_round_history_entry = MagicMock()
+    history.insert_single_client_history_entry = MagicMock()
+    history.get_round_history = MagicMock(return_value=[])
+    history.get_client_history = MagicMock(return_value=[])
+    return history
 
 
 @pytest.fixture(params=["trust", "pid", "krum", "multi-krum", "trimmed_mean"])
