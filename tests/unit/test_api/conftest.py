@@ -71,3 +71,46 @@ def mock_simulation_dir(tmp_path: Path) -> Path:
     (sim_dir / "accuracy_plot.pdf").write_bytes(b"%PDF-1.4\n%mock pdf content")
 
     return sim_dir
+
+
+@pytest.fixture
+def mock_output_dir(tmp_path: Path, monkeypatch) -> Path:
+    """
+    Fixture for API tests requiring OUTPUT_DIR and BASE_DIR mocking.
+
+    Returns:
+        Path to the mock output directory
+    """
+    out_dir = tmp_path / "out"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", out_dir)
+    monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+
+    return out_dir
+
+
+@pytest.fixture
+def mock_output_with_simulation(
+    mock_output_dir: Path, mock_simulation_dir: Path, monkeypatch
+) -> Path:
+    """
+    Fixture combining mock_output_dir with a pre-populated simulation.
+
+    Moves the mock_simulation_dir into mock_output_dir and patches OUTPUT_DIR
+    to point to the parent containing the simulation.
+
+    Returns:
+        Path to the simulation directory inside mock output
+    """
+    import shutil
+
+    # Move simulation into output dir
+    dest = mock_output_dir / mock_simulation_dir.name
+    if not dest.exists():
+        shutil.copytree(mock_simulation_dir, dest)
+
+    # Re-patch to parent of simulation
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_output_dir)
+
+    return dest
