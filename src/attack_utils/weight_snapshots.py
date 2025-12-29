@@ -64,7 +64,7 @@ def _compute_weight_statistics(parameters: List[NDArray]) -> Dict[str, float]:
     }
 
 
-def _compute_weight_diff_statistics(
+def compute_weight_diff_statistics(
     params_before: List[NDArray],
     params_after: List[NDArray],
 ) -> Dict[str, float]:
@@ -75,7 +75,14 @@ def _compute_weight_diff_statistics(
         params_after: Parameters after poisoning.
 
     Returns:
-        Dictionary with difference statistics.
+        Dictionary with difference statistics including:
+        - diff_mean: Mean of weight differences
+        - diff_std: Standard deviation of weight differences
+        - diff_min: Minimum weight difference
+        - diff_max: Maximum absolute weight difference
+        - diff_l2_norm: L2 norm of the difference vector
+        - num_changed: Number of weights that changed
+        - pct_changed: Percentage of weights that changed
     """
     diffs = [after - before for before, after in zip(params_before, params_after)]
     all_diffs = np.concatenate([d.flatten() for d in diffs])
@@ -124,10 +131,9 @@ def save_weight_snapshot(
         output_dir, client_id, round_num, strategy_number
     )
 
-    # Compute statistics
     stats_before = _compute_weight_statistics(parameters_before)
     stats_after = _compute_weight_statistics(parameters_after)
-    diff_stats = _compute_weight_diff_statistics(parameters_before, parameters_after)
+    diff_stats = compute_weight_diff_statistics(parameters_before, parameters_after)
 
     metadata = {
         "client_id": client_id,
@@ -145,7 +151,6 @@ def save_weight_snapshot(
     if experiment_info:
         metadata["experiment_info"] = experiment_info
 
-    # Save metadata JSON
     json_path = snapshot_dir / f"{attack_type}_weight_metadata.json"
     with open(json_path, "w") as f:
         json.dump(metadata, f, indent=2)
@@ -155,7 +160,6 @@ def save_weight_snapshot(
         f"-> {json_path}"
     )
 
-    # Save histogram if requested
     if save_histogram:
         try:
             _save_weight_histogram(
@@ -200,21 +204,18 @@ def _save_weight_histogram(
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
-    # Before histogram
     axes[0].hist(weights_before, bins=100, alpha=0.7, color="blue", density=True)
     axes[0].set_title("Before Poisoning")
     axes[0].set_xlabel("Weight Value")
     axes[0].set_ylabel("Density")
     axes[0].set_yscale("log")
 
-    # After histogram
     axes[1].hist(weights_after, bins=100, alpha=0.7, color="red", density=True)
     axes[1].set_title("After Poisoning")
     axes[1].set_xlabel("Weight Value")
     axes[1].set_ylabel("Density")
     axes[1].set_yscale("log")
 
-    # Overlay comparison
     axes[2].hist(
         weights_before, bins=100, alpha=0.5, color="blue", density=True, label="Before"
     )

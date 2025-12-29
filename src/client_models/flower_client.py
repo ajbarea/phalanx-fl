@@ -15,7 +15,12 @@ from src.attack_utils.weight_poisoning import (
     apply_weight_poisoning,
     WEIGHT_ATTACK_TYPES,
 )
-from src.attack_utils.weight_snapshots import save_weight_snapshot
+from src.attack_utils.weight_snapshots import (
+    save_weight_snapshot,
+    compute_weight_diff_statistics,
+)
+from src.attack_utils.snapshot_image_viz import save_weight_attack_prediction_grid
+from pathlib import Path
 
 
 class FlowerClient(fl.client.NumPyClient):
@@ -38,6 +43,7 @@ class FlowerClient(fl.client.NumPyClient):
         experiment_info=None,
         strategy_number=0,
         tokenizer=None,
+        learning_rate=None,
     ):
         self.client_id = client_id
         self.net = net
@@ -56,6 +62,7 @@ class FlowerClient(fl.client.NumPyClient):
         self.experiment_info = experiment_info
         self.strategy_number = strategy_number
         self.tokenizer = tokenizer
+        self.learning_rate = learning_rate
 
     def _save_attack_snapshots(
         self,
@@ -66,14 +73,32 @@ class FlowerClient(fl.client.NumPyClient):
         original_data_sample=None,
         original_labels_sample=None,
     ):
-        """Save attack snapshots for both CNN and transformer models."""
+        """Save attack snapshots for both CNN and transformer models.
+
+        Note: Weight attacks (model_poisoning, gradient_scaling, byzantine_perturbation)
+        are filtered out here - they get separate visualization via save_weight_snapshot()
+        since they don't modify input data, only model weights.
+        """
         if not (self.save_attack_snapshots and self.output_dir):
             return
+
+        # Filter out weight attacks - they get separate visualization
+        # since they don't change input data (only model weights)
+        data_attack_configs = [
+            cfg
+            for cfg in (
+                attack_configs if isinstance(attack_configs, list) else [attack_configs]
+            )
+            if cfg.get("attack_type") not in WEIGHT_ATTACK_TYPES
+        ]
+
+        if not data_attack_configs:
+            return  # No data attacks to visualize
 
         save_attack_snapshot(
             client_id=self.client_id,
             round_num=current_round,
-            attack_config=attack_configs,
+            attack_config=data_attack_configs,
             data_sample=data_sample,
             labels_sample=labels_sample,
             original_labels_sample=original_labels_sample,
@@ -89,7 +114,7 @@ class FlowerClient(fl.client.NumPyClient):
                 save_visual_snapshot(
                     client_id=self.client_id,
                     round_num=current_round,
-                    attack_config=attack_configs,
+                    attack_config=data_attack_configs,
                     data_sample=data_sample.cpu().numpy(),
                     labels_sample=labels_sample.cpu().numpy(),
                     original_labels_sample=original_labels_sample.cpu().numpy()
@@ -108,7 +133,7 @@ class FlowerClient(fl.client.NumPyClient):
                 save_visual_snapshot(
                     client_id=self.client_id,
                     round_num=current_round,
-                    attack_config=attack_configs,
+                    attack_config=data_attack_configs,
                     data_sample=data_sample.cpu().numpy(),
                     labels_sample=labels_sample.cpu().numpy(),
                     original_labels_sample=original_labels_sample.cpu().numpy()
@@ -138,6 +163,52 @@ class FlowerClient(fl.client.NumPyClient):
         else:
             return [val.cpu().numpy() for _, val in self.net.state_dict().items()]
 
+    def _get_sample_batch_for_viz(self, max_samples: int = 8):
+        """Get a sample batch from trainloader for visualization.
+
+        Args:
+            max_samples: Maximum number of samples to return.
+
+        Returns:
+            Tuple of (images, labels) tensors.
+        """
+        for batch in self.trainloader:
+            if self.model_type == "cnn":
+                images, labels = batch
+            else:
+                images, labels = batch["input_ids"], batch["labels"]
+            return images[:max_samples], labels[:max_samples]
+        return None, None
+
+    def _get_predictions(self, images: torch.Tensor, top_k: int = 5) -> tuple:
+        """Run inference and return top-K predictions plus full probabilities.
+
+        Args:
+            images: Input images tensor.
+            top_k: Number of top predictions to return per image.
+
+        Returns:
+            Tuple of (top_k_preds, full_probs) where:
+            - top_k_preds: List of lists of (class_idx, confidence) tuples
+            - full_probs: numpy array of shape (N, num_classes) with all probabilities
+        """
+        self.net.eval()
+        with torch.no_grad():
+            outputs = self.net(images.to(self.training_device))
+            probs = torch.softmax(outputs, dim=1)
+            # Get top-K predictions for each sample
+            top_confs, top_preds = probs.topk(top_k, dim=1)
+        self.net.train()
+
+        results = []
+        for i in range(len(images)):
+            sample_preds = [
+                (top_preds[i, k].item(), top_confs[i, k].item()) for k in range(top_k)
+            ]
+            results.append(sample_preds)
+
+        return results, probs.cpu().numpy()
+
     def train(
         self,
         net,
@@ -153,10 +224,11 @@ class FlowerClient(fl.client.NumPyClient):
 
         if self.model_type == "cnn":
             criterion = torch.nn.CrossEntropyLoss()
-            optimizer = torch.optim.Adam(net.parameters())
+            optimizer = torch.optim.Adam(
+                net.parameters(), lr=self.learning_rate or 1e-3
+            )
             net.train()
 
-            # Determine number of classes
             if hasattr(net, "fc3"):
                 num_classes = net.fc3.out_features
             elif hasattr(net, "fc"):
@@ -211,9 +283,7 @@ class FlowerClient(fl.client.NumPyClient):
                     correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
                     del outputs, loss
 
-                epoch_loss /= (
-                    len(trainloader.dataset) if len(trainloader.dataset) > 0 else 1
-                )
+                epoch_loss /= len(trainloader.dataset) or 1
                 epoch_acc = correct / total if total > 0 else 0.0
                 if verbose:
                     logging.info(
@@ -223,7 +293,9 @@ class FlowerClient(fl.client.NumPyClient):
             return float(epoch_loss), float(epoch_acc)
 
         elif self.model_type == "transformer":
-            optimizer = torch.optim.AdamW(net.parameters(), lr=5e-5)
+            optimizer = torch.optim.AdamW(
+                net.parameters(), lr=self.learning_rate or 5e-5
+            )
             net.train()
 
             for epoch in range(epochs):
@@ -425,19 +497,42 @@ class FlowerClient(fl.client.NumPyClient):
             )
 
             params_before = None
+            sample_images = None
+            preds_before = None
+            probs_before = None
+
             if self.save_attack_snapshots and self.output_dir:
                 params_before = [p.copy() for p in trained_parameters]
+
+                # Get sample batch and predictions BEFORE poisoning (for visualization)
+                if self.model_type == "cnn":
+                    sample_images, sample_labels = self._get_sample_batch_for_viz(
+                        max_samples=4
+                    )
+                    if sample_images is not None:
+                        preds_before, probs_before = self._get_predictions(
+                            sample_images
+                        )
 
             poisoned_parameters = apply_weight_poisoning(
                 trained_parameters, weight_attack_configs
             )
 
             if self.save_attack_snapshots and self.output_dir and params_before:
+                preds_after = None
+                probs_after = None
+                if sample_images is not None and preds_before is not None:
+                    # Temporarily load poisoned weights to get post-attack predictions
+                    self.set_parameters(self.net, poisoned_parameters)
+                    preds_after, probs_after = self._get_predictions(sample_images)
+
                 for attack_cfg in weight_attack_configs:
+                    attack_type = attack_cfg.get("attack_type")
+
                     save_weight_snapshot(
                         parameters_before=params_before,
                         parameters_after=poisoned_parameters,
-                        attack_type=attack_cfg.get("attack_type"),
+                        attack_type=attack_type,
                         attack_config=attack_cfg,
                         client_id=self.client_id,
                         round_num=current_round,
@@ -445,6 +540,44 @@ class FlowerClient(fl.client.NumPyClient):
                         strategy_number=self.strategy_number,
                         experiment_info=self.experiment_info,
                     )
+
+                    if (
+                        sample_images is not None
+                        and preds_before is not None
+                        and preds_after is not None
+                    ):
+                        try:
+                            weight_stats = compute_weight_diff_statistics(
+                                params_before, poisoned_parameters
+                            )
+                            snapshot_dir = (
+                                Path(self.output_dir)
+                                / f"attack_snapshots_{self.strategy_number}"
+                                / f"client_{self.client_id}"
+                                / f"round_{current_round}"
+                            )
+                            snapshot_dir.mkdir(parents=True, exist_ok=True)
+
+                            save_weight_attack_prediction_grid(
+                                images=sample_images.cpu().numpy(),
+                                labels=sample_labels.cpu().numpy(),
+                                predictions_before=preds_before,
+                                predictions_after=preds_after,
+                                weight_stats=weight_stats,
+                                filepath=snapshot_dir
+                                / f"{attack_type}_prediction_comparison.png",
+                                attack_config=attack_cfg,
+                                full_probs_before=probs_before,
+                                full_probs_after=probs_after,
+                            )
+                            logging.debug(
+                                f"Saved weight attack prediction comparison: "
+                                f"client {self.client_id}, round {current_round}"
+                            )
+                        except Exception as e:
+                            logging.warning(
+                                f"Failed to save weight attack prediction grid: {e}"
+                            )
 
             return (
                 poisoned_parameters,

@@ -229,24 +229,38 @@ def load_attack_snapshot(filepath: str) -> Optional[dict]:
 def list_attack_snapshots(output_dir: str, strategy_number: int = 0) -> list:
     """List all attack snapshots in an output directory.
 
+    Searches both attack_snapshots and weight_snapshots directories to capture
+    all attack types including weight-based attacks (model_poisoning, etc.).
+
     Args:
         output_dir: Base output directory
         strategy_number: Strategy index to search (default: 0)
 
     Returns:
-        List of dictionaries with snapshot info (client_id, round, path, metadata)
+        List of snapshot file paths (pickle or metadata json files)
     """
-    snapshots_dir = Path(output_dir) / f"attack_snapshots_{strategy_number}"
-    if not snapshots_dir.exists():
-        return []
+    all_snapshots = []
+    base_path = Path(output_dir)
 
-    pickle_snapshots = list(snapshots_dir.glob("client_*/round_*/*.pickle"))
+    attack_snapshots_dir = base_path / f"attack_snapshots_{strategy_number}"
+    if attack_snapshots_dir.exists():
+        pickle_snapshots = list(attack_snapshots_dir.glob("client_*/round_*/*.pickle"))
+        if pickle_snapshots:
+            all_snapshots.extend(pickle_snapshots)
+        else:
+            json_snapshots = list(
+                attack_snapshots_dir.glob("client_*/round_*/*_metadata.json")
+            )
+            all_snapshots.extend(json_snapshots)
 
-    if pickle_snapshots:
-        return sorted(pickle_snapshots)
+    weight_snapshots_dir = base_path / f"weight_snapshots_{strategy_number}"
+    if weight_snapshots_dir.exists():
+        weight_json_snapshots = list(
+            weight_snapshots_dir.glob("client_*/round_*/*_weight_metadata.json")
+        )
+        all_snapshots.extend(weight_json_snapshots)
 
-    json_snapshots = list(snapshots_dir.glob("client_*/round_*/*_metadata.json"))
-    return sorted(json_snapshots)
+    return sorted(set(all_snapshots))
 
 
 def get_snapshot_summary(output_dir: str, strategy_number: int = 0) -> dict:
@@ -323,7 +337,6 @@ def save_visual_snapshot(
 
     try:
         if len(data_sample.shape) == 4:
-            # Save main image grid visualization
             filename = f"{attack_type}_visual.png"
             save_image_grid(
                 data_sample,
@@ -334,9 +347,7 @@ def save_visual_snapshot(
                 original_images=original_data_sample,
             )
 
-            # Save additional publication-quality visualizations based on attack type
             if "label_flipping" in attack_type:
-                # Generate confusion matrix for label flipping attacks
                 confusion_filename = f"{attack_type}_confusion_matrix.png"
                 save_label_confusion_matrix(
                     original_labels_sample,
@@ -349,7 +360,6 @@ def save_visual_snapshot(
                 )
 
             if "gaussian_noise" in attack_type and original_data_sample is not None:
-                # Generate difference heatmap for noise attacks
                 heatmap_filename = f"{attack_type}_difference_heatmap.png"
                 save_noise_difference_heatmap(
                     original_data_sample,
@@ -361,7 +371,6 @@ def save_visual_snapshot(
                     f"Saved noise difference heatmap: {snapshot_dir / heatmap_filename}"
                 )
         else:
-            # Save plain text version
             filename = f"{attack_type}_samples.txt"
             save_text_samples(
                 labels_sample,
@@ -372,7 +381,6 @@ def save_visual_snapshot(
                 input_ids_original=original_data_sample,
                 input_ids_poisoned=data_sample,
             )
-            # Save HTML version with syntax-highlighted diff
             html_filename = f"{attack_type}_samples.html"
             save_text_samples_html(
                 labels_sample,
