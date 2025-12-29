@@ -45,3 +45,11 @@ files = [
 exclude = [
     "tests/type_definitions/"
 ]
+
+[tool.mutmut]
+# Mutation testing configuration
+# Note: mutmut requires fork support - run in WSL on Windows
+paths_to_mutate = ["src/simulation_strategies/", "src/attack_utils/"]
+tests_dir = "tests/"
+runner = "python -m pytest"
+pytest_add_cli_args_test_selection = ["-m", "not slow", "-x", "-q"]
