@@ -10,7 +10,7 @@ def _create_attack_schedule_entry(
     start_round: int, end_round: int, attack_type: str, client_ids: list, **kwargs
 ) -> dict:
     """
-    Create a single attack schedule entry (DRY helper).
+    Create a single attack schedule entry.
 
     Args:
         start_round: Starting round for attack
@@ -35,7 +35,7 @@ def _create_attack_schedule_entry(
 
 def _create_overlapping_schedule() -> list:
     """
-    Create attack schedule with overlapping rounds (DRY helper).
+    Create attack schedule with overlapping rounds.
 
     Returns:
         List of attack schedule entries with overlaps
@@ -60,7 +60,7 @@ def _create_overlapping_schedule() -> list:
 
 def _create_sample_batch(batch_size: int = 10, num_classes: int = 10) -> tuple:
     """
-    Create sample batch of images and labels (DRY helper).
+    Create sample batch of images and labels.
 
     Args:
         batch_size: Number of samples in batch
