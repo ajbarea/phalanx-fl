@@ -25,9 +25,7 @@ function PresetConfirmModal({
   };
 
   const formatFieldName = field => {
-    return field
-      .replace(/_/g, ' ')
-      .replace(/\b[a-z]/g, c => c.toUpperCase());
+    return field.replace(/_/g, ' ').replace(/\b[a-z]/g, c => c.toUpperCase());
   };
 
   const differences = useMemo(() => {
@@ -70,8 +68,8 @@ function PresetConfirmModal({
         <div className="alert alert-info d-flex align-items-center mb-3">
           <i className="bi bi-info-circle me-2"></i>
           <span>
-            Your current form has <strong>{differences.length} different settings</strong> that
-            will be replaced.
+            Your current form has <strong>{differences.length} different settings</strong> that will
+            be replaced.
           </span>
         </div>
 
