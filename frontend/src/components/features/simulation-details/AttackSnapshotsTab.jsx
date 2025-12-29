@@ -219,12 +219,27 @@ export function AttackSnapshotsTab({ simulationId, status }) {
               poisoned data (right)
             </li>
             <li>
-              <strong>Gaussian Noise:</strong> Adds random noise to model weights, disrupting
+              <strong>Label Flipping:</strong> Changes labels to wrong classes, causing model
+              confusion
+            </li>
+            <li>
+              <strong>Gaussian Noise:</strong> Adds random noise to training images, disrupting
               learning
             </li>
             <li>
-              <strong>Label Flipping:</strong> Changes labels to wrong classes, causing model
-              confusion
+              <strong>Model Poisoning:</strong> Manipulates model weights to extreme values,
+              degrading performance
+            </li>
+            <li>
+              <strong>Gradient Scaling:</strong> Multiplies weight updates by a factor, amplifying
+              malicious changes
+            </li>
+            <li>
+              <strong>Byzantine Perturbation:</strong> Injects random noise into model weights
+            </li>
+            <li>
+              <strong>Token Replacement:</strong> Replaces tokens in text data with adversarial
+              alternatives (NLP)
             </li>
           </ul>
         </div>
