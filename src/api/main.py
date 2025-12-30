@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
-from contextlib import asynccontextmanager
 import datetime
 import json
 import logging
@@ -13,8 +12,9 @@ import shutil
 import struct
 import subprocess
 import sys
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 if sys.platform == "win32":
     import winpty
@@ -38,7 +38,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
-from datasets import load_dataset_builder
+from datasets import load_dataset_builder  # type: ignore[attr-defined]
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -82,72 +82,72 @@ running_processes: dict[str, subprocess.Popen] = {}
 
 
 class SimulationConfig(BaseModel):
-    display_name: Optional[str] = None
-    aggregation_strategy_keyword: Optional[str] = None
-    remove_clients: Optional[str] = None
-    begin_removing_from_round: Optional[int] = None
-    dataset_keyword: Optional[str] = None
-    dataset_source: Optional[str] = None
-    num_of_rounds: Optional[int] = None
-    num_of_clients: Optional[int] = None
-    num_of_malicious_clients: Optional[int] = None
-    attack_type: Optional[str] = None
-    attack_ratio: Optional[float] = None
-    gaussian_noise_mean: Optional[int] = None
-    gaussian_noise_std: Optional[int] = None
-    show_plots: Optional[str] = None
-    save_plots: Optional[str] = None
-    save_csv: Optional[str] = None
-    training_device: Optional[str] = None
-    cpus_per_client: Optional[int] = None
-    gpus_per_client: Optional[float] = None
-    trust_threshold: Optional[float] = None
-    reputation_threshold: Optional[float] = None
-    beta_value: Optional[float] = None
-    num_of_clusters: Optional[int] = None
-    Kp: Optional[float] = None
-    Ki: Optional[float] = None
-    Kd: Optional[float] = None
-    num_std_dev: Optional[float] = None
-    training_subset_fraction: Optional[float] = None
-    min_fit_clients: Optional[int] = None
-    min_evaluate_clients: Optional[int] = None
-    min_available_clients: Optional[int] = None
-    evaluate_metrics_aggregation_fn: Optional[str] = None
-    num_of_client_epochs: Optional[int] = None
-    batch_size: Optional[int] = None
-    preserve_dataset: Optional[str] = None
-    num_krum_selections: Optional[int] = None
-    trim_ratio: Optional[float] = None
-    strict_mode: Optional[str] = None
-    strategy_number: Optional[int] = None
-    model_keyword: Optional[str] = None
-    model_type: Optional[str] = None
-    learning_rate: Optional[float] = None
-    use_llm: Optional[str] = None
-    llm_model: Optional[str] = None
-    llm_finetuning: Optional[str] = None
-    llm_task: Optional[str] = None
-    llm_chunk_size: Optional[int] = None
-    mlm_probability: Optional[float] = None
-    hf_dataset_name: Optional[str] = None
-    partitioning_strategy: Optional[str] = None
-    partitioning_params: Optional[dict] = None
-    transformer_model: Optional[str] = None
-    max_seq_length: Optional[int] = None
-    text_column: Optional[str] = None
-    label_column: Optional[str] = None
-    use_lora: Optional[bool] = None
-    lora_rank: Optional[int] = None
+    display_name: str | None = None
+    aggregation_strategy_keyword: str | None = None
+    remove_clients: str | None = None
+    begin_removing_from_round: int | None = None
+    dataset_keyword: str | None = None
+    dataset_source: str | None = None
+    num_of_rounds: int | None = None
+    num_of_clients: int | None = None
+    num_of_malicious_clients: int | None = None
+    attack_type: str | None = None
+    attack_ratio: float | None = None
+    gaussian_noise_mean: int | None = None
+    gaussian_noise_std: int | None = None
+    show_plots: str | None = None
+    save_plots: str | None = None
+    save_csv: str | None = None
+    training_device: str | None = None
+    cpus_per_client: int | None = None
+    gpus_per_client: float | None = None
+    trust_threshold: float | None = None
+    reputation_threshold: float | None = None
+    beta_value: float | None = None
+    num_of_clusters: int | None = None
+    Kp: float | None = None
+    Ki: float | None = None
+    Kd: float | None = None
+    num_std_dev: float | None = None
+    training_subset_fraction: float | None = None
+    min_fit_clients: int | None = None
+    min_evaluate_clients: int | None = None
+    min_available_clients: int | None = None
+    evaluate_metrics_aggregation_fn: str | None = None
+    num_of_client_epochs: int | None = None
+    batch_size: int | None = None
+    preserve_dataset: str | None = None
+    num_krum_selections: int | None = None
+    trim_ratio: float | None = None
+    strict_mode: str | None = None
+    strategy_number: int | None = None
+    model_keyword: str | None = None
+    model_type: str | None = None
+    learning_rate: float | None = None
+    use_llm: str | None = None
+    llm_model: str | None = None
+    llm_finetuning: str | None = None
+    llm_task: str | None = None
+    llm_chunk_size: int | None = None
+    mlm_probability: float | None = None
+    hf_dataset_name: str | None = None
+    partitioning_strategy: str | None = None
+    partitioning_params: dict | None = None
+    transformer_model: str | None = None
+    max_seq_length: int | None = None
+    text_column: str | None = None
+    label_column: str | None = None
+    use_lora: bool | None = None
+    lora_rank: int | None = None
 
 
 class SimulationMetadata(BaseModel):
     simulation_id: str
-    display_name: Optional[str] = None
+    display_name: str | None = None
     strategy_name: str
-    num_of_rounds: Union[int, str]
-    num_of_clients: Union[int, str]
-    created_at: Optional[str] = None
+    num_of_rounds: int | str
+    num_of_clients: int | str
+    created_at: str | None = None
 
 
 class SimulationDetails(BaseModel):
@@ -275,18 +275,14 @@ def get_simulations() -> list[SimulationMetadata]:
                         SimulationMetadata(
                             simulation_id=sim_dir.name,
                             display_name=settings.get("display_name"),
-                            strategy_name=settings.get(
-                                "aggregation_strategy_keyword", "Unknown"
-                            ),
+                            strategy_name=settings.get("aggregation_strategy_keyword", "Unknown"),
                             num_of_rounds=settings.get("num_of_rounds", "N/A"),
                             num_of_clients=settings.get("num_of_clients", "N/A"),
                             created_at=created_at,
                         )
                     )
-                except (json.JSONDecodeError, IOError) as e:
-                    logger.warning(
-                        f"Could not read or parse config for {sim_dir.name}: {e}"
-                    )
+                except (OSError, json.JSONDecodeError) as e:
+                    logger.warning(f"Could not read or parse config for {sim_dir.name}: {e}")
                     continue
     return sorted(simulations, key=lambda s: s.simulation_id, reverse=True)
 
@@ -314,7 +310,7 @@ def get_simulation_details(
     try:
         with config_path.open("r") as f:
             config = json.load(f)
-    except (json.JSONDecodeError, IOError):
+    except (OSError, json.JSONDecodeError):
         raise HTTPException(status_code=500, detail="Could not read simulation config.")
 
     result_files = []
@@ -340,11 +336,11 @@ def get_simulation_details(
             del running_processes[simulation_id]
             status = (
                 "completed"
-                if result_files or list(sim_path.glob("*.pdf"))
+                if result_files or [str(p) for p in sim_path.glob("*.pdf")]
                 else "failed"
             )
     else:
-        has_results = result_files or list(sim_path.glob("*.pdf"))
+        has_results = result_files or [str(p) for p in sim_path.glob("*.pdf")]
         execution_log = sim_path / "execution.log"
         if has_results:
             status = "completed"
@@ -364,7 +360,7 @@ def get_result_file(
     result_filename: str,
     sim_path: Path = Depends(get_simulation_path),
     download: bool = False,
-) -> Union[FileResponse, JSONResponse]:
+) -> FileResponse | JSONResponse:
     """Retrieves a specific result file from a simulation.
 
     Args:
@@ -400,9 +396,7 @@ def get_result_file(
             return JSONResponse(content=df.to_dict(orient="records"))
         except Exception as e:
             logger.exception(f"Failed to read or parse CSV file {file_path}")
-            raise HTTPException(
-                status_code=500, detail=f"Failed to process CSV file: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Failed to process CSV file: {str(e)}")
 
     return FileResponse(file_path)
 
@@ -420,7 +414,7 @@ async def create_simulation(request: dict[str, Any] = Body(...)) -> dict[str, An
     Raises:
         HTTPException: If the simulation process fails to start or config cannot be written.
     """
-    add_to_queue = request.get("add_to_queue", None)
+    add_to_queue = request.get("add_to_queue")
 
     config = {k: v for k, v in request.items() if k != "add_to_queue"}
 
@@ -443,9 +437,7 @@ async def create_simulation(request: dict[str, Any] = Body(...)) -> dict[str, An
     if (
         running_sim_id
         and add_to_queue is True
-        and not (
-            "shared_settings" in config_dict and "simulation_strategies" in config_dict
-        )
+        and not ("shared_settings" in config_dict and "simulation_strategies" in config_dict)
     ):
         logger.info(f"User chose to add to running simulation {running_sim_id}")
 
@@ -477,9 +469,7 @@ async def create_simulation(request: dict[str, Any] = Body(...)) -> dict[str, An
             return {"simulation_id": running_sim_id, "queued": True}
 
         except Exception:
-            logger.exception(
-                "Failed to add to running queue, creating new simulation instead"
-            )
+            logger.exception("Failed to add to running queue, creating new simulation instead")
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     simulation_id = f"api_run_{timestamp}"
@@ -502,7 +492,7 @@ async def create_simulation(request: dict[str, Any] = Body(...)) -> dict[str, An
     try:
         with config_filepath.open("w") as f:
             json.dump(wrapped_config, f, indent=4)
-    except IOError as e:
+    except OSError as e:
         raise HTTPException(status_code=500, detail=f"Failed to write config file: {e}")
 
     try:
@@ -510,9 +500,7 @@ async def create_simulation(request: dict[str, Any] = Body(...)) -> dict[str, An
 
         env = get_safe_env()
         try:
-            physical_cores = (
-                psutil.cpu_count(logical=False) or psutil.cpu_count(logical=True) or 1
-            )
+            physical_cores = psutil.cpu_count(logical=False) or psutil.cpu_count(logical=True) or 1
             env["LOKY_MAX_CPU_COUNT"] = str(physical_cores)
         except ImportError:
             env["LOKY_MAX_CPU_COUNT"] = str(multiprocessing.cpu_count())
@@ -532,9 +520,7 @@ async def create_simulation(request: dict[str, Any] = Body(...)) -> dict[str, An
         logger.info(f"Started simulation {simulation_id} with PID {process.pid}")
     except Exception:
         logger.exception(f"Failed to start simulation process for {simulation_id}")
-        raise HTTPException(
-            status_code=500, detail="Failed to start simulation process"
-        )
+        raise HTTPException(status_code=500, detail="Failed to start simulation process")
 
     return {"simulation_id": simulation_id}
 
@@ -580,7 +566,7 @@ async def prepare_simulation(request: dict[str, Any] = Body(...)) -> dict[str, A
     try:
         with config_filepath.open("w") as f:
             json.dump(wrapped_config, f, indent=4)
-    except IOError as e:
+    except OSError as e:
         raise HTTPException(status_code=500, detail=f"Failed to write config file: {e}")
 
     # Use relative path with forward slashes for cross-platform terminal compatibility
@@ -627,7 +613,7 @@ def get_simulation_status(
                 "current_strategy": status_data.get("current_strategy"),
                 "total_strategies": status_data.get("total_strategies"),
             }
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.warning(f"Could not read status.json: {e}")
 
     running_marker = sim_path / ".running"
@@ -643,9 +629,7 @@ def get_simulation_status(
         else:
             del running_processes[simulation_id]
 
-            result_files = list(sim_path.glob("*.pdf")) + list(
-                sim_path.glob("csv/*.csv")
-            )
+            result_files = list(sim_path.glob("*.pdf")) + list(sim_path.glob("csv/*.csv"))
             if result_files:
                 return {"status": "completed", "progress": 1.0}
 
@@ -659,7 +643,7 @@ def get_simulation_status(
                         with execution_log_path.open("r") as f:
                             # Limit to 100KB to prevent memory issues with large logs
                             error_message = f.read(102400).strip()
-                    except IOError:
+                    except OSError:
                         pass
                 return {"status": "failed", "progress": 0.0, "error": error_message}
 
@@ -675,7 +659,7 @@ def get_simulation_status(
                 error_message = f.read(102400).strip()
             if error_message:
                 return {"status": "failed", "progress": 0.0, "error": error_message}
-        except IOError:
+        except OSError:
             pass
 
     return {"status": "pending", "progress": 0.0}
@@ -700,9 +684,7 @@ def delete_simulation(
     if simulation_id in running_processes:
         process = running_processes[simulation_id]
         if process.poll() is None:
-            raise HTTPException(
-                status_code=409, detail="Cannot delete a running simulation."
-            )
+            raise HTTPException(status_code=409, detail="Cannot delete a running simulation.")
         del running_processes[simulation_id]
 
     try:
@@ -733,17 +715,13 @@ def delete_multiple_simulations(
         try:
             # Security: Validate that ID contains only alphanumeric chars and underscores
             if not all(c.isalnum() or c == "_" for c in simulation_id):
-                failed.append(
-                    {"simulation_id": simulation_id, "error": "Invalid simulation ID"}
-                )
+                failed.append({"simulation_id": simulation_id, "error": "Invalid simulation ID"})
                 continue
 
             sim_path = secure_join(OUTPUT_DIR, simulation_id)
 
             if not sim_path.is_dir():
-                failed.append(
-                    {"simulation_id": simulation_id, "error": "Simulation not found"}
-                )
+                failed.append({"simulation_id": simulation_id, "error": "Simulation not found"})
                 continue
 
             if simulation_id in running_processes:
@@ -796,9 +774,7 @@ def rename_simulation(
     display_name = display_name.strip()
 
     if len(display_name) > 100:
-        raise HTTPException(
-            status_code=400, detail="Display name must be 100 characters or less"
-        )
+        raise HTTPException(status_code=400, detail="Display name must be 100 characters or less")
 
     if not re.match(r"^[a-zA-Z0-9\s\-_]+$", display_name):
         raise HTTPException(
@@ -829,11 +805,9 @@ def rename_simulation(
             "display_name": display_name,
         }
 
-    except (json.JSONDecodeError, IOError) as e:
+    except (OSError, json.JSONDecodeError) as e:
         logger.exception(f"Failed to rename simulation {simulation_id}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to update simulation config: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to update simulation config: {str(e)}")
 
 
 @app.get("/")
@@ -859,7 +833,7 @@ class SystemDevicesResponse(BaseModel):
 
     available_devices: list[str]
     gpu_available: bool
-    gpu_info: Optional[GpuInfo]
+    gpu_info: GpuInfo | None
     recommended_device: str
 
 
@@ -889,9 +863,7 @@ async def get_system_devices() -> SystemDevicesResponse:
             result.gpu_available = True
             result.gpu_info = GpuInfo(
                 name=torch.cuda.get_device_name(0),
-                vram_gb=round(
-                    torch.cuda.get_device_properties(0).total_memory / (1024**3), 1
-                ),
+                vram_gb=round(torch.cuda.get_device_properties(0).total_memory / (1024**3), 1),
             )
             result.recommended_device = "gpu"
     except Exception:
@@ -928,9 +900,7 @@ async def get_plot_data(simulation_id: str) -> dict:
             )
 
         json_files = [
-            f
-            for f in os.listdir(sim_dir)
-            if f.startswith("plot_data_") and f.endswith(".json")
+            f for f in os.listdir(sim_dir) if f.startswith("plot_data_") and f.endswith(".json")
         ]
 
         if not json_files:
@@ -941,7 +911,7 @@ async def get_plot_data(simulation_id: str) -> dict:
 
         json_path = sim_dir / json_files[0]
 
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             return json.load(f)
 
     except HTTPException:
@@ -953,9 +923,7 @@ async def get_plot_data(simulation_id: str) -> dict:
         )
     except Exception:
         logger.exception(f"Error loading plot data for {simulation_id}")
-        raise HTTPException(
-            status_code=500, detail="Failed to load plot data. Check server logs."
-        )
+        raise HTTPException(status_code=500, detail="Failed to load plot data. Check server logs.")
 
 
 @app.get("/api/simulations/{simulation_id}/all-plot-data")
@@ -985,11 +953,7 @@ async def get_all_plot_data(simulation_id: str) -> dict:
             )
 
         json_files = sorted(
-            [
-                f
-                for f in os.listdir(sim_dir)
-                if f.startswith("plot_data_") and f.endswith(".json")
-            ]
+            [f for f in os.listdir(sim_dir) if f.startswith("plot_data_") and f.endswith(".json")]
         )
 
         if not json_files:
@@ -1001,11 +965,9 @@ async def get_all_plot_data(simulation_id: str) -> dict:
         all_plot_data = []
         for json_file in json_files:
             json_path = sim_dir / json_file
-            with open(json_path, "r") as f:
+            with open(json_path) as f:
                 data = json.load(f)
-                strategy_num = int(
-                    json_file.replace("plot_data_", "").replace(".json", "")
-                )
+                strategy_num = int(json_file.replace("plot_data_", "").replace(".json", ""))
                 all_plot_data.append({"strategy_number": strategy_num, "data": data})
 
         return {"strategies": all_plot_data}
@@ -1019,9 +981,7 @@ async def get_all_plot_data(simulation_id: str) -> dict:
         )
     except Exception:
         logger.exception(f"Error loading all plot data for {simulation_id}")
-        raise HTTPException(
-            status_code=500, detail="Failed to load plot data. Check server logs."
-        )
+        raise HTTPException(status_code=500, detail="Failed to load plot data. Check server logs.")
 
 
 def _find_simulation_process(simulation_id: str) -> psutil.Process | None:
@@ -1068,7 +1028,7 @@ def _find_simulation_process(simulation_id: str) -> psutil.Process | None:
                         return proc
                 except psutil.NoSuchProcess:
                     pass
-        except (IOError, json.JSONDecodeError):
+        except (OSError, json.JSONDecodeError):
             pass
 
     return None
@@ -1118,14 +1078,10 @@ def stop_simulation(simulation_id: str) -> dict[str, str]:
                         status_data["error"] = "Process terminated unexpectedly"
                         with status_path.open("w") as f:
                             json.dump(status_data, f, indent=2)
-                        logger.info(
-                            f"Marked orphaned simulation {simulation_id} as stopped"
-                        )
+                        logger.info(f"Marked orphaned simulation {simulation_id} as stopped")
                         return {"message": "stopped", "simulation_id": simulation_id}
-                except (IOError, json.JSONDecodeError) as e:
-                    logger.warning(
-                        f"Failed to update orphaned status for {simulation_id}: {e}"
-                    )
+                except (OSError, json.JSONDecodeError) as e:
+                    logger.warning(f"Failed to update orphaned status for {simulation_id}: {e}")
 
             raise HTTPException(
                 status_code=404, detail="Simulation is not running or does not exist."
@@ -1136,29 +1092,23 @@ def stop_simulation(simulation_id: str) -> dict[str, str]:
             parent = psutil.Process(process.pid)
         except psutil.NoSuchProcess:
             del running_processes[simulation_id]
-            raise HTTPException(
-                status_code=409, detail="Simulation has already completed."
-            )
+            raise HTTPException(status_code=409, detail="Simulation has already completed.")
 
     try:
         children = parent.children(recursive=True)
 
         parent.terminate()
         for child in children:
-            try:
+            with suppress(psutil.NoSuchProcess):
                 child.terminate()
-            except psutil.NoSuchProcess:
-                pass
 
         try:
             parent.wait(timeout=5)
         except psutil.TimeoutExpired:
             parent.kill()
             for child in children:
-                try:
+                with suppress(psutil.NoSuchProcess):
                     child.kill()
-                except psutil.NoSuchProcess:
-                    pass
             parent.wait()
 
         # Clean up running_processes dict if it was tracked there
@@ -1170,7 +1120,7 @@ def stop_simulation(simulation_id: str) -> dict[str, str]:
         try:
             with stopped_marker.open("w") as f:
                 f.write(f"Simulation stopped at {datetime.datetime.now().isoformat()}")
-        except IOError as e:
+        except OSError as e:
             logger.warning(f"Failed to write stopped marker for {simulation_id}: {e}")
 
         logger.info(f"Stopped simulation {simulation_id} and all child processes")
@@ -1214,7 +1164,7 @@ async def get_attack_snapshots(
             try:
                 with summary_path.open("r") as f:
                     summary = json.load(f)
-            except (json.JSONDecodeError, IOError) as e:
+            except (OSError, json.JSONDecodeError) as e:
                 logger.warning(f"Failed to load attack summary: {summary_path}: {e}")
 
         snapshots = []
@@ -1236,10 +1186,8 @@ async def get_attack_snapshots(
                         try:
                             with metadata_path.open("r") as f:
                                 metadata = json.load(f)
-                        except (json.JSONDecodeError, IOError) as e:
-                            logger.warning(
-                                f"Failed to load attack metadata: {metadata_path}: {e}"
-                            )
+                        except (OSError, json.JSONDecodeError) as e:
+                            logger.warning(f"Failed to load attack metadata: {metadata_path}: {e}")
 
                     snapshots.append(
                         {
@@ -1255,9 +1203,7 @@ async def get_attack_snapshots(
             {
                 "strategy_number": strategy_num,
                 "summary": summary,
-                "snapshots": sorted(
-                    snapshots, key=lambda x: (x["round_num"], x["client_id"])
-                ),
+                "snapshots": sorted(snapshots, key=lambda x: (x["round_num"], x["client_id"])),
             }
         )
 
@@ -1279,6 +1225,13 @@ async def validate_dataset(name: str) -> dict[str, Any]:
     """
     try:
         builder = load_dataset_builder(name)
+
+        if builder.info.splits is None:
+            return {
+                "valid": False,
+                "compatible": False,
+                "reason": "Dataset has no splits information",
+            }
 
         splits = list(builder.info.splits.keys())
         num_examples = sum(s.num_examples for s in builder.info.splits.values())
@@ -1324,28 +1277,18 @@ async def validate_dataset(name: str) -> dict[str, Any]:
         error_message = str(e)
         error_lower = error_message.lower()
 
-        if (
-            "connection" in error_lower
-            or "network" in error_lower
-            or "timeout" in error_lower
-        ):
+        if "connection" in error_lower or "network" in error_lower or "timeout" in error_lower:
             error_message = "Network error: Unable to connect to HuggingFace Hub. Please check your internet connection."
+        elif "not found" in error_lower or "doesn't exist" in error_lower or "404" in error_lower:
+            error_message = (
+                f"Dataset '{name}' not found on HuggingFace Hub. Please verify the dataset name."
+            )
         elif (
-            "not found" in error_lower
-            or "doesn't exist" in error_lower
-            or "404" in error_lower
-        ):
-            error_message = f"Dataset '{name}' not found on HuggingFace Hub. Please verify the dataset name."
-        elif (
-            "authentication" in error_lower
-            or "unauthorized" in error_lower
-            or "401" in error_lower
+            "authentication" in error_lower or "unauthorized" in error_lower or "401" in error_lower
         ):
             error_message = "Authentication error: This dataset may require HuggingFace login or access permissions."
         elif "forbidden" in error_lower or "403" in error_lower:
-            error_message = (
-                "Access forbidden: You may not have permission to access this dataset."
-            )
+            error_message = "Access forbidden: You may not have permission to access this dataset."
         elif len(name) < 2 or "/" not in name:
             error_message = "Invalid dataset name format. Expected format: 'username/dataset-name' (e.g., 'ylecun/mnist')."
         else:
@@ -1470,10 +1413,8 @@ if sys.platform == "win32":
             logger.exception("Terminal WebSocket error")
         finally:
             read_task.cancel()
-            try:
+            with suppress(asyncio.CancelledError):
                 await read_task
-            except asyncio.CancelledError:
-                pass
 
             if proc.isalive():
                 proc.terminate()
@@ -1538,9 +1479,7 @@ else:
                         if ready:
                             data = os.read(master_fd, 4096)
                             if data:
-                                await websocket.send_text(
-                                    data.decode("utf-8", errors="replace")
-                                )
+                                await websocket.send_text(data.decode("utf-8", errors="replace"))
                     except (OSError, BlockingIOError):
                         pass
 
@@ -1584,10 +1523,8 @@ else:
             logger.exception("Terminal WebSocket error")
         finally:
             read_task.cancel()
-            try:
+            with suppress(asyncio.CancelledError):
                 await read_task
-            except asyncio.CancelledError:
-                pass
 
             if process.poll() is None:
                 try:
