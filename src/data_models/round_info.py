@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
+
 from src.data_models.simulation_strategy_config import StrategyConfig
 
 
@@ -23,11 +26,12 @@ class RoundsInfo:
     removal_recall_history: list[float] = field(default_factory=list)
     removal_f1_history: list[float] = field(default_factory=list)
 
-    plottable_metrics = []
-    barable_metrics = []
-    savable_metrics = []
+    plottable_metrics: list[str] = field(default_factory=list)
+    barable_metrics: list[str] = field(default_factory=list)
+    savable_metrics: list[str] = field(default_factory=list)
+    statsable_metrics: list[str] = field(default_factory=list)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.plottable_metrics = [
             "score_calculation_time_nanos_history",
             "aggregated_loss_history",
@@ -91,7 +95,9 @@ class RoundsInfo:
 
         return getattr(self, metric)
 
-    def append_tp_tn_fp_fn(self, round_tp, round_tn, round_fp, round_fn) -> None:
+    def append_tp_tn_fp_fn(
+        self, round_tp: int, round_tn: int, round_fp: int, round_fn: int
+    ) -> None:
         """Append round metrics"""
 
         self.tp_history.append(round_tp)
@@ -122,11 +128,7 @@ class RoundsInfo:
             self.removal_recall_history.append(recall)
 
             # f1: 2 * precision * recall / (precision + recall)
-            f1 = (
-                2 * precision * recall / (precision + recall)
-                if (precision + recall) > 0
-                else 0.0
-            )
+            f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
             self.removal_f1_history.append(f1)
 
             self.total_fp_and_fn_history.append(round_fp + round_fn)

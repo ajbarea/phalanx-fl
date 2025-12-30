@@ -1,13 +1,14 @@
-import numpy as np
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import numpy as np
+
+from src.attack_utils.poisoning import should_poison_this_round
 from src.data_models.client_info import ClientInfo
 from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
-
 from src.dataset_handlers.dataset_handler import DatasetHandler
-from src.attack_utils.poisoning import should_poison_this_round
 
 
 @dataclass
@@ -15,34 +16,34 @@ class SimulationStrategyHistory:
     strategy_config: StrategyConfig
     dataset_handler: DatasetHandler
     rounds_history: RoundsInfo = field(init=False)
-    _clients_dict: dict = field(default_factory=dict)
+    _clients_dict: dict[int, ClientInfo] = field(default_factory=dict)
 
-    def __post_init__(self):
-        self.rounds_history = RoundsInfo(
-            simulation_strategy_config=self.strategy_config
-        )
+    def __post_init__(self) -> None:
+        self.rounds_history = RoundsInfo(simulation_strategy_config=self.strategy_config)
 
-        for i in range(self.strategy_config.num_of_clients):
+        num_clients = self.strategy_config.num_of_clients or 0
+        num_rounds = self.strategy_config.num_of_rounds or 0
+        for i in range(num_clients):
             self._clients_dict[i] = ClientInfo(
                 client_id=i,
-                num_of_rounds=self.strategy_config.num_of_rounds,
+                num_of_rounds=num_rounds,
                 is_malicious=False,
             )
 
-    def get_all_clients(self) -> list:
+    def get_all_clients(self) -> list[ClientInfo]:
         """Get list of all ClientInfo instances"""
 
-        return [client for client in self._clients_dict.values()]
+        return list(self._clients_dict.values())
 
     def insert_single_client_history_entry(
         self,
         client_id: int,
         current_round: int,
-        removal_criterion: float = None,
-        absolute_distance: float = None,
-        loss: float = None,
-        accuracy: float = None,
-        aggregation_participation: int = None,
+        removal_criterion: float | None = None,
+        absolute_distance: float | None = None,
+        loss: float | None = None,
+        accuracy: float | None = None,
+        aggregation_participation: int | None = None,
     ) -> None:
         """Insert history entry for a single client. Only those values provided will be updated."""
 
@@ -59,9 +60,9 @@ class SimulationStrategyHistory:
 
     def insert_round_history_entry(
         self,
-        score_calculation_time_nanos: int = None,
-        removal_threshold: float = None,
-        loss_aggregated: float = None,
+        score_calculation_time_nanos: int | None = None,
+        removal_threshold: float | None = None,
+        loss_aggregated: float | None = None,
     ) -> None:
         """Append the round history info to the history. Only those values provided will be updated."""
 
@@ -74,9 +75,7 @@ class SimulationStrategyHistory:
         if loss_aggregated is not None:
             self.rounds_history.aggregated_loss_history.append(loss_aggregated)
 
-    def update_client_participation(
-        self, current_round: int, removed_client_ids: set
-    ) -> None:
+    def update_client_participation(self, current_round: int, removed_client_ids: set[int]) -> None:
         """Update history of client participation based on the IDs of removed clients at the given round."""
 
         for client_id in removed_client_ids:
@@ -97,8 +96,9 @@ class SimulationStrategyHistory:
         if not self.strategy_config.attack_schedule:
             return
 
+        num_clients = self.strategy_config.num_of_clients or 0
         # Update each client's malicious status based on current round
-        for client_id in range(self.strategy_config.num_of_clients):
+        for client_id in range(num_clients):
             should_poison, _ = should_poison_this_round(
                 current_round=current_round,
                 client_id=client_id,
@@ -131,16 +131,17 @@ class SimulationStrategyHistory:
 
         """
 
-        for round_num in range(self.strategy_config.num_of_rounds):
+        num_rounds = self.strategy_config.num_of_rounds or 0
+        for round_num in range(num_rounds):
             round_tp_count = 0
             round_tn_count = 0
             round_fp_count = 0
             round_fn_count = 0
 
             num_aggregated_clients = 0
-            sum_aggregated_accuracies = 0
+            sum_aggregated_accuracies = 0.0
 
-            round_client_accuracies = []
+            round_client_accuracies: list[float] = []
 
             for client_info in self.get_all_clients():
                 # Determine malicious status for this specific round using attack_schedule
@@ -185,9 +186,7 @@ class SimulationStrategyHistory:
                 else 0.0
             )
             self.rounds_history.average_accuracy_std_history.append(
-                np.std(round_client_accuracies)
-                if len(round_client_accuracies) > 1
-                else 0.0
+                float(np.std(round_client_accuracies)) if len(round_client_accuracies) > 1 else 0.0
             )
 
         if self.strategy_config.remove_clients:

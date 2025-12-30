@@ -1,28 +1,30 @@
-from dataclasses import dataclass
-from typing import Union, Optional
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any, ClassVar
 
 
 @dataclass
 class ClientInfo:
     client_id: int
     num_of_rounds: int
-    is_malicious: bool = None
-    rounds: list[int] = None
+    is_malicious: bool | None = None
+    rounds: list[int] = field(default_factory=list)
 
-    removal_criterion_history: list[Union[float, None]] = None
-    absolute_distance_history: list[Union[float, None]] = None
-    loss_history: list[Union[float, None]] = None
-    accuracy_history: list[Union[float, None]] = None
-    aggregation_participation_history: list[Union[int, None]] = None
+    removal_criterion_history: list[float | None] = field(default_factory=list)
+    absolute_distance_history: list[float | None] = field(default_factory=list)
+    loss_history: list[float | None] = field(default_factory=list)
+    accuracy_history: list[float | None] = field(default_factory=list)
+    aggregation_participation_history: list[int | None] = field(default_factory=list)
 
-    plottable_metrics = [
+    plottable_metrics: ClassVar[list[str]] = [
         "removal_criterion_history",
         "absolute_distance_history",
         "loss_history",
         "accuracy_history",
     ]
 
-    savable_metrics = [
+    savable_metrics: ClassVar[list[str]] = [
         "removal_criterion_history",
         "absolute_distance_history",
         "loss_history",
@@ -30,8 +32,8 @@ class ClientInfo:
         "aggregation_participation_history",
     ]
 
-    def __post_init__(self):
-        def _init_list(value=None):
+    def __post_init__(self) -> None:
+        def _init_list(value: Any = None) -> list[Any]:
             return [value] * self.num_of_rounds
 
         self.removal_criterion_history = _init_list()
@@ -48,11 +50,11 @@ class ClientInfo:
     def add_history_entry(
         self,
         current_round: int,
-        removal_criterion: Optional[float] = None,
-        absolute_distance: Optional[float] = None,
-        loss: Optional[float] = None,
-        accuracy: Optional[float] = None,
-        aggregation_participation: Optional[int] = None,
+        removal_criterion: float | None = None,
+        absolute_distance: float | None = None,
+        loss: float | None = None,
+        accuracy: float | None = None,
+        aggregation_participation: int | None = None,
     ) -> None:
         """
         Add client metrics history entry for a new round.
@@ -74,9 +76,7 @@ class ClientInfo:
         if accuracy is not None:
             self.accuracy_history[current_round - 1] = accuracy
         if aggregation_participation is not None:
-            self.aggregation_participation_history[current_round - 1] = (
-                aggregation_participation
-            )
+            self.aggregation_participation_history[current_round - 1] = aggregation_participation
 
     def get_metric_by_name(self, metric: str) -> list:
         """Get single plottable or savable metric values by name"""
