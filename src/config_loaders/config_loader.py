@@ -1,6 +1,6 @@
-import os
 import json
 import logging
+import os
 import sys
 
 from src.config_loaders.validate_strategy_config import validate_strategy_config
@@ -25,7 +25,7 @@ class ConfigLoader:
 
         return self.dataset_config_list
 
-    def get_dataset_folder_name(self, key) -> str:
+    def get_dataset_folder_name(self, key: str) -> str:
         """Get dataset folder name based on the JSON definition"""
         try:
             return self.dataset_config_list[key]
@@ -67,12 +67,10 @@ class ConfigLoader:
             )
 
             # Log attack schedule info
-            if raw_config["simulation_strategies"] and raw_config[
-                "simulation_strategies"
-            ][0].get("attack_schedule"):
-                attack_schedule = raw_config["simulation_strategies"][0][
-                    "attack_schedule"
-                ]
+            if raw_config["simulation_strategies"] and raw_config["simulation_strategies"][0].get(
+                "attack_schedule"
+            ):
+                attack_schedule = raw_config["simulation_strategies"][0]["attack_schedule"]
                 for idx, entry in enumerate(attack_schedule):
                     if "_selected_clients" in entry:
                         logging.info(

@@ -1,5 +1,6 @@
 import logging
-from jsonschema import validate, ValidationError
+
+from jsonschema import ValidationError, validate
 
 config_schema = {
     "type": "object",
@@ -248,6 +249,8 @@ def _populate_client_selection(config: dict) -> None:
 
     schedule = config.get("attack_schedule", [])
     num_of_clients = config.get("num_of_clients")
+    if num_of_clients is None:
+        return  # No clients configured, skip client selection
 
     for idx, entry in enumerate(schedule):
         selection_strategy = entry.get("selection_strategy")
@@ -416,9 +419,8 @@ def _validate_llm_parameters(strategy_config: dict) -> None:
         if param not in strategy_config:
             raise ValidationError(f"Missing parameter {param} for LLM finetuning")
 
-    if strategy_config["llm_task"] == "mlm":
-        if "mlm_probability" not in strategy_config:
-            raise ValidationError("Missing parameter mlm_probability for LLM task mlm")
+    if strategy_config["llm_task"] == "mlm" and "mlm_probability" not in strategy_config:
+        raise ValidationError("Missing parameter mlm_probability for LLM task mlm")
 
     finetuning_keyword = strategy_config["llm_finetuning"]
     if finetuning_keyword == "lora":
@@ -463,25 +465,24 @@ def _apply_strict_mode(config: dict) -> None:
         )
 
     # If strict_mode is enabled, reject configs where min_* != num_of_clients
-    if strict_mode:
-        if (
-            num_fit_clients != num_of_clients
-            or num_evaluate_clients != num_of_clients
-            or num_available_clients != num_of_clients
-        ):
-            raise ValidationError(
-                f"CONFIG REJECTED: strict_mode requires all clients to participate.\n"
-                f"\n"
-                f"Current values:\n"
-                f"  - num_of_clients: {num_of_clients}\n"
-                f"  - min_fit_clients: {num_fit_clients}\n"
-                f"  - min_evaluate_clients: {num_evaluate_clients}\n"
-                f"  - min_available_clients: {num_available_clients}\n"
-                f"\n"
-                f"Fix:\n"
-                f"  Set all min_* values equal to num_of_clients ({num_of_clients})\n"
-                f"  Or set 'strict_mode': 'false' to allow partial participation\n"
-            )
+    if strict_mode and (
+        num_fit_clients != num_of_clients
+        or num_evaluate_clients != num_of_clients
+        or num_available_clients != num_of_clients
+    ):
+        raise ValidationError(
+            f"CONFIG REJECTED: strict_mode requires all clients to participate.\n"
+            f"\n"
+            f"Current values:\n"
+            f"  - num_of_clients: {num_of_clients}\n"
+            f"  - min_fit_clients: {num_fit_clients}\n"
+            f"  - min_evaluate_clients: {num_evaluate_clients}\n"
+            f"  - min_available_clients: {num_available_clients}\n"
+            f"\n"
+            f"Fix:\n"
+            f"  Set all min_* values equal to num_of_clients ({num_of_clients})\n"
+            f"  Or set 'strict_mode': 'false' to allow partial participation\n"
+        )
 
 
 def validate_strategy_config(config: dict) -> None:
