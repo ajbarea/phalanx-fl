@@ -27,31 +27,23 @@ if [ "$TEST_MODE" = true ] || [ "$SONAR_MODE" = true ]; then
 fi
 
 log_info "⚡ Running ruff check..."
-ruff check --fix --exclude src/attack_utils/vocabularies .
+ruff check --fix --exclude src/attack_utils/vocabularies src tests
 
 log_info "⚡ Running isort..."
-isort --quiet --skip "src/attack_utils/vocabularies/*" tests/
+isort --quiet --skip src/attack_utils/vocabularies src tests
 
 log_info "⚡ Running ruff format..."
-ruff format --exclude src/attack_utils/vocabularies .
+ruff format --exclude src/attack_utils/vocabularies src tests
 
 log_info "✨ Running frontend linting..."
 cd frontend && npm run lint && npm run format -- --log-level warn && cd ..
 
-# TODO: replace when root type checking is ready
-# log_info "🔍 Running mypy..."
-# mypy . --config-file=pyproject.toml
-
 log_info "🔍 Running mypy..."
-mypy tests/ --config-file=tests/pyproject.toml
+mypy --config-file=pyproject.toml
 
 if command_exists pyright; then
-    # TODO: replace when root type checking is ready
-    # log_info "🔍 Running pyright..."
-    # pyright .
-
     log_info "🔍 Running pyright..."
-    pyright tests/
+    pyright src/ tests/
 else
     log_warning "Pyright not found. Skipping. To install: npm install -g pyright"
 fi
