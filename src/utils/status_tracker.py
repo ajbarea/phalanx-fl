@@ -82,9 +82,7 @@ class StatusTracker:
 
         # Overall progress across all strategies
         completed_strategies = self.current_strategy
-        overall_progress = (
-            completed_strategies + strategy_progress
-        ) / self.total_strategies
+        overall_progress = (completed_strategies + strategy_progress) / self.total_strategies
 
         return min(overall_progress, 1.0)
 

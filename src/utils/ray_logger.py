@@ -16,7 +16,7 @@ Best practices from Ray 2024-2025 documentation:
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import ray
 
@@ -225,14 +225,10 @@ def check_ray_cluster_health() -> dict[str, Any]:
             nodes = ray.nodes()
             health_info["total_nodes"] = len(nodes)
             health_info["alive_nodes"] = sum(1 for n in nodes if n.get("Alive", False))
-            health_info["dead_nodes"] = sum(
-                1 for n in nodes if not n.get("Alive", True)
-            )
+            health_info["dead_nodes"] = sum(1 for n in nodes if not n.get("Alive", True))
 
             # Check for any dead nodes (potential crashes)
-            dead_node_ids = [
-                n.get("NodeID", "unknown") for n in nodes if not n.get("Alive", True)
-            ]
+            dead_node_ids = [n.get("NodeID", "unknown") for n in nodes if not n.get("Alive", True)]
             if dead_node_ids:
                 health_info["dead_node_ids"] = dead_node_ids
                 log_ray_worker_event(
@@ -248,7 +244,7 @@ def check_ray_cluster_health() -> dict[str, Any]:
     return health_info
 
 
-def setup_ray_error_handler(output_dir: Path) -> None:
+def setup_ray_error_handler(output_dir: Path) -> Callable[[Exception], None]:
     """
     Setup global error handler for Ray worker crashes.
 
@@ -294,9 +290,7 @@ def setup_ray_error_handler(output_dir: Path) -> None:
             )
 
         # Save crash details to file
-        crash_file = (
-            output_dir / f"ray_crash_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-        )
+        crash_file = output_dir / f"ray_crash_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
         with open(crash_file, "w") as f:
             f.write(f"Timestamp: {datetime.now().isoformat()}\n")
             f.write(f"Error Type: {error_type}\n")
@@ -323,9 +317,7 @@ class RaySimulationMonitor:
     def start(self) -> None:
         """Start monitoring the simulation."""
         self.start_time = datetime.now()
-        self.log_handler = configure_ray_logging(
-            self.output_dir, self.simulation_id, "INFO"
-        )
+        self.log_handler = configure_ray_logging(self.output_dir, self.simulation_id, "INFO")
         log_ray_worker_event(
             event_type="SIMULATION_START",
             extra_info={"simulation_id": self.simulation_id},
@@ -366,9 +358,7 @@ class RaySimulationMonitor:
     def stop(self, success: bool = True) -> dict[str, Any]:
         """Stop monitoring and return summary."""
         end_time = datetime.now()
-        duration = (
-            (end_time - self.start_time).total_seconds() if self.start_time else 0
-        )
+        duration = (end_time - self.start_time).total_seconds() if self.start_time else 0
 
         # Get cluster health at end
         health = check_ray_cluster_health()
@@ -399,9 +389,7 @@ class RaySimulationMonitor:
         )
 
         # Save summary to file
-        summary_file = (
-            self.output_dir / f"ray_simulation_summary_{self.simulation_id}.json"
-        )
+        summary_file = self.output_dir / f"ray_simulation_summary_{self.simulation_id}.json"
         import json
 
         with open(summary_file, "w") as f:

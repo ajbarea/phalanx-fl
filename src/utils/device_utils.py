@@ -1,4 +1,5 @@
 import logging
+
 import torch
 
 """Device utilities for PyTorch."""
@@ -33,9 +34,7 @@ def get_device(device_preference: str) -> torch.device:
             device = torch.device("cuda")
             cuda_name = torch.cuda.get_device_name(0)
             gpu_memory_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
-            logging.info(
-                f"Using CUDA GPU: {cuda_name} ({gpu_memory_gb:.1f} GB VRAM available)"
-            )
+            logging.info(f"Using CUDA GPU: {cuda_name} ({gpu_memory_gb:.1f} GB VRAM available)")
             return device
 
         # Apple Silicon MPS

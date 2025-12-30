@@ -1,8 +1,9 @@
 """GPU memory monitoring utilities for federated learning experiments."""
 
 import logging
+from typing import Union
+
 import torch
-from typing import Dict, Union
 
 
 class GPUMemoryMonitor:
@@ -29,7 +30,7 @@ class GPUMemoryMonitor:
             self.initial_allocated = torch.cuda.memory_allocated(device)
             self.initial_reserved = torch.cuda.memory_reserved(device)
 
-    def get_memory_stats(self) -> Dict[str, float]:
+    def get_memory_stats(self) -> dict[str, float]:
         """Get current GPU memory statistics.
 
         Returns:
