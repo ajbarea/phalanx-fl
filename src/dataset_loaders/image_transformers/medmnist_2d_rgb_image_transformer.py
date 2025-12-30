@@ -1,6 +1,5 @@
 from torchvision import transforms
 
-
 medmnist_2d_rgb_image_transformer = transforms.Compose(
     [
         transforms.Resize((28, 28)),

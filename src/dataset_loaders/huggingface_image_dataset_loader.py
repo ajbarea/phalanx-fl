@@ -1,22 +1,28 @@
+from __future__ import annotations
+
 import logging
+from typing import Any, cast
+
 import numpy as np
-from datasets import load_dataset
+from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
-from PIL import Image
+
+from datasets import Dataset as HFDataset  # type: ignore[attr-defined]
+from datasets import DatasetDict, load_dataset  # type: ignore[attr-defined]
 
 
-class HuggingFaceImageDataset(Dataset):
+class HuggingFaceImageDataset(Dataset):  # type: ignore[type-arg]
     """PyTorch Dataset wrapper for HuggingFace image datasets with transforms."""
 
-    def __init__(self, hf_dataset, transform=None):
+    def __init__(self, hf_dataset: Any, transform: transforms.Compose | None = None) -> None:
         self.hf_dataset = hf_dataset
         self.transform = transform
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.hf_dataset)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> tuple[Any, Any]:
         item = self.hf_dataset[idx]
         image = item["image"]
         label = item["label"]
@@ -44,14 +50,14 @@ class HuggingFaceImageDatasetLoader:
     def __init__(
         self,
         hf_dataset_path: str,
-        hf_dataset_name: str = None,
-        transformer: transforms = None,
-        dataset_dir: str = None,  # Not used, kept for compatibility
+        hf_dataset_name: str | None = None,
+        transformer: transforms.Compose | None = None,
+        dataset_dir: str | None = None,  # Not used, kept for compatibility
         num_of_clients: int = 10,
         batch_size: int = 32,
         training_subset_fraction: float = 0.8,
-        max_samples: int = None,  # Limit dataset size
-    ):
+        max_samples: int | None = None,  # Limit dataset size
+    ) -> None:
         self.hf_dataset_path = hf_dataset_path
         self.hf_dataset_name = hf_dataset_name
         self.transformer = transformer
@@ -69,10 +75,10 @@ class HuggingFaceImageDatasetLoader:
                 ]
             )
 
-    def _partition_iid(self, full_dataset):
+    def _partition_iid(self, full_dataset: Any) -> list[list[int]]:
         """Partition dataset uniformly across clients (IID distribution)."""
         client_size = len(full_dataset) // self.num_of_clients
-        client_indices = []
+        client_indices: list[list[int]] = []
 
         for client_id in range(self.num_of_clients):
             start_idx = client_id * client_size
@@ -85,14 +91,16 @@ class HuggingFaceImageDatasetLoader:
 
         return client_indices
 
-    def _partition_label_skew_dirichlet(self, full_dataset, alpha=0.5):
+    def _partition_label_skew_dirichlet(
+        self, full_dataset: Any, alpha: float = 0.5
+    ) -> list[list[int]]:
         """
         Partition dataset using Dirichlet distribution (Non-IID).
         Lower alpha = more heterogeneous (typical: 0.1-1.0).
         """
         labels = np.array(full_dataset["label"])
         num_classes = len(np.unique(labels))
-        client_indices = [[] for _ in range(self.num_of_clients)]
+        client_indices: list[list[int]] = [[] for _ in range(self.num_of_clients)]
 
         # Use fixed seed for reproducibility
         rng = np.random.default_rng(42)
@@ -110,9 +118,7 @@ class HuggingFaceImageDatasetLoader:
             start_idx = 0
             for client_id, count in enumerate(proportions):
                 end_idx = start_idx + count
-                client_indices[client_id].extend(
-                    class_indices[start_idx:end_idx].tolist()
-                )
+                client_indices[client_id].extend(class_indices[start_idx:end_idx].tolist())
                 start_idx = end_idx
 
         # Shuffle each client's indices to mix classes
@@ -127,13 +133,14 @@ class HuggingFaceImageDatasetLoader:
         valloaders = []
 
         if self.hf_dataset_name:
-            dataset = load_dataset(
-                self.hf_dataset_path, self.hf_dataset_name, trust_remote_code=True
+            dataset = cast(
+                DatasetDict,
+                load_dataset(self.hf_dataset_path, self.hf_dataset_name, trust_remote_code=True),
             )
         else:
-            dataset = load_dataset(self.hf_dataset_path, trust_remote_code=True)
+            dataset = cast(DatasetDict, load_dataset(self.hf_dataset_path, trust_remote_code=True))
 
-        full_dataset = dataset["train"]
+        full_dataset: HFDataset = dataset["train"]
 
         # Limit dataset size for memory optimization
         if self.max_samples is not None and len(full_dataset) > self.max_samples:
@@ -147,9 +154,7 @@ class HuggingFaceImageDatasetLoader:
 
         # Use Non-IID for labeled datasets, IID for unlabeled
         if "label" in full_dataset.column_names:
-            client_indices_list = self._partition_label_skew_dirichlet(
-                full_dataset, alpha=0.5
-            )
+            client_indices_list = self._partition_label_skew_dirichlet(full_dataset, alpha=0.5)
         else:
             # Only shuffle if not already shuffled above
             if self.max_samples is None or len(dataset["train"]) <= self.max_samples:
@@ -166,9 +171,7 @@ class HuggingFaceImageDatasetLoader:
             train_dataset = HuggingFaceImageDataset(
                 split_dataset["train"], transform=self.transformer
             )
-            val_dataset = HuggingFaceImageDataset(
-                split_dataset["test"], transform=self.transformer
-            )
+            val_dataset = HuggingFaceImageDataset(split_dataset["test"], transform=self.transformer)
 
             trainloader = DataLoader(
                 train_dataset,

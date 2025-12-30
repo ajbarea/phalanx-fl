@@ -1,9 +1,14 @@
+from __future__ import annotations
+
 import logging
+from typing import Any, cast
+
 import numpy as np
-from datasets import load_dataset
-from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
-from transformers import DataCollatorForLanguageModeling
+from transformers import AutoTokenizer, DataCollatorForLanguageModeling, PreTrainedTokenizerBase
+
+from datasets import Dataset as HFDataset  # type: ignore[attr-defined]
+from datasets import DatasetDict, load_dataset  # type: ignore[attr-defined]
 
 
 class HuggingFaceTextDatasetLoader:
@@ -22,10 +27,10 @@ class HuggingFaceTextDatasetLoader:
     def __init__(
         self,
         hf_dataset_path: str,
-        hf_dataset_name: str = None,
-        tokenize_columns: list = None,
-        remove_columns: list = None,
-        dataset_dir: str = None,  # Not used, kept for compatibility
+        hf_dataset_name: str | None = None,
+        tokenize_columns: list[Any] | None = None,
+        remove_columns: list[Any] | None = None,
+        dataset_dir: str | None = None,  # Not used, kept for compatibility
         num_of_clients: int = 5,
         training_subset_fraction: float = 0.8,
         model_name: str = "distilbert-base-uncased",
@@ -33,8 +38,8 @@ class HuggingFaceTextDatasetLoader:
         chunk_size: int = 256,
         mlm_probability: float = 0.15,
         num_poisoned_clients: int = 0,
-        attack_schedule=None,
-        max_samples: int = None,  # Limit dataset size
+        attack_schedule: list[Any] | None = None,
+        max_samples: int | None = None,  # Limit dataset size
     ):
         self.hf_dataset_path = hf_dataset_path
         self.hf_dataset_name = hf_dataset_name
@@ -49,12 +54,12 @@ class HuggingFaceTextDatasetLoader:
         self.num_poisoned_clients = num_poisoned_clients
         self.attack_schedule = attack_schedule
         self.max_samples = max_samples
-        self.tokenizer = None
+        self.tokenizer: PreTrainedTokenizerBase | None = None
 
-    def _partition_iid(self, full_dataset):
+    def _partition_iid(self, full_dataset: Any) -> list[list[int]]:
         """Partition dataset uniformly across clients (IID distribution)."""
         client_size = len(full_dataset) // self.num_of_clients
-        client_indices = []
+        client_indices: list[list[int]] = []
 
         for client_id in range(self.num_of_clients):
             start_idx = client_id * client_size
@@ -67,14 +72,16 @@ class HuggingFaceTextDatasetLoader:
 
         return client_indices
 
-    def _partition_label_skew_dirichlet(self, full_dataset, alpha=0.5):
+    def _partition_label_skew_dirichlet(
+        self, full_dataset: Any, alpha: float = 0.5
+    ) -> list[list[int]]:
         """
         Partition dataset using Dirichlet distribution (Non-IID).
         Lower alpha = more heterogeneous (typical: 0.1-1.0).
         """
         labels = np.array(full_dataset["label"])
         num_classes = len(np.unique(labels))
-        client_indices = [[] for _ in range(self.num_of_clients)]
+        client_indices: list[list[int]] = [[] for _ in range(self.num_of_clients)]
 
         # Use fixed seed for reproducibility
         rng = np.random.default_rng(42)
@@ -92,9 +99,7 @@ class HuggingFaceTextDatasetLoader:
             start_idx = 0
             for client_id, count in enumerate(proportions):
                 end_idx = start_idx + count
-                client_indices[client_id].extend(
-                    class_indices[start_idx:end_idx].tolist()
-                )
+                client_indices[client_id].extend(class_indices[start_idx:end_idx].tolist())
                 start_idx = end_idx
 
         # Shuffle each client's indices to mix classes
@@ -110,6 +115,7 @@ class HuggingFaceTextDatasetLoader:
 
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         tokenizer = self.tokenizer
+        assert tokenizer is not None, "Tokenizer failed to load"
 
         # Skip filesystem poisoning (dynamic poisoning handled in training)
         if self.attack_schedule:
@@ -118,13 +124,14 @@ class HuggingFaceTextDatasetLoader:
             poisoned_client_ids = list(range(self.num_poisoned_clients))
 
         if self.hf_dataset_name:
-            dataset = load_dataset(
-                self.hf_dataset_path, self.hf_dataset_name, trust_remote_code=True
+            dataset = cast(
+                DatasetDict,
+                load_dataset(self.hf_dataset_path, self.hf_dataset_name, trust_remote_code=True),
             )
         else:
-            dataset = load_dataset(self.hf_dataset_path, trust_remote_code=True)
+            dataset = cast(DatasetDict, load_dataset(self.hf_dataset_path, trust_remote_code=True))
 
-        full_dataset = dataset["train"]
+        full_dataset: HFDataset = dataset["train"]
 
         # Limit dataset size for memory optimization
         if self.max_samples is not None and len(full_dataset) > self.max_samples:
@@ -145,9 +152,7 @@ class HuggingFaceTextDatasetLoader:
 
         # Use Non-IID for labeled datasets, IID for unlabeled
         if "label" in full_dataset.column_names:
-            client_indices_list = self._partition_label_skew_dirichlet(
-                full_dataset, alpha=0.5
-            )
+            client_indices_list = self._partition_label_skew_dirichlet(full_dataset, alpha=0.5)
         else:
             # Only shuffle if not already shuffled above
             if self.max_samples is None or len(dataset["train"]) <= self.max_samples:
@@ -159,21 +164,17 @@ class HuggingFaceTextDatasetLoader:
 
             def tokenize_function(examples):
                 texts = [
-                    " ".join(row)
-                    for row in zip(*[examples[col] for col in self.tokenize_columns])
+                    " ".join(row) for row in zip(*[examples[col] for col in self.tokenize_columns])
                 ]
                 return tokenizer(texts, truncation=False)
 
-            def chunk_function(examples):
-                concatenated = {k: sum(examples[k], []) for k in examples.keys()}
+            def chunk_function(examples: dict[str, Any]) -> dict[str, Any]:
+                concatenated: dict[str, Any] = {k: sum(examples[k], []) for k in examples}
                 total_len = len(concatenated["input_ids"])
                 total_len = (total_len // self.chunk_size) * self.chunk_size
 
                 result = {
-                    k: [
-                        t[i : i + self.chunk_size]
-                        for i in range(0, total_len, self.chunk_size)
-                    ]
+                    k: [t[i : i + self.chunk_size] for i in range(0, total_len, self.chunk_size)]
                     for k, t in concatenated.items()
                 }
                 result["labels"] = result["input_ids"].copy()
@@ -193,15 +194,13 @@ class HuggingFaceTextDatasetLoader:
             collate_fn = DataCollatorForLanguageModeling(
                 tokenizer=tokenizer,
                 mlm=True,
-                mlm_probability=0.75
-                if client_id in poisoned_client_ids
-                else self.mlm_probability,
+                mlm_probability=0.75 if client_id in poisoned_client_ids else self.mlm_probability,
                 mask_replace_prob=0 if client_id in poisoned_client_ids else 0.8,
                 random_replace_prob=1 if client_id in poisoned_client_ids else 0.1,
             )
 
             trainloader = DataLoader(
-                split_dataset["train"],
+                split_dataset["train"],  # pyright: ignore[reportArgumentType]
                 batch_size=self.batch_size,
                 shuffle=True,
                 collate_fn=collate_fn,
@@ -209,7 +208,7 @@ class HuggingFaceTextDatasetLoader:
                 pin_memory=False,
             )
             valloader = DataLoader(
-                split_dataset["test"],
+                split_dataset["test"],  # pyright: ignore[reportArgumentType]
                 batch_size=self.batch_size,
                 shuffle=False,
                 collate_fn=collate_fn,

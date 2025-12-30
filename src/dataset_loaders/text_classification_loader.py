@@ -1,10 +1,13 @@
-from typing import Optional
+from __future__ import annotations
+
+from typing import Any, cast
 
 import numpy as np
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, DataCollatorWithPadding
 
-from datasets import load_dataset
+from datasets import Dataset as HFDataset  # type: ignore[attr-defined]
+from datasets import DatasetDict, load_dataset  # type: ignore[attr-defined]
 
 
 class TextClassificationLoader:
@@ -24,10 +27,10 @@ class TextClassificationLoader:
         training_subset_fraction: float = 1.0,
         max_seq_length: int = 128,
         text_column: str = "text",
-        text2_column: Optional[str] = None,
+        text2_column: str | None = None,
         label_column: str = "label",
         partitioning_strategy: str = "iid",
-        partitioning_params: Optional[dict] = None,
+        partitioning_params: dict[str, Any] | None = None,
     ) -> None:
         """
         Initialize TextClassificationLoader.
@@ -68,17 +71,18 @@ class TextClassificationLoader:
                 - num_labels: Number of classification labels in the dataset
         """
         # Load dataset from HuggingFace Hub
-        dataset = load_dataset(self.dataset_name)
+        dataset = cast(DatasetDict, load_dataset(self.dataset_name))
 
         # Get train and test splits
-        train_dataset = dataset["train"]
-        test_dataset = (
+        train_dataset: HFDataset = dataset["train"]
+        test_dataset: HFDataset = (
             dataset["validation"] if "validation" in dataset else dataset["test"]
         )
 
         # Detect number of labels from dataset features
-        if hasattr(train_dataset.features[self.label_column], "num_classes"):
-            num_labels = train_dataset.features[self.label_column].num_classes
+        features = train_dataset.features
+        if features is not None and hasattr(features[self.label_column], "num_classes"):
+            num_labels = features[self.label_column].num_classes
         else:
             # Fallback: count unique labels
             num_labels = len(set(train_dataset[self.label_column]))
@@ -114,7 +118,7 @@ class TextClassificationLoader:
 
             # Use the same test dataset for all clients
             valloader = DataLoader(
-                test_dataset,
+                test_dataset,  # pyright: ignore[reportArgumentType]
                 batch_size=self.batch_size,
                 shuffle=False,
                 collate_fn=data_collator,
@@ -159,9 +163,7 @@ class TextClassificationLoader:
             dataset = dataset.rename_column(self.label_column, "labels")
 
         # Set format for PyTorch
-        dataset.set_format(
-            type="torch", columns=["input_ids", "attention_mask", "labels"]
-        )
+        dataset.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
 
         return dataset
 
@@ -182,9 +184,7 @@ class TextClassificationLoader:
         elif self.partitioning_strategy == "pathological":
             return self._partition_pathological(dataset)
         else:
-            raise ValueError(
-                f"Unknown partitioning strategy: {self.partitioning_strategy}"
-            )
+            raise ValueError(f"Unknown partitioning strategy: {self.partitioning_strategy}")
 
     def _partition_iid(self, dataset):
         """
@@ -215,7 +215,7 @@ class TextClassificationLoader:
 
         return client_datasets
 
-    def _partition_dirichlet(self, dataset):
+    def _partition_dirichlet(self, dataset: Any) -> list[Any]:
         """
         Partition dataset using Dirichlet distribution (non-IID).
 
@@ -237,7 +237,7 @@ class TextClassificationLoader:
         label_indices = [np.where(labels == i)[0] for i in range(num_classes)]
 
         # Initialize client indices
-        client_indices = [[] for _ in range(self.num_of_clients)]
+        client_indices: list[list[int]] = [[] for _ in range(self.num_of_clients)]
 
         # For each class, distribute samples to clients using Dirichlet
         for class_indices in label_indices:
@@ -251,9 +251,9 @@ class TextClassificationLoader:
 
         # Create datasets for each client
         client_datasets = []
-        for indices in client_indices:
-            if len(indices) > 0:
-                client_datasets.append(dataset.select(indices))
+        for client_idxs in client_indices:
+            if len(client_idxs) > 0:
+                client_datasets.append(dataset.select(client_idxs))
             else:
                 # Empty partition - create minimal dataset with one sample
                 client_datasets.append(dataset.select([0]))
@@ -270,9 +270,7 @@ class TextClassificationLoader:
         Returns:
             List of datasets, one per client
         """
-        num_classes_per_client = self.partitioning_params.get(
-            "num_classes_per_partition", 2
-        )
+        num_classes_per_client = self.partitioning_params.get("num_classes_per_partition", 2)
 
         # Get labels
         labels = np.array(dataset["labels"])
@@ -296,9 +294,7 @@ class TextClassificationLoader:
                 indices = label_indices[class_id]
 
                 # Distribute samples from this class
-                samples_per_client = len(indices) // (
-                    self.num_of_clients // num_classes + 1
-                )
+                samples_per_client = len(indices) // (self.num_of_clients // num_classes + 1)
                 start_idx = (client_id // num_classes) * samples_per_client
                 end_idx = start_idx + samples_per_client
 

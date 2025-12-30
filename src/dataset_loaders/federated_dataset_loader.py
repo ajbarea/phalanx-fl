@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from __future__ import annotations
 
 import torch
 from flwr_datasets import FederatedDataset
@@ -8,6 +8,8 @@ from flwr_datasets.partitioner import (
     PathologicalPartitioner,
 )
 from torch.utils.data import DataLoader, random_split
+
+from datasets import Dataset  # type: ignore[attr-defined]
 
 
 class FederatedDatasetLoader:
@@ -24,7 +26,7 @@ class FederatedDatasetLoader:
         batch_size: int,
         training_subset_fraction: float,
         partitioning_strategy: str = "iid",
-        partitioning_params: Optional[dict] = None,
+        partitioning_params: dict | None = None,
         label_column: str = "label",
     ) -> None:
         """
@@ -47,7 +49,7 @@ class FederatedDatasetLoader:
         self.partitioning_params = partitioning_params or {}
         self.label_column = label_column
 
-    def load_datasets(self) -> Tuple[List[DataLoader], List[DataLoader], Optional[int]]:
+    def load_datasets(self) -> tuple[list[DataLoader], list[DataLoader], int | None]:
         """
         Load and partition dataset from HuggingFace Hub.
 
@@ -61,9 +63,7 @@ class FederatedDatasetLoader:
         partitioner = self._create_partitioner()
 
         # Load federated dataset from HuggingFace Hub
-        fds = FederatedDataset(
-            dataset=self.dataset_name, partitioners={"train": partitioner}
-        )
+        fds = FederatedDataset(dataset=self.dataset_name, partitioners={"train": partitioner})
 
         num_classes = self._detect_num_classes(fds)
 
@@ -84,8 +84,11 @@ class FederatedDatasetLoader:
                 train_size -= 1
                 val_size = 1
 
+            # HuggingFace Dataset with format "torch" is compatible with random_split
             train_dataset, val_dataset = random_split(
-                partition, [train_size, val_size], torch.Generator().manual_seed(42)
+                partition,  # pyright: ignore[reportArgumentType]
+                [train_size, val_size],
+                torch.Generator().manual_seed(42),
             )
 
             trainloaders.append(
@@ -108,7 +111,7 @@ class FederatedDatasetLoader:
 
         return trainloaders, valloaders, num_classes
 
-    def _detect_num_classes(self, fds: FederatedDataset) -> Optional[int]:
+    def _detect_num_classes(self, fds: FederatedDataset) -> int | None:
         """
         Detect number of classes from dataset features.
 
@@ -119,10 +122,7 @@ class FederatedDatasetLoader:
             int: Number of classes, or None if not detected
         """
         try:
-            if (
-                hasattr(fds.dataset, "features")
-                and self.label_column in fds.dataset.features
-            ):
+            if hasattr(fds.dataset, "features") and self.label_column in fds.dataset.features:
                 label_feature = fds.dataset.features[self.label_column]
                 if hasattr(label_feature, "names"):
                     return len(label_feature.names)
@@ -160,11 +160,9 @@ class FederatedDatasetLoader:
             )
 
         else:
-            raise ValueError(
-                f"Unknown partitioning strategy: {self.partitioning_strategy}"
-            )
+            raise ValueError(f"Unknown partitioning strategy: {self.partitioning_strategy}")
 
-    def _standardize_columns(self, dataset):
+    def _standardize_columns(self, dataset: Dataset) -> Dataset:
         """
         Rename dataset columns to standard format and remove extra columns.
 
@@ -211,9 +209,7 @@ class FederatedDatasetLoader:
         # Image datasets: pixel_values + labels
         # Text datasets: input_ids + attention_mask + labels
         standard_columns = {"pixel_values", "labels", "input_ids", "attention_mask"}
-        columns_to_remove = [
-            col for col in dataset.column_names if col not in standard_columns
-        ]
+        columns_to_remove = [col for col in dataset.column_names if col not in standard_columns]
 
         if columns_to_remove:
             dataset = dataset.remove_columns(columns_to_remove)

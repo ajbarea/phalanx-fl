@@ -6,16 +6,16 @@ model configuration and dataset-agnostic federated learning.
 """
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
-from datasets import load_dataset, load_dataset_builder
+from datasets import load_dataset, load_dataset_builder  # type: ignore[attr-defined]
 
 
 class DatasetInspector:
     """Automatically inspect HuggingFace datasets to extract metadata."""
 
     @staticmethod
-    def inspect_dataset(dataset_name: str, label_column: str = "label") -> Dict:
+    def inspect_dataset(dataset_name: str, label_column: str = "label") -> dict:
         """
         Inspect a HuggingFace dataset and extract comprehensive metadata.
 
@@ -47,6 +47,9 @@ class DatasetInspector:
                 "text_columns": [],
             }
 
+            if features is None:
+                return metadata
+
             # Detect label column and extract class info
             if label_column in features:
                 label_feature = features[label_column]
@@ -72,14 +75,10 @@ class DatasetInspector:
 
             # Extract image column and infer shape
             if has_image:
-                img_col, img_shape = DatasetInspector._get_image_info(
-                    dataset_name, features
-                )
+                img_col, img_shape = DatasetInspector._get_image_info(dataset_name, features)
                 metadata["image_column"] = img_col
                 metadata["image_shape"] = img_shape
-                logging.info(
-                    f"Detected image column '{img_col}' with shape {img_shape}"
-                )
+                logging.info(f"Detected image column '{img_col}' with shape {img_shape}")
 
             # Extract text columns
             metadata["text_columns"] = DatasetInspector._get_text_columns(features)
@@ -99,7 +98,7 @@ class DatasetInspector:
             raise
 
     @staticmethod
-    def _has_image_column(features: Dict) -> bool:
+    def _has_image_column(features: dict) -> bool:
         """Check if features contain an Image column."""
         for feature in features.values():
             feature_type = str(type(feature))
@@ -108,7 +107,7 @@ class DatasetInspector:
         return False
 
     @staticmethod
-    def _has_text_column(features: Dict) -> bool:
+    def _has_text_column(features: dict) -> bool:
         """Check if features contain common text columns."""
         text_column_names = [
             "text",
@@ -126,8 +125,8 @@ class DatasetInspector:
 
     @staticmethod
     def _get_image_info(
-        dataset_name: str, features: Dict
-    ) -> Tuple[Optional[str], Optional[Tuple[int, int, int]]]:
+        dataset_name: str, features: dict
+    ) -> tuple[Optional[str], Optional[tuple[int, int, int]]]:
         """
         Extract image column name and shape.
 
@@ -156,15 +155,14 @@ class DatasetInspector:
         # Check if this is a known dataset
         if dataset_name in known_datasets:
             img_shape = known_datasets[dataset_name]
-            logging.info(
-                f"Using cached dimensions for known dataset '{dataset_name}': {img_shape}"
-            )
+            logging.info(f"Using cached dimensions for known dataset '{dataset_name}': {img_shape}")
             return image_column, img_shape
 
         try:
             # For unknown datasets, load just one sample (non-streaming with limit)
             sample_ds = load_dataset(dataset_name, split="train[:1]")
-            first_sample = sample_ds[0]
+            # Dataset is indexable when split is specified (not IterableDataset)
+            first_sample = sample_ds[0]  # pyright: ignore[reportIndexIssue]
             img = first_sample[image_column]
 
             # Convert PIL image to tensor shape: (C, H, W)
@@ -175,19 +173,15 @@ class DatasetInspector:
                 return image_column, (channels, height, width)
             else:
                 # Already a tensor or array
-                logging.warning(
-                    "Image format not recognized, using default shape (1, 28, 28)"
-                )
+                logging.warning("Image format not recognized, using default shape (1, 28, 28)")
                 return image_column, (1, 28, 28)
 
         except Exception as e:
-            logging.warning(
-                f"Could not infer image shape: {e}. Using default (1, 28, 28)"
-            )
+            logging.warning(f"Could not infer image shape: {e}. Using default (1, 28, 28)")
             return image_column, (1, 28, 28)
 
     @staticmethod
-    def _get_text_columns(features: Dict) -> List[str]:
+    def _get_text_columns(features: dict) -> list[str]:
         """Extract all text column names."""
         text_columns = []
         common_text_cols = [

@@ -1,14 +1,17 @@
-import os
-import torch
+from __future__ import annotations
 
-from torchvision import datasets, transforms
+import os
+from typing import Callable
+
+import torch
 from torch.utils.data import DataLoader, random_split
+from torchvision import datasets, transforms
 
 
 class ImageDatasetLoader:
     def __init__(
         self,
-        transformer: transforms,
+        transformer: transforms.Compose | Callable | None,
         dataset_dir: str,
         num_of_clients: int,
         batch_size: int,
@@ -26,12 +29,8 @@ class ImageDatasetLoader:
         trainloaders = []
         valloaders = []
 
-        client_folders = [
-            d for d in os.listdir(self.dataset_dir) if d.startswith("client_")
-        ]
-        for client_folder in sorted(
-            client_folders, key=lambda string: int(string.split("_")[1])
-        ):
+        client_folders = [d for d in os.listdir(self.dataset_dir) if d.startswith("client_")]
+        for client_folder in sorted(client_folders, key=lambda string: int(string.split("_")[1])):
             client_dataset = datasets.ImageFolder(
                 root=self.dataset_dir + f"/{client_folder}", transform=self.transformer
             )
