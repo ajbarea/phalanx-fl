@@ -1,27 +1,28 @@
-import time
-import numpy as np
-import flwr as fl
-import torch
+from __future__ import annotations
+
 import logging
 import os
-from typing import Optional, Union
+import time
+from typing import Any
 
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import MinMaxScaler
-
+import flwr as fl
+import numpy as np
+import torch
 from flwr.common import (
-    FitRes,
     EvaluateRes,
+    FitRes,
     Parameters,
     Scalar,
-    parameters_to_ndarrays,
     ndarrays_to_parameters,
+    parameters_to_ndarrays,
 )
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.aggregate import weighted_loss_avg
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import MinMaxScaler
 
-from src.output_handlers.directory_handler import DirectoryHandler
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.output_handlers.directory_handler import DirectoryHandler
 from src.utils.status_tracker import StatusTracker
 
 
@@ -38,7 +39,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         num_krum_selections: int,  # n - f
         begin_removing_from_round: int,
         strategy_history: SimulationStrategyHistory,
-        status_tracker: Optional[StatusTracker] = None,
+        status_tracker: StatusTracker | None = None,
         *args,
         **kwargs,
     ):
@@ -46,14 +47,15 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         self.remove_clients = remove_clients
         self.num_krum_selections = num_krum_selections
         self.begin_removing_from_round = begin_removing_from_round
-        self.client_scores: dict[str, float] = {}
-        self.removed_client_ids: set[str] = set()
+        self.client_scores: dict[Any, float] = {}
+        self.removed_client_ids: set[Any] = set()
         self.current_round: int = 0
         self.strategy_history = strategy_history
         self.status_tracker = status_tracker
         self.logger = logging.getLogger(f"bulyan_{id(self)}")
         self.logger.setLevel(logging.INFO)
         out_dir = DirectoryHandler.dirname
+        assert out_dir is not None
         os.makedirs(out_dir, exist_ok=True)
         file_handler = logging.FileHandler(f"{out_dir}/output.log")
         console_handler = logging.StreamHandler()
@@ -71,8 +73,8 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         self,
         server_round: int,
         results: list[tuple[ClientProxy, FitRes]],
-        failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
-    ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
+        failures: list[tuple[ClientProxy, FitRes] | BaseException],
+    ) -> tuple[Parameters | None, dict[str, Scalar]]:
         """Aggregate client model updates using the Bulyan algorithm.
 
         Applies Multi-Krum to select candidate clients, then computes
@@ -102,8 +104,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         clustering_param_data = []
         for _, fit_res in results:
             tensors = [
-                torch.tensor(arr).flatten()
-                for arr in parameters_to_ndarrays(fit_res.parameters)
+                torch.tensor(arr).flatten() for arr in parameters_to_ndarrays(fit_res.parameters)
             ]
             clustering_param_data.append(torch.cat(tensors))
         X_embed = np.vstack([t.numpy() for t in clustering_param_data])
@@ -112,13 +113,11 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         norm_distances = MinMaxScaler().fit(abs_distances).transform(abs_distances)
 
         param_arrays = [parameters_to_ndarrays(fr.parameters) for _, fr in results]
-        flat_updates = np.stack(
-            [np.concatenate([p.ravel() for p in pa]) for pa in param_arrays]
-        )
+        flat_updates = np.stack([np.concatenate([p.ravel() for p in pa]) for pa in param_arrays])
         n, dim = flat_updates.shape
         C = self.num_krum_selections
         f = (n - C) // 2  # number of malicious clients
-        if C > n or (n - C) % 2:
+        if n < C or (n - C) % 2:
             self.logger.error("C must satisfy n - C = 2f (even, <= n)")
             return super().aggregate_fit(server_round, results, failures)
 
@@ -146,9 +145,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         for arr in param_arrays[0]:
             num = arr.size
             agg_list.append(
-                bulyan_vector[cursor : cursor + num]
-                .reshape(arr.shape)
-                .astype(arr.dtype)
+                bulyan_vector[cursor : cursor + num].reshape(arr.shape).astype(arr.dtype)
             )
             cursor += num
         aggregated_parameters = ndarrays_to_parameters(agg_list)
@@ -206,9 +203,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
             fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(c, fit_ins) for c in available_clients.values()]
 
-        client_scores = {
-            cid: self.client_scores.get(cid, 0.0) for cid in available_clients.keys()
-        }
+        client_scores = {cid: self.client_scores.get(cid, 0.0) for cid in available_clients}
         self.removed_client_ids = set()
 
         if self.remove_clients:
@@ -218,13 +213,11 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
                 if not client_scores:
                     break
                 eligible = {
-                    cid: s
-                    for cid, s in client_scores.items()
-                    if cid not in self.removed_client_ids
+                    cid: s for cid, s in client_scores.items() if cid not in self.removed_client_ids
                 }
                 if not eligible:
                     break
-                worst = max(eligible, key=eligible.get)
+                worst = max(eligible, key=lambda x: eligible[x])
                 self.removed_client_ids.add(worst)
 
         self.logger.info(
@@ -235,20 +228,18 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
             current_round=self.current_round, removed_client_ids=self.removed_client_ids
         )
 
-        ordered_cids = sorted(client_scores, key=client_scores.get, reverse=True)
+        ordered_cids = sorted(client_scores, key=lambda x: client_scores[x], reverse=True)
         fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
         return [
-            (available_clients[cid], fit_ins)
-            for cid in ordered_cids
-            if cid in available_clients
+            (available_clients[cid], fit_ins) for cid in ordered_cids if cid in available_clients
         ]
 
-    def aggregate_evaluate(
+    def aggregate_evaluate(  # type: ignore[override]
         self,
         server_round: int,
         results: list[tuple[ClientProxy, EvaluateRes]],
-        failures: list[tuple[Union[ClientProxy, EvaluateRes], BaseException]],
-    ) -> tuple[Optional[float], dict[str, Scalar]]:
+        failures: list[tuple[ClientProxy | EvaluateRes, BaseException]],
+    ) -> tuple[float | None, dict[str, Scalar]]:
         """Aggregate client evaluation results and record metrics.
 
         Records per-client accuracy and loss to strategy_history. Computes
@@ -262,9 +253,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         Returns:
             Tuple of (aggregated loss, metrics dict).
         """
-        self.logger.info(
-            "\n" + "-" * 50 + f"AGGREGATION ROUND {server_round}" + "-" * 50
-        )
+        self.logger.info("\n" + "-" * 50 + f"AGGREGATION ROUND {server_round}" + "-" * 50)
 
         for cp, ev in results:
             cid = cp.cid
@@ -273,7 +262,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
             self.strategy_history.insert_single_client_history_entry(
                 client_id=int(cid),
                 current_round=self.current_round,
-                accuracy=acc_metrics.get("accuracy"),
+                accuracy=float(acc_metrics.get("accuracy", 0.0)),
             )
 
         if not results:
@@ -289,9 +278,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
                 num_clients_loss += 1
 
         loss_aggregated = weighted_loss_avg(aggregate_value)
-        self.strategy_history.insert_round_history_entry(
-            loss_aggregated=loss_aggregated
-        )
+        self.strategy_history.insert_round_history_entry(loss_aggregated=loss_aggregated)
 
         for cp, ev in results:
             logging.debug(f"Client ID: {cp.cid} Metrics: {ev.metrics} Loss: {ev.loss}")

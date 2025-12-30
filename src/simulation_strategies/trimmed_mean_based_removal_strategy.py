@@ -1,14 +1,19 @@
-import numpy as np
-import flwr as fl
+from __future__ import annotations
+
 import logging
+from typing import Any
 
-from typing import Dict, List, Optional, Set, Tuple, Union
-
-from flwr.common import Parameters, Scalar
-from flwr.server.strategy.aggregate import weighted_loss_avg
-from flwr.common import EvaluateRes
-from flwr.common import parameters_to_ndarrays, ndarrays_to_parameters
+import flwr as fl
+import numpy as np
+from flwr.common import (
+    EvaluateRes,
+    Parameters,
+    Scalar,
+    ndarrays_to_parameters,
+    parameters_to_ndarrays,
+)
 from flwr.server.client_proxy import ClientProxy
+from flwr.server.strategy.aggregate import weighted_loss_avg
 from flwr.server.strategy.fedavg import FedAvg
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
@@ -27,7 +32,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         remove_clients: bool,
         begin_removing_from_round: int,
         strategy_history: SimulationStrategyHistory,
-        status_tracker: Optional[StatusTracker] = None,
+        status_tracker: StatusTracker | None = None,
         trim_ratio: float = 0.1,
         *args,
         **kwargs,
@@ -37,14 +42,14 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         self.begin_removing_from_round = begin_removing_from_round
         self.trim_ratio = trim_ratio
         self.current_round = 0
-        self.client_scores = {}
+        self.client_scores: dict[Any, float] = {}
 
         self.strategy_history = strategy_history
         self.status_tracker = status_tracker
 
-    def aggregate_fit(
-        self, server_round: int, results: List[Tuple], failures: List[BaseException]
-    ) -> Tuple[Optional[Union[ndarrays_to_parameters, bytes]], Dict[str, Scalar]]:
+    def aggregate_fit(  # type: ignore[override]
+        self, server_round: int, results: list[tuple], failures: list[BaseException]
+    ) -> tuple[Parameters | None, dict[str, Scalar]]:
         """Aggregate client updates using coordinate-wise trimmed mean.
 
         Trims the top and bottom trim_ratio values for each parameter coordinate
@@ -85,9 +90,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         num_trim = int(self.trim_ratio * num_clients)
 
         if num_trim == 0:
-            aggregated_weights = self._average_weights(
-                [w for w, _, _ in weights_results]
-            )
+            aggregated_weights = self._average_weights([w for w, _, _ in weights_results])
 
             for cid in participating_clients:
                 self.client_scores[cid] = 0.0
@@ -104,32 +107,28 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
 
         weights_by_layer = list(zip(*[w for w, _, _ in weights_results]))
         aggregated = []
-        trimmed_clients: Set[str] = set()
+        trimmed_clients: set[str] = set()
         client_trim_counts = {cid: 0 for _, _, cid in weights_results}
         total_parameters = 0
 
         for layer_weights in weights_by_layer:
             stacked = np.stack(layer_weights)
             trimmed_layer = []
-            num_params_in_layer = (
-                np.prod(stacked.shape[1:]) if len(stacked.shape) > 1 else 1
-            )
+            num_params_in_layer = np.prod(stacked.shape[1:]) if len(stacked.shape) > 1 else 1
             total_parameters += num_params_in_layer
 
             for i in range(num_params_in_layer):
                 values = (
-                    stacked
-                    if len(stacked.shape) == 1
-                    else stacked.reshape((num_clients, -1))[:, i]
+                    stacked if len(stacked.shape) == 1 else stacked.reshape((num_clients, -1))[:, i]
                 )
                 sorted_indices = np.argsort(values)
                 trimmed_indices = sorted_indices[num_trim:-num_trim]
                 trimmed_values = values[trimmed_indices]
                 trimmed_layer.append(np.mean(trimmed_values))
 
-                removed_this_dim = set(
-                    weights_results[j][2] for j in sorted_indices[:num_trim]
-                ).union(weights_results[j][2] for j in sorted_indices[-num_trim:])
+                removed_this_dim = {weights_results[j][2] for j in sorted_indices[:num_trim]}.union(
+                    weights_results[j][2] for j in sorted_indices[-num_trim:]
+                )
                 trimmed_clients.update(removed_this_dim)
 
                 for cid in removed_this_dim:
@@ -138,16 +137,14 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             aggregated.append(np.array(trimmed_layer).reshape(stacked.shape[1:]))
 
         for cid in participating_clients:
-            trim_frequency = (
-                client_trim_counts[cid] / total_parameters
-                if total_parameters > 0
-                else 0.0
+            trim_frequency = float(
+                client_trim_counts[cid] / total_parameters if total_parameters > 0 else 0.0
             )
             self.client_scores[cid] = trim_frequency
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
                 client_id=int(cid),
-                removal_criterion=float(trim_frequency),
+                removal_criterion=trim_frequency,
             )
 
         self.strategy_history.update_client_participation(
@@ -160,7 +157,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
 
     def configure_fit(
         self, server_round: int, parameters: Parameters, client_manager
-    ) -> List[Tuple[ClientProxy, fl.common.FitIns]]:
+    ) -> list[tuple[ClientProxy, fl.common.FitIns]]:
         """Configure client selection for the next training round.
 
         During warmup, all clients participate. After warmup, removes the
@@ -185,15 +182,14 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             return [(client, fit_ins) for client in available_clients.values()]
 
         client_scores = {
-            client_id: self.client_scores.get(client_id, 0)
-            for client_id in available_clients.keys()
+            client_id: self.client_scores.get(client_id, 0) for client_id in available_clients
         }
 
         if self.remove_clients:
-            client_id = max(client_scores, key=client_scores.get)
+            client_id = max(client_scores, key=lambda x: client_scores[x])
             currently_removed_client_ids.add(client_id)
 
-        selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
+        selected_client_ids = sorted(client_scores, key=lambda x: client_scores[x], reverse=True)
         fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
 
         return [
@@ -202,12 +198,12 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             if cid in available_clients
         ]
 
-    def aggregate_evaluate(
+    def aggregate_evaluate(  # type: ignore[override]
         self,
         server_round: int,
-        results: List[Tuple[ClientProxy, EvaluateRes]],
-        failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]],
-    ) -> Tuple[Optional[float], Dict[str, Scalar]]:
+        results: list[tuple[ClientProxy, EvaluateRes]],
+        failures: list[tuple[ClientProxy | EvaluateRes, BaseException]],
+    ) -> tuple[float | None, dict[str, Scalar]]:
         """Aggregate client evaluation results and record metrics.
 
         Records per-client accuracy and loss to strategy_history. Computes
@@ -230,7 +226,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             self.strategy_history.insert_single_client_history_entry(
                 client_id=int(cid),
                 current_round=self.current_round,
-                accuracy=accuracy_matrix["accuracy"],
+                accuracy=float(accuracy_matrix.get("accuracy", 0.0)),
             )
 
         if not results:
@@ -253,16 +249,14 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
 
         loss_aggregated = weighted_loss_avg(aggregate_value)
 
-        self.strategy_history.insert_round_history_entry(
-            loss_aggregated=loss_aggregated
-        )
+        self.strategy_history.insert_round_history_entry(loss_aggregated=loss_aggregated)
 
         for result in results:
             logging.debug(f"Client ID: {result[0].cid}")
             logging.debug(f"Metrics: {result[1].metrics}")
             logging.debug(f"Loss: {result[1].loss}")
 
-        metrics_aggregated = {}
+        metrics_aggregated: dict[str, Any] = {}
 
         logging.info(
             f"Round: {server_round} "
@@ -272,7 +266,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
 
         return loss_aggregated, metrics_aggregated
 
-    def _average_weights(self, weights: List[List[np.ndarray]]) -> List[np.ndarray]:
+    def _average_weights(self, weights: list[list[np.ndarray]]) -> list[np.ndarray]:
         """Compute average weights."""
         avg_weights = []
         for layers in zip(*weights):

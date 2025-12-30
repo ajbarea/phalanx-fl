@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import flwr as fl
 from flwr.common import EvaluateRes, FitRes, Parameters, Scalar
@@ -34,9 +34,9 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
     def aggregate_fit(
         self,
         server_round: int,
-        results: List[Tuple[ClientProxy, FitRes]],
-        failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
-    ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
+        results: list[tuple[ClientProxy, FitRes]],
+        failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
+    ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
         """Aggregate fit results and track round number."""
         self.current_round = server_round
 
@@ -49,9 +49,9 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
     def aggregate_evaluate(
         self,
         server_round: int,
-        results: List[Tuple[ClientProxy, EvaluateRes]],
-        failures: List[Union[Tuple[ClientProxy, EvaluateRes], BaseException]],
-    ) -> Tuple[Optional[float], Dict[str, Scalar]]:
+        results: list[tuple[ClientProxy, EvaluateRes]],
+        failures: list[Union[tuple[ClientProxy, EvaluateRes], BaseException]],
+    ) -> tuple[Optional[float], dict[str, Scalar]]:
         """Aggregate evaluation results and track round-level metrics.
 
         Collects per-client loss/accuracy and computes weighted averages.
@@ -98,17 +98,11 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
 
         # Calculate aggregated metrics
         loss_aggregated = weighted_loss_avg(aggregate_loss_values)
-        average_accuracy = (
-            weighted_accuracy_sum / total_examples if total_examples > 0 else 0.0
-        )
+        average_accuracy = weighted_accuracy_sum / total_examples if total_examples > 0 else 0.0
 
         # Store round-level metrics
-        self.strategy_history.rounds_history.aggregated_loss_history.append(
-            loss_aggregated
-        )
-        self.strategy_history.rounds_history.average_accuracy_history.append(
-            average_accuracy
-        )
+        self.strategy_history.rounds_history.aggregated_loss_history.append(loss_aggregated)
+        self.strategy_history.rounds_history.average_accuracy_history.append(average_accuracy)
 
         self.logger.info(
             f"Round {server_round}: "
@@ -117,6 +111,6 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
             f"({len(results)} clients)"
         )
 
-        metrics_aggregated = {"accuracy": average_accuracy}
+        metrics_aggregated: dict[str, Scalar] = {"accuracy": average_accuracy}
 
         return loss_aggregated, metrics_aggregated

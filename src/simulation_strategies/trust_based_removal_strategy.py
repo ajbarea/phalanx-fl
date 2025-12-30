@@ -1,18 +1,17 @@
-import numpy as np
-import flwr as fl
-import torch
-import math as m
+from __future__ import annotations
+
 import logging
+import math as m
+from typing import Any
 
-from typing import Optional, Union
-
+import flwr as fl
+import numpy as np
+import torch
+from flwr.common import EvaluateRes, FitRes, Parameters, Scalar
+from flwr.server.client_proxy import ClientProxy
+from flwr.server.strategy.aggregate import weighted_loss_avg
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
-
-from flwr.common import FitRes, Parameters, Scalar
-from flwr.server.strategy.aggregate import weighted_loss_avg
-from flwr.common import EvaluateRes
-from flwr.server.client_proxy import ClientProxy
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.utils.status_tracker import StatusTracker
@@ -32,16 +31,16 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         trust_threshold: float,
         begin_removing_from_round: int,
         strategy_history: SimulationStrategyHistory,
-        status_tracker: Optional[StatusTracker] = None,
+        status_tracker: StatusTracker | None = None,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
 
-        self.client_reputations = {}
+        self.client_reputations: dict[Any, float] = {}
         self.current_round = 0
-        self.client_trusts = {}
-        self.removed_client_ids = set()
+        self.client_trusts: dict[Any, float] = {}
+        self.removed_client_ids: set[Any] = set()
 
         self.remove_clients = remove_clients
         self.beta_value = beta_value
@@ -58,23 +57,18 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             return truth_value
         else:
             prev_reputation = self.client_reputations.get(client_id, 0)
-            return self.update_reputation(
-                prev_reputation, truth_value, self.current_round
-            )
+            return self.update_reputation(prev_reputation, truth_value, self.current_round)
 
     def update_reputation(self, prev_reputation, truth_value, current_round):
         """Update reputation."""
 
         if truth_value >= 0.5:
-            updated_reputation = (prev_reputation + truth_value) - (
-                prev_reputation / current_round
-            )
+            updated_reputation = (prev_reputation + truth_value) - (prev_reputation / current_round)
         else:
             temp = -(1 - (truth_value * (prev_reputation / current_round)))
             updated_reputation = (prev_reputation + truth_value) - np.exp(temp)
         updated_reputation = (
-            self.beta_value * updated_reputation
-            + (1 - self.beta_value) * prev_reputation
+            self.beta_value * updated_reputation + (1 - self.beta_value) * prev_reputation
         )
 
         if updated_reputation > 1.0:
@@ -88,9 +82,9 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         """Calculate trust using previous round's value."""
 
         if self.current_round == 1:
-            prev_trust = 0
+            prev_trust: float = 0.0
         else:
-            prev_trust = self.client_trusts.get(client_id, 0)
+            prev_trust = self.client_trusts.get(client_id, 0.0)
         return self.update_trust(prev_trust, reputation, d)
 
     def update_trust(self, prev_trust, reputation, d):
@@ -118,8 +112,8 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self,
         server_round: int,
         results: list[tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
-        failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
-    ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
+        failures: list[tuple[ClientProxy, FitRes] | BaseException],
+    ) -> tuple[Parameters | None, dict[str, Scalar]]:
         """Aggregate client updates and compute trust scores.
 
         Updates reputation and trust for each client based on their distance
@@ -204,9 +198,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
                 f"Normalized Distance: {normalized_distances[i][0]} "
             )
 
-        self.strategy_history.insert_round_history_entry(
-            removal_threshold=self.trust_threshold
-        )
+        self.strategy_history.insert_round_history_entry(removal_threshold=self.trust_threshold)
 
         return aggregated_parameters, aggregated_metrics
 
@@ -231,29 +223,23 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             return [(client, fit_ins) for client in available_clients.values()]
 
         client_trusts = {
-            client_id: self.client_trusts.get(client_id, 0)
-            for client_id in available_clients.keys()
+            client_id: self.client_trusts.get(client_id, 0) for client_id in available_clients
         }
 
         if self.remove_clients:
             if self.current_round == self.begin_removing_from_round:
-                client_id = min(client_trusts, key=client_trusts.get)
+                client_id = min(client_trusts, key=lambda x: client_trusts[x])
                 logging.info(f"Removing client with lowest TRUST: {client_id}")
                 self.removed_client_ids.add(client_id)
             else:
                 for client_id, trust in client_trusts.items():
-                    if (
-                        trust < self.trust_threshold
-                        and client_id not in self.removed_client_ids
-                    ):
-                        logging.info(
-                            f"Removing client with TRUST less than Threshold: {client_id}"
-                        )
+                    if trust < self.trust_threshold and client_id not in self.removed_client_ids:
+                        logging.info(f"Removing client with TRUST less than Threshold: {client_id}")
                         self.removed_client_ids.add(client_id)
 
             logging.info(f"removed clients are : {self.removed_client_ids}")
 
-        sorted_client_ids = sorted(client_trusts, key=client_trusts.get, reverse=True)
+        sorted_client_ids = sorted(client_trusts, key=lambda x: client_trusts[x], reverse=True)
         selected_client_ids = sorted_client_ids
         fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
 
@@ -267,12 +253,12 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             if cid in available_clients
         ]
 
-    def aggregate_evaluate(
+    def aggregate_evaluate(  # type: ignore[override]
         self,
         server_round: int,
         results: list[tuple[ClientProxy, EvaluateRes]],
-        failures: list[tuple[Union[ClientProxy, EvaluateRes], BaseException]],
-    ) -> tuple[Optional[float], dict[str, Scalar]]:
+        failures: list[tuple[ClientProxy | EvaluateRes, BaseException]],
+    ) -> tuple[float | None, dict[str, Scalar]]:
         """Aggregate client evaluation results and record metrics.
 
         Records per-client accuracy and loss to strategy_history. Computes
@@ -295,7 +281,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             self.strategy_history.insert_single_client_history_entry(
                 client_id=int(cid),
                 current_round=self.current_round,
-                accuracy=accuracy_matrix["accuracy"],
+                accuracy=float(accuracy_matrix.get("accuracy", 0.0)),
             )
 
         if not results:
@@ -316,16 +302,14 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
                 number_of_clients_in_loss_calc += 1
 
         loss_aggregated = weighted_loss_avg(aggregate_value)
-        self.strategy_history.insert_round_history_entry(
-            loss_aggregated=loss_aggregated
-        )
+        self.strategy_history.insert_round_history_entry(loss_aggregated=loss_aggregated)
 
         for result in results:
             logging.debug(f"Client ID: {result[0].cid}")
             logging.debug(f"Metrics: {result[1].metrics}")
             logging.debug(f"Loss: {result[1].loss}")
 
-        metrics_aggregated = {}
+        metrics_aggregated: dict[str, Any] = {}
 
         logging.info(
             f"Round: {server_round} "

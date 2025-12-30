@@ -12,7 +12,7 @@ ArKrum improves upon Krum by:
 
 import logging
 import time
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import numpy as np
 from flwr.common import FitRes, Parameters, Scalar, parameters_to_ndarrays
@@ -50,7 +50,7 @@ class ArKrumStrategy(FedAvg):
         self.remove_clients = remove_clients
         self.begin_removing_from_round = begin_removing_from_round
         self.current_round = 0
-        self.client_scores: Dict[str, float] = {}
+        self.client_scores: dict[str, float] = {}
 
     def _median_filter_distances(self, sorted_distances: np.ndarray) -> np.ndarray:
         """
@@ -111,8 +111,8 @@ class ArKrumStrategy(FedAvg):
         return best_f
 
     def _compute_arkrum_scores(
-        self, results: List[Tuple[ClientProxy, FitRes]]
-    ) -> Tuple[List[float], List[int], np.ndarray]:
+        self, results: list[tuple[ClientProxy, FitRes]]
+    ) -> tuple[list[float], list[int], np.ndarray]:
         """
         Compute Krum scores using ArKrum parameter-free approach.
 
@@ -121,12 +121,8 @@ class ArKrumStrategy(FedAvg):
         2. For each client, apply median filtering, estimate f, calculate score
         3. Return all scores and per-client f estimates
         """
-        param_data = [
-            parameters_to_ndarrays(fit_res.parameters) for _, fit_res in results
-        ]
-        flat_params = [
-            np.concatenate([p.flatten() for p in params]) for params in param_data
-        ]
+        param_data = [parameters_to_ndarrays(fit_res.parameters) for _, fit_res in results]
+        flat_params = [np.concatenate([p.flatten() for p in params]) for params in param_data]
         num_clients = len(flat_params)
 
         dist_matrix = np.zeros((num_clients, num_clients))
@@ -155,9 +151,9 @@ class ArKrumStrategy(FedAvg):
     def aggregate_fit(
         self,
         server_round: int,
-        results: List[Tuple[ClientProxy, FitRes]],
-        failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
-    ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
+        results: list[tuple[ClientProxy, FitRes]],
+        failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
+    ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
         """
         Aggregate client updates using ArKrum.
 

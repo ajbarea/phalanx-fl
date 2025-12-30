@@ -1,23 +1,21 @@
-import time
-import numpy as np
-import flwr as fl
-import torch
+from __future__ import annotations
+
 import logging
 import os
+import time
+from typing import Any
 
-from typing import Optional, Union
-
+import flwr as fl
+import numpy as np
+import torch
+from flwr.common import EvaluateRes, FitRes, Parameters, Scalar
+from flwr.server.client_proxy import ClientProxy
+from flwr.server.strategy.aggregate import weighted_loss_avg
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
 
-from flwr.common import FitRes, Parameters, Scalar
-from flwr.server.strategy.aggregate import weighted_loss_avg
-from flwr.common import EvaluateRes
-from flwr.server.client_proxy import ClientProxy
-
-from src.output_handlers.directory_handler import DirectoryHandler
-
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.output_handlers.directory_handler import DirectoryHandler
 from src.utils.status_tracker import StatusTracker
 
 
@@ -35,14 +33,14 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
         num_krum_selections: int,
         begin_removing_from_round: int,
         strategy_history: SimulationStrategyHistory,
-        status_tracker: Optional[StatusTracker] = None,
+        status_tracker: StatusTracker | None = None,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
 
-        self.client_scores = {}
-        self.removed_client_ids = set()
+        self.client_scores: dict[Any, float] = {}
+        self.removed_client_ids: set[Any] = set()
         self.remove_clients = remove_clients
         self.num_of_malicious_clients = num_of_malicious_clients
         self.num_krum_selections = num_krum_selections
@@ -51,6 +49,7 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
         self.logger = logging.getLogger(f"multi_krum_{id(self)}")
         self.logger.setLevel(logging.INFO)
         out_dir = DirectoryHandler.dirname
+        assert out_dir is not None
         os.makedirs(out_dir, exist_ok=True)
         file_handler = logging.FileHandler(f"{out_dir}/output.log")
         console_handler = logging.StreamHandler()
@@ -84,19 +83,15 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
         return np.sqrt(squared_diff_sum)
 
     def _calculate_multi_krum_scores(
-        self, results: list[tuple[ClientProxy, FitRes]], distances: list[float]
+        self, results: list[tuple[ClientProxy, FitRes]], distances: np.ndarray
     ) -> list[float]:
         """Calculate Multi-Krum scores based on pairwise parameter distances."""
         param_data = [
-            fl.common.parameters_to_ndarrays(fit_res.parameters)
-            for _, fit_res in results
+            fl.common.parameters_to_ndarrays(fit_res.parameters) for _, fit_res in results
         ]
-        flat_param_data = [
-            np.concatenate([p.flatten() for p in params]) for params in param_data
-        ]
-        param_data = flat_param_data
-        num_clients = len(param_data)
-        param_size = len(param_data[0]) if param_data else 0
+        flat_param_data = [np.concatenate([p.flatten() for p in params]) for params in param_data]
+        num_clients = len(flat_param_data)
+        param_size = len(flat_param_data[0]) if flat_param_data else 0
         use_chunked = param_size > 50_000_000
 
         if use_chunked:
@@ -109,10 +104,10 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
             for j in range(i + 1, num_clients):
                 if use_chunked:
                     distances[i, j] = self._calculate_chunked_distance(
-                        param_data[i], param_data[j]
+                        flat_param_data[i], flat_param_data[j]
                     )
                 else:
-                    distances[i, j] = np.linalg.norm(param_data[i] - param_data[j])
+                    distances[i, j] = np.linalg.norm(flat_param_data[i] - flat_param_data[j])
                 distances[j, i] = distances[i, j]
 
         scores = []
@@ -127,8 +122,8 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
         self,
         server_round: int,
         results: list[tuple[ClientProxy, FitRes]],
-        failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
-    ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
+        failures: list[tuple[ClientProxy, FitRes] | BaseException],
+    ) -> tuple[Parameters | None, dict[str, Scalar]]:
         """Aggregate client model updates using the Multi-Krum algorithm.
 
         Computes Multi-Krum scores for each client based on pairwise parameter
@@ -233,28 +228,24 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
             return [(client, fit_ins) for client in available_clients.values()]
 
         client_scores = {
-            client_id: self.client_scores.get(client_id, 0)
-            for client_id in available_clients.keys()
+            client_id: self.client_scores.get(client_id, 0) for client_id in available_clients
         }
         self.removed_client_ids = set()
 
-        while (
-            len(self.removed_client_ids)
-            < len(self.client_scores) - self.num_krum_selections
-        ):
+        while len(self.removed_client_ids) < len(self.client_scores) - self.num_krum_selections:
             eligible_clients = {
                 cid: score
                 for cid, score in client_scores.items()
                 if cid not in self.removed_client_ids
             }
             if eligible_clients:
-                client_id_to_remove = max(eligible_clients, key=eligible_clients.get)
+                client_id_to_remove = max(eligible_clients, key=lambda x: eligible_clients[x])
                 self.removed_client_ids.add(client_id_to_remove)
 
         self.logger.info(
             f"Removed clients at round {self.current_round} are : {self.removed_client_ids}"
         )
-        selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
+        selected_client_ids = sorted(client_scores, key=lambda x: client_scores[x], reverse=True)
         fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
 
         self.strategy_history.update_client_participation(
@@ -267,12 +258,12 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
             if cid in available_clients
         ]
 
-    def aggregate_evaluate(
+    def aggregate_evaluate(  # type: ignore[override]
         self,
         server_round: int,
         results: list[tuple[ClientProxy, EvaluateRes]],
-        failures: list[tuple[Union[ClientProxy, EvaluateRes], BaseException]],
-    ) -> tuple[Optional[float], dict[str, Scalar]]:
+        failures: list[tuple[ClientProxy | EvaluateRes, BaseException]],
+    ) -> tuple[float | None, dict[str, Scalar]]:
         """Aggregate client evaluation results and record metrics.
 
         Records per-client accuracy and loss to strategy_history. Computes
@@ -286,9 +277,7 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
         Returns:
             Tuple of (aggregated loss, metrics dict).
         """
-        self.logger.info(
-            "\n" + "-" * 50 + f"AGGREGATION ROUND {server_round}" + "-" * 50
-        )
+        self.logger.info("\n" + "-" * 50 + f"AGGREGATION ROUND {server_round}" + "-" * 50)
 
         for client_result in results:
             cid = client_result[0].cid
@@ -298,7 +287,7 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
             self.strategy_history.insert_single_client_history_entry(
                 client_id=int(cid),
                 current_round=self.current_round,
-                accuracy=accuracy_matrix["accuracy"],
+                accuracy=float(accuracy_matrix.get("accuracy", 0.0)),
             )
 
         if not results:
@@ -319,16 +308,14 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
                 number_of_clients_in_loss_calc += 1
 
         loss_aggregated = weighted_loss_avg(aggregate_value)
-        self.strategy_history.insert_round_history_entry(
-            loss_aggregated=loss_aggregated
-        )
+        self.strategy_history.insert_round_history_entry(loss_aggregated=loss_aggregated)
 
         for result in results:
             logging.debug(f"Client ID: {result[0].cid}")
             logging.debug(f"Metrics: {result[1].metrics}")
             logging.debug(f"Loss: {result[1].loss}")
 
-        metrics_aggregated = {}
+        metrics_aggregated: dict[str, Any] = {}
 
         self.logger.info(
             f"Round: {server_round} "

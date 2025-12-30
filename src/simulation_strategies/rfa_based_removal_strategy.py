@@ -1,16 +1,18 @@
-import time
-import numpy as np
-import flwr as fl
-import torch
+from __future__ import annotations
+
 import logging
-from typing import Optional, Union
+import time
+from typing import Any
+
+import flwr as fl
+import numpy as np
+import torch
+from flwr.common import EvaluateRes, FitRes, Parameters, Scalar
+from flwr.server.client_proxy import ClientProxy
+from flwr.server.strategy.aggregate import weighted_loss_avg
+from flwr.server.strategy.fedavg import FedAvg
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
-from flwr.common import FitRes, Parameters, Scalar
-from flwr.server.strategy.aggregate import weighted_loss_avg
-from flwr.common import EvaluateRes
-from flwr.server.client_proxy import ClientProxy
-from flwr.server.strategy.fedavg import FedAvg
 
 
 class RFABasedRemovalStrategy(FedAvg):
@@ -36,15 +38,15 @@ class RFABasedRemovalStrategy(FedAvg):
         self.begin_removing_from_round = begin_removing_from_round
         self.weighted_median_factor = weighted_median_factor
         self.current_round = 0
-        self.removed_client_ids = set()
-        self.client_scores = {}
+        self.removed_client_ids: set[Any] = set()
+        self.client_scores: dict[Any, float] = {}
 
     def aggregate_fit(
         self,
         server_round: int,
         results: list[tuple[ClientProxy, FitRes]],
-        failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
-    ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
+        failures: list[tuple[ClientProxy, FitRes] | BaseException],
+    ) -> tuple[Parameters | None, dict[str, Scalar]]:
         """Aggregate client updates using Robust Federated Averaging.
 
         Computes the geometric median of client parameters for robust
@@ -80,8 +82,7 @@ class RFABasedRemovalStrategy(FedAvg):
             return super().aggregate_fit(server_round, results, failures)
 
         param_data = [
-            fl.common.parameters_to_ndarrays(fit_res.parameters)
-            for _, fit_res in aggregate_clients
+            fl.common.parameters_to_ndarrays(fit_res.parameters) for _, fit_res in aggregate_clients
         ]
         stacked_params = np.stack(
             [np.concatenate([p.flatten() for p in params]) for params in param_data]
@@ -114,7 +115,7 @@ class RFABasedRemovalStrategy(FedAvg):
 
         for i, (client_proxy, _) in enumerate(aggregate_clients):
             client_id = client_proxy.cid
-            deviation = np.linalg.norm(stacked_params[i] - weighted_geometric_median)
+            deviation = float(np.linalg.norm(stacked_params[i] - weighted_geometric_median))
             self.client_scores[client_id] = deviation
 
             logging.info(
@@ -138,10 +139,8 @@ class RFABasedRemovalStrategy(FedAvg):
             )
             aggregated_parameters_list.append(aggregated_param)
             start_idx += param_size
-        aggregated_parameters = fl.common.ndarrays_to_parameters(
-            aggregated_parameters_list
-        )
-        aggregated_metrics = {}
+        aggregated_parameters = fl.common.ndarrays_to_parameters(aggregated_parameters_list)
+        aggregated_metrics: dict[str, Any] = {}
 
         return aggregated_parameters, aggregated_metrics
 
@@ -188,18 +187,17 @@ class RFABasedRemovalStrategy(FedAvg):
             return [(client, fit_ins) for client in available_clients.values()]
 
         client_scores = {
-            client_id: self.client_scores.get(client_id, 0)
-            for client_id in available_clients.keys()
+            client_id: self.client_scores.get(client_id, 0) for client_id in available_clients
         }
 
         if self.remove_clients:
-            client_id = max(client_scores, key=client_scores.get)
+            client_id = max(client_scores, key=lambda x: client_scores[x])
             logging.info(f"Removing client with highest deviation: {client_id}")
             self.removed_client_ids.add(client_id)
 
         logging.info(f"removed clients are : {self.removed_client_ids}")
 
-        selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
+        selected_client_ids = sorted(client_scores, key=lambda x: client_scores[x], reverse=True)
         fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
 
         self.strategy_history.update_client_participation(
@@ -212,12 +210,12 @@ class RFABasedRemovalStrategy(FedAvg):
             if cid in available_clients
         ]
 
-    def aggregate_evaluate(
+    def aggregate_evaluate(  # type: ignore[override]
         self,
         server_round: int,
         results: list[tuple[ClientProxy, EvaluateRes]],
-        failures: list[tuple[Union[ClientProxy, EvaluateRes], BaseException]],
-    ) -> tuple[Optional[float], dict[str, Scalar]]:
+        failures: list[tuple[ClientProxy | EvaluateRes, BaseException]],
+    ) -> tuple[float | None, dict[str, Scalar]]:
         """Aggregate client evaluation results and record metrics.
 
         Records per-client accuracy and loss to strategy_history. Computes
@@ -270,16 +268,14 @@ class RFABasedRemovalStrategy(FedAvg):
 
         loss_aggregated = weighted_loss_avg(aggregate_value)
 
-        self.strategy_history.insert_round_history_entry(
-            loss_aggregated=loss_aggregated
-        )
+        self.strategy_history.insert_round_history_entry(loss_aggregated=loss_aggregated)
 
         for result in results:
             logging.debug(f"Client ID: {result[0].cid}")
             logging.debug(f"Metrics: {result[1].metrics}")
             logging.debug(f"Loss: {result[1].loss}")
 
-        metrics_aggregated = {}
+        metrics_aggregated: dict[str, Any] = {}
 
         logging.info(
             f"Round: {server_round} "
