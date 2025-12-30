@@ -1,12 +1,13 @@
 import argparse
+import gc
 import json
 import logging
 import os
 import time
 from pathlib import Path
-import torch
-import gc
+
 import ray
+import torch
 
 # Suppress joblib CPU count warnings
 os.environ["LOKY_MAX_CPU_COUNT"] = str(os.cpu_count() or 1)
@@ -21,12 +22,12 @@ from src.dataset_handlers.dataset_handler import DatasetHandler
 from src.federated_simulation import FederatedSimulation
 from src.output_handlers import new_plot_handler
 from src.output_handlers.directory_handler import DirectoryHandler
-from src.utils.status_tracker import StatusTracker
 from src.utils.ray_logger import (
     RaySimulationMonitor,
     check_ray_cluster_health,
     log_ray_worker_event,
 )
+from src.utils.status_tracker import StatusTracker
 
 
 def _serialize_config_for_logging(config_dict: dict) -> str:
@@ -78,15 +79,11 @@ class SimulationRunner:
             usecase_config_path=str(config_path),
             dataset_config_path="config/dataset_keyword_to_dataset_dir.json",
         )
-        self._simulation_strategy_config_dicts = (
-            self._config_loader.get_usecase_config_list()
-        )
+        self._simulation_strategy_config_dicts = self._config_loader.get_usecase_config_list()
         self._dataset_config_list = self._config_loader.get_dataset_config_list()
         config_parent = config_path.parent.resolve()
         out_dir = Path("out").resolve()
-        if config_parent != Path(".").resolve() and str(config_parent).startswith(
-            str(out_dir)
-        ):
+        if config_parent != Path(".").resolve() and str(config_parent).startswith(str(out_dir)):
             self._directory_handler = DirectoryHandler(output_dir=str(config_parent))
         else:
             self._directory_handler = DirectoryHandler()
@@ -95,16 +92,15 @@ class SimulationRunner:
         """Run simulations according to the specified usecase config"""
 
         # Extend Ray worker timeout to ensure reliability in multi-strategy runs
-        os.environ["RAY_worker_register_timeout_seconds"] = "60"
+        os.environ["RAY_WORKER_REGISTER_TIMEOUT_SECONDS"] = "60"
         os.environ["RAY_ENABLE_RECORD_ACTOR_TASK_LOGGING"] = "1"
-        logging.debug(
-            "Set RAY_worker_register_timeout_seconds=60 for multi-strategy reliability"
-        )
+        logging.debug("Set RAY_worker_register_timeout_seconds=60 for multi-strategy reliability")
 
         first_config = self._simulation_strategy_config_dicts[0]
         total_rounds = first_config.get("num_of_rounds", 10)
         total_strategies = len(self._simulation_strategy_config_dicts)
 
+        assert self._directory_handler.dirname is not None
         status_tracker = StatusTracker(
             output_dir=Path(self._directory_handler.dirname),
             total_rounds=total_rounds,
@@ -153,7 +149,7 @@ class SimulationRunner:
                     )
 
                     strategy_config = StrategyConfig.from_dict(strategy_config_dict)
-                    setattr(strategy_config, "strategy_number", strategy_number)
+                    strategy_config.strategy_number = strategy_number
 
                     self._directory_handler.assign_dataset_dir(strategy_number)
 
@@ -164,6 +160,7 @@ class SimulationRunner:
                     )
                     dataset_handler.setup_dataset()
 
+                    assert self._directory_handler.dataset_dir is not None
                     simulation_strategy = FederatedSimulation(
                         strategy_config=strategy_config,
                         dataset_dir=self._directory_handler.dataset_dir,
@@ -234,9 +231,7 @@ class SimulationRunner:
                         time.sleep(3.0)
                         logging.debug("Ray shutdown complete after 3s cleanup delay")
 
-                    logging.debug(
-                        f"Cleaning up resources after strategy {strategy_number}"
-                    )
+                    logging.debug(f"Cleaning up resources after strategy {strategy_number}")
 
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
@@ -273,9 +268,7 @@ class SimulationRunner:
 
             ray_monitor.record_error(e)
             summary = ray_monitor.stop(success=False)
-            logging.error(
-                f"Ray simulation failed. Total errors: {summary.get('total_errors', 0)}"
-            )
+            logging.error(f"Ray simulation failed. Total errors: {summary.get('total_errors', 0)}")
 
             raise
 

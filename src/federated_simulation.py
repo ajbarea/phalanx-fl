@@ -1,33 +1,39 @@
+from __future__ import annotations
+
+import logging
+import sys
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+import flwr
+import torch.nn as nn
+from flwr.client import Client
+from flwr.common import ndarrays_to_parameters
+from peft import PeftModel, get_peft_model_state_dict
+
 from src.attack_utils.snapshot_html_reports import (
     generate_snapshot_index,
     generate_summary_json,
 )
-import logging
-import sys
-import flwr
-from pathlib import Path
-from flwr.client import Client
-from flwr.common import ndarrays_to_parameters
-from peft import PeftModel, get_peft_model_state_dict
-from src.utils.gpu_monitor import GPUMemoryMonitor
-from src.utils.status_tracker import StatusTracker
-from typing import Optional
-from src.dataset_loaders.image_dataset_loader import ImageDatasetLoader
-from src.dataset_loaders.image_transformers.its_image_transformer import (
-    its_image_transformer,
+from src.client_models.flower_client import FlowerClient
+from src.data_models.simulation_strategy_config import StrategyConfig
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.dataset_handlers.dataset_handler import DatasetHandler
+from src.dataset_loaders.huggingface_text_dataset_loader import (
+    HuggingFaceTextDatasetLoader,
 )
+from src.dataset_loaders.image_dataset_loader import ImageDatasetLoader
 from src.dataset_loaders.image_transformers.femnist_image_transformer import (
     femnist_image_transformer,
 )
 from src.dataset_loaders.image_transformers.flair_image_transformer import (
     flair_image_transformer,
 )
+from src.dataset_loaders.image_transformers.its_image_transformer import (
+    its_image_transformer,
+)
 from src.dataset_loaders.image_transformers.lung_photos_image_transformer import (
     lung_cancer_image_transformer,
-)
-from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
-from src.dataset_loaders.huggingface_text_dataset_loader import (
-    HuggingFaceTextDatasetLoader,
 )
 from src.dataset_loaders.image_transformers.medmnist_2d_grayscale_image_transformer import (
     medmnist_2d_grayscale_image_transformer,
@@ -35,57 +41,61 @@ from src.dataset_loaders.image_transformers.medmnist_2d_grayscale_image_transfor
 from src.dataset_loaders.image_transformers.medmnist_2d_rgb_image_transformer import (
     medmnist_2d_rgb_image_transformer,
 )
-from src.network_models.its_network_definition import ITSNetwork
-from src.network_models.femnist_reduced_iid_network_definition import (
-    FemnistReducedIIDNetwork,
-)
+from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
+from src.network_models.bert_model_definition import load_model, load_model_with_lora
+from src.network_models.bloodmnist_network_definition import BloodMNISTNetwork
+from src.network_models.breastmnist_network_definition import BreastMNISTNetwork
+from src.network_models.dermamnist_network_definition import DermaMNISTNetwork
 from src.network_models.femnist_full_niid_network_definition import (
     FemnistFullNIIDNetwork,
 )
+from src.network_models.femnist_reduced_iid_network_definition import (
+    FemnistReducedIIDNetwork,
+)
 from src.network_models.flair_network_definition import FlairNetwork
+from src.network_models.its_network_definition import ITSNetwork
 from src.network_models.lung_photos_network_definition import LungCancerCNN
-from src.network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
-from src.network_models.bloodmnist_network_definition import BloodMNISTNetwork
-from src.network_models.breastmnist_network_definition import BreastMNISTNetwork
-from src.network_models.pathmnist_network_definition import PathMNISTNetwork
-from src.network_models.dermamnist_network_definition import DermaMNISTNetwork
 from src.network_models.octmnist_network_definition import OctMNISTNetwork
-from src.network_models.retinamnist_network_definition import RetinaMNISTNetwork
-from src.network_models.tissuemnist_network_definition import TissueMNISTNetwork
 from src.network_models.organamnist_network_definition import OrganAMNISTNetwork
 from src.network_models.organcmnist_network_definition import OrganCMNISTNetwork
 from src.network_models.organsmnist_network_definition import OrganSMNISTNetwork
-from src.network_models.bert_model_definition import load_model, load_model_with_lora
-from src.client_models.flower_client import FlowerClient
-from src.simulation_strategies.trust_based_removal_strategy import (
-    TrustBasedRemovalStrategy,
-)
-from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+from src.network_models.pathmnist_network_definition import PathMNISTNetwork
+from src.network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
+from src.network_models.retinamnist_network_definition import RetinaMNISTNetwork
+from src.network_models.tissuemnist_network_definition import TissueMNISTNetwork
+from src.simulation_strategies.arkrum_strategy import ArKrumStrategy
+from src.simulation_strategies.bulyan_strategy import BulyanStrategy
+from src.simulation_strategies.fedavg_strategy import FedAvgStrategy
 from src.simulation_strategies.krum_based_removal_strategy import (
     KrumBasedRemovalStrategy,
 )
 from src.simulation_strategies.multi_krum_based_removal_strategy import (
     MultiKrumBasedRemovalStrategy,
 )
+from src.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
+from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 from src.simulation_strategies.trimmed_mean_based_removal_strategy import (
     TrimmedMeanBasedRemovalStrategy,
 )
-from src.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
-from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
-from src.simulation_strategies.bulyan_strategy import BulyanStrategy
-from src.simulation_strategies.arkrum_strategy import ArKrumStrategy
-from src.simulation_strategies.fedavg_strategy import FedAvgStrategy
-from src.data_models.simulation_strategy_config import StrategyConfig
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.dataset_handlers.dataset_handler import DatasetHandler
+from src.simulation_strategies.trust_based_removal_strategy import (
+    TrustBasedRemovalStrategy,
+)
+from src.utils.gpu_monitor import GPUMemoryMonitor
+from src.utils.status_tracker import StatusTracker
+
+if TYPE_CHECKING:
+    from torch.utils.data import DataLoader
+
+    from src.output_handlers.directory_handler import DirectoryHandler
 
 
-def weighted_average(metrics: list[tuple[int, dict]]) -> dict:
+def weighted_average(metrics: list[tuple[int, dict[str, Any]]]) -> dict[str, Any]:
     """Compute weighted average of metrics from multiple clients."""
     if not metrics:
         return {}
 
-    metric_names = set()
+    metric_names: set[str] = set()
     for _, client_metrics in metrics:
         metric_names.update(client_metrics.keys())
 
@@ -111,11 +121,11 @@ class FederatedSimulation:
         strategy_config: StrategyConfig,
         dataset_dir: str,
         dataset_handler: DatasetHandler,
-        directory_handler=None,
-        status_tracker: Optional[StatusTracker] = None,
+        directory_handler: DirectoryHandler | None = None,
+        status_tracker: StatusTracker | None = None,
     ):
         self.strategy_config = strategy_config
-        self.rounds_history = None
+        self.rounds_history: Any = None
 
         self.dataset_handler = dataset_handler
         self.directory_handler = directory_handler
@@ -125,15 +135,19 @@ class FederatedSimulation:
             strategy_config=self.strategy_config, dataset_handler=self.dataset_handler
         )
 
+        # Assert training_device is not None for GPUMemoryMonitor
+        assert self.strategy_config.training_device is not None, "training_device must be set"
         self.gpu_monitor = GPUMemoryMonitor(self.strategy_config.training_device)
         self._dataset_dir = dataset_dir
 
-        self._network_model = None
-        self._aggregation_strategy = None
-        self._dataset_loader = None
+        self._network_model: nn.Module | None = None
+        self._aggregation_strategy: flwr.server.strategy.Strategy | None = None
+        self._dataset_loader: (
+            ImageDatasetLoader | MedQuADDatasetLoader | HuggingFaceTextDatasetLoader | None
+        ) = None
 
-        self._trainloaders = None
-        self._valloaders = None
+        self._trainloaders: list[DataLoader[Any]] | None = None
+        self._valloaders: list[DataLoader[Any]] | None = None
 
         self._assign_all_properties()
 
@@ -141,12 +155,15 @@ class FederatedSimulation:
         """Start federated simulation"""
         self.gpu_monitor.log_memory_usage("before simulation start")
 
+        # Assert required config values are set
+        assert self.strategy_config.num_of_rounds is not None, "num_of_rounds must be set"
+        assert self.strategy_config.cpus_per_client is not None, "cpus_per_client must be set"
+        assert self.strategy_config.gpus_per_client is not None, "gpus_per_client must be set"
+
         flwr.simulation.start_simulation(
             client_fn=self.client_fn,
             num_clients=self.strategy_config.num_of_clients,
-            config=flwr.server.ServerConfig(
-                num_rounds=self.strategy_config.num_of_rounds
-            ),
+            config=flwr.server.ServerConfig(num_rounds=self.strategy_config.num_of_rounds),
             strategy=self._aggregation_strategy,
             client_resources={
                 "num_cpus": self.strategy_config.cpus_per_client,
@@ -159,9 +176,9 @@ class FederatedSimulation:
 
         if self.strategy_config.attack_schedule and self.directory_handler:
             output_dir = getattr(self.directory_handler, "dirname", None)
-            if output_dir:
+            if output_dir and self.strategy_config.strategy_number is not None:
                 try:
-                    run_config = {
+                    run_config: dict[str, int | None] = {
                         "num_of_clients": self.strategy_config.num_of_clients,
                         "num_of_rounds": self.strategy_config.num_of_rounds,
                     }
@@ -172,9 +189,7 @@ class FederatedSimulation:
                         output_dir, run_config, self.strategy_config.strategy_number
                     )
                 except Exception as e:
-                    logging.warning(
-                        f"Failed to generate attack snapshot index/summary: {e}"
-                    )
+                    logging.warning(f"Failed to generate attack snapshot index/summary: {e}")
 
     def _assign_all_properties(self) -> None:
         """Assign simulation properties based on strategy_dict"""
@@ -186,121 +201,105 @@ class FederatedSimulation:
         """Assign dataset loader and the corresponding network model"""
 
         dataset_keyword = self.strategy_config.dataset_keyword
+
+        # Assert required config values are set
+        assert self.strategy_config.num_of_clients is not None, "num_of_clients must be set"
+        assert self.strategy_config.batch_size is not None, "batch_size must be set"
+        assert self.strategy_config.training_subset_fraction is not None, (
+            "training_subset_fraction must be set"
+        )
+
         num_of_clients = self.strategy_config.num_of_clients
         batch_size = self.strategy_config.batch_size
         training_subset_fraction = self.strategy_config.training_subset_fraction
 
-        common_kwargs = dict(
-            dataset_dir=self._dataset_dir,
-            num_of_clients=num_of_clients,
-            batch_size=batch_size,
-            training_subset_fraction=training_subset_fraction,
-        )
+        dataset_loader: ImageDatasetLoader | MedQuADDatasetLoader | HuggingFaceTextDatasetLoader
+
+        # Helper function to create ImageDatasetLoader with common params
+        def create_image_loader(transformer: Any) -> ImageDatasetLoader:
+            return ImageDatasetLoader(
+                transformer=transformer,
+                dataset_dir=self._dataset_dir,
+                num_of_clients=num_of_clients,
+                batch_size=batch_size,
+                training_subset_fraction=training_subset_fraction,
+            )
 
         if dataset_keyword == "its":
-            dataset_loader = ImageDatasetLoader(
-                transformer=its_image_transformer, **common_kwargs
-            )
+            dataset_loader = create_image_loader(its_image_transformer)
             self._network_model = ITSNetwork()
 
         elif dataset_keyword == "femnist_iid":
-            dataset_loader = ImageDatasetLoader(
-                transformer=femnist_image_transformer, **common_kwargs
-            )
+            dataset_loader = create_image_loader(femnist_image_transformer)
             self._network_model = FemnistReducedIIDNetwork()
 
         elif dataset_keyword == "femnist_niid":
-            dataset_loader = ImageDatasetLoader(
-                transformer=femnist_image_transformer, **common_kwargs
-            )
+            dataset_loader = create_image_loader(femnist_image_transformer)
             self._network_model = FemnistFullNIIDNetwork()
 
         elif dataset_keyword == "flair":
-            dataset_loader = ImageDatasetLoader(
-                transformer=flair_image_transformer, **common_kwargs
-            )
+            dataset_loader = create_image_loader(flair_image_transformer)
             self._network_model = FlairNetwork()
 
         elif dataset_keyword == "pneumoniamnist":
-            dataset_loader = ImageDatasetLoader(
-                transformer=medmnist_2d_grayscale_image_transformer, **common_kwargs
-            )
+            dataset_loader = create_image_loader(medmnist_2d_grayscale_image_transformer)
             self._network_model = PneumoniamnistNetwork()
 
         elif dataset_keyword == "bloodmnist":
-            dataset_loader = ImageDatasetLoader(
-                transformer=medmnist_2d_rgb_image_transformer, **common_kwargs
-            )
+            dataset_loader = create_image_loader(medmnist_2d_rgb_image_transformer)
             self._network_model = BloodMNISTNetwork()
 
         elif dataset_keyword == "breastmnist":
-            dataset_loader = ImageDatasetLoader(
-                transformer=medmnist_2d_grayscale_image_transformer, **common_kwargs
-            )
+            dataset_loader = create_image_loader(medmnist_2d_grayscale_image_transformer)
             self._network_model = BreastMNISTNetwork()
 
         elif dataset_keyword == "pathmnist":
-            dataset_loader = ImageDatasetLoader(
-                transformer=medmnist_2d_rgb_image_transformer, **common_kwargs
-            )
+            dataset_loader = create_image_loader(medmnist_2d_rgb_image_transformer)
             self._network_model = PathMNISTNetwork()
 
         elif dataset_keyword == "dermamnist":
-            dataset_loader = ImageDatasetLoader(
-                transformer=medmnist_2d_rgb_image_transformer, **common_kwargs
-            )
+            dataset_loader = create_image_loader(medmnist_2d_rgb_image_transformer)
             self._network_model = DermaMNISTNetwork()
 
         elif dataset_keyword == "octmnist":
-            dataset_loader = ImageDatasetLoader(
-                transformer=medmnist_2d_grayscale_image_transformer, **common_kwargs
-            )
+            dataset_loader = create_image_loader(medmnist_2d_grayscale_image_transformer)
             self._network_model = OctMNISTNetwork()
 
         elif dataset_keyword == "retinamnist":
-            dataset_loader = ImageDatasetLoader(
-                transformer=medmnist_2d_rgb_image_transformer, **common_kwargs
-            )
+            dataset_loader = create_image_loader(medmnist_2d_rgb_image_transformer)
             self._network_model = RetinaMNISTNetwork()
 
         elif dataset_keyword == "tissuemnist":
-            dataset_loader = ImageDatasetLoader(
-                transformer=medmnist_2d_grayscale_image_transformer, **common_kwargs
-            )
+            dataset_loader = create_image_loader(medmnist_2d_grayscale_image_transformer)
             self._network_model = TissueMNISTNetwork()
 
         elif dataset_keyword == "organamnist":
-            dataset_loader = ImageDatasetLoader(
-                transformer=medmnist_2d_grayscale_image_transformer, **common_kwargs
-            )
+            dataset_loader = create_image_loader(medmnist_2d_grayscale_image_transformer)
             self._network_model = OrganAMNISTNetwork()
 
         elif dataset_keyword == "organcmnist":
-            dataset_loader = ImageDatasetLoader(
-                transformer=medmnist_2d_grayscale_image_transformer, **common_kwargs
-            )
+            dataset_loader = create_image_loader(medmnist_2d_grayscale_image_transformer)
             self._network_model = OrganCMNISTNetwork()
 
         elif dataset_keyword == "organsmnist":
-            dataset_loader = ImageDatasetLoader(
-                transformer=medmnist_2d_grayscale_image_transformer, **common_kwargs
-            )
+            dataset_loader = create_image_loader(medmnist_2d_grayscale_image_transformer)
             self._network_model = OrganSMNISTNetwork()
 
         elif dataset_keyword == "lung_photos":
-            dataset_loader = ImageDatasetLoader(
-                transformer=lung_cancer_image_transformer, **common_kwargs
-            )
+            dataset_loader = create_image_loader(lung_cancer_image_transformer)
             self._network_model = LungCancerCNN()
 
         elif dataset_keyword == "medquad":
             dataset_loader = MedQuADDatasetLoader(
-                model_name=self.strategy_config.llm_model,
-                chunk_size=self.strategy_config.llm_chunk_size,
-                mlm_probability=self.strategy_config.mlm_probability,
-                num_poisoned_clients=self.strategy_config.num_of_malicious_clients,
+                dataset_dir=self._dataset_dir,
+                num_of_clients=num_of_clients,
+                training_subset_fraction=training_subset_fraction,
+                model_name=self.strategy_config.llm_model,  # type: ignore[arg-type]
+                batch_size=batch_size,
+                chunk_size=self.strategy_config.llm_chunk_size,  # type: ignore[arg-type]
+                mlm_probability=self.strategy_config.mlm_probability,  # type: ignore[arg-type]
+                num_poisoned_clients=self.strategy_config.num_of_malicious_clients or 0,
                 attack_schedule=self.strategy_config.attack_schedule,
-                **common_kwargs,
             )
             if self.strategy_config.llm_finetuning == "lora":
                 self._network_model = load_model_with_lora(
@@ -321,12 +320,15 @@ class FederatedSimulation:
                 hf_dataset_name="sentences_allagree",
                 tokenize_columns=["sentence"],
                 remove_columns=["sentence", "label"],
-                model_name=self.strategy_config.llm_model,
-                chunk_size=self.strategy_config.llm_chunk_size,
-                mlm_probability=self.strategy_config.mlm_probability,
-                num_poisoned_clients=self.strategy_config.num_of_malicious_clients,
+                dataset_dir=self._dataset_dir,
+                num_of_clients=num_of_clients,
+                training_subset_fraction=training_subset_fraction,
+                model_name=self.strategy_config.llm_model,  # type: ignore[arg-type]
+                batch_size=batch_size,
+                chunk_size=self.strategy_config.llm_chunk_size,  # type: ignore[arg-type]
+                mlm_probability=self.strategy_config.mlm_probability,  # type: ignore[arg-type]
+                num_poisoned_clients=self.strategy_config.num_of_malicious_clients or 0,
                 attack_schedule=self.strategy_config.attack_schedule,
-                **common_kwargs,
             )
             if self.strategy_config.llm_finetuning == "lora":
                 self._network_model = load_model_with_lora(
@@ -347,12 +349,15 @@ class FederatedSimulation:
                 hf_dataset_name="ledgar",
                 tokenize_columns=["text"],
                 remove_columns=["text", "label"],
-                model_name=self.strategy_config.llm_model,
-                chunk_size=self.strategy_config.llm_chunk_size,
-                mlm_probability=self.strategy_config.mlm_probability,
-                num_poisoned_clients=self.strategy_config.num_of_malicious_clients,
+                dataset_dir=self._dataset_dir,
+                num_of_clients=num_of_clients,
+                training_subset_fraction=training_subset_fraction,
+                model_name=self.strategy_config.llm_model,  # type: ignore[arg-type]
+                batch_size=batch_size,
+                chunk_size=self.strategy_config.llm_chunk_size,  # type: ignore[arg-type]
+                mlm_probability=self.strategy_config.mlm_probability,  # type: ignore[arg-type]
+                num_poisoned_clients=self.strategy_config.num_of_malicious_clients or 0,
                 attack_schedule=self.strategy_config.attack_schedule,
-                **common_kwargs,
             )
             if self.strategy_config.llm_finetuning == "lora":
                 self._network_model = load_model_with_lora(
@@ -386,12 +391,15 @@ class FederatedSimulation:
                     "pubmed_id",
                     "split",
                 ],
-                model_name=self.strategy_config.llm_model,
-                chunk_size=self.strategy_config.llm_chunk_size,
-                mlm_probability=self.strategy_config.mlm_probability,
+                dataset_dir=self._dataset_dir,
+                num_of_clients=num_of_clients,
+                training_subset_fraction=training_subset_fraction,
+                model_name=self.strategy_config.llm_model,  # type: ignore[arg-type]
+                batch_size=batch_size,
+                chunk_size=self.strategy_config.llm_chunk_size,  # type: ignore[arg-type]
+                mlm_probability=self.strategy_config.mlm_probability,  # type: ignore[arg-type]
                 attack_schedule=self.strategy_config.attack_schedule,
                 max_samples=max_samples,
-                **common_kwargs,
             )
             if self.strategy_config.llm_finetuning == "lora":
                 self._network_model = load_model_with_lora(
@@ -423,31 +431,33 @@ class FederatedSimulation:
 
         eval_fn = (
             weighted_average
-            if self.strategy_config.evaluate_metrics_aggregation_fn
-            == "weighted_average"
+            if self.strategy_config.evaluate_metrics_aggregation_fn == "weighted_average"
             else None
         )
 
-        common_kwargs = dict(
-            initial_parameters=ndarrays_to_parameters(
+        # Assert network model is set
+        assert self._network_model is not None, "_network_model must be set before strategy"
+
+        common_kwargs: dict[str, Any] = {
+            "initial_parameters": ndarrays_to_parameters(
                 self._get_model_params(self._network_model)
             ),
-            min_fit_clients=self.strategy_config.min_fit_clients,
-            min_evaluate_clients=self.strategy_config.min_evaluate_clients,
-            min_available_clients=self.strategy_config.min_available_clients,
-            evaluate_metrics_aggregation_fn=eval_fn,
-            fit_metrics_aggregation_fn=weighted_average,
-            remove_clients=self.strategy_config.remove_clients,
-            begin_removing_from_round=self.strategy_config.begin_removing_from_round,
-            strategy_history=self.strategy_history,
-            status_tracker=self.status_tracker,
-        )
+            "min_fit_clients": self.strategy_config.min_fit_clients,
+            "min_evaluate_clients": self.strategy_config.min_evaluate_clients,
+            "min_available_clients": self.strategy_config.min_available_clients,
+            "evaluate_metrics_aggregation_fn": eval_fn,
+            "fit_metrics_aggregation_fn": weighted_average,
+            "remove_clients": self.strategy_config.remove_clients,
+            "begin_removing_from_round": self.strategy_config.begin_removing_from_round,
+            "strategy_history": self.strategy_history,
+            "status_tracker": self.status_tracker,
+        }
 
         if aggregation_strategy_keyword == "trust":
             self._aggregation_strategy = TrustBasedRemovalStrategy(
-                beta_value=self.strategy_config.beta_value,
-                trust_threshold=self.strategy_config.trust_threshold,
-                **common_kwargs,
+                beta_value=self.strategy_config.beta_value,  # type: ignore[arg-type]
+                trust_threshold=self.strategy_config.trust_threshold,  # type: ignore[arg-type]
+                **common_kwargs,  # type: ignore[arg-type]
             )
         elif aggregation_strategy_keyword in (
             "pid",
@@ -456,56 +466,56 @@ class FederatedSimulation:
             "pid_standardized_score_based",
         ):
             self._aggregation_strategy = PIDBasedRemovalStrategy(
-                ki=self.strategy_config.Ki,
-                kp=self.strategy_config.Kp,
-                kd=self.strategy_config.Kd,
-                num_std_dev=self.strategy_config.num_std_dev,
+                ki=self.strategy_config.Ki,  # type: ignore[arg-type]
+                kp=self.strategy_config.Kp,  # type: ignore[arg-type]
+                kd=self.strategy_config.Kd,  # type: ignore[arg-type]
+                num_std_dev=self.strategy_config.num_std_dev,  # type: ignore[arg-type]
                 network_model=self._network_model,
                 aggregation_strategy_keyword=aggregation_strategy_keyword,
-                use_lora=True
-                if self.strategy_config.use_llm
-                and self.strategy_config.llm_finetuning == "lora"
-                else False,
-                **common_kwargs,
+                use_lora=bool(
+                    self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora"
+                ),
+                **common_kwargs,  # type: ignore[arg-type]
             )
         elif aggregation_strategy_keyword == "krum":
             self._aggregation_strategy = KrumBasedRemovalStrategy(
-                num_malicious_clients=self.strategy_config.num_of_malicious_clients,
-                num_krum_selections=self.strategy_config.num_krum_selections,
-                **common_kwargs,
+                num_malicious_clients=self.strategy_config.num_of_malicious_clients,  # type: ignore[arg-type]
+                num_krum_selections=self.strategy_config.num_krum_selections,  # type: ignore[arg-type]
+                **common_kwargs,  # type: ignore[arg-type]
             )
         elif aggregation_strategy_keyword == "multi-krum-based":
             self._aggregation_strategy = MultiKrumBasedRemovalStrategy(
-                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
-                num_krum_selections=self.strategy_config.num_krum_selections,
-                **common_kwargs,
+                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,  # type: ignore[arg-type]
+                num_krum_selections=self.strategy_config.num_krum_selections,  # type: ignore[arg-type]
+                **common_kwargs,  # type: ignore[arg-type]
             )
         elif aggregation_strategy_keyword == "multi-krum":
             self._aggregation_strategy = MultiKrumStrategy(
-                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
-                num_krum_selections=self.strategy_config.num_krum_selections,
-                **common_kwargs,
+                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,  # type: ignore[arg-type]
+                num_krum_selections=self.strategy_config.num_krum_selections,  # type: ignore[arg-type]
+                **common_kwargs,  # type: ignore[arg-type]
             )
         elif aggregation_strategy_keyword == "trimmed_mean":
             self._aggregation_strategy = TrimmedMeanBasedRemovalStrategy(
-                trim_ratio=self.strategy_config.trim_ratio, **common_kwargs
+                trim_ratio=self.strategy_config.trim_ratio,  # type: ignore[arg-type]
+                **common_kwargs,  # type: ignore[arg-type]
             )
 
         elif aggregation_strategy_keyword == "rfa":
             self._aggregation_strategy = RFABasedRemovalStrategy(
-                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
-                **common_kwargs,
+                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,  # type: ignore[arg-type]
+                **common_kwargs,  # type: ignore[arg-type]
             )
 
         elif aggregation_strategy_keyword == "bulyan":
             self._aggregation_strategy = BulyanStrategy(
-                num_krum_selections=self.strategy_config.num_krum_selections,
-                **common_kwargs,
+                num_krum_selections=self.strategy_config.num_krum_selections,  # type: ignore[arg-type]
+                **common_kwargs,  # type: ignore[arg-type]
             )
 
         elif aggregation_strategy_keyword == "arkrum":
             self._aggregation_strategy = ArKrumStrategy(
-                **common_kwargs,
+                **common_kwargs,  # type: ignore[arg-type]
             )
 
         elif aggregation_strategy_keyword == "fedavg":
@@ -530,13 +540,15 @@ class FederatedSimulation:
     def client_fn(self, cid: str) -> Client:
         """Create a Flower client."""
 
+        # Assert required attributes are set
+        assert self._network_model is not None, "_network_model must be set"
+        assert self._trainloaders is not None, "_trainloaders must be set"
+        assert self._valloaders is not None, "_valloaders must be set"
+
         net = self._network_model.to(self.strategy_config.training_device)
 
-        use_lora = (
-            True
-            if self.strategy_config.use_llm
-            and self.strategy_config.llm_finetuning == "lora"
-            else False
+        use_lora = bool(
+            self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora"
         )
 
         trainloader = self._trainloaders[int(cid)]
@@ -546,13 +558,11 @@ class FederatedSimulation:
         if self.strategy_config.attack_schedule:
             attacks_schedule = self.strategy_config.attack_schedule
 
-        output_dir = None
+        output_dir: str | None = None
         if self.directory_handler:
             output_dir = getattr(self.directory_handler, "dirname", None)
 
-        save_attack_snapshots = getattr(
-            self.strategy_config, "save_attack_snapshots", False
-        )
+        save_attack_snapshots = getattr(self.strategy_config, "save_attack_snapshots", False)
         if isinstance(save_attack_snapshots, str):
             save_attack_snapshots = save_attack_snapshots == "true"
 
@@ -561,7 +571,7 @@ class FederatedSimulation:
         )
         snapshot_max_samples = getattr(self.strategy_config, "snapshot_max_samples", 5)
 
-        experiment_info = None
+        experiment_info: dict[str, Any] | None = None
         if output_dir:
             experiment_info = {
                 "run_id": Path(output_dir).name,
@@ -570,10 +580,11 @@ class FederatedSimulation:
             }
 
         tokenizer = None
-        if self.strategy_config.model_type == "transformer" and hasattr(
-            self._dataset_loader, "tokenizer"
-        ):
-            tokenizer = self._dataset_loader.tokenizer
+        if self.strategy_config.model_type == "transformer" and self._dataset_loader is not None:
+            tokenizer = getattr(self._dataset_loader, "tokenizer", None)
+
+        num_malicious = self.strategy_config.num_of_malicious_clients or 0
+        strategy_num = self.strategy_config.strategy_number or 0
 
         return FlowerClient(
             client_id=int(cid),
@@ -584,20 +595,20 @@ class FederatedSimulation:
             num_of_client_epochs=self.strategy_config.num_of_client_epochs,
             model_type=self.strategy_config.model_type,
             use_lora=use_lora,
-            num_malicious_clients=self.strategy_config.num_of_malicious_clients,
+            num_malicious_clients=num_malicious,
             attacks_schedule=attacks_schedule,
             save_attack_snapshots=save_attack_snapshots,
             attack_snapshot_format=attack_snapshot_format,
             snapshot_max_samples=snapshot_max_samples,
             output_dir=output_dir,
             experiment_info=experiment_info,
-            strategy_number=self.strategy_config.strategy_number,
+            strategy_number=strategy_num,
             tokenizer=tokenizer,
             learning_rate=getattr(self.strategy_config, "learning_rate", None),
         ).to_client()
 
     @staticmethod
-    def _get_model_params(model):
+    def _get_model_params(model: nn.Module) -> list[Any]:
         """
         Convert initial model params to suitable format.
         - For PEFT/LoRA models: return only LoRA adapter params
