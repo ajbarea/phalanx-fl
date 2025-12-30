@@ -1,26 +1,29 @@
+from __future__ import annotations
+
 import logging
+from collections import OrderedDict
+from pathlib import Path
 
 import flwr as fl
 import numpy as np
 import torch
+from flwr.common import NDArrays, Scalar
 
-from collections import OrderedDict
+from src.attack_utils.attack_snapshots import save_attack_snapshot, save_visual_snapshot
+from src.attack_utils.poisoning import apply_poisoning_attack, should_poison_this_round
+from src.attack_utils.snapshot_image_viz import save_weight_attack_prediction_grid
+from src.attack_utils.weight_poisoning import (
+    WEIGHT_ATTACK_TYPES,
+    apply_weight_poisoning,
+)
+from src.attack_utils.weight_snapshots import (
+    compute_weight_diff_statistics,
+    save_weight_snapshot,
+)
 from src.network_models.bert_model_definition import (
     get_peft_model_state_dict,
     set_peft_model_state_dict,
 )
-from src.attack_utils.poisoning import should_poison_this_round, apply_poisoning_attack
-from src.attack_utils.attack_snapshots import save_attack_snapshot, save_visual_snapshot
-from src.attack_utils.weight_poisoning import (
-    apply_weight_poisoning,
-    WEIGHT_ATTACK_TYPES,
-)
-from src.attack_utils.weight_snapshots import (
-    save_weight_snapshot,
-    compute_weight_diff_statistics,
-)
-from src.attack_utils.snapshot_image_viz import save_weight_attack_prediction_grid
-from pathlib import Path
 
 
 class FlowerClient(fl.client.NumPyClient):
@@ -86,9 +89,7 @@ class FlowerClient(fl.client.NumPyClient):
         # since they don't change input data (only model weights)
         data_attack_configs = [
             cfg
-            for cfg in (
-                attack_configs if isinstance(attack_configs, list) else [attack_configs]
-            )
+            for cfg in (attack_configs if isinstance(attack_configs, list) else [attack_configs])
             if cfg.get("attack_type") not in WEIGHT_ATTACK_TYPES
         ]
 
@@ -202,9 +203,7 @@ class FlowerClient(fl.client.NumPyClient):
 
         results = []
         for i in range(len(images)):
-            sample_preds = [
-                (top_preds[i, k].item(), top_confs[i, k].item()) for k in range(top_k)
-            ]
+            sample_preds = [(top_preds[i, k].item(), top_confs[i, k].item()) for k in range(top_k)]
             results.append(sample_preds)
 
         return results, probs.cpu().numpy()
@@ -224,7 +223,7 @@ class FlowerClient(fl.client.NumPyClient):
 
         if self.model_type == "cnn":
             criterion = torch.nn.CrossEntropyLoss()
-            optimizer = torch.optim.Adam(
+            optimizer: torch.optim.Optimizer = torch.optim.Adam(
                 net.parameters(), lr=self.learning_rate or 1e-3
             )
             net.train()
@@ -236,6 +235,10 @@ class FlowerClient(fl.client.NumPyClient):
             else:
                 # Default fallback
                 num_classes = 10
+
+            # Initialize before loop to avoid possibly unbound errors
+            epoch_loss: float = 0.0
+            epoch_acc: float = 0.0
 
             for epoch in range(epochs):
                 correct, total, epoch_loss = 0, 0, 0.0
@@ -293,15 +296,15 @@ class FlowerClient(fl.client.NumPyClient):
             return float(epoch_loss), float(epoch_acc)
 
         elif self.model_type == "transformer":
-            optimizer = torch.optim.AdamW(
-                net.parameters(), lr=self.learning_rate or 5e-5
-            )
+            optimizer = torch.optim.AdamW(net.parameters(), lr=self.learning_rate or 5e-5)
             net.train()
 
+            # Initialize before loop to avoid possibly unbound errors
+            epoch_loss = 0.0
+            epoch_acc = 0.0
+
             for epoch in range(epochs):
-                logging.debug(
-                    f"[Client {self.client_id}] Starting epoch {epoch + 1}/{epochs}"
-                )
+                logging.debug(f"[Client {self.client_id}] Starting epoch {epoch + 1}/{epochs}")
                 total_loss = 0
                 correct, total = 0, 0
 
@@ -315,13 +318,11 @@ class FlowerClient(fl.client.NumPyClient):
 
                         for attack_config in attack_configs:
                             if attack_config.get("attack_type") == "token_replacement":
-                                batch["input_ids"], batch["labels"] = (
-                                    apply_poisoning_attack(
-                                        batch["input_ids"],
-                                        batch["labels"],
-                                        attack_config,
-                                        tokenizer=self.tokenizer,
-                                    )
+                                batch["input_ids"], batch["labels"] = apply_poisoning_attack(
+                                    batch["input_ids"],
+                                    batch["labels"],
+                                    attack_config,
+                                    tokenizer=self.tokenizer,
                                 )
 
                         if epoch == 0 and batch_idx == 0:
@@ -340,17 +341,13 @@ class FlowerClient(fl.client.NumPyClient):
                     outputs = net(**batch)
                     loss = outputs.loss
 
-                    if (
-                        global_params is not None
-                        and self.client_id >= self.num_malicious_clients
-                    ):
+                    if global_params is not None and self.client_id >= self.num_malicious_clients:
                         local_params = [
                             torch.tensor(p, device=self.training_device)
-                            for p in self.get_parameters(config=None)
+                            for p in self.get_parameters(config={})
                         ]
                         prox_term = sum(
-                            torch.norm(lp - gp) ** 2
-                            for lp, gp in zip(local_params, global_params)
+                            torch.norm(lp - gp) ** 2 for lp, gp in zip(local_params, global_params)
                         )
                         loss = loss + (mu / 2) * prox_term
 
@@ -416,7 +413,7 @@ class FlowerClient(fl.client.NumPyClient):
 
         elif self.model_type == "transformer":
             net.eval()
-            total_loss = 0
+            total_loss: float = 0.0
             correct, total = 0, 0
 
             with torch.no_grad():
@@ -456,8 +453,7 @@ class FlowerClient(fl.client.NumPyClient):
             and self.client_id >= self.num_malicious_clients
         ):
             global_params = [
-                torch.tensor(p, device=self.training_device)
-                for p in self.get_parameters(config=None)
+                torch.tensor(p, device=self.training_device) for p in self.get_parameters(config={})
             ]
 
         logging.debug(
@@ -479,15 +475,13 @@ class FlowerClient(fl.client.NumPyClient):
 
         trained_parameters = self.get_parameters(self.net)
 
-        current_round = config.get("server_round", 1) if config else 1
+        current_round = int(config.get("server_round", 1)) if config else 1
         should_poison, attack_configs = should_poison_this_round(
             current_round, self.client_id, self.attacks_schedule
         )
 
         weight_attack_configs = [
-            cfg
-            for cfg in attack_configs
-            if cfg.get("attack_type") in WEIGHT_ATTACK_TYPES
+            cfg for cfg in attack_configs if cfg.get("attack_type") in WEIGHT_ATTACK_TYPES
         ]
 
         if should_poison and weight_attack_configs:
@@ -501,22 +495,17 @@ class FlowerClient(fl.client.NumPyClient):
             preds_before = None
             probs_before = None
 
+            sample_labels = None  # Initialize to avoid possibly unbound error
             if self.save_attack_snapshots and self.output_dir:
                 params_before = [p.copy() for p in trained_parameters]
 
                 # Get sample batch and predictions BEFORE poisoning (for visualization)
                 if self.model_type == "cnn":
-                    sample_images, sample_labels = self._get_sample_batch_for_viz(
-                        max_samples=4
-                    )
+                    sample_images, sample_labels = self._get_sample_batch_for_viz(max_samples=4)
                     if sample_images is not None:
-                        preds_before, probs_before = self._get_predictions(
-                            sample_images
-                        )
+                        preds_before, probs_before = self._get_predictions(sample_images)
 
-            poisoned_parameters = apply_weight_poisoning(
-                trained_parameters, weight_attack_configs
-            )
+            poisoned_parameters = apply_weight_poisoning(trained_parameters, weight_attack_configs)
 
             if self.save_attack_snapshots and self.output_dir and params_before:
                 preds_after = None
@@ -543,6 +532,7 @@ class FlowerClient(fl.client.NumPyClient):
 
                     if (
                         sample_images is not None
+                        and sample_labels is not None
                         and preds_before is not None
                         and preds_after is not None
                     ):
@@ -564,8 +554,7 @@ class FlowerClient(fl.client.NumPyClient):
                                 predictions_before=preds_before,
                                 predictions_after=preds_after,
                                 weight_stats=weight_stats,
-                                filepath=snapshot_dir
-                                / f"{attack_type}_prediction_comparison.png",
+                                filepath=snapshot_dir / f"{attack_type}_prediction_comparison.png",
                                 attack_config=attack_cfg,
                                 full_probs_before=probs_before,
                                 full_probs_after=probs_after,
@@ -575,9 +564,7 @@ class FlowerClient(fl.client.NumPyClient):
                                 f"client {self.client_id}, round {current_round}"
                             )
                         except Exception as e:
-                            logging.warning(
-                                f"Failed to save weight attack prediction grid: {e}"
-                            )
+                            logging.warning(f"Failed to save weight attack prediction grid: {e}")
 
             return (
                 poisoned_parameters,
@@ -591,11 +578,14 @@ class FlowerClient(fl.client.NumPyClient):
             {"loss": epoch_loss, "accuracy": epoch_acc},
         )
 
-    def evaluate(self, parameters, config):
+    def evaluate(
+        self, parameters: NDArrays, config: dict[str, Scalar]
+    ) -> tuple[float, int, dict[str, Scalar]]:
         self.set_parameters(self.net, parameters)
         loss, accuracy = self.test(self.net, self.valloader)
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-        return float(loss), len(self.valloader.dataset), {"accuracy": float(accuracy)}
+        metrics: dict[str, Scalar] = {"accuracy": float(accuracy)}
+        return float(loss), len(self.valloader.dataset), metrics
