@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import contextlib
 import io
 from collections import OrderedDict
@@ -21,8 +23,10 @@ def load_model_with_lora(
     lora_rank: int,
     lora_alpha: int,
     lora_dropout: float,
-    lora_target_modules: list = ["query", "value"],
+    lora_target_modules: list | None = None,
 ):
+    if lora_target_modules is None:
+        lora_target_modules = ["query", "value"]
     model = AutoModelForMaskedLM.from_pretrained(model_name)
     lora_config = LoraConfig(
         r=lora_rank,

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import contextlib
 import io
 from collections import OrderedDict
@@ -22,7 +24,7 @@ def load_text_classifier_with_lora(
     lora_rank: int = 8,
     lora_alpha: int = 16,
     lora_dropout: float = 0.1,
-    lora_target_modules: list = None,
+    lora_target_modules: list | None = None,
 ):
     """
     Load a text classification model with LoRA adapters for parameter-efficient fine-tuning.
@@ -41,9 +43,7 @@ def load_text_classifier_with_lora(
     if lora_target_modules is None:
         lora_target_modules = ["q_lin", "v_lin"]  # DistilBERT uses q_lin/v_lin
 
-    model = AutoModelForSequenceClassification.from_pretrained(
-        model_name, num_labels=num_labels
-    )
+    model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=num_labels)
 
     lora_config = LoraConfig(
         r=lora_rank,
@@ -75,9 +75,7 @@ def load_text_classifier_without_lora(
     Returns:
         Text classification model
     """
-    model = AutoModelForSequenceClassification.from_pretrained(
-        model_name, num_labels=num_labels
-    )
+    model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=num_labels)
 
     return model
 

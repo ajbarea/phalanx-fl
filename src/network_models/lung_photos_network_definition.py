@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -5,18 +7,15 @@ import torch.nn.functional as F
 
 class LungCancerCNN(nn.Module):
     def __init__(self, num_classes=4):
-        super(LungCancerCNN, self).__init__()
+        super().__init__()
 
-        self.conv1 = nn.Conv2d(
-            1, 16, kernel_size=3, padding=1
-        )  # Grayscale image (1 channel)
+        self.conv1 = nn.Conv2d(1, 16, kernel_size=3, padding=1)  # Grayscale image (1 channel)
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, padding=1)
         self.conv3 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
 
         # Dynamically compute flattened feature size
-        self._to_linear = None
-        self._setup_flatten_size()
+        self._to_linear: int = self._compute_flatten_size()
 
         self.fc1 = nn.Linear(self._to_linear, 128)
         self.dropout1 = nn.Dropout(0.3)
@@ -26,13 +25,13 @@ class LungCancerCNN(nn.Module):
 
         self._initialize_weights()
 
-    def _setup_flatten_size(self):
+    def _compute_flatten_size(self) -> int:
         with torch.no_grad():
             x = torch.zeros(1, 1, 224, 224)  # Input size of your images
             x = self.pool(F.relu(self.conv1(x)))
             x = self.pool(F.relu(self.conv2(x)))
             x = self.pool(F.relu(self.conv3(x)))
-            self._to_linear = x.view(1, -1).shape[1]
+            return int(x.view(1, -1).shape[1])
 
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
@@ -57,9 +56,15 @@ class LungCancerCNN(nn.Module):
         nn.init.xavier_uniform_(self.fc2.weight)
         nn.init.xavier_uniform_(self.fc3.weight)
 
-        nn.init.zeros_(self.conv1.bias)
-        nn.init.zeros_(self.conv2.bias)
-        nn.init.zeros_(self.conv3.bias)
-        nn.init.zeros_(self.fc1.bias)
-        nn.init.zeros_(self.fc2.bias)
-        nn.init.zeros_(self.fc3.bias)
+        if self.conv1.bias is not None:
+            nn.init.zeros_(self.conv1.bias)
+        if self.conv2.bias is not None:
+            nn.init.zeros_(self.conv2.bias)
+        if self.conv3.bias is not None:
+            nn.init.zeros_(self.conv3.bias)
+        if self.fc1.bias is not None:
+            nn.init.zeros_(self.fc1.bias)
+        if self.fc2.bias is not None:
+            nn.init.zeros_(self.fc2.bias)
+        if self.fc3.bias is not None:
+            nn.init.zeros_(self.fc3.bias)

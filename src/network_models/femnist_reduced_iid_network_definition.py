@@ -5,7 +5,7 @@ import torch.nn.functional as functional
 
 class FemnistReducedIIDNetwork(nn.Module):
     def __init__(self) -> None:
-        super(FemnistReducedIIDNetwork, self).__init__()
+        super().__init__()
         self.conv1 = nn.Conv2d(1, 6, 5)
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 5)
@@ -38,8 +38,13 @@ class FemnistReducedIIDNetwork(nn.Module):
         nn.init.xavier_uniform_(self.fc2.weight)
         nn.init.xavier_uniform_(self.fc3.weight)
 
-        nn.init.zeros_(self.conv1.bias)
-        nn.init.zeros_(self.conv2.bias)
-        nn.init.zeros_(self.fc1.bias)
-        nn.init.zeros_(self.fc2.bias)
-        nn.init.zeros_(self.fc3.bias)
+        if self.conv1.bias is not None:
+            nn.init.zeros_(self.conv1.bias)
+        if self.conv2.bias is not None:
+            nn.init.zeros_(self.conv2.bias)
+        if self.fc1.bias is not None:
+            nn.init.zeros_(self.fc1.bias)
+        if self.fc2.bias is not None:
+            nn.init.zeros_(self.fc2.bias)
+        if self.fc3.bias is not None:
+            nn.init.zeros_(self.fc3.bias)

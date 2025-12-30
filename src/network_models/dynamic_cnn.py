@@ -42,7 +42,7 @@ class DynamicCNN(nn.Module):
         input_height: int = 28,
         input_width: int = 28,
     ):
-        super(DynamicCNN, self).__init__()
+        super().__init__()
 
         self.num_classes = num_classes
         self.input_channels = input_channels
@@ -54,9 +54,7 @@ class DynamicCNN(nn.Module):
             in_channels=input_channels, out_channels=32, kernel_size=5, padding=2
         )
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.conv2 = nn.Conv2d(
-            in_channels=32, out_channels=64, kernel_size=5, padding=2
-        )
+        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=5, padding=2)
 
         # Calculate flattened size after convolutions and pooling
         # After conv1 (padding=2): H, W (same size)
