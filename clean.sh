@@ -27,6 +27,14 @@ log_info "Cleaned tool caches (.mypy_cache, .pytest_cache, .ruff_cache)."
 find . -type d -name "__pycache__" -depth -exec rm -rf {} + 2>/dev/null
 log_info "Cleaned __pycache__ directories."
 
+# Clean Hypothesis testing cache
+find . -type d -name ".hypothesis" -depth -exec rm -rf {} + 2>/dev/null
+log_info "Cleaned .hypothesis directories."
+
+# Clean MagicMock artifacts
+find . -type d -name "MagicMock" -depth -exec rm -rf {} + 2>/dev/null
+log_info "Cleaned MagicMock directories."
+
 # Clean setuptools egg-info
 rm -rf *.egg-info
 log_info "Cleaned egg-info directories."
