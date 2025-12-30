@@ -30,14 +30,10 @@ class TestAPIErrorResponses:
 
     def test_get_nonexistent_simulation_results(self, api_client: TestClient):
         """Test 404 for non-existent simulation results."""
-        response = api_client.get(
-            "/api/simulations/api_run_nonexistent/results/metrics.csv"
-        )
+        response = api_client.get("/api/simulations/api_run_nonexistent/results/metrics.csv")
         assert response.status_code == 404
 
-    def test_get_nonexistent_result_file(
-        self, api_client: TestClient, tmp_path: Path, monkeypatch
-    ):
+    def test_get_nonexistent_result_file(self, api_client: TestClient, tmp_path: Path, monkeypatch):
         """Test 404 for existing simulation but non-existent result file."""
         monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
 
@@ -58,9 +54,7 @@ class TestAPIErrorResponses:
         assert response.status_code == 400
         assert "invalid" in response.json().get("detail", "").lower()
 
-    def test_unsupported_file_type(
-        self, api_client: TestClient, tmp_path: Path, monkeypatch
-    ):
+    def test_unsupported_file_type(self, api_client: TestClient, tmp_path: Path, monkeypatch):
         """Test 400 for unsupported file types."""
         monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
 
@@ -69,9 +63,7 @@ class TestAPIErrorResponses:
         (sim_dir / "config.json").write_text(json.dumps({"shared_settings": {}}))
         (sim_dir / "script.sh").write_text("#!/bin/bash")
 
-        response = api_client.get(
-            "/api/simulations/api_run_20250101_120000/results/script.sh"
-        )
+        response = api_client.get("/api/simulations/api_run_20250101_120000/results/script.sh")
         assert response.status_code == 400
         assert "unsupported" in response.json().get("detail", "").lower()
 
@@ -89,9 +81,7 @@ class TestAPIValidationErrors:
         mock_process = MagicMock()
         mock_process.pid = 12345
         mock_process.poll = MagicMock(return_value=None)
-        monkeypatch.setattr(
-            "src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process
-        )
+        monkeypatch.setattr("src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
 
         # Empty config should still work (uses defaults)
         response = api_client.post("/api/simulations", json={})
@@ -107,9 +97,7 @@ class TestAPIValidationErrors:
         mock_process = MagicMock()
         mock_process.pid = 12345
         mock_process.poll = MagicMock(return_value=None)
-        monkeypatch.setattr(
-            "src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process
-        )
+        monkeypatch.setattr("src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
 
         config = {
             "aggregation_strategy_keyword": "krum",
@@ -157,9 +145,7 @@ class TestAPIValidationErrors:
         )
         assert response.status_code == 400
 
-    def test_rename_simulation_too_long(
-        self, api_client: TestClient, tmp_path: Path, monkeypatch
-    ):
+    def test_rename_simulation_too_long(self, api_client: TestClient, tmp_path: Path, monkeypatch):
         """Test renaming simulation with name exceeding 100 chars."""
         monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
 
@@ -179,9 +165,7 @@ class TestAPIValidationErrors:
 class TestAPIEdgeCases:
     """Test API edge cases and boundary conditions."""
 
-    def test_list_simulations_empty(
-        self, api_client: TestClient, tmp_path: Path, monkeypatch
-    ):
+    def test_list_simulations_empty(self, api_client: TestClient, tmp_path: Path, monkeypatch):
         """Test listing simulations when none exist."""
         empty_out = tmp_path / "out"
         empty_out.mkdir()
@@ -240,9 +224,7 @@ class TestAPIEdgeCases:
         )
         assert response.status_code == 200
 
-    def test_get_csv_as_download(
-        self, api_client: TestClient, tmp_path: Path, monkeypatch
-    ):
+    def test_get_csv_as_download(self, api_client: TestClient, tmp_path: Path, monkeypatch):
         """Test CSV download mode."""
         out_dir = tmp_path / "out"
         out_dir.mkdir()
@@ -317,9 +299,7 @@ class TestAPIDeleteOperations:
 class TestAPIPlotData:
     """Test plot data retrieval endpoints."""
 
-    def test_get_plot_data_no_files(
-        self, api_client: TestClient, tmp_path: Path, monkeypatch
-    ):
+    def test_get_plot_data_no_files(self, api_client: TestClient, tmp_path: Path, monkeypatch):
         """Test plot data when no plot files exist."""
         out_dir = tmp_path / "out"
         out_dir.mkdir()
@@ -351,9 +331,7 @@ class TestAPIPlotData:
             json.dumps({"rounds": [1, 2], "accuracy": [0.6, 0.75]})
         )
 
-        response = api_client.get(
-            "/api/simulations/api_run_20250101_120000/all-plot-data"
-        )
+        response = api_client.get("/api/simulations/api_run_20250101_120000/all-plot-data")
         assert response.status_code == 200
         data = response.json()
         assert "strategies" in data
@@ -380,9 +358,7 @@ class TestAPIAttackSnapshots:
         sim_dir.mkdir()
         (sim_dir / "config.json").write_text(json.dumps({"shared_settings": {}}))
 
-        response = api_client.get(
-            "/api/simulations/api_run_20250101_120000/attack-snapshots"
-        )
+        response = api_client.get("/api/simulations/api_run_20250101_120000/attack-snapshots")
         assert response.status_code == 200
         data = response.json()
         assert data["has_snapshots"] is False
@@ -416,9 +392,7 @@ class TestAPIAttackSnapshots:
             json.dumps({"attack_type": "label_flipping", "samples_affected": 10})
         )
 
-        response = api_client.get(
-            "/api/simulations/api_run_20250101_120000/attack-snapshots"
-        )
+        response = api_client.get("/api/simulations/api_run_20250101_120000/attack-snapshots")
         assert response.status_code == 200
         data = response.json()
         assert data["has_snapshots"] is True

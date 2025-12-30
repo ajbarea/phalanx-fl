@@ -36,9 +36,7 @@ def test_full_simulation_lifecycle(api_client: TestClient, tmp_path: Path, monke
     mock_process = MagicMock()
     mock_process.pid = 99999
     mock_process.poll = MagicMock(return_value=0)  # Simulate completed process
-    monkeypatch.setattr(
-        "src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process
-    )
+    monkeypatch.setattr("src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
 
     # Step 1: Create simulation
     config = {
@@ -60,9 +58,7 @@ def test_full_simulation_lifecycle(api_client: TestClient, tmp_path: Path, monke
 
     # Simulate simulation completion by creating result files
     sim_dir = tmp_path / "out" / sim_id
-    (sim_dir / "metrics.csv").write_text(
-        "round,accuracy,loss\n1,0.75,0.5\n2,0.85,0.3\n"
-    )
+    (sim_dir / "metrics.csv").write_text("round,accuracy,loss\n1,0.75,0.5\n2,0.85,0.3\n")
     (sim_dir / "plot_data_0.json").write_text(
         json.dumps({"rounds": [1, 2], "accuracy": [0.75, 0.85]})
     )
@@ -109,9 +105,7 @@ def test_concurrent_simulations(api_client: TestClient, tmp_path: Path, monkeypa
     mock_process = MagicMock()
     mock_process.pid = 55555
     mock_process.poll = MagicMock(return_value=None)  # Still running
-    monkeypatch.setattr(
-        "src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process
-    )
+    monkeypatch.setattr("src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
 
     # Create first simulation
     config1 = {
@@ -150,17 +144,11 @@ def test_concurrent_simulations(api_client: TestClient, tmp_path: Path, monkeypa
     # Verify each simulation has correct config
     response1 = api_client.get(f"/api/simulations/{sim_id_1}")
     assert response1.status_code == 200
-    assert (
-        response1.json()["config"]["shared_settings"]["aggregation_strategy_keyword"]
-        == "fedavg"
-    )
+    assert response1.json()["config"]["shared_settings"]["aggregation_strategy_keyword"] == "fedavg"
 
     response2 = api_client.get(f"/api/simulations/{sim_id_2}")
     assert response2.status_code == 200
-    assert (
-        response2.json()["config"]["shared_settings"]["aggregation_strategy_keyword"]
-        == "krum"
-    )
+    assert response2.json()["config"]["shared_settings"]["aggregation_strategy_keyword"] == "krum"
 
     # Both should be running/pending (no result files yet)
     status1 = api_client.get(f"/api/simulations/{sim_id_1}/status").json()
@@ -172,9 +160,7 @@ def test_concurrent_simulations(api_client: TestClient, tmp_path: Path, monkeypa
 # --- Attack Simulation Integration Test ---
 
 
-def test_attack_simulation_integration(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_attack_simulation_integration(api_client: TestClient, tmp_path: Path, monkeypatch):
     """
     Test simulation with attack parameters completes and generates expected outputs.
     """
@@ -185,9 +171,7 @@ def test_attack_simulation_integration(
     mock_process = MagicMock()
     mock_process.pid = 88888
     mock_process.poll = MagicMock(return_value=0)  # Completed
-    monkeypatch.setattr(
-        "src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process
-    )
+    monkeypatch.setattr("src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
 
     # Create simulation with attack parameters
     config = {
@@ -217,10 +201,7 @@ def test_attack_simulation_integration(
 
     # Simulate attack simulation completion with results
     (sim_dir / "metrics.csv").write_text(
-        "round,accuracy,loss,byzantine_detected\n"
-        "1,0.60,0.8,2\n"
-        "2,0.70,0.6,1\n"
-        "3,0.75,0.5,0\n"
+        "round,accuracy,loss,byzantine_detected\n1,0.60,0.8,2\n2,0.70,0.6,1\n3,0.75,0.5,0\n"
     )
     (sim_dir / "plot_data_0.json").write_text(
         json.dumps(
@@ -255,9 +236,7 @@ def test_attack_simulation_integration(
 # --- Simulation Status Transitions Test ---
 
 
-def test_simulation_status_transitions(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_simulation_status_transitions(api_client: TestClient, tmp_path: Path, monkeypatch):
     """
     Test that status reports correctly based on result file presence.
     """
@@ -268,9 +247,7 @@ def test_simulation_status_transitions(
     mock_process = MagicMock()
     mock_process.pid = 77777
     mock_process.poll = MagicMock(return_value=0)  # Process finished successfully
-    monkeypatch.setattr(
-        "src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process
-    )
+    monkeypatch.setattr("src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
 
     # Create simulation
     config = {
@@ -307,9 +284,7 @@ def test_simulation_status_transitions(
 # --- Error Recovery Test ---
 
 
-def test_simulation_with_failed_status(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_simulation_with_failed_status(api_client: TestClient, tmp_path: Path, monkeypatch):
     """
     Test simulation that fails (process exits with error) is reported correctly.
     """
@@ -320,9 +295,7 @@ def test_simulation_with_failed_status(
     mock_process = MagicMock()
     mock_process.pid = 66666
     mock_process.poll = MagicMock(return_value=1)  # Non-zero = error
-    monkeypatch.setattr(
-        "src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process
-    )
+    monkeypatch.setattr("src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
 
     # Create simulation
     config = {
@@ -350,9 +323,7 @@ def test_simulation_with_failed_status(
 # --- Simulation List Filtering Test ---
 
 
-def test_list_simulations_with_multiple_runs(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_list_simulations_with_multiple_runs(api_client: TestClient, tmp_path: Path, monkeypatch):
     """
     Test GET /api/simulations returns all simulations sorted by creation time.
     """

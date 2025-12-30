@@ -105,9 +105,7 @@ class TestFedAvgStrategy:
         fedavg_strategy.aggregate_evaluate(server_round, mock_evaluate_results, [])
 
         # Verify correct data was stored for first client
-        first_call = (
-            mock_strategy_history.insert_single_client_history_entry.call_args_list[0]
-        )
+        first_call = mock_strategy_history.insert_single_client_history_entry.call_args_list[0]
         assert first_call[1]["client_id"] == 0
         assert first_call[1]["current_round"] == 2
         assert first_call[1]["loss"] == 0.5
@@ -133,9 +131,7 @@ class TestFedAvgStrategy:
         """Test aggregate_evaluate calculates weighted average accuracy."""
         server_round = 1
 
-        _, metrics = fedavg_strategy.aggregate_evaluate(
-            server_round, mock_evaluate_results, []
-        )
+        _, metrics = fedavg_strategy.aggregate_evaluate(server_round, mock_evaluate_results, [])
 
         # Should include accuracy in metrics
         assert "accuracy" in metrics
@@ -187,13 +183,9 @@ class TestFedAvgStrategy:
         assert len(mock_strategy_history.rounds_history.average_accuracy_history) == 1
 
         # Verify correct values stored
+        assert mock_strategy_history.rounds_history.aggregated_loss_history[0] == loss_aggregated
         assert (
-            mock_strategy_history.rounds_history.aggregated_loss_history[0]
-            == loss_aggregated
-        )
-        assert (
-            mock_strategy_history.rounds_history.average_accuracy_history[0]
-            == metrics["accuracy"]
+            mock_strategy_history.rounds_history.average_accuracy_history[0] == metrics["accuracy"]
         )
 
     def test_aggregate_evaluate_multiple_rounds(
@@ -243,9 +235,7 @@ class TestFedAvgStrategy:
         with pytest.raises(ZeroDivisionError):
             fedavg_strategy.aggregate_evaluate(1, results, [])
 
-    def test_aggregate_evaluate_single_client(
-        self, fedavg_strategy, mock_strategy_history
-    ):
+    def test_aggregate_evaluate_single_client(self, fedavg_strategy, mock_strategy_history):
         """Test aggregate_evaluate with single client."""
         client = Mock(spec=ClientProxy)
         client.cid = "0"
@@ -262,9 +252,7 @@ class TestFedAvgStrategy:
         assert metrics["accuracy"] == 0.85
         assert loss_aggregated == 0.5
 
-    def test_aggregate_evaluate_with_failures(
-        self, fedavg_strategy, mock_evaluate_results
-    ):
+    def test_aggregate_evaluate_with_failures(self, fedavg_strategy, mock_evaluate_results):
         """Test aggregate_evaluate handles failures parameter."""
         server_round = 1
         failures = [Exception("Test failure")]
@@ -304,9 +292,7 @@ class TestFedAvgStrategy:
         """Test aggregate_evaluate produces accuracy values in valid range."""
         # Test with various accuracy values
         for round_num in range(1, 6):
-            _, metrics = fedavg_strategy.aggregate_evaluate(
-                round_num, mock_evaluate_results, []
-            )
+            _, metrics = fedavg_strategy.aggregate_evaluate(round_num, mock_evaluate_results, [])
 
             # Accuracy should be between 0 and 1
             assert 0 <= metrics["accuracy"] <= 1
@@ -359,9 +345,7 @@ class TestFedAvgStrategy:
         # Should handle large number of clients
         assert isinstance(loss_aggregated, float)
         assert 0 <= metrics["accuracy"] <= 1
-        assert (
-            mock_strategy_history.insert_single_client_history_entry.call_count == 100
-        )
+        assert mock_strategy_history.insert_single_client_history_entry.call_count == 100
 
     def test_aggregate_evaluate_numerical_stability(self, fedavg_strategy):
         """Test aggregate_evaluate maintains numerical stability."""
@@ -401,9 +385,7 @@ class TestFedAvgStrategy:
         assert result[0] is None
         assert result[1] == {}
 
-    def test_current_round_increments_correctly(
-        self, fedavg_strategy, mock_fit_results
-    ):
+    def test_current_round_increments_correctly(self, fedavg_strategy, mock_fit_results):
         """Test current_round increments correctly over multiple rounds."""
         for round_num in range(1, 6):
             fedavg_strategy.aggregate_fit(round_num, mock_fit_results, [])

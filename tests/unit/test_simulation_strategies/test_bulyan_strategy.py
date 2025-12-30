@@ -159,9 +159,7 @@ class TestBulyanStrategy:
         """Test aggregate_fit implements Bulyan algorithm correctly."""
         with (
             patch("src.simulation_strategies.bulyan_strategy.KMeans") as mock_kmeans,
-            patch(
-                "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
-            ) as mock_scaler,
+            patch("src.simulation_strategies.bulyan_strategy.MinMaxScaler") as mock_scaler,
         ):
             # Setup mocks
             mock_kmeans_instance = Mock()
@@ -238,9 +236,7 @@ class TestBulyanStrategy:
 
         with (
             patch("src.simulation_strategies.bulyan_strategy.KMeans") as mock_kmeans,
-            patch(
-                "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
-            ) as mock_scaler,
+            patch("src.simulation_strategies.bulyan_strategy.MinMaxScaler") as mock_scaler,
             patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
         ):
             # Setup mocks
@@ -296,27 +292,19 @@ class TestBulyanStrategy:
 
         with (
             patch("src.simulation_strategies.bulyan_strategy.KMeans") as mock_kmeans,
-            patch(
-                "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
-            ) as mock_scaler,
+            patch("src.simulation_strategies.bulyan_strategy.MinMaxScaler") as mock_scaler,
         ):
             # Setup mocks
             mock_kmeans_instance = Mock()
-            mock_kmeans_instance.transform.return_value = np.array(
-                [[0.1 * i] for i in range(15)]
-            )
+            mock_kmeans_instance.transform.return_value = np.array([[0.1 * i] for i in range(15)])
             mock_kmeans.return_value.fit.return_value = mock_kmeans_instance
 
             mock_scaler_instance = Mock()
-            mock_scaler_instance.transform.return_value = np.array(
-                [[0.1 * i] for i in range(15)]
-            )
+            mock_scaler_instance.transform.return_value = np.array([[0.1 * i] for i in range(15)])
             mock_scaler_instance.fit.return_value = mock_scaler_instance
             mock_scaler.return_value = mock_scaler_instance
 
-            result_params, result_metrics = bulyan_strategy.aggregate_fit(
-                1, results, []
-            )
+            result_params, result_metrics = bulyan_strategy.aggregate_fit(1, results, [])
 
             # Verify parameter shapes are preserved
             reconstructed_params = parameters_to_ndarrays(result_params)
@@ -359,8 +347,7 @@ class TestBulyanStrategy:
 
         # Should remove clients with highest scores
         removed_scores = [
-            bulyan_strategy.client_scores[cid]
-            for cid in bulyan_strategy.removed_client_ids
+            bulyan_strategy.client_scores[cid] for cid in bulyan_strategy.removed_client_ids
         ]
         all_scores = list(bulyan_strategy.client_scores.values())
         all_scores.sort(reverse=True)
@@ -445,21 +432,15 @@ class TestBulyanStrategy:
         """Test integration with strategy history."""
         with (
             patch("src.simulation_strategies.bulyan_strategy.KMeans") as mock_kmeans,
-            patch(
-                "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
-            ) as mock_scaler,
+            patch("src.simulation_strategies.bulyan_strategy.MinMaxScaler") as mock_scaler,
         ):
             # Setup mocks
             mock_kmeans_instance = Mock()
-            mock_kmeans_instance.transform.return_value = np.array(
-                [[0.1 * i] for i in range(15)]
-            )
+            mock_kmeans_instance.transform.return_value = np.array([[0.1 * i] for i in range(15)])
             mock_kmeans.return_value.fit.return_value = mock_kmeans_instance
 
             mock_scaler_instance = Mock()
-            mock_scaler_instance.transform.return_value = np.array(
-                [[0.1 * i] for i in range(15)]
-            )
+            mock_scaler_instance.transform.return_value = np.array([[0.1 * i] for i in range(15)])
             mock_scaler_instance.fit.return_value = mock_scaler_instance
             mock_scaler.return_value = mock_scaler_instance
 
@@ -467,8 +448,7 @@ class TestBulyanStrategy:
 
             # Verify strategy history methods were called
             assert (
-                bulyan_strategy.strategy_history.insert_single_client_history_entry.call_count
-                == 15
+                bulyan_strategy.strategy_history.insert_single_client_history_entry.call_count == 15
             )
             bulyan_strategy.strategy_history.insert_round_history_entry.assert_called_once()
 
@@ -496,27 +476,19 @@ class TestBulyanStrategy:
 
         with (
             patch("src.simulation_strategies.bulyan_strategy.KMeans") as mock_kmeans,
-            patch(
-                "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
-            ) as mock_scaler,
+            patch("src.simulation_strategies.bulyan_strategy.MinMaxScaler") as mock_scaler,
         ):
             # Setup mocks
             mock_kmeans_instance = Mock()
-            mock_kmeans_instance.transform.return_value = np.array(
-                [[0.1 * i] for i in range(15)]
-            )
+            mock_kmeans_instance.transform.return_value = np.array([[0.1 * i] for i in range(15)])
             mock_kmeans.return_value.fit.return_value = mock_kmeans_instance
 
             mock_scaler_instance = Mock()
-            mock_scaler_instance.transform.return_value = np.array(
-                [[0.1 * i] for i in range(15)]
-            )
+            mock_scaler_instance.transform.return_value = np.array([[0.1 * i] for i in range(15)])
             mock_scaler_instance.fit.return_value = mock_scaler_instance
             mock_scaler.return_value = mock_scaler_instance
 
-            result_params, result_metrics = bulyan_strategy.aggregate_fit(
-                1, results, []
-            )
+            result_params, result_metrics = bulyan_strategy.aggregate_fit(1, results, [])
 
             # Should successfully aggregate
             assert result_params is not None
@@ -525,9 +497,7 @@ class TestBulyanStrategy:
             aggregated_arrays = parameters_to_ndarrays(result_params)
 
             # The aggregated result should be closer to normal values than outlier values
-            assert np.all(
-                aggregated_arrays[0] < 5.0
-            )  # Should not be close to outlier values (10+)
+            assert np.all(aggregated_arrays[0] < 5.0)  # Should not be close to outlier values (10+)
             assert np.all(aggregated_arrays[1] < 5.0)
 
     def test_bulyan_algorithm_trimmed_mean_phase(self, bulyan_strategy):
@@ -557,27 +527,19 @@ class TestBulyanStrategy:
 
         with (
             patch("src.simulation_strategies.bulyan_strategy.KMeans") as mock_kmeans,
-            patch(
-                "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
-            ) as mock_scaler,
+            patch("src.simulation_strategies.bulyan_strategy.MinMaxScaler") as mock_scaler,
         ):
             # Setup mocks
             mock_kmeans_instance = Mock()
-            mock_kmeans_instance.transform.return_value = np.array(
-                [[0.1 * i] for i in range(15)]
-            )
+            mock_kmeans_instance.transform.return_value = np.array([[0.1 * i] for i in range(15)])
             mock_kmeans.return_value.fit.return_value = mock_kmeans_instance
 
             mock_scaler_instance = Mock()
-            mock_scaler_instance.transform.return_value = np.array(
-                [[0.1 * i] for i in range(15)]
-            )
+            mock_scaler_instance.transform.return_value = np.array([[0.1 * i] for i in range(15)])
             mock_scaler_instance.fit.return_value = mock_scaler_instance
             mock_scaler.return_value = mock_scaler_instance
 
-            result_params, result_metrics = bulyan_strategy.aggregate_fit(
-                1, results, []
-            )
+            result_params, result_metrics = bulyan_strategy.aggregate_fit(1, results, [])
 
             # Should successfully aggregate
             assert result_params is not None
@@ -604,27 +566,19 @@ class TestBulyanStrategy:
 
         with (
             patch("src.simulation_strategies.bulyan_strategy.KMeans") as mock_kmeans,
-            patch(
-                "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
-            ) as mock_scaler,
+            patch("src.simulation_strategies.bulyan_strategy.MinMaxScaler") as mock_scaler,
         ):
             # Setup mocks
             mock_kmeans_instance = Mock()
-            mock_kmeans_instance.transform.return_value = np.array(
-                [[0.1 * i] for i in range(15)]
-            )
+            mock_kmeans_instance.transform.return_value = np.array([[0.1 * i] for i in range(15)])
             mock_kmeans.return_value.fit.return_value = mock_kmeans_instance
 
             mock_scaler_instance = Mock()
-            mock_scaler_instance.transform.return_value = np.array(
-                [[0.1 * i] for i in range(15)]
-            )
+            mock_scaler_instance.transform.return_value = np.array([[0.1 * i] for i in range(15)])
             mock_scaler_instance.fit.return_value = mock_scaler_instance
             mock_scaler.return_value = mock_scaler_instance
 
-            result_params, result_metrics = bulyan_strategy.aggregate_fit(
-                1, min_results, []
-            )
+            result_params, result_metrics = bulyan_strategy.aggregate_fit(1, min_results, [])
 
             # Should handle minimum clients correctly
             assert result_params is not None
@@ -705,8 +659,7 @@ class TestBulyanAggregateEvaluate:
 
         # Verify strategy history was updated for accuracy and loss
         assert (
-            bulyan_strategy.strategy_history.insert_single_client_history_entry.call_count
-            == 10
+            bulyan_strategy.strategy_history.insert_single_client_history_entry.call_count == 10
         )  # 5 for accuracy + 5 for loss
         bulyan_strategy.strategy_history.insert_round_history_entry.assert_called_once()
 
@@ -736,8 +689,7 @@ class TestBulyanAggregateEvaluate:
 
         # Verify all clients got accuracy/loss recorded
         assert (
-            bulyan_strategy.strategy_history.insert_single_client_history_entry.call_count
-            == 10
+            bulyan_strategy.strategy_history.insert_single_client_history_entry.call_count == 10
         )  # 5 for accuracy + 5 for loss (all tracked)
 
     def test_aggregate_evaluate_all_clients_removed(self, bulyan_strategy):
@@ -872,9 +824,7 @@ class TestBulyanAggregateEvaluate:
 
         # Verify round history was updated with loss
         bulyan_strategy.strategy_history.insert_round_history_entry.assert_called_once()
-        call_kwargs = (
-            bulyan_strategy.strategy_history.insert_round_history_entry.call_args[1]
-        )
+        call_kwargs = bulyan_strategy.strategy_history.insert_round_history_entry.call_args[1]
         assert "loss_aggregated" in call_kwargs
         assert isinstance(call_kwargs["loss_aggregated"], float)
 
@@ -954,7 +904,9 @@ class TestBulyanAggregateEvaluate:
         bulyan_strategy.aggregate_evaluate(1, results, [])
 
         # Verify client_id was converted to int in calls
-        for call in bulyan_strategy.strategy_history.insert_single_client_history_entry.call_args_list:
+        for (
+            call
+        ) in bulyan_strategy.strategy_history.insert_single_client_history_entry.call_args_list:
             if "client_id" in call[1]:
                 assert isinstance(call[1]["client_id"], int)
                 assert call[1]["client_id"] == 42
@@ -1005,9 +957,7 @@ class TestBulyanAggregateEvaluate:
 
         # The code converts to dict and adds cid
         # We can't directly check the dict modification, but we can verify the flow worked
-        assert (
-            bulyan_strategy.strategy_history.insert_single_client_history_entry.called
-        )
+        assert bulyan_strategy.strategy_history.insert_single_client_history_entry.called
 
     def test_aggregate_evaluate_returns_empty_metrics_dict(self, bulyan_strategy):
         """Test that aggregate_evaluate returns empty metrics dict."""

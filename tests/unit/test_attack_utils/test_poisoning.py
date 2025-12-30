@@ -425,9 +425,7 @@ class TestApplyPoisoningAttack:
             "attack_ratio": 1.0,
         }
 
-        result_images, result_labels = apply_poisoning_attack(
-            images, labels, attack_config
-        )
+        result_images, result_labels = apply_poisoning_attack(images, labels, attack_config)
 
         assert not torch.allclose(result_images, original_images, rtol=1e-4)
 
@@ -446,9 +444,7 @@ class TestApplyPoisoningAttack:
             "attack_ratio": 1.0,
         }
 
-        result_images, result_labels = apply_poisoning_attack(
-            images, labels, attack_config
-        )
+        result_images, result_labels = apply_poisoning_attack(images, labels, attack_config)
 
         assert not torch.allclose(result_images, original_images, rtol=1e-4)
 
@@ -466,9 +462,7 @@ class TestApplyPoisoningAttack:
             "replacement_token_ids": [100, 200, 300, 400, 500],
         }
 
-        result_tokens, result_labels = apply_poisoning_attack(
-            tokens, labels, attack_config
-        )
+        result_tokens, result_labels = apply_poisoning_attack(tokens, labels, attack_config)
 
         assert not torch.equal(result_tokens, tokens)
 
@@ -502,9 +496,7 @@ class TestApplyPoisoningAttack:
 
         attack_config = {"attack_type": "unknown_attack"}
 
-        result_images, result_labels = apply_poisoning_attack(
-            images, labels, attack_config
-        )
+        result_images, result_labels = apply_poisoning_attack(images, labels, attack_config)
 
         assert torch.allclose(result_images, original_images)
         assert torch.equal(result_labels, original_labels)

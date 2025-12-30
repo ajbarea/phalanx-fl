@@ -154,18 +154,14 @@ class TestImageDatasetLoader:
         assert mock_dataloader.call_count == 6  # 3 clients * 2 loaders each
 
         # Check that train loaders have shuffle=True
-        train_calls = [
-            call for call in mock_dataloader.call_args_list[::2]
-        ]  # Even indices
+        train_calls = list(mock_dataloader.call_args_list[::2])  # Even indices
         for call in train_calls:
             args, kwargs = call
             assert kwargs.get("shuffle") is True
             assert kwargs.get("batch_size") == 2
 
         # Check that val loaders have shuffle=False (default)
-        val_calls = [
-            call for call in mock_dataloader.call_args_list[1::2]
-        ]  # Odd indices
+        val_calls = list(mock_dataloader.call_args_list[1::2])  # Odd indices
         for call in val_calls:
             args, kwargs = call
             assert kwargs.get("shuffle") is None or kwargs.get("shuffle") is False
@@ -197,9 +193,7 @@ class TestImageDatasetLoader:
             mock_dataset.__len__ = Mock(return_value=10)
             mock_image_folder.return_value = mock_dataset
 
-            with patch(
-                "src.dataset_loaders.image_dataset_loader.random_split"
-            ) as mock_split:
+            with patch("src.dataset_loaders.image_dataset_loader.random_split") as mock_split:
                 mock_train_ds = Mock()
                 mock_val_ds = Mock()
                 mock_split.return_value = (mock_train_ds, mock_val_ds)
@@ -210,9 +204,7 @@ class TestImageDatasetLoader:
         assert mock_image_folder.call_count == 1  # Only client_0, not .DS_Store
 
     @patch("src.dataset_loaders.image_dataset_loader.os.listdir")
-    def test_load_datasets_sorts_client_folders_correctly(
-        self, mock_listdir, dataset_loader
-    ):
+    def test_load_datasets_sorts_client_folders_correctly(self, mock_listdir, dataset_loader):
         """Verify client folders are sorted by their numeric suffix before processing."""
         # Mock unsorted client folder list
         mock_listdir.return_value = ["client_10", "client_2", "client_1"]
@@ -224,9 +216,7 @@ class TestImageDatasetLoader:
             mock_dataset.__len__ = Mock(return_value=10)
             mock_image_folder.return_value = mock_dataset
 
-            with patch(
-                "src.dataset_loaders.image_dataset_loader.random_split"
-            ) as mock_split:
+            with patch("src.dataset_loaders.image_dataset_loader.random_split") as mock_split:
                 mock_train_ds = Mock()
                 mock_val_ds = Mock()
                 mock_split.return_value = (mock_train_ds, mock_val_ds)
@@ -254,9 +244,7 @@ class TestImageDatasetLoader:
             mock_dataset.__len__ = Mock(return_value=10)
             mock_image_folder.return_value = mock_dataset
 
-            with patch(
-                "src.dataset_loaders.image_dataset_loader.random_split"
-            ) as mock_split:
+            with patch("src.dataset_loaders.image_dataset_loader.random_split") as mock_split:
                 mock_train_ds = Mock()
                 mock_val_ds = Mock()
                 mock_split.return_value = (mock_train_ds, mock_val_ds)
@@ -269,13 +257,9 @@ class TestImageDatasetLoader:
             assert kwargs["transform"] == dataset_loader.transformer
 
     @patch("src.dataset_loaders.image_dataset_loader.datasets.ImageFolder")
-    def test_load_datasets_handles_empty_directory(
-        self, mock_image_folder, dataset_loader
-    ):
+    def test_load_datasets_handles_empty_directory(self, mock_image_folder, dataset_loader):
         """Verify load_datasets returns empty lists when no client folders exist."""
-        with patch(
-            "src.dataset_loaders.image_dataset_loader.os.listdir", return_value=[]
-        ):
+        with patch("src.dataset_loaders.image_dataset_loader.os.listdir", return_value=[]):
             trainloaders, valloaders = dataset_loader.load_datasets()
 
             assert len(trainloaders) == 0

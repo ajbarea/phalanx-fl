@@ -15,9 +15,7 @@ class TestMedQuADDatasetLoader:
             client_dir = dataset_dir / f"client_{i}"
             client_dir.mkdir()
             json_file = client_dir / f"data_{i}.json"
-            json_file.write_text(
-                '{"question": "What is test?", "answer": "This is a test answer"}'
-            )
+            json_file.write_text('{"question": "What is test?", "answer": "This is a test answer"}')
 
         return str(dataset_dir)
 
@@ -78,9 +76,7 @@ class TestMedQuADDatasetLoader:
         assert loader.tokenize_columns == ["answer"]
         assert loader.remove_columns == ["answer", "token_type_ids", "question"]
 
-    def test_load_datasets_processes_client_folders(
-        self, dataset_loader, mock_dataset_dict_chain
-    ):
+    def test_load_datasets_processes_client_folders(self, dataset_loader, mock_dataset_dict_chain):
         """Verify load_datasets loads datasets and returns train/val loaders per client."""
         mock_dataset_dict, _ = mock_dataset_dict_chain
 
@@ -111,9 +107,7 @@ class TestMedQuADDatasetLoader:
             assert len(trainloaders) == 3
             assert len(valloaders) == 3
 
-    def test_load_datasets_handles_poisoned_clients(
-        self, dataset_loader, mock_dataset_dict_chain
-    ):
+    def test_load_datasets_handles_poisoned_clients(self, dataset_loader, mock_dataset_dict_chain):
         """Verify poisoned clients receive the configured MLM collator settings."""
         mock_dataset_dict, _ = mock_dataset_dict_chain
 
@@ -133,9 +127,7 @@ class TestMedQuADDatasetLoader:
             args, kwargs = normal_call
             assert kwargs["mlm_probability"] == 0.15  # Normal client
 
-    def test_load_datasets_applies_tokenization(
-        self, dataset_loader, mock_dataset_dict_chain
-    ):
+    def test_load_datasets_applies_tokenization(self, dataset_loader, mock_dataset_dict_chain):
         """Verify tokenization and column removal are applied to loaded datasets."""
         mock_dataset_dict, _ = mock_dataset_dict_chain
 
@@ -146,9 +138,7 @@ class TestMedQuADDatasetLoader:
             "attention_mask": [1, 1, 1],
         }
 
-        with mock_medquad_dependencies(
-            mock_dataset_dict, tokenizer_return=mock_tokenizer_instance
-        ):
+        with mock_medquad_dependencies(mock_dataset_dict, tokenizer_return=mock_tokenizer_instance):
             dataset_loader.load_datasets()
 
         # Should apply tokenization mapping
@@ -158,15 +148,11 @@ class TestMedQuADDatasetLoader:
         # Should apply chunking mapping (2 map calls per client, 3 clients = 6 total)
         assert mock_dataset_dict.map.call_count == 6
 
-    def test_load_datasets_skips_hidden_files(
-        self, dataset_loader, mock_dataset_dict_chain
-    ):
+    def test_load_datasets_skips_hidden_files(self, dataset_loader, mock_dataset_dict_chain):
         """Verify hidden files/folders are ignored when scanning client folders."""
         mock_dataset_dict, _ = mock_dataset_dict_chain
 
-        with patch(
-            "src.dataset_loaders.medquad_dataset_loader.os.listdir"
-        ) as mock_listdir:
+        with patch("src.dataset_loaders.medquad_dataset_loader.os.listdir") as mock_listdir:
             mock_listdir.return_value = ["client_0", ".DS_Store", "client_1"]
 
             with mock_medquad_dependencies(mock_dataset_dict) as mocks:
@@ -181,9 +167,7 @@ class TestMedQuADDatasetLoader:
         """Verify client folders are processed in numeric order by suffix."""
         mock_dataset_dict, _ = mock_dataset_dict_chain
 
-        with patch(
-            "src.dataset_loaders.medquad_dataset_loader.os.listdir"
-        ) as mock_listdir:
+        with patch("src.dataset_loaders.medquad_dataset_loader.os.listdir") as mock_listdir:
             mock_listdir.return_value = ["client_10", "client_2", "client_1"]
 
             with mock_medquad_dependencies(mock_dataset_dict) as mocks:
@@ -200,9 +184,7 @@ class TestMedQuADDatasetLoader:
         # Set num_poisoned_clients to 2
         dataset_loader.num_poisoned_clients = 2
 
-        with patch(
-            "src.dataset_loaders.medquad_dataset_loader.os.listdir"
-        ) as mock_listdir:
+        with patch("src.dataset_loaders.medquad_dataset_loader.os.listdir") as mock_listdir:
             mock_listdir.return_value = ["client_0", "client_1", "client_2"]
 
             with mock_medquad_dependencies(mock_dataset_dict) as mocks:
@@ -238,10 +220,7 @@ class TestMedQuADDatasetLoader:
             tokenize_columns = ["answer"]
 
             def tokenize_function(examples):
-                texts = [
-                    " ".join(row)
-                    for row in zip(*[examples[col] for col in tokenize_columns])
-                ]
+                texts = [" ".join(row) for row in zip(*[examples[col] for col in tokenize_columns])]
                 return tokenizer(texts, truncation=False)
 
             # Test with sample data
@@ -264,6 +243,4 @@ class TestMedQuADDatasetLoader:
 
         # Should use correct test_size (1 - training_subset_fraction)
         expected_test_size = 1 - dataset_loader.training_subset_fraction
-        mock_train_dataset.train_test_split.assert_called_with(
-            test_size=expected_test_size
-        )
+        mock_train_dataset.train_test_split.assert_called_with(test_size=expected_test_size)

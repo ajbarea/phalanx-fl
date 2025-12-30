@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Mock simulation runner - runs full output generation with real strategy execution."""
 
+from __future__ import annotations
+
 import argparse
 import csv
 import json
@@ -88,17 +90,15 @@ def create_strategy_for_mock(
     Returns:
         Real strategy instance that will execute actual aggregation code.
     """
-    common_kwargs = dict(
-        initial_parameters=initial_params,
-        min_fit_clients=2,
-        min_evaluate_clients=2,
-        min_available_clients=2,
-        strategy_history=strategy_history,
-        remove_clients=getattr(strategy_config, "remove_clients", False),
-        begin_removing_from_round=getattr(
-            strategy_config, "begin_removing_from_round", 1
-        ),
-    )
+    common_kwargs = {
+        "initial_parameters": initial_params,
+        "min_fit_clients": 2,
+        "min_evaluate_clients": 2,
+        "min_available_clients": 2,
+        "strategy_history": strategy_history,
+        "remove_clients": getattr(strategy_config, "remove_clients", False),
+        "begin_removing_from_round": getattr(strategy_config, "begin_removing_from_round", 1),
+    }
 
     keyword = strategy_config.aggregation_strategy_keyword
 
@@ -113,27 +113,21 @@ def create_strategy_for_mock(
 
     elif keyword == "krum":
         return KrumBasedRemovalStrategy(
-            num_malicious_clients=getattr(
-                strategy_config, "num_of_malicious_clients", 0
-            ),
+            num_malicious_clients=getattr(strategy_config, "num_of_malicious_clients", 0),
             num_krum_selections=getattr(strategy_config, "num_krum_selections", 1),
             **common_kwargs,
         )
 
     elif keyword == "multi-krum":
         return MultiKrumStrategy(
-            num_of_malicious_clients=getattr(
-                strategy_config, "num_of_malicious_clients", 0
-            ),
+            num_of_malicious_clients=getattr(strategy_config, "num_of_malicious_clients", 0),
             num_krum_selections=getattr(strategy_config, "num_krum_selections", 1),
             **common_kwargs,
         )
 
     elif keyword == "multi-krum-based":
         return MultiKrumBasedRemovalStrategy(
-            num_of_malicious_clients=getattr(
-                strategy_config, "num_of_malicious_clients", 0
-            ),
+            num_of_malicious_clients=getattr(strategy_config, "num_of_malicious_clients", 0),
             num_krum_selections=getattr(strategy_config, "num_krum_selections", 1),
             **common_kwargs,
         )
@@ -146,9 +140,7 @@ def create_strategy_for_mock(
 
     elif keyword == "rfa":
         return RFABasedRemovalStrategy(
-            num_of_malicious_clients=getattr(
-                strategy_config, "num_of_malicious_clients", 0
-            ),
+            num_of_malicious_clients=getattr(strategy_config, "num_of_malicious_clients", 0),
             **common_kwargs,
         )
 
@@ -193,9 +185,7 @@ def create_strategy_for_mock(
         )
 
 
-def populate_history_from_baseline(
-    strategy_history, baseline_strategy: dict, num_clients: int
-):
+def populate_history_from_baseline(strategy_history, baseline_strategy: dict, num_clients: int):
     """Populates SimulationStrategyHistory with baseline data."""
     per_round = baseline_strategy.get("per_round", {})
     per_client = baseline_strategy.get("per_client", {})
@@ -209,17 +199,11 @@ def populate_history_from_baseline(
             strategy_history.insert_single_client_history_entry(
                 client_id=client_id,
                 current_round=round_num,
-                removal_criterion=client_data.get(
-                    "removal_criterion", [0.0] * total_rounds
-                )[idx],
-                absolute_distance=client_data.get(
-                    "absolute_distance", [0.0] * total_rounds
-                )[idx],
+                removal_criterion=client_data.get("removal_criterion", [0.0] * total_rounds)[idx],
+                absolute_distance=client_data.get("absolute_distance", [0.0] * total_rounds)[idx],
                 loss=client_data.get("loss", [0.0] * total_rounds)[idx],
                 accuracy=client_data.get("accuracy", [0.0] * total_rounds)[idx],
-                aggregation_participation=client_data.get(
-                    "participation", [1] * total_rounds
-                )[idx],
+                aggregation_participation=client_data.get("participation", [1] * total_rounds)[idx],
             )
 
     aggregated_loss = per_round.get("aggregated_loss", [0.0] * total_rounds)
@@ -346,7 +330,9 @@ def run_mock_simulation(
 
     try:
         directory_handler = DirectoryHandler()
-        output_dir = Path(directory_handler.dirname)
+        assert directory_handler.dirname is not None
+        dirname: str = directory_handler.dirname
+        output_dir = Path(dirname)
 
         shared_settings = config.get("shared_settings", {})
         strategies = config.get("simulation_strategies", [{}])
@@ -361,7 +347,7 @@ def run_mock_simulation(
             merged_config["strategy_number"] = strat_idx
 
             strategy_config = StrategyConfig.from_dict(merged_config)
-            setattr(strategy_config, "strategy_number", strat_idx)
+            strategy_config.strategy_number = strat_idx
 
             class MockDatasetHandler:
                 def __init__(self):
@@ -415,7 +401,7 @@ def run_mock_simulation(
 
             if strategy_config.save_plots:
                 new_plot_handler.show_plots_within_strategy(
-                    mock_sim,  # pyright: ignore[reportArgumentType]
+                    mock_sim,  # type: ignore[arg-type]
                     directory_handler,
                 )
 
@@ -431,7 +417,7 @@ def run_mock_simulation(
 
                 generate_mock_attack_snapshots(
                     attack_schedule=attack_schedule,
-                    output_dir=directory_handler.dirname,
+                    output_dir=dirname,
                     num_clients=num_clients,
                     total_rounds=total_rounds,
                     strategy_number=strat_idx,
@@ -441,12 +427,12 @@ def run_mock_simulation(
 
                 try:
                     generate_summary_json(
-                        directory_handler.dirname,
+                        dirname,
                         run_config=merged_config,
                         strategy_number=strat_idx,
                     )
                     generate_snapshot_index(
-                        directory_handler.dirname,
+                        dirname,
                         run_config=merged_config,
                         strategy_number=strat_idx,
                     )
@@ -456,11 +442,9 @@ def run_mock_simulation(
             executed_simulations.append(mock_sim)
 
         if len(executed_simulations) > 1:
-            new_plot_handler.show_inter_strategy_plots(
-                executed_simulations, directory_handler
-            )
+            new_plot_handler.show_inter_strategy_plots(executed_simulations, directory_handler)
 
-        generate_main_dashboard(directory_handler.dirname)
+        generate_main_dashboard(dirname)
 
         return True, output_dir, []
 
@@ -519,7 +503,7 @@ def _validate_csv_file(csv_path: Path) -> list[str]:
     """Validates a CSV file has expected structure."""
     errors = []
     try:
-        with open(csv_path, "r") as f:
+        with open(csv_path) as f:
             reader = csv.reader(f)
             headers = next(reader, None)
 

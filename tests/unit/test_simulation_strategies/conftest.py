@@ -4,11 +4,12 @@ Shared fixtures for simulation strategy tests.
 Provides common fixtures used across all strategy test files.
 """
 
-from typing import Any, Callable, List, Tuple
+from __future__ import annotations
+
+from typing import Any, Callable
 from unittest.mock import patch
 
 import pytest
-from flwr.common import EvaluateRes
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from tests.common import ClientProxy, Mock, generate_mock_client_data, np
@@ -19,16 +20,16 @@ from tests.common import ClientProxy, Mock, generate_mock_client_data, np
 
 
 @pytest.fixture
-def mock_client_results() -> List[Tuple[Any, Any]]:
+def mock_client_results() -> list[tuple[Any, Any]]:
     """Generate mock client results for 5 clients with varied parameters."""
     return generate_mock_client_data(num_clients=5)
 
 
 @pytest.fixture(scope="session")
-def mock_client_results_factory() -> Callable[[int], List[Tuple[Any, Any]]]:
+def mock_client_results_factory() -> Callable[[int], list[tuple[Any, Any]]]:
     """Factory for creating mock client results with custom client count."""
 
-    def _create_results(num_clients: int) -> List[Tuple[Any, Any]]:
+    def _create_results(num_clients: int) -> list[tuple[Any, Any]]:
         return generate_mock_client_data(num_clients=num_clients)
 
     return _create_results
@@ -40,9 +41,11 @@ def mock_client_results_factory() -> Callable[[int], List[Tuple[Any, Any]]]:
 
 
 @pytest.fixture
-def mock_evaluate_results() -> List[Tuple[Any, EvaluateRes]]:
+def mock_evaluate_results() -> list[tuple[Any, Any]]:
     """Generate mock evaluate results for 5 clients with progressive accuracy/loss values."""
-    results = []
+    from flwr.common import EvaluateRes
+
+    results: list[tuple[Any, Any]] = []
     for i in range(5):
         client_proxy = Mock(spec=ClientProxy)
         client_proxy.cid = str(i)
@@ -55,7 +58,7 @@ def mock_evaluate_results() -> List[Tuple[Any, EvaluateRes]]:
 
 
 @pytest.fixture(scope="session")
-def mock_evaluate_results_factory() -> Callable:
+def mock_evaluate_results_factory() -> Callable[..., list[tuple[Any, Any]]]:
     """Factory for creating custom mock evaluate results."""
 
     def _create_results(
@@ -64,8 +67,10 @@ def mock_evaluate_results_factory() -> Callable:
         base_loss: float = 0.5,
         accuracy_increment: float = 0.02,
         loss_decrement: float = 0.1,
-    ) -> List[Tuple[Any, EvaluateRes]]:
-        results = []
+    ) -> list[tuple[Any, Any]]:
+        from flwr.common import EvaluateRes
+
+        results: list[tuple[Any, Any]] = []
         for i in range(num_clients):
             client_proxy = Mock(spec=ClientProxy)
             client_proxy.cid = str(i)
@@ -116,14 +121,10 @@ def fit_metrics_aggregation_fn() -> Callable:
 def mock_clustering_components():
     """Mock clustering components (KMeans, MinMaxScaler) for strategy testing."""
     mock_kmeans_instance = Mock()
-    mock_kmeans_instance.transform.return_value = np.array(
-        [[0.1], [0.2], [0.3], [0.4], [0.5]]
-    )
+    mock_kmeans_instance.transform.return_value = np.array([[0.1], [0.2], [0.3], [0.4], [0.5]])
 
     mock_scaler_instance = Mock()
-    mock_scaler_instance.transform.return_value = np.array(
-        [[0.1], [0.2], [0.3], [0.4], [0.5]]
-    )
+    mock_scaler_instance.transform.return_value = np.array([[0.1], [0.2], [0.3], [0.4], [0.5]])
 
     return {
         "kmeans_instance": mock_kmeans_instance,
@@ -135,24 +136,16 @@ def mock_clustering_components():
 def mock_krum_clustering():
     """Fixture for Krum strategy clustering mocks."""
     with (
-        patch(
-            "src.simulation_strategies.krum_based_removal_strategy.KMeans"
-        ) as mock_kmeans,
-        patch(
-            "src.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
-        ) as mock_scaler,
+        patch("src.simulation_strategies.krum_based_removal_strategy.KMeans") as mock_kmeans,
+        patch("src.simulation_strategies.krum_based_removal_strategy.MinMaxScaler") as mock_scaler,
         patch("flwr.server.strategy.Krum.aggregate_fit") as mock_parent_aggregate,
     ):
         mock_kmeans_instance = Mock()
-        mock_kmeans_instance.transform.return_value = np.array(
-            [[0.1], [0.2], [0.3], [0.4], [0.5]]
-        )
+        mock_kmeans_instance.transform.return_value = np.array([[0.1], [0.2], [0.3], [0.4], [0.5]])
         mock_kmeans.return_value.fit.return_value = mock_kmeans_instance
 
         mock_scaler_instance = Mock()
-        mock_scaler_instance.transform.return_value = np.array(
-            [[0.1], [0.2], [0.3], [0.4], [0.5]]
-        )
+        mock_scaler_instance.transform.return_value = np.array([[0.1], [0.2], [0.3], [0.4], [0.5]])
         mock_scaler.return_value = mock_scaler_instance
 
         mock_parent_aggregate.return_value = (Mock(), {})
@@ -170,9 +163,7 @@ def mock_krum_clustering():
 def mock_multi_krum_clustering():
     """Fixture for Multi-Krum strategy clustering mocks."""
     with (
-        patch(
-            "src.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
-        ) as mock_kmeans,
+        patch("src.simulation_strategies.multi_krum_based_removal_strategy.KMeans") as mock_kmeans,
         patch(
             "src.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
         ) as mock_scaler,

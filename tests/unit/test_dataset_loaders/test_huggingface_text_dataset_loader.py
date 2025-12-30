@@ -16,9 +16,7 @@ def mock_tokenizer():
     Yields:
         Mock: The mocked AutoTokenizer.
     """
-    with patch(
-        "src.dataset_loaders.huggingface_text_dataset_loader.AutoTokenizer"
-    ) as mock:
+    with patch("src.dataset_loaders.huggingface_text_dataset_loader.AutoTokenizer") as mock:
         tokenizer = Mock()
         tokenizer.return_value = {"input_ids": [1, 2, 3], "attention_mask": [1, 1, 1]}
         mock.from_pretrained.return_value = tokenizer
@@ -32,16 +30,12 @@ def mock_dataset_pkg():
     Yields:
         MagicMock: The mocked dataset object.
     """
-    with patch(
-        "src.dataset_loaders.huggingface_text_dataset_loader.load_dataset"
-    ) as mock:
+    with patch("src.dataset_loaders.huggingface_text_dataset_loader.load_dataset") as mock:
         mock_ds = MagicMock()
         mock_ds.__len__.return_value = 100
         mock_ds.column_names = ["text", "label"]
 
-        mock_ds.__getitem__.side_effect = (
-            lambda x: [0, 1] * 50 if x == "label" else None
-        )
+        mock_ds.__getitem__.side_effect = lambda x: [0, 1] * 50 if x == "label" else None
 
         mock_ds.map.return_value = mock_ds
         mock_ds.remove_columns.return_value = mock_ds
@@ -60,9 +54,7 @@ def mock_dataloader():
     Yields:
         Mock: The mocked DataLoader.
     """
-    with patch(
-        "src.dataset_loaders.huggingface_text_dataset_loader.DataLoader"
-    ) as mock:
+    with patch("src.dataset_loaders.huggingface_text_dataset_loader.DataLoader") as mock:
         yield mock
 
 
@@ -77,13 +69,9 @@ class TestHuggingFaceTextDatasetLoader:
         assert loader.chunk_size == 256
         assert loader.mlm_probability == 0.15
 
-    def test_load_datasets_flow(
-        self, mock_dataset_pkg, mock_tokenizer, mock_dataloader
-    ):
+    def test_load_datasets_flow(self, mock_dataset_pkg, mock_tokenizer, mock_dataloader):
         """Verifies the full load_datasets flow."""
-        loader = HuggingFaceTextDatasetLoader(
-            "test/path", num_of_clients=2, max_samples=20
-        )
+        loader = HuggingFaceTextDatasetLoader("test/path", num_of_clients=2, max_samples=20)
 
         trainloaders, valloaders = loader.load_datasets()
 
@@ -104,9 +92,7 @@ class TestHuggingFaceTextDatasetLoader:
 
         assert mock_dataloader.call_count > 0
 
-    def test_dataset_size_limit(
-        self, mock_dataset_pkg, mock_tokenizer, mock_dataloader
-    ):
+    def test_dataset_size_limit(self, mock_dataset_pkg, mock_tokenizer, mock_dataloader):
         """Verifies max_samples limit."""
         loader = HuggingFaceTextDatasetLoader("test/path", max_samples=10)
         mock_dataset_pkg.__len__.return_value = 100

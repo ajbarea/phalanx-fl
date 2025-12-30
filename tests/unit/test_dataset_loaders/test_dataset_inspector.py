@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from typing import Any
 from unittest.mock import Mock, patch
 
 from src.dataset_loaders.dataset_inspector import DatasetInspector
@@ -11,7 +14,7 @@ class TestDatasetInspector:
     def test_inspect_dataset_extracts_basic_metadata(self, mock_builder_fn):
         """Verify inspect_dataset extracts features and initializes metadata."""
         mock_builder = Mock()
-        mock_features = {}
+        mock_features: dict[str, Any] = {}
         mock_builder.info.features = mock_features
         mock_builder_fn.return_value = mock_builder
 
@@ -28,9 +31,7 @@ class TestDatasetInspector:
         assert metadata["text_columns"] == []
 
     @patch("src.dataset_loaders.dataset_inspector.load_dataset_builder")
-    def test_inspect_dataset_detects_num_classes_from_label_names(
-        self, mock_builder_fn
-    ):
+    def test_inspect_dataset_detects_num_classes_from_label_names(self, mock_builder_fn):
         """Verify num_classes is detected from label feature names."""
         mock_builder = Mock()
         mock_label_feature = Mock()
@@ -110,9 +111,7 @@ class TestDatasetInspector:
                     "_get_image_info",
                     return_value=("img", (3, 32, 32)),
                 ):
-                    with patch.object(
-                        DatasetInspector, "_get_text_columns", return_value=[]
-                    ):
+                    with patch.object(DatasetInspector, "_get_text_columns", return_value=[]):
                         metadata = DatasetInspector.inspect_dataset("test/dataset")
 
         assert metadata["modality"] == "image"
@@ -126,9 +125,7 @@ class TestDatasetInspector:
 
         with patch.object(DatasetInspector, "_has_image_column", return_value=False):
             with patch.object(DatasetInspector, "_has_text_column", return_value=True):
-                with patch.object(
-                    DatasetInspector, "_get_text_columns", return_value=["text"]
-                ):
+                with patch.object(DatasetInspector, "_get_text_columns", return_value=["text"]):
                     metadata = DatasetInspector.inspect_dataset("test/dataset")
 
         assert metadata["modality"] == "text"
@@ -147,9 +144,7 @@ class TestDatasetInspector:
                     "_get_image_info",
                     return_value=("img", (3, 32, 32)),
                 ):
-                    with patch.object(
-                        DatasetInspector, "_get_text_columns", return_value=["text"]
-                    ):
+                    with patch.object(DatasetInspector, "_get_text_columns", return_value=["text"]):
                         metadata = DatasetInspector.inspect_dataset("test/dataset")
 
         assert metadata["modality"] == "multimodal"
@@ -168,9 +163,7 @@ class TestDatasetInspector:
                     "_get_image_info",
                     return_value=("image", (1, 28, 28)),
                 ):
-                    with patch.object(
-                        DatasetInspector, "_get_text_columns", return_value=[]
-                    ):
+                    with patch.object(DatasetInspector, "_get_text_columns", return_value=[]):
                         metadata = DatasetInspector.inspect_dataset("test/dataset")
 
         assert metadata["image_column"] == "image"
@@ -224,7 +217,7 @@ class TestDatasetInspector:
 
     def test_has_image_column_handles_empty_features(self):
         """Verify _has_image_column handles empty features dict."""
-        features = {}
+        features: dict[str, Any] = {}
 
         result = DatasetInspector._has_image_column(features)
 
@@ -288,7 +281,7 @@ class TestDatasetInspector:
 
     def test_has_text_column_handles_empty_features(self):
         """Verify _has_text_column handles empty features dict."""
-        features = {}
+        features: dict[str, Any] = {}
 
         result = DatasetInspector._has_text_column(features)
 
@@ -311,9 +304,7 @@ class TestDatasetInspector:
             mock_dataset.__getitem__ = Mock(return_value={"img": mock_img})
             mock_load.return_value = mock_dataset
 
-            col_name, shape = DatasetInspector._get_image_info(
-                "unknown/dataset", features
-            )
+            col_name, shape = DatasetInspector._get_image_info("unknown/dataset", features)
 
         assert col_name == "img"
         assert shape == (3, 32, 32)
@@ -539,7 +530,7 @@ class TestDatasetInspector:
 
     def test_get_text_columns_handles_empty_features(self):
         """Verify _get_text_columns handles empty features dict."""
-        features = {}
+        features: dict[str, Any] = {}
 
         text_cols = DatasetInspector._get_text_columns(features)
 

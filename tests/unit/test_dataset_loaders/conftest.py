@@ -5,13 +5,13 @@ Provides common configuration and setup fixtures for testing dataset loaders.
 """
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
 
 @pytest.fixture
-def text_classification_loader_config() -> Dict[str, Any]:
+def text_classification_loader_config() -> dict[str, Any]:
     """Default configuration for TextClassificationLoader tests."""
     return {
         "dataset_name": "stanfordnlp/sst2",
@@ -38,15 +38,13 @@ def medquad_temp_dataset_dir(tmp_path: Path) -> str:
         client_dir = dataset_dir / f"client_{i}"
         client_dir.mkdir()
         json_file = client_dir / f"data_{i}.json"
-        json_file.write_text(
-            '{"question": "What is test?", "answer": "This is a test answer"}'
-        )
+        json_file.write_text('{"question": "What is test?", "answer": "This is a test answer"}')
 
     return str(dataset_dir)
 
 
 @pytest.fixture
-def medquad_loader_config(medquad_temp_dataset_dir: str) -> Dict[str, Any]:
+def medquad_loader_config(medquad_temp_dataset_dir: str) -> dict[str, Any]:
     """Default configuration for MedQuADDatasetLoader tests."""
     return {
         "dataset_dir": medquad_temp_dataset_dir,
@@ -61,7 +59,7 @@ def medquad_loader_config(medquad_temp_dataset_dir: str) -> Dict[str, Any]:
 
 
 @pytest.fixture
-def image_dataset_loader_config() -> Dict[str, Any]:
+def image_dataset_loader_config() -> dict[str, Any]:
     """Default configuration for ImageDatasetLoader tests."""
     return {
         "dataset_keyword": "bloodmnist",
@@ -73,7 +71,7 @@ def image_dataset_loader_config() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def federated_dataset_loader_config(temp_dataset_dir: Path) -> Dict[str, Any]:
+def federated_dataset_loader_config(temp_dataset_dir: Path) -> dict[str, Any]:
     """Default configuration for FederatedDatasetLoader tests."""
     return {
         "dataset_dir": str(temp_dataset_dir),

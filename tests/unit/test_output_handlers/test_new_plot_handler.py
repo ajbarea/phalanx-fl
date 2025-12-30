@@ -224,9 +224,7 @@ class TestPlotHandler:
 
         with patch("matplotlib.pyplot.show") as mock_show:
             with patch("matplotlib.pyplot.savefig") as mock_savefig:
-                show_plots_within_strategy(
-                    mock_simulation_strategy, mock_directory_handler
-                )
+                show_plots_within_strategy(mock_simulation_strategy, mock_directory_handler)
 
                 mock_show.assert_called()
                 mock_savefig.assert_called()
@@ -413,9 +411,7 @@ class TestPlotHandler:
                 mock_ax.get_legend_handles_labels.return_value = ([], [])
                 mock_gca.return_value = mock_ax
 
-                show_inter_strategy_plots(
-                    mock_multiple_strategies, mock_directory_handler
-                )
+                show_inter_strategy_plots(mock_multiple_strategies, mock_directory_handler)
 
                 mock_legend.assert_not_called()
 
@@ -526,9 +522,7 @@ class TestPlotHandler:
             show_plots_within_strategy(mock_simulation_strategy, mock_directory_handler)
 
         call_args = [call[1] for call in mock_plot.call_args_list if "label" in call[1]]
-        client_labels = [
-            args["label"] for args in call_args if "client_5" in args["label"]
-        ]
+        client_labels = [args["label"] for args in call_args if "client_5" in args["label"]]
         assert len(client_labels) > 0
 
     @patch("matplotlib.pyplot.tight_layout")
@@ -558,9 +552,7 @@ class TestPlotHandler:
         show_plots_within_strategy(mock_simulation_strategy, mock_directory_handler)
 
         x_marker_calls = [
-            call
-            for call in mock_plot.call_args_list
-            if len(call[0]) >= 3 and "kx" in call[0]
+            call for call in mock_plot.call_args_list if len(call[0]) >= 3 and "kx" in call[0]
         ]
         assert len(x_marker_calls) > 0
 
@@ -579,14 +571,10 @@ class TestPlotHandler:
 
         with patch("matplotlib.pyplot.savefig") as mock_savefig:
             with patch("matplotlib.pyplot.figure"):
-                show_plots_within_strategy(
-                    mock_simulation_strategy, mock_directory_handler
-                )
+                show_plots_within_strategy(mock_simulation_strategy, mock_directory_handler)
 
         save_calls = [call[0][0] for call in mock_savefig.call_args_list]
-        assert any(
-            mock_directory_handler.new_plots_dirname in path for path in save_calls
-        )
+        assert any(mock_directory_handler.new_plots_dirname in path for path in save_calls)
 
     @patch("matplotlib.pyplot.tight_layout")
     @patch("matplotlib.pyplot.show")
@@ -604,9 +592,7 @@ class TestPlotHandler:
             with patch("numpy.arange") as mock_arange:
                 mock_arange.return_value = np.array([0, 1, 2])
 
-                show_inter_strategy_plots(
-                    mock_multiple_strategies, mock_directory_handler
-                )
+                show_inter_strategy_plots(mock_multiple_strategies, mock_directory_handler)
 
                 bar_calls = mock_bar.call_args_list
                 if bar_calls:
@@ -678,9 +664,7 @@ class TestPlotHandler:
         show_plots_within_strategy(mock_simulation_strategy, mock_directory_handler)
 
         mock_ceil.assert_called()
-        legend_calls = [
-            call for call in mock_legend.call_args_list if "ncol" in call[1]
-        ]
+        legend_calls = [call for call in mock_legend.call_args_list if "ncol" in call[1]]
         assert len(legend_calls) > 0
 
     @patch("matplotlib.pyplot.show")
@@ -1138,9 +1122,7 @@ class TestSavePlotDataJson:
         client.rounds = [1, 2, 3]
         client.plottable_metrics = ["loss_history", "accuracy_history"]
         client.get_metric_by_name = Mock(
-            side_effect=lambda name: [0.5, 0.4, 0.3]
-            if name == "loss_history"
-            else [0.7, 0.8, 0.9]
+            side_effect=lambda name: [0.5, 0.4, 0.3] if name == "loss_history" else [0.7, 0.8, 0.9]
         )
         return client
 
@@ -1277,9 +1259,7 @@ class TestSavePlotDataJson:
         self, mock_simulation_for_json, mock_directory_handler_for_json, tmp_path
     ):
         """Verifies None values in metrics are exported as null."""
-        mock_client = (
-            mock_simulation_for_json.strategy_history.get_all_clients.return_value[0]
-        )
+        mock_client = mock_simulation_for_json.strategy_history.get_all_clients.return_value[0]
         mock_client.get_metric_by_name = Mock(return_value=[0.5, None, 0.7])
 
         save_plot_data_json(mock_simulation_for_json, mock_directory_handler_for_json)
@@ -1308,9 +1288,7 @@ class TestSavePlotDataJson:
 
         assert data["strategy_number"] == 5
 
-    def test_json_export_multiple_clients(
-        self, mock_directory_handler_for_json, tmp_path
-    ):
+    def test_json_export_multiple_clients(self, mock_directory_handler_for_json, tmp_path):
         """Verifies multiple clients are correctly exported."""
         # Create multiple client mocks
         clients = []

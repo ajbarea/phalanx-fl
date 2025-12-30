@@ -8,7 +8,7 @@ and output generation with mocked dependencies.
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import patch
 
 from src.data_models.simulation_strategy_config import StrategyConfig
@@ -16,7 +16,7 @@ from src.simulation_runner import SimulationRunner
 from tests.common import Mock, pytest
 
 
-def _create_mock_strategy_config() -> Dict[str, Any]:
+def _create_mock_strategy_config() -> dict[str, Any]:
     """Return mock strategy configuration for testing."""
     return {
         "shared_settings": {
@@ -74,7 +74,7 @@ def _create_mock_strategy_config() -> Dict[str, Any]:
     }
 
 
-def __create_multi_strategy_config() -> Dict[str, Any]:
+def __create_multi_strategy_config() -> dict[str, Any]:
     """Return configuration with multiple strategies."""
     return {
         "shared_settings": {
@@ -125,7 +125,7 @@ class TestSimulationRunnerInitialization:
     """Test SimulationRunner initialization."""
 
     @pytest.fixture
-    def temp_config_files(self, tmp_path: Path) -> Dict[str, Path]:
+    def temp_config_files(self, tmp_path: Path) -> dict[str, Path]:
         """Create temporary configuration files."""
         strategy_config = _create_mock_strategy_config()
         strategy_file = tmp_path / "test_strategy.json"
@@ -144,7 +144,7 @@ class TestSimulationRunnerInitialization:
         return {"strategy": strategy_file, "dataset": dataset_file}
 
     def test_simulation_runner_initialization_with_valid_config(
-        self, temp_config_files: Dict[str, Path]
+        self, temp_config_files: dict[str, Path]
     ) -> None:
         """Test initialization with valid configuration files."""
         with (
@@ -162,9 +162,7 @@ class TestSimulationRunnerInitialization:
                     "beta_value": 0.5,
                 }
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [
-                {"its": "datasets/its"}
-            ]
+            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
             mock_config_loader.return_value = mock_loader_instance
             mock_directory_handler.return_value = Mock()
 
@@ -177,7 +175,7 @@ class TestSimulationRunnerInitialization:
         assert len(runner._simulation_strategy_config_dicts) == 1
 
     def test_simulation_runner_initialization_with_multi_strategy_config(
-        self, temp_config_files: Dict[str, Path]
+        self, temp_config_files: dict[str, Path]
     ) -> None:
         """Test initialization with multiple strategies."""
         with (
@@ -211,9 +209,7 @@ class TestSimulationRunnerInitialization:
                     "num_krum_selections": 3,
                 },
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [
-                {"its": "datasets/its"}
-            ]
+            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
             mock_config_loader.return_value = mock_loader_instance
             mock_directory_handler.return_value = Mock()
 
@@ -263,9 +259,7 @@ class TestSimulationRunnerExecution:
             patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
             patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
             patch("src.simulation_runner.DatasetHandler") as mock_dataset_handler,
-            patch(
-                "src.simulation_runner.FederatedSimulation"
-            ) as mock_federated_simulation,
+            patch("src.simulation_runner.FederatedSimulation") as mock_federated_simulation,
             patch("src.simulation_runner.new_plot_handler") as mock_plot_handler,
         ):
             mock_loader_instance = Mock()
@@ -279,9 +273,7 @@ class TestSimulationRunnerExecution:
                     "beta_value": 0.5,
                 }
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [
-                {"its": "datasets/its"}
-            ]
+            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
             mock_config_loader.return_value = mock_loader_instance
 
             mock_dir_instance = Mock()
@@ -387,9 +379,7 @@ class TestSimulationRunnerExecution:
         assert strategy_config.strategy_number == 0
         assert strategy_config.aggregation_strategy_keyword == "trust"
 
-    def test_dataset_handler_initialization_with_correct_parameters(
-        self, mock_runner_components
-    ):
+    def test_dataset_handler_initialization_with_correct_parameters(self, mock_runner_components):
         """Test that DatasetHandler is initialized with correct parameters."""
         mocks = mock_runner_components
         runner = SimulationRunner("test_config.json")
@@ -479,9 +469,7 @@ class TestSimulationRunnerConfigurationProcessing:
                     "shared_setting": "shared_value",
                 },
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [
-                {"its": "datasets/its"}
-            ]
+            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
             mock_config_loader.return_value = mock_loader_instance
             mock_directory_handler.return_value = Mock()
 
@@ -496,12 +484,8 @@ class TestSimulationRunnerConfigurationProcessing:
             assert config["num_of_rounds"] == 3
             assert config["num_of_clients"] == 5
 
-        trust_config = next(
-            c for c in configs if c["aggregation_strategy_keyword"] == "trust"
-        )
-        pid_config = next(
-            c for c in configs if c["aggregation_strategy_keyword"] == "pid"
-        )
+        trust_config = next(c for c in configs if c["aggregation_strategy_keyword"] == "trust")
+        pid_config = next(c for c in configs if c["aggregation_strategy_keyword"] == "pid")
 
         assert trust_config["trust_threshold"] == 0.7
         assert trust_config["beta_value"] == 0.5
@@ -549,7 +533,7 @@ class TestSimulationRunnerConfigurationProcessing:
         ],
     )
     def test_strategy_specific_parameter_processing(
-        self, strategy_keyword: str, expected_params: List[str]
+        self, strategy_keyword: str, expected_params: list[str]
     ):
         """Test that strategy-specific parameters are properly processed."""
         base_config = {
@@ -572,9 +556,7 @@ class TestSimulationRunnerConfigurationProcessing:
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [base_config]
-            mock_loader_instance.get_dataset_config_list.return_value = [
-                {"its": "datasets/its"}
-            ]
+            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
             mock_config_loader.return_value = mock_loader_instance
             mock_directory_handler.return_value = Mock()
 
@@ -597,9 +579,7 @@ class TestSimulationRunnerOutputGeneration:
             patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
             patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
             patch("src.simulation_runner.DatasetHandler") as mock_dataset_handler,
-            patch(
-                "src.simulation_runner.FederatedSimulation"
-            ) as mock_federated_simulation,
+            patch("src.simulation_runner.FederatedSimulation") as mock_federated_simulation,
             patch("src.simulation_runner.new_plot_handler") as mock_plot_handler,
         ):
             mock_loader_instance = Mock()
@@ -611,9 +591,7 @@ class TestSimulationRunnerOutputGeneration:
                     "num_of_clients": 3,
                 }
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [
-                {"its": "datasets/its"}
-            ]
+            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
             mock_config_loader.return_value = mock_loader_instance
 
             mock_dir_instance = Mock()
@@ -702,9 +680,7 @@ class TestSimulationRunnerOutputGeneration:
                     "num_of_clients": 3,
                 },
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [
-                {"its": "datasets/its"}
-            ]
+            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
             mock_config_loader.return_value = mock_loader_instance
 
             runner = SimulationRunner("multi_config.json")
@@ -737,17 +713,13 @@ class TestSimulationRunnerErrorHandling:
             patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
             patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
             patch("src.simulation_runner.DatasetHandler") as mock_dataset_handler,
-            patch(
-                "src.simulation_runner.FederatedSimulation"
-            ) as mock_federated_simulation,
+            patch("src.simulation_runner.FederatedSimulation") as mock_federated_simulation,
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [
                 {"aggregation_strategy_keyword": "trust", "dataset_keyword": "its"}
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [
-                {"its": "datasets/its"}
-            ]
+            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
             mock_config_loader.return_value = mock_loader_instance
 
             mock_dir_instance = Mock()
@@ -756,9 +728,7 @@ class TestSimulationRunnerErrorHandling:
             mock_dataset_handler.return_value = Mock()
 
             mock_simulation_instance = Mock()
-            mock_simulation_instance.run_simulation.side_effect = RuntimeError(
-                "Simulation failed"
-            )
+            mock_simulation_instance.run_simulation.side_effect = RuntimeError("Simulation failed")
             mock_federated_simulation.return_value = mock_simulation_instance
 
             runner = SimulationRunner("test_config.json")
@@ -777,9 +747,7 @@ class TestSimulationRunnerErrorHandling:
             mock_loader_instance.get_usecase_config_list.return_value = [
                 {"aggregation_strategy_keyword": "trust", "dataset_keyword": "its"}
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [
-                {"its": "datasets/its"}
-            ]
+            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
             mock_config_loader.return_value = mock_loader_instance
 
             mock_dir_instance = Mock()
@@ -787,9 +755,7 @@ class TestSimulationRunnerErrorHandling:
             mock_directory_handler.return_value = mock_dir_instance
 
             mock_dataset_instance = Mock()
-            mock_dataset_instance.setup_dataset.side_effect = IOError(
-                "Dataset setup failed"
-            )
+            mock_dataset_instance.setup_dataset.side_effect = OSError("Dataset setup failed")
             mock_dataset_handler.return_value = mock_dataset_instance
 
             runner = SimulationRunner("test_config.json")
@@ -803,17 +769,13 @@ class TestSimulationRunnerErrorHandling:
             patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
             patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
             patch("src.simulation_runner.DatasetHandler") as mock_dataset_handler,
-            patch(
-                "src.simulation_runner.FederatedSimulation"
-            ) as mock_federated_simulation,
+            patch("src.simulation_runner.FederatedSimulation") as mock_federated_simulation,
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [
                 {"aggregation_strategy_keyword": "trust", "dataset_keyword": "its"}
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [
-                {"its": "datasets/its"}
-            ]
+            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
             mock_config_loader.return_value = mock_loader_instance
 
             mock_dir_instance = Mock()
@@ -824,9 +786,7 @@ class TestSimulationRunnerErrorHandling:
             mock_dataset_handler.return_value = mock_dataset_instance
 
             mock_simulation_instance = Mock()
-            mock_simulation_instance.run_simulation.side_effect = RuntimeError(
-                "Simulation failed"
-            )
+            mock_simulation_instance.run_simulation.side_effect = RuntimeError("Simulation failed")
             mock_federated_simulation.return_value = mock_simulation_instance
 
             runner = SimulationRunner("test_config.json")
@@ -860,9 +820,7 @@ class TestSimulationRunnerLogging:
                     "trust_threshold": 0.7,
                 }
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [
-                {"its": "datasets/its"}
-            ]
+            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
             mock_config_loader.return_value = mock_loader_instance
 
             runner = SimulationRunner("test_config.json")

@@ -1,5 +1,7 @@
 """Interactive batch runner for testing configs."""
 
+from __future__ import annotations
+
 import argparse
 import json
 import signal
@@ -49,7 +51,7 @@ def parse_selection(selection_input: str, max_index: int) -> set:
     if selection_input == "all":
         return set(range(max_index))
 
-    selected = set()
+    selected: set[int] = set()
     parts = selection_input.split(",")
 
     for part in parts:
@@ -106,12 +108,10 @@ def show_config_menu(
 
         config_file_path = config_base_dir / config_name
         try:
-            with open(config_file_path, "r") as f:
+            with open(config_file_path) as f:
                 config_data = json.load(f)
                 device = (
-                    config_data.get("shared_settings", {})
-                    .get("training_device", "cpu")
-                    .lower()
+                    config_data.get("shared_settings", {}).get("training_device", "cpu").lower()
                 )
         except (FileNotFoundError, json.JSONDecodeError):
             device = "cpu"
@@ -197,9 +197,7 @@ def select_configs_interactive(
             else:
                 console.print(f"  [cyan]•[/cyan] {config}")
 
-        console.print(
-            f"\n[yellow]Run these {len(selected_configs)} experiments?[/yellow] (y/n)"
-        )
+        console.print(f"\n[yellow]Run these {len(selected_configs)} experiments?[/yellow] (y/n)")
         confirm = input("> ").strip().lower()
 
         if confirm in ["y", "yes"]:
@@ -212,9 +210,7 @@ def main():
     """Run selected configs with memory cleanup."""
     signal.signal(signal.SIGINT, _handle_interrupt)
 
-    parser = argparse.ArgumentParser(
-        description="Interactive batch runner for testing configs"
-    )
+    parser = argparse.ArgumentParser(description="Interactive batch runner for testing configs")
     parser.add_argument(
         "dir",
         nargs="?",
@@ -238,11 +234,9 @@ def main():
         console.print("[red]No config files found[/red]")
         sys.exit(1)
 
-    all_configs = [
-        str(f.relative_to(config_dir)).replace("\\", "/") for f in all_config_paths
-    ]
+    all_configs = [str(f.relative_to(config_dir)).replace("\\", "/") for f in all_config_paths]
 
-    configs_by_subdir = defaultdict(int)
+    configs_by_subdir: dict[str, int] = defaultdict(int)
     for config in all_configs:
         if "/" in config:
             subdir = config.rsplit("/", 1)[0]
@@ -260,12 +254,10 @@ def main():
     def get_sort_key(config_name):
         config_file_path = config_dir / config_name
         try:
-            with open(config_file_path, "r") as f:
+            with open(config_file_path) as f:
                 config_data = json.load(f)
                 device = (
-                    config_data.get("shared_settings", {})
-                    .get("training_device", "cpu")
-                    .lower()
+                    config_data.get("shared_settings", {}).get("training_device", "cpu").lower()
                 )
         except (FileNotFoundError, json.JSONDecodeError):
             device = "cpu"
@@ -275,13 +267,9 @@ def main():
 
     configs = sorted(all_configs, key=get_sort_key)
 
-    selected_configs = select_configs_interactive(
-        configs, timing_db, config_reader, args.dir
-    )
+    selected_configs = select_configs_interactive(configs, timing_db, config_reader, args.dir)
 
-    console.print(
-        f"\n[cyan]Running {len(selected_configs)} configs with Ray cleanup[/cyan]\n"
-    )
+    console.print(f"\n[cyan]Running {len(selected_configs)} configs with Ray cleanup[/cyan]\n")
 
     with ExperimentExecutor(
         project_root=project_root,

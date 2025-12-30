@@ -15,12 +15,15 @@ Usage:
     python tests/scripts/record_baselines.py --list
 """
 
+from __future__ import annotations
+
 import argparse
 import csv
 import json
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from rich.console import Console
 from rich.table import Table
@@ -34,7 +37,7 @@ project_root = Path(__file__).parent.parent.parent
 console = Console()
 
 
-def parse_round_metrics(csv_path: Path) -> dict:
+def parse_round_metrics(csv_path: Path) -> dict[str, Any]:
     """Parse round_metrics CSV to extract all per-round metrics.
 
     Args:
@@ -43,18 +46,17 @@ def parse_round_metrics(csv_path: Path) -> dict:
     Returns:
         Dictionary with per-round metrics arrays
     """
-    metrics = {"total_rounds": 0, "per_round": {}}
+    per_round: dict[str, list[float]] = {
+        "aggregated_loss": [],
+        "average_accuracy": [],
+    }
+    metrics: dict[str, Any] = {"total_rounds": 0, "per_round": per_round}
     try:
-        with open(csv_path, "r", newline="") as f:
+        with open(csv_path, newline="") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
             if rows:
                 metrics["total_rounds"] = len(rows)
-
-                # Collect per-round arrays for key metrics
-                per_round = metrics["per_round"]
-                per_round["aggregated_loss"] = []
-                per_round["average_accuracy"] = []
 
                 for row in rows:
                     per_round["aggregated_loss"].append(
@@ -66,12 +68,8 @@ def parse_round_metrics(csv_path: Path) -> dict:
 
                 # Final values for quick access
                 final_row = rows[-1]
-                metrics["final_accuracy"] = _safe_float(
-                    final_row.get("average_accuracy_history")
-                )
-                metrics["final_loss"] = _safe_float(
-                    final_row.get("aggregated_loss_history")
-                )
+                metrics["final_accuracy"] = _safe_float(final_row.get("average_accuracy_history"))
+                metrics["final_loss"] = _safe_float(final_row.get("aggregated_loss_history"))
 
     except Exception as e:
         console.print(f"[yellow]Warning: Could not parse {csv_path}: {e}[/yellow]")
@@ -88,9 +86,9 @@ def parse_per_client_metrics(csv_path: Path, num_clients: int) -> dict:
     Returns:
         Dictionary with per-client metrics arrays
     """
-    clients = {}
+    clients: dict[str, dict[str, list[Any]]] = {}
     try:
-        with open(csv_path, "r", newline="") as f:
+        with open(csv_path, newline="") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
             if rows:
@@ -120,9 +118,7 @@ def parse_per_client_metrics(csv_path: Path, num_clients: int) -> dict:
                         clients[str(client_id)]["participation"].append(
                             int(
                                 _safe_float(
-                                    row.get(
-                                        f"{prefix}aggregation_participation_history"
-                                    ),
+                                    row.get(f"{prefix}aggregation_participation_history"),
                                     1,
                                 )
                             )
@@ -143,7 +139,7 @@ def _safe_float(value, default: float = 0.0) -> float:
         return default
 
 
-def collect_output_info(output_dir: Path) -> dict:
+def collect_output_info(output_dir: Path) -> dict[str, Any]:
     """Collect information about output files.
 
     Args:
@@ -152,7 +148,7 @@ def collect_output_info(output_dir: Path) -> dict:
     Returns:
         Dictionary with output file information
     """
-    outputs = {
+    outputs: dict[str, Any] = {
         "plots": [],
         "csv": [],
         "attack_snapshots": 0,
@@ -193,7 +189,7 @@ def extract_baseline_from_output(
     Returns:
         Baseline dictionary
     """
-    baseline = {
+    baseline: dict[str, Any] = {
         "config": config_name,
         "recorded_at": datetime.now().isoformat(),
         "framework_version": "1.0.0",
@@ -216,9 +212,7 @@ def extract_baseline_from_output(
             # Also parse per-client metrics
             per_client_csv = csv_dir / f"per_client_metrics_{idx}.csv"
             if per_client_csv.exists():
-                metrics["per_client"] = parse_per_client_metrics(
-                    per_client_csv, num_clients
-                )
+                metrics["per_client"] = parse_per_client_metrics(per_client_csv, num_clients)
 
             baseline["strategies"].append(metrics)
 
@@ -252,7 +246,7 @@ def save_baseline(baseline: dict, baselines_dir: Path) -> Path:
 def get_num_clients_from_config(config_path: Path) -> int:
     """Read num_of_clients from config file."""
     try:
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             config = json.load(f)
         return config.get("shared_settings", {}).get("num_of_clients", 10)
     except Exception:
@@ -276,16 +270,14 @@ def run_and_record(
     Returns:
         Results summary
     """
-    results = {
+    results: dict[str, list[str]] = {
         "recorded": [],
         "failed": [],
         "skipped": [],
     }
 
     config_base = project_root / "config" / "simulation_strategies" / config_subdir
-    console.print(
-        f"\n[cyan]Recording baselines for {len(configs)} config(s)...[/cyan]\n"
-    )
+    console.print(f"\n[cyan]Recording baselines for {len(configs)} config(s)...[/cyan]\n")
 
     with ExperimentExecutor(
         project_root=project_root,
@@ -297,9 +289,7 @@ def run_and_record(
         skip_gc=True,
     ) as executor:
         for idx, config_name in enumerate(configs, start=1):
-            console.print(
-                f"\n[bold cyan]=== [{idx}/{len(configs)}] {config_name} ===[/bold cyan]"
-            )
+            console.print(f"\n[bold cyan]=== [{idx}/{len(configs)}] {config_name} ===[/bold cyan]")
 
             # Get num_clients from config
             config_path = config_base / config_name
@@ -316,9 +306,7 @@ def run_and_record(
 
                 if baseline["strategies"]:
                     baseline_path = save_baseline(baseline, baselines_dir)
-                    console.print(
-                        f"[green][OK] Saved baseline: {baseline_path.name}[/green]"
-                    )
+                    console.print(f"[green][OK] Saved baseline: {baseline_path.name}[/green]")
 
                     # Show summary
                     for strat in baseline["strategies"]:
@@ -332,9 +320,7 @@ def run_and_record(
 
                     results["recorded"].append(config_name)
                 else:
-                    console.print(
-                        "[yellow][!] No strategy data found in output[/yellow]"
-                    )
+                    console.print("[yellow][!] No strategy data found in output[/yellow]")
                     results["failed"].append(config_name)
             else:
                 console.print("[red][X] Failed - no output directory[/red]")
@@ -388,9 +374,7 @@ def list_configs(config_subdir: str, timing_db: TimingDatabase) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Record baseline results from simulation configs"
-    )
+    parser = argparse.ArgumentParser(description="Record baseline results from simulation configs")
     parser.add_argument(
         "--config",
         help="Single config filename to run (e.g., femnist_bulyan_baseline.json)",

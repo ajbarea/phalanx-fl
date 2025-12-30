@@ -1,6 +1,6 @@
 """Mock Flower FL components for testing without distributed execution."""
 
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Optional, Union
 
 import numpy as np
 from flwr.common import (
@@ -12,8 +12,8 @@ from flwr.common import (
 )
 
 NDArray = np.ndarray
-Config = Dict[str, Any]
-Metrics = Dict[str, Any]
+Config = dict[str, Any]
+Metrics = dict[str, Any]
 Scalar = Union[bool, bytes, float, int, str]
 
 TENSOR_TYPE_NUMPY = "numpy.ndarray"
@@ -22,7 +22,7 @@ TENSOR_TYPE_NUMPY = "numpy.ndarray"
 class MockParameters:
     """Mock implementation of flwr.common.Parameters."""
 
-    def __init__(self, tensors: List[bytes], tensor_type: str = TENSOR_TYPE_NUMPY):
+    def __init__(self, tensors: list[bytes], tensor_type: str = TENSOR_TYPE_NUMPY):
         """Initializes mock parameters.
 
         Args:
@@ -64,9 +64,7 @@ class MockFitRes:
 class MockEvaluateRes:
     """Mock implementation of flwr.common.EvaluateRes."""
 
-    def __init__(
-        self, loss: float, num_examples: int, metrics: Optional[Metrics] = None
-    ):
+    def __init__(self, loss: float, num_examples: int, metrics: Optional[Metrics] = None):
         """Initializes mock evaluation result.
 
         Args:
@@ -120,9 +118,7 @@ class MockClientProxy:
                 noise = self._rng.normal(0, 0.01, tensor.shape).astype(np.float32)
                 updated_tensor = tensor + noise
                 updated_tensors.append(updated_tensor.tobytes())
-            updated_params: Any = MockParameters(
-                updated_tensors, parameters.tensor_type
-            )
+            updated_params: Any = MockParameters(updated_tensors, parameters.tensor_type)
         else:
             ndarrays = parameters_to_ndarrays(parameters)
             updated_arrays = []
@@ -189,7 +185,7 @@ class MockNumPyClient:
         self.client_id = client_id
         self._rng = np.random.default_rng(42 + client_id)
 
-    def get_parameters(self, _: Config) -> List[NDArray]:
+    def get_parameters(self, _: Config) -> list[NDArray]:
         """Gets client parameters.
 
         Args:
@@ -204,9 +200,7 @@ class MockNumPyClient:
             self._rng.standard_normal(10).astype(np.float32),
         ]
 
-    def fit(
-        self, parameters: List[NDArray], _: Config
-    ) -> Tuple[List[NDArray], int, Metrics]:
+    def fit(self, parameters: list[NDArray], _: Config) -> tuple[list[NDArray], int, Metrics]:
         """Simulates client training.
 
         Args:
@@ -229,9 +223,7 @@ class MockNumPyClient:
 
         return updated_params, num_examples, metrics
 
-    def evaluate(
-        self, _parameters: List[NDArray], _config: Config
-    ) -> Tuple[float, int, Metrics]:
+    def evaluate(self, _parameters: list[NDArray], _config: Config) -> tuple[float, int, Metrics]:
         """Simulates client evaluation.
 
         Args:
@@ -289,7 +281,7 @@ def mock_start_simulation(
     strategy: Any,
     initial_parameters: Optional[Union[MockParameters, Parameters]] = None,
     **_kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Mocks flwr.simulation.start_simulation with real strategy execution.
 
     Args:
@@ -303,7 +295,7 @@ def mock_start_simulation(
     Returns:
         Mock simulation results.
     """
-    simulation_results = {
+    simulation_results: dict[str, Any] = {
         "history": {
             "losses_distributed": [],
             "losses_centralized": [],
@@ -339,12 +331,15 @@ def mock_start_simulation(
         if new_params is not None:
             current_params = new_params
 
-        avg_loss = round_results["avg_loss"]
-        simulation_results["history"]["losses_distributed"].append(avg_loss)
+        avg_loss: float = round_results["avg_loss"]
+        losses_list: list[float] = simulation_results["history"]["losses_distributed"]
+        losses_list.append(avg_loss)
 
-        metrics_dict = round_results["metrics"]
+        metrics_dict: dict[str, Any] = round_results["metrics"]
         for metric_name, metric_value in metrics_dict.items():
-            distributed_metrics = simulation_results["history"]["metrics_distributed"]
+            distributed_metrics: dict[str, list[Any]] = simulation_results["history"][
+                "metrics_distributed"
+            ]
             if metric_name not in distributed_metrics:
                 distributed_metrics[metric_name] = []
             distributed_metrics[metric_name].append(metric_value)
@@ -353,12 +348,12 @@ def mock_start_simulation(
 
 
 def _simulate_round(
-    client_proxies: List[MockClientProxy],
+    client_proxies: list[MockClientProxy],
     strategy: Any,
     round_num: int,
     num_clients: int,
     current_params: Union[MockParameters, Parameters],
-) -> Tuple[Dict[str, Any], Optional[Union[MockParameters, Parameters]]]:
+) -> tuple[dict[str, Any], Optional[Union[MockParameters, Parameters]]]:
     """Simulates a single federated learning round.
 
     Args:
@@ -373,13 +368,13 @@ def _simulate_round(
     """
     selected_clients = client_proxies[: min(num_clients, len(client_proxies))]
 
-    fit_results: List[Tuple[MockClientProxy, MockFitRes]] = []
+    fit_results: list[tuple[MockClientProxy, MockFitRes]] = []
     for client in selected_clients:
         fit_res = client.fit(current_params, {"round": round_num})
         fit_results.append((client, fit_res))
 
     aggregated_params = None
-    fit_metrics: Dict[str, Any] = {}
+    fit_metrics: dict[str, Any] = {}
     try:
         result = strategy.aggregate_fit(
             server_round=round_num,
@@ -393,13 +388,13 @@ def _simulate_round(
 
         logging.warning(f"aggregate_fit failed in round {round_num}: {e}")
 
-    eval_results: List[Tuple[MockClientProxy, MockEvaluateRes]] = []
+    eval_results: list[tuple[MockClientProxy, MockEvaluateRes]] = []
     for client in selected_clients:
         eval_res = client.evaluate(current_params, {"round": round_num})
         eval_results.append((client, eval_res))
 
     avg_loss = 0.0
-    eval_metrics: Dict[str, Any] = {}
+    eval_metrics: dict[str, Any] = {}
     try:
         result = strategy.aggregate_evaluate(
             server_round=round_num,
@@ -417,9 +412,7 @@ def _simulate_round(
         avg_loss = float(np.mean([res.loss for _, res in eval_results]))
 
     if "accuracy" not in eval_metrics:
-        avg_accuracy = float(
-            np.mean([res.metrics.get("accuracy", 0.0) for _, res in eval_results])
-        )
+        avg_accuracy = float(np.mean([res.metrics.get("accuracy", 0.0) for _, res in eval_results]))
         eval_metrics["accuracy"] = avg_accuracy
 
     return {
@@ -430,7 +423,7 @@ def _simulate_round(
     }, aggregated_params
 
 
-def mock_ndarrays_to_parameters(ndarrays: List[NDArray]) -> MockParameters:
+def mock_ndarrays_to_parameters(ndarrays: list[NDArray]) -> MockParameters:
     """Mocks flwr.common.ndarrays_to_parameters.
 
     Args:
@@ -443,7 +436,7 @@ def mock_ndarrays_to_parameters(ndarrays: List[NDArray]) -> MockParameters:
     return MockParameters(tensors, TENSOR_TYPE_NUMPY)
 
 
-def mock_parameters_to_ndarrays(parameters: MockParameters) -> List[NDArray]:
+def mock_parameters_to_ndarrays(parameters: MockParameters) -> list[NDArray]:
     """Mocks flwr.common.parameters_to_ndarrays.
 
     Args:
@@ -455,7 +448,7 @@ def mock_parameters_to_ndarrays(parameters: MockParameters) -> List[NDArray]:
     return [np.frombuffer(tensor, dtype=np.float32) for tensor in parameters.tensors]
 
 
-def mock_weighted_loss_avg(results: List[Tuple[int, float]]) -> float:
+def mock_weighted_loss_avg(results: list[tuple[int, float]]) -> float:
     """Mocks flwr.server.strategy.aggregate.weighted_loss_avg.
 
     Args:
@@ -488,7 +481,7 @@ def create_mock_flower_client(client_id: int = 0) -> MockClient:
     return MockClient(numpy_client)
 
 
-def create_mock_client_proxies(num_clients: int) -> List[MockClientProxy]:
+def create_mock_client_proxies(num_clients: int) -> list[MockClientProxy]:
     """Creates multiple mock client proxies.
 
     Args:
@@ -501,8 +494,8 @@ def create_mock_client_proxies(num_clients: int) -> List[MockClientProxy]:
 
 
 def create_mock_fit_results(
-    num_clients: int, param_shapes: List[Tuple[int, ...]]
-) -> List[MockFitRes]:
+    num_clients: int, param_shapes: list[tuple[int, ...]]
+) -> list[MockFitRes]:
     """Creates mock fit results.
 
     Args:
@@ -534,7 +527,7 @@ def create_mock_fit_results(
     return results
 
 
-def create_mock_evaluate_results(num_clients: int) -> List[MockEvaluateRes]:
+def create_mock_evaluate_results(num_clients: int) -> list[MockEvaluateRes]:
     """Creates mock evaluation results.
 
     Args:

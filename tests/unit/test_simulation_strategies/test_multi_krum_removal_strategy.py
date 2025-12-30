@@ -136,7 +136,7 @@ class TestMultiKrumBasedRemovalStrategy:
                 results.append((client_proxy, fit_res))
 
             distances = np.zeros((5, 5))
-            scores = strategy._calculate_multi_krum_scores(results, distances)
+            scores = strategy._calculate_multi_krum_scores(results, distances)  # type: ignore[arg-type]
 
             # Verify scores are calculated
             assert len(scores) == 5
@@ -209,9 +209,7 @@ class TestMultiKrumBasedRemovalStrategy:
                 assert isinstance(score, (int, float))
                 assert np.isfinite(score)
 
-    def test_aggregate_fit_top_client_selection(
-        self, multi_krum_strategy, mock_client_results
-    ):
+    def test_aggregate_fit_top_client_selection(self, multi_krum_strategy, mock_client_results):
         """Test aggregate_fit selects top num_krum_selections clients."""
         with (
             patch(
@@ -259,9 +257,7 @@ class TestMultiKrumBasedRemovalStrategy:
 
         mock_parameters = Mock()
 
-        result = multi_krum_strategy.configure_fit(
-            1, mock_parameters, mock_client_manager
-        )
+        result = multi_krum_strategy.configure_fit(1, mock_parameters, mock_client_manager)
 
         # Should return all clients during warmup
         assert len(result) == 6
@@ -305,14 +301,10 @@ class TestMultiKrumBasedRemovalStrategy:
 
         # Remove clients until limit is reached
         total_clients = 6
-        max_removals = (
-            total_clients - multi_krum_strategy.num_krum_selections
-        )  # 6 - 3 = 3
+        max_removals = total_clients - multi_krum_strategy.num_krum_selections  # 6 - 3 = 3
 
         for round_num in range(max_removals + 2):  # Try to remove more than limit
-            multi_krum_strategy.configure_fit(
-                5 + round_num, mock_parameters, mock_client_manager
-            )
+            multi_krum_strategy.configure_fit(5 + round_num, mock_parameters, mock_client_manager)
 
         # Should not remove more than the limit
         assert len(multi_krum_strategy.removed_client_ids) <= max_removals
@@ -361,9 +353,7 @@ class TestMultiKrumBasedRemovalStrategy:
             expected_max_removals = total_clients - num_selections
 
             strategy.current_round = 3
-            strategy.client_scores = {
-                f"client_{i}": float(i) for i in range(total_clients)
-            }
+            strategy.client_scores = {f"client_{i}": float(i) for i in range(total_clients)}
 
             mock_client_manager = Mock()
             mock_clients = {f"client_{i}": Mock() for i in range(total_clients)}
@@ -404,9 +394,7 @@ class TestMultiKrumBasedRemovalStrategy:
             # Should return all clients during warmup (current_round <= begin_removing_from_round)
             assert len(result) == 2
 
-    def test_strategy_history_integration(
-        self, multi_krum_strategy, mock_client_results
-    ):
+    def test_strategy_history_integration(self, multi_krum_strategy, mock_client_results):
         """Test integration with strategy history."""
         with (
             patch(
@@ -525,9 +513,7 @@ class TestMultiKrumBasedRemovalStrategy:
         # Verify distances match expected Euclidean distances
         for i in range(3):
             for j in range(i + 1, 3):
-                expected_distance = np.linalg.norm(
-                    expected_params[i] - expected_params[j]
-                )
+                expected_distance = np.linalg.norm(expected_params[i] - expected_params[j])
                 assert abs(distances[i, j] - expected_distance) < 1e-6
                 assert abs(distances[j, i] - expected_distance) < 1e-6
 
@@ -544,9 +530,7 @@ class TestMultiKrumBasedRemovalStrategy:
             results.append((client_proxy, fit_res))
 
         distances = np.zeros((4, 4))
-        multi_krum_scores = multi_krum_strategy._calculate_multi_krum_scores(
-            results, distances
-        )
+        multi_krum_scores = multi_krum_strategy._calculate_multi_krum_scores(results, distances)
 
         # Multi-Krum uses num_krum_selections - 2 = 3 - 2 = 1 closest distances
         # Regular Krum would use num_malicious_clients - 2 = 2 - 2 = 0 closest distances
@@ -565,9 +549,7 @@ class TestMultiKrumBasedRemovalStrategy:
         for i in range(max_removals - 1):
             multi_krum_strategy.removed_client_ids.add(f"client_{i}")
 
-        multi_krum_strategy.client_scores = {
-            f"client_{i}": float(i) for i in range(total_clients)
-        }
+        multi_krum_strategy.client_scores = {f"client_{i}": float(i) for i in range(total_clients)}
 
         mock_client_manager = Mock()
         mock_clients = {f"client_{i}": Mock() for i in range(total_clients)}

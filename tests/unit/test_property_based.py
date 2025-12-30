@@ -24,9 +24,9 @@ except ImportError:
         return wrapper
 
     given = _dummy_decorator
-    settings = _dummy_decorator
-    st = None
-    HealthCheck = None  # noqa: N806
+    settings = _dummy_decorator  # type: ignore[misc,assignment]
+    st = None  # type: ignore[misc,assignment]
+    HealthCheck = None  # type: ignore[misc,assignment]  # noqa: N806
 
 
 if not HYPOTHESIS_AVAILABLE:
@@ -219,9 +219,7 @@ class TestKrumDistanceProperties:
                 diff = arr[i] - arr[j]
                 distances[i, j] = np.sum(diff**2)
 
-        assert np.allclose(distances, distances.T, rtol=1e-10), (
-            "Distance matrix is not symmetric"
-        )
+        assert np.allclose(distances, distances.T, rtol=1e-10), "Distance matrix is not symmetric"
 
     @given(
         st.lists(
@@ -273,9 +271,7 @@ class TestKrumDistanceProperties:
         diff = arr - arr
         dist_sq = np.sum(diff**2)
 
-        assert np.isclose(dist_sq, 0, atol=1e-15), (
-            f"Self-distance should be 0, got {dist_sq}"
-        )
+        assert np.isclose(dist_sq, 0, atol=1e-15), f"Self-distance should be 0, got {dist_sq}"
 
 
 class TestByzantineDetectionProperties:
@@ -331,9 +327,7 @@ class TestNumericalStability:
         mean_val = np.mean(values)
 
         assert np.isfinite(mean_val), f"Mean is not finite: {mean_val}"
-        assert min(values) <= mean_val <= max(values), (
-            f"Mean {mean_val} outside input range"
-        )
+        assert min(values) <= mean_val <= max(values), f"Mean {mean_val} outside input range"
 
     @given(
         st.lists(
@@ -363,9 +357,7 @@ class TestStackedParametrize:
     @pytest.mark.parametrize("attack_type", ["gaussian_noise", "model_poisoning"])
     @pytest.mark.parametrize("defense_strategy", ["krum", "trimmed_mean"])
     @pytest.mark.parametrize("byzantine_ratio", [0.1, 0.2, 0.3])
-    def test_attack_defense_combinations(
-        self, attack_type, defense_strategy, byzantine_ratio
-    ):
+    def test_attack_defense_combinations(self, attack_type, defense_strategy, byzantine_ratio):
         """Test all attack × defense × ratio combinations."""
         assert attack_type in ["gaussian_noise", "model_poisoning"]
         assert defense_strategy in ["krum", "trimmed_mean"]
@@ -391,9 +383,7 @@ class TestRoundtripProperties:
             ),
             st.one_of(
                 st.integers(min_value=-1000000, max_value=1000000),
-                st.floats(
-                    allow_nan=False, allow_infinity=False, min_value=-1e6, max_value=1e6
-                ),
+                st.floats(allow_nan=False, allow_infinity=False, min_value=-1e6, max_value=1e6),
                 st.text(
                     min_size=0,
                     max_size=50,
@@ -416,9 +406,7 @@ class TestRoundtripProperties:
 
     @given(
         st.lists(
-            st.floats(
-                min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False
-            ),
+            st.floats(min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False),
             min_size=1,
             max_size=100,
         )
@@ -445,9 +433,7 @@ class TestRoundtripProperties:
     @given(
         st.lists(
             st.lists(
-                st.floats(
-                    min_value=-10, max_value=10, allow_nan=False, allow_infinity=False
-                ),
+                st.floats(min_value=-10, max_value=10, allow_nan=False, allow_infinity=False),
                 min_size=5,
                 max_size=5,
             ),
@@ -468,9 +454,7 @@ class TestAggregationInvariants:
 
     @given(
         st.lists(
-            st.floats(
-                min_value=-100, max_value=100, allow_nan=False, allow_infinity=False
-            ),
+            st.floats(min_value=-100, max_value=100, allow_nan=False, allow_infinity=False),
             min_size=5,
             max_size=50,
         )
@@ -482,15 +466,13 @@ class TestAggregationInvariants:
         new_median = np.median(with_outlier)
 
         sorted_original = sorted(values)
-        assert any(
-            np.isclose(new_median, v, rtol=1e-10) for v in sorted_original
-        ) or min(values) <= new_median <= max(values)
+        assert any(np.isclose(new_median, v, rtol=1e-10) for v in sorted_original) or min(
+            values
+        ) <= new_median <= max(values)
 
     @given(
         st.lists(
-            st.floats(
-                min_value=0.1, max_value=10, allow_nan=False, allow_infinity=False
-            ),
+            st.floats(min_value=0.1, max_value=10, allow_nan=False, allow_infinity=False),
             min_size=4,
             max_size=20,
         ),
@@ -524,9 +506,7 @@ class TestAggregationInvariants:
 
     @given(
         st.lists(
-            st.floats(
-                min_value=-100, max_value=100, allow_nan=False, allow_infinity=False
-            ),
+            st.floats(min_value=-100, max_value=100, allow_nan=False, allow_infinity=False),
             min_size=8,
             max_size=30,
         )
@@ -549,9 +529,7 @@ class TestAggregationInvariants:
             return
 
         second_trim = max(1, len(after_first_trim) // 4)
-        final_trimmed = after_first_trim[
-            second_trim : len(after_first_trim) - second_trim
-        ]
+        final_trimmed = after_first_trim[second_trim : len(after_first_trim) - second_trim]
 
         if len(final_trimmed) == 0:
             return
@@ -566,9 +544,7 @@ class TestModelParameterProperties:
     @given(
         st.lists(
             st.lists(
-                st.floats(
-                    min_value=-10, max_value=10, allow_nan=False, allow_infinity=False
-                ),
+                st.floats(min_value=-10, max_value=10, allow_nan=False, allow_infinity=False),
                 min_size=5,
                 max_size=5,
             ),
@@ -583,11 +559,7 @@ class TestModelParameterProperties:
         avg = np.mean(arrays, axis=0)
         assert avg.shape == arrays[0].shape
 
-    @given(
-        st.floats(
-            min_value=0.001, max_value=10.0, allow_nan=False, allow_infinity=False
-        )
-    )
+    @given(st.floats(min_value=0.001, max_value=10.0, allow_nan=False, allow_infinity=False))
     @settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow])
     def test_learning_rate_scaling_preserves_ratios(self, lr):
         """Property: scaling preserves pairwise parameter ratios."""

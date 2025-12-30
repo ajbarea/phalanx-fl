@@ -49,9 +49,7 @@ def mock_simulation_dir(tmp_path: Path) -> Path:
             "learning_rate": 0.01,
             "batch_size": 32,
         },
-        "simulation_strategies": [
-            {"strategy_name": "fedavg", "num_malicious_clients": 0}
-        ],
+        "simulation_strategies": [{"strategy_name": "fedavg", "num_malicious_clients": 0}],
     }
     (sim_dir / "config.json").write_text(json.dumps(config, indent=2))
 

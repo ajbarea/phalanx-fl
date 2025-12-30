@@ -1,5 +1,7 @@
 """Experiment execution logic."""
 
+from __future__ import annotations
+
 import gc
 import json
 import os
@@ -10,7 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional
+from typing import IO
 
 from rich.console import Console
 from rich.progress import (
@@ -40,9 +42,9 @@ class ExperimentResult:
 
     config_name: str
     result: ExecutionResult
-    exit_code: Optional[int]
+    exit_code: int | None
     duration: float
-    output_dir: Optional[str] = None
+    output_dir: str | None = None
 
 
 class ExperimentExecutor:
@@ -53,9 +55,9 @@ class ExperimentExecutor:
         project_root: Path,
         config_subdir: str = "examples",
         log_level: str = "INFO",
-        timeout: Optional[int] = None,
+        timeout: int | None = None,
         cleanup_mode: str = "none",
-        timing_db: Optional[TimingDatabase] = None,
+        timing_db: TimingDatabase | None = None,
         skip_gc: bool = False,
     ):
         """Initialize executor.
@@ -77,8 +79,8 @@ class ExperimentExecutor:
         self.timing_db = timing_db
         self.skip_gc = skip_gc
         self.python_exe = sys.executable
-        self.log_file_handle = None
-        self.log_file_path = None
+        self.log_file_handle: IO[str] | None = None
+        self.log_file_path: Path | None = None
 
     def __enter__(self):
         """Enter context manager - return self for with statement."""
@@ -134,7 +136,7 @@ class ExperimentExecutor:
         except Exception:
             pass  # Don't crash if cleanup fails
 
-    def _get_config_title(self, config_name: str) -> Optional[str]:
+    def _get_config_title(self, config_name: str) -> str | None:
         """Extract title from config file if available.
 
         Args:
@@ -151,7 +153,7 @@ class ExperimentExecutor:
             / config_name
         )
         try:
-            with open(config_path, "r") as f:
+            with open(config_path) as f:
                 config = json.load(f)
                 return config.get("_title")
         except (FileNotFoundError, json.JSONDecodeError, KeyError):
@@ -174,7 +176,7 @@ class ExperimentExecutor:
             / config_name
         )
         try:
-            with open(config_path, "r") as f:
+            with open(config_path) as f:
                 config = json.load(f)
                 if "shared_settings" in config:
                     return config["shared_settings"].get("training_device", "gpu")
@@ -182,7 +184,7 @@ class ExperimentExecutor:
         except (FileNotFoundError, json.JSONDecodeError, KeyError):
             return "gpu"
 
-    def _detect_device_from_output(self, stderr_lines: List[str]) -> Optional[str]:
+    def _detect_device_from_output(self, stderr_lines: list[str]) -> str | None:
         """Parse stderr to detect actual device used.
 
         Args:
@@ -198,7 +200,7 @@ class ExperimentExecutor:
                 return "cpu"
         return None
 
-    def _get_newest_output_dir(self) -> Optional[str]:
+    def _get_newest_output_dir(self) -> str | None:
         """Find the newest output directory in out/.
 
         Returns:
@@ -233,9 +235,7 @@ class ExperimentExecutor:
 
         title = self._get_config_title(config_name)
         if title:
-            console.print(
-                f'\n[cyan][{config_index}/{total_configs}] Running "{title}"[/cyan]'
-            )
+            console.print(f'\n[cyan][{config_index}/{total_configs}] Running "{title}"[/cyan]')
             console.print(f"[dim]  ({config_name})[/dim]")
         else:
             console.print(
@@ -249,9 +249,7 @@ class ExperimentExecutor:
             )
             if title:
                 self.log_file_handle.write(f"Title: {title}\n")
-            self.log_file_handle.write(
-                f"Started at: {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-            )
+            self.log_file_handle.write(f"Started at: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
             self.log_file_handle.write("=" * 80 + "\n\n")
             self.log_file_handle.flush()
 
@@ -355,9 +353,7 @@ class ExperimentExecutor:
                 self.log_file_handle.write(f"\n{msg}\n")
                 self.log_file_handle.flush()
             output_dir = self._get_newest_output_dir()
-            return ExperimentResult(
-                config_name, ExecutionResult.FAILED, -1, duration, output_dir
-            )
+            return ExperimentResult(config_name, ExecutionResult.FAILED, -1, duration, output_dir)
 
         finally:
             self._kill_ray_processes()
@@ -379,9 +375,7 @@ class ExperimentExecutor:
                 gc.collect()
                 console.print("[dim]Garbage collection complete[/dim]")
             else:
-                console.print(
-                    "[dim]Skipping gc.collect() - relying on subprocess cleanup[/dim]"
-                )
+                console.print("[dim]Skipping gc.collect() - relying on subprocess cleanup[/dim]")
 
         if self.cleanup_mode == "aggressive":
             cache_dirs = list(self.project_root.rglob("__pycache__"))
@@ -398,7 +392,7 @@ class ExperimentExecutor:
 
     def run_batch(
         self,
-        configs: List[str],
+        configs: list[str],
         on_complete=None,
         on_failed=None,
         on_timeout=None,
@@ -479,9 +473,9 @@ class ExperimentExecutor:
 
 def display_summary(
     results: dict,
-    skipped: Optional[List[str]] = None,
-    project_root: Optional[Path] = None,
-    config_subdir: Optional[str] = None,
+    skipped: list[str] | None = None,
+    project_root: Path | None = None,
+    config_subdir: str | None = None,
 ) -> None:
     """Display summary of batch execution.
 
@@ -499,22 +493,16 @@ def display_summary(
     configs_run = results["total"]
 
     if skipped:
-        console.print(
-            f"[dim]Skipped {len(skipped)} already-completed config(s)[/dim]\n"
-        )
+        console.print(f"[dim]Skipped {len(skipped)} already-completed config(s)[/dim]\n")
 
-    def get_config_title(config_name: str) -> Optional[str]:
+    def get_config_title(config_name: str) -> str | None:
         if not project_root or not config_subdir:
             return None
         config_path = (
-            project_root
-            / "config"
-            / "simulation_strategies"
-            / config_subdir
-            / config_name
+            project_root / "config" / "simulation_strategies" / config_subdir / config_name
         )
         try:
-            with open(config_path, "r") as f:
+            with open(config_path) as f:
                 config = json.load(f)
                 return config.get("_title")
         except (FileNotFoundError, json.JSONDecodeError, KeyError):
@@ -526,9 +514,7 @@ def display_summary(
         if configs_run == 0:
             console.print("[green]All selected configs were already completed![/green]")
         else:
-            console.print(
-                f"[green]All {configs_run} config(s) completed successfully![/green]\n"
-            )
+            console.print(f"[green]All {configs_run} config(s) completed successfully![/green]\n")
 
             if results["completed"]:
                 console.print("[cyan]Experiments run:[/cyan]")

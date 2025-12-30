@@ -95,8 +95,7 @@ class TestDatasetVariations:
         # Check data shape
         sample_data, sample_label = client_data[0]
         assert sample_data.shape == expected_shape, (
-            f"Dataset {dataset_name} should have shape {expected_shape}, "
-            f"got {sample_data.shape}"
+            f"Dataset {dataset_name} should have shape {expected_shape}, got {sample_data.shape}"
         )
 
         # Check number of channels
@@ -113,9 +112,7 @@ class TestDatasetVariations:
                 f"got {spatial_dims}"
             )
 
-    @pytest.mark.parametrize(
-        "dataset_name", [config[0] for config in DATASET_CONFIGURATIONS[:-1]]
-    )
+    @pytest.mark.parametrize("dataset_name", [config[0] for config in DATASET_CONFIGURATIONS[:-1]])
     def test_dataset_loading_operations(self, dataset_name):
         """Test dataset loading operations for each dataset type."""
         handler = MockDatasetHandler(dataset_type=dataset_name)
@@ -140,9 +137,7 @@ class TestDatasetVariations:
         assert not handler.is_setup, f"Dataset {dataset_name} should be torn down"
         assert handler.federated_dataset is None
 
-    @pytest.mark.parametrize(
-        "dataset_name", [config[0] for config in DATASET_CONFIGURATIONS[:-1]]
-    )
+    @pytest.mark.parametrize("dataset_name", [config[0] for config in DATASET_CONFIGURATIONS[:-1]])
     def test_dataset_dataloader_creation(self, dataset_name):
         """Test DataLoader creation for each dataset type."""
         handler = MockDatasetHandler(dataset_type=dataset_name)
@@ -176,16 +171,16 @@ class TestDatasetVariations:
             ("lung_photos", 7, 60),
         ],
     )
-    def test_federated_dataset_distribution(
-        self, dataset_name, num_clients, samples_per_client
-    ):
+    def test_federated_dataset_distribution(self, dataset_name, num_clients, samples_per_client):
         """Test federated dataset distribution across clients."""
         # Get expected shape for dataset
         dataset_config = next(
             (config for config in DATASET_CONFIGURATIONS if config[0] == dataset_name),
             None,
         )
+        assert dataset_config is not None
         expected_shape = dataset_config[1] if dataset_config else (3, 32, 32)
+        assert expected_shape is not None
 
         # Create federated dataset
         fed_dataset = MockFederatedDataset(
@@ -272,14 +267,12 @@ class TestDatasetVariations:
         batch_count = 0
         total_samples = 0
 
-        for batch_data, batch_labels in dataloader:
+        for batch_data, _batch_labels in dataloader:
             batch_count += 1
             total_samples += batch_data.shape[0]
 
             # Verify batch dimensions
-            assert batch_data.shape[0] <= batch_size, (
-                f"Batch size should not exceed {batch_size}"
-            )
+            assert batch_data.shape[0] <= batch_size, f"Batch size should not exceed {batch_size}"
             assert batch_data.shape[0] > 0, "Batch should not be empty"
 
         # Verify total samples processed
@@ -306,7 +299,7 @@ class TestDatasetVariations:
         # Test memory efficiency with smaller batches for high-res data
         dataloader = DataLoader(client_data, batch_size=4, shuffle=True)
 
-        for batch_data, batch_labels in dataloader:
+        for batch_data, _batch_labels in dataloader:
             # Verify batch can be processed without memory issues
             assert batch_data.numel() > 0, "Batch should contain data"
             break
@@ -323,9 +316,7 @@ class TestDatasetVariations:
         sample_data, _ = client_data[0]
 
         # Verify single channel (grayscale)
-        assert sample_data.shape[0] == 1, (
-            f"Grayscale dataset {dataset_name} should have 1 channel"
-        )
+        assert sample_data.shape[0] == 1, f"Grayscale dataset {dataset_name} should have 1 channel"
 
         # Verify data range (should be in reasonable range for mock data)
         assert sample_data.min() >= -5.0 and sample_data.max() <= 5.0, (
@@ -342,9 +333,7 @@ class TestDatasetVariations:
         sample_data, _ = client_data[0]
 
         # Verify three channels (RGB)
-        assert sample_data.shape[0] == 3, (
-            f"Color dataset {dataset_name} should have 3 channels"
-        )
+        assert sample_data.shape[0] == 3, f"Color dataset {dataset_name} should have 3 channels"
 
         # Verify data range
         assert sample_data.min() >= -5.0 and sample_data.max() <= 5.0, (
@@ -366,9 +355,7 @@ class TestDatasetVariations:
             "lung_photos",
         }
 
-        assert set(config.keys()) == expected_datasets, (
-            "All datasets should be in configuration"
-        )
+        assert set(config.keys()) == expected_datasets, "All datasets should be in configuration"
 
         # Verify paths are properly formatted
         for dataset_name, dataset_path in config.items():
@@ -425,7 +412,7 @@ class TestDatasetVariations:
                 dataloader = DataLoader(client_data, batch_size=16)
 
                 # Process a few batches
-                for i, (batch_data, batch_labels) in enumerate(dataloader):
+                for i, (_batch_data, _batch_labels) in enumerate(dataloader):
                     if i >= 2:  # Process only first 2 batches
                         break
 
@@ -435,6 +422,4 @@ class TestDatasetVariations:
         memory_increase = final_memory - initial_memory
 
         # Memory increase should be reasonable (less than 200MB for mock data)
-        assert memory_increase < 200 * 1024 * 1024, (
-            "Memory usage should remain reasonable"
-        )
+        assert memory_increase < 200 * 1024 * 1024, "Memory usage should remain reasonable"

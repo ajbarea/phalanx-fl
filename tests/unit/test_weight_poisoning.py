@@ -1,5 +1,7 @@
 """Unit tests for weight-level poisoning attacks."""
 
+from __future__ import annotations
+
 from src.attack_utils.weight_poisoning import (
     WEIGHT_ATTACK_TYPES,
     apply_byzantine_perturbation,
@@ -17,7 +19,7 @@ class TestWeightAttackTypes:
     def test_weight_attack_types_contains_expected_types(self):
         """Verifies WEIGHT_ATTACK_TYPES includes all expected attack types."""
         expected = {"model_poisoning", "gradient_scaling", "byzantine_perturbation"}
-        assert WEIGHT_ATTACK_TYPES == expected
+        assert expected == WEIGHT_ATTACK_TYPES
 
     def test_is_weight_attack_returns_true_for_weight_attacks(self):
         """Verifies is_weight_attack returns True for weight attack types."""
@@ -75,9 +77,7 @@ class TestModelPoisoning:
         params = [np.random.randn(1000)]
         poison_ratio = 0.1
 
-        poisoned = apply_model_poisoning(
-            params, poison_ratio=poison_ratio, magnitude=5.0, seed=42
-        )
+        poisoned = apply_model_poisoning(params, poison_ratio=poison_ratio, magnitude=5.0, seed=42)
 
         changed = np.sum(np.abs(poisoned[0] - params[0]) > 0.01)
         expected_changed = int(1000 * poison_ratio)
@@ -261,7 +261,7 @@ class TestEdgeCases:
 
     def test_empty_parameter_list(self):
         """Verifies attacks handle empty parameter lists."""
-        params = []
+        params: list[np.ndarray] = []
 
         assert apply_model_poisoning(params) == []
         assert apply_gradient_scaling(params) == []

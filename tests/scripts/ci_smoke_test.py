@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """CI smoke test - run mock simulations and verify output generation."""
 
+from __future__ import annotations
+
 import argparse
 import csv
 import json
@@ -36,7 +38,7 @@ def extract_metrics_from_csv(output_dir: Path) -> dict[int, dict]:
     Returns:
         Dictionary mapping strategy index to metrics dict.
     """
-    metrics = {}
+    metrics: dict[int, dict[str, float | int | str]] = {}
     csv_dir = output_dir / "csv"
 
     if not csv_dir.exists():
@@ -49,19 +51,15 @@ def extract_metrics_from_csv(output_dir: Path) -> dict[int, dict]:
             continue
 
         try:
-            with open(csv_file, "r", newline="") as f:
+            with open(csv_file, newline="") as f:
                 reader = csv.DictReader(f)
                 rows = list(reader)
 
                 if rows:
                     final_row = rows[-1]
                     metrics[strategy_idx] = {
-                        "final_accuracy": _safe_float(
-                            final_row.get("average_accuracy_history")
-                        ),
-                        "final_loss": _safe_float(
-                            final_row.get("aggregated_loss_history")
-                        ),
+                        "final_accuracy": _safe_float(final_row.get("average_accuracy_history")),
+                        "final_loss": _safe_float(final_row.get("aggregated_loss_history")),
                         "total_rounds": len(rows),
                     }
         except Exception:
@@ -152,14 +150,10 @@ def run_mock_simulations(
         )
         for cfg in configs_without:
             console.print(f"  [dim]- {cfg}[/dim]")
-        console.print(
-            "[dim]Run: python tests/scripts/record_baselines.py --config <name>[/dim]\n"
-        )
+        console.print("[dim]Run: python tests/scripts/record_baselines.py --config <name>[/dim]\n")
 
     if configs_with_baselines:
-        console.print(
-            f"[cyan]Running {len(configs_with_baselines)} mock simulation(s)...[/cyan]\n"
-        )
+        console.print(f"[cyan]Running {len(configs_with_baselines)} mock simulation(s)...[/cyan]\n")
 
     passed = 0
     failed = 0

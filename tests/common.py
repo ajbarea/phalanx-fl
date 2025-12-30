@@ -17,8 +17,9 @@ import locale
 import logging
 import os
 import sys
+from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Generator, Optional, Union
+from typing import Any, Optional, Union
 from unittest.mock import Mock
 
 import numpy as np
@@ -41,13 +42,9 @@ def setup_unicode_output() -> None:
     if sys.platform.startswith("win"):
         # Windows: Reconfigure stdout/stderr with UTF-8 encoding
         if hasattr(sys.stdout, "buffer"):
-            sys.stdout = io.TextIOWrapper(
-                sys.stdout.buffer, encoding="utf-8", errors="replace"
-            )
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
         if hasattr(sys.stderr, "buffer"):
-            sys.stderr = io.TextIOWrapper(
-                sys.stderr.buffer, encoding="utf-8", errors="replace"
-            )
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
     # Set environment variable as fallback
     if "PYTHONIOENCODING" not in os.environ:
@@ -62,12 +59,8 @@ def unicode_safe_output() -> Generator[None, None, None]:
         original_stderr = sys.stderr
 
         try:
-            sys.stdout = io.TextIOWrapper(
-                sys.stdout.buffer, encoding="utf-8", errors="replace"
-            )
-            sys.stderr = io.TextIOWrapper(
-                sys.stderr.buffer, encoding="utf-8", errors="replace"
-            )
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
             yield
         finally:
             sys.stdout = original_stdout
@@ -192,12 +185,8 @@ def mock_medquad_dependencies(
         patch(
             "src.dataset_loaders.medquad_dataset_loader.AutoTokenizer.from_pretrained"
         ) as mock_tokenizer,
-        patch(
-            "src.dataset_loaders.medquad_dataset_loader.load_dataset"
-        ) as mock_load_dataset,
-        patch(
-            "src.dataset_loaders.medquad_dataset_loader.DataLoader"
-        ) as mock_dataloader,
+        patch("src.dataset_loaders.medquad_dataset_loader.load_dataset") as mock_load_dataset,
+        patch("src.dataset_loaders.medquad_dataset_loader.DataLoader") as mock_dataloader,
         patch(
             "src.dataset_loaders.medquad_dataset_loader.DataCollatorForLanguageModeling"
         ) as mock_collator,
@@ -322,9 +311,7 @@ class FLTestHelpers:
         return results
 
 
-def assert_valid_fl_result(
-    result: Any, expected_shape: Optional[tuple[int, ...]] = None
-) -> None:
+def assert_valid_fl_result(result: Any, expected_shape: Optional[tuple[int, ...]] = None) -> None:
     """Convenience function for FL result validation."""
     FLTestHelpers.assert_valid_fl_result(result, expected_shape)
 
@@ -354,14 +341,14 @@ def create_mock_results(param_vectors: list) -> list:
 try:
     import torch
 except ImportError:
-    torch = None
+    torch = None  # type: ignore[assignment]
 
 try:
     import json
     import pickle
 except ImportError:
-    json = None
-    pickle = None
+    json = None  # type: ignore[assignment]
+    pickle = None  # type: ignore[assignment]
 
 
 def create_sample_tensors(
@@ -521,7 +508,7 @@ def verify_json_metadata(
     filepath = Path(filepath) if isinstance(filepath, str) else filepath
     assert filepath.exists(), f"Metadata file should exist: {filepath}"
 
-    with open(filepath, "r") as f:
+    with open(filepath) as f:
         metadata = json.load(f)
 
     assert metadata["client_id"] == expected_client_id

@@ -5,6 +5,8 @@ Tests attack schedule parameter validation, round range validation,
 attack type parameters, and client selection strategies.
 """
 
+from __future__ import annotations
+
 from jsonschema import ValidationError
 
 from src.config_loaders.validate_strategy_config import validate_strategy_config
@@ -57,9 +59,7 @@ class TestValidateAttackSchedule:
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert "start_round (8) cannot be greater than end_round (5)" in str(
-            exc_info.value
-        )
+        assert "start_round (8) cannot be greater than end_round (5)" in str(exc_info.value)
 
     def test_invalid_round_range_end_exceeds_num_of_rounds(self):
         """Test validation fails when end_round exceeds num_of_rounds."""
@@ -150,9 +150,7 @@ class TestValidateAttackSchedule:
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert "gaussian_noise attack requires 'target_noise_snr' parameter" in str(
-            exc_info.value
-        )
+        assert "gaussian_noise attack requires 'target_noise_snr' parameter" in str(exc_info.value)
 
     def test_gaussian_noise_missing_attack_ratio(self):
         """Test validation fails when gaussian_noise is missing attack_ratio."""
@@ -198,9 +196,7 @@ class TestValidateAttackSchedule:
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert "gaussian_noise attack requires 'attack_ratio' parameter" in str(
-            exc_info.value
-        )
+        assert "gaussian_noise attack requires 'attack_ratio' parameter" in str(exc_info.value)
 
     def test_specific_selection_missing_malicious_client_ids(self):
         """Test validation fails when specific selection is missing malicious_client_ids."""
@@ -244,9 +240,8 @@ class TestValidateAttackSchedule:
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert (
-            "'specific' selection strategy requires 'malicious_client_ids' list"
-            in str(exc_info.value)
+        assert "'specific' selection strategy requires 'malicious_client_ids' list" in str(
+            exc_info.value
         )
 
     def test_random_selection_missing_malicious_client_count(self):
@@ -291,9 +286,8 @@ class TestValidateAttackSchedule:
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert (
-            "'random' selection strategy requires 'malicious_client_count' integer"
-            in str(exc_info.value)
+        assert "'random' selection strategy requires 'malicious_client_count' integer" in str(
+            exc_info.value
         )
 
     def test_percentage_selection_missing_malicious_percentage(self):
@@ -767,8 +761,10 @@ class TestValidateStrategyConfigLlmIntegration:
 
         validate_strategy_config(config)
 
-        assert "_selected_clients" in config["attack_schedule"][0]
-        selected = config["attack_schedule"][0]["_selected_clients"]
+        assert isinstance(config["attack_schedule"], list)
+        attack_schedule = config["attack_schedule"]
+        assert "_selected_clients" in attack_schedule[0]
+        selected = attack_schedule[0]["_selected_clients"]
 
         assert len(selected) == 2
         assert all(0 <= cid < 10 for cid in selected)
@@ -818,8 +814,10 @@ class TestValidateStrategyConfigLlmIntegration:
 
         validate_strategy_config(config)
 
-        assert "_selected_clients" in config["attack_schedule"][0]
-        selected = config["attack_schedule"][0]["_selected_clients"]
+        assert isinstance(config["attack_schedule"], list)
+        attack_schedule = config["attack_schedule"]
+        assert "_selected_clients" in attack_schedule[0]
+        selected = attack_schedule[0]["_selected_clients"]
 
         assert len(selected) == 3
         assert all(0 <= cid < 10 for cid in selected)
@@ -909,8 +907,12 @@ class TestValidateStrategyConfigLlmIntegration:
         validate_strategy_config(config2)
 
         # Same seed should produce same selection
-        selected1 = config1["attack_schedule"][0]["_selected_clients"]
-        selected2 = config2["attack_schedule"][0]["_selected_clients"]
+        assert isinstance(config1["attack_schedule"], list)
+        assert isinstance(config2["attack_schedule"], list)
+        attack_schedule1 = config1["attack_schedule"]
+        attack_schedule2 = config2["attack_schedule"]
+        selected1 = attack_schedule1[0]["_selected_clients"]
+        selected2 = attack_schedule2[0]["_selected_clients"]
         assert selected1 == selected2
 
     def test_random_selection_different_seeds_produce_different_selections(self):
@@ -1042,11 +1044,15 @@ class TestValidateStrategyConfigLlmIntegration:
         validate_strategy_config(config_seed_99)
         validate_strategy_config(config_seed_42_again)
 
-        selected_42 = config_seed_42["attack_schedule"][0]["_selected_clients"]
-        selected_99 = config_seed_99["attack_schedule"][0]["_selected_clients"]
-        selected_42_again = config_seed_42_again["attack_schedule"][0][
-            "_selected_clients"
-        ]
+        assert isinstance(config_seed_42["attack_schedule"], list)
+        assert isinstance(config_seed_99["attack_schedule"], list)
+        assert isinstance(config_seed_42_again["attack_schedule"], list)
+        schedule_42 = config_seed_42["attack_schedule"]
+        schedule_99 = config_seed_99["attack_schedule"]
+        schedule_42_again = config_seed_42_again["attack_schedule"]
+        selected_42 = schedule_42[0]["_selected_clients"]
+        selected_99 = schedule_99[0]["_selected_clients"]
+        selected_42_again = schedule_42_again[0]["_selected_clients"]
 
         # Different seeds should produce different selections
         assert selected_42 != selected_99, (
@@ -1153,5 +1159,7 @@ class TestValidateStrategyConfigLlmIntegration:
 
         validate_strategy_config(config)
 
-        assert "_selected_clients" not in config["attack_schedule"][0]
-        assert config["attack_schedule"][0]["malicious_client_ids"] == [0, 3, 7]
+        assert isinstance(config["attack_schedule"], list)
+        attack_schedule = config["attack_schedule"]
+        assert "_selected_clients" not in attack_schedule[0]
+        assert attack_schedule[0]["malicious_client_ids"] == [0, 3, 7]

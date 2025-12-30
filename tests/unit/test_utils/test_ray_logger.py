@@ -184,9 +184,7 @@ class TestGetFaultToleranceConfig:
     )
     def test_custom_restart_retry_values(self, restarts: int, retries: int):
         """Test custom max_actor_restarts and max_task_retries."""
-        config = get_fault_tolerance_config(
-            max_actor_restarts=restarts, max_task_retries=retries
-        )
+        config = get_fault_tolerance_config(max_actor_restarts=restarts, max_task_retries=retries)
 
         # These are used for actor options, not directly in ray.init config
         assert config["namespace"] == "fl_simulation"
@@ -218,9 +216,7 @@ class TestGetActorOptions:
         assert options["num_cpus"] == 2.0
         assert options["num_gpus"] == 1.0
 
-    @pytest.mark.parametrize(
-        "num_gpus", [0.0, 0.5, 1.0, 2.0], ids=["none", "half", "one", "two"]
-    )
+    @pytest.mark.parametrize("num_gpus", [0.0, 0.5, 1.0, 2.0], ids=["none", "half", "one", "two"])
     def test_gpu_allocation_options(self, num_gpus: float):
         """Test different GPU allocation options."""
         options = get_actor_options(num_gpus=num_gpus)

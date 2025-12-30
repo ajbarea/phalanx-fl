@@ -25,9 +25,7 @@ class TestFlowerClientAttackSnapshots:
     def client_with_snapshots(self, tmp_path):
         """Create FlowerClient configured for snapshot saving."""
         mock_net = MockCNNNetwork(num_classes=10, input_channels=3)
-        mock_data = [
-            (torch.randn(4, 3, 32, 32), torch.randint(0, 10, (4,))) for _ in range(3)
-        ]
+        mock_data = [(torch.randn(4, 3, 32, 32), torch.randint(0, 10, (4,))) for _ in range(3)]
 
         mock_loader = Mock()
         mock_loader.__iter__ = Mock(return_value=iter(mock_data))
@@ -115,9 +113,7 @@ class TestFlowerClientAttackSnapshots:
         "attack_type",
         [at for at in ATTACK_TYPES if at not in WEIGHT_ATTACK_TYPES],
     )
-    def test_save_attack_snapshots_data_attacks(
-        self, client_with_snapshots, attack_type
-    ):
+    def test_save_attack_snapshots_data_attacks(self, client_with_snapshots, attack_type):
         """Test snapshot saving for data attacks (not weight attacks)."""
         with patch("src.client_models.flower_client.save_attack_snapshot") as mock_save:
             client_with_snapshots._save_attack_snapshots(
@@ -129,9 +125,7 @@ class TestFlowerClientAttackSnapshots:
             mock_save.assert_called_once()
 
     @pytest.mark.parametrize("attack_type", list(WEIGHT_ATTACK_TYPES))
-    def test_save_attack_snapshots_filters_weight_attacks(
-        self, client_with_snapshots, attack_type
-    ):
+    def test_save_attack_snapshots_filters_weight_attacks(self, client_with_snapshots, attack_type):
         """Test that weight attacks are filtered out (they get separate visualization)."""
         with patch("src.client_models.flower_client.save_attack_snapshot") as mock_save:
             client_with_snapshots._save_attack_snapshots(
@@ -150,9 +144,7 @@ class TestFlowerClientAttackSchedule:
     @pytest.fixture
     def mock_loaders(self):
         """Create mock data loaders."""
-        mock_data = [
-            (torch.randn(4, 3, 32, 32), torch.randint(0, 10, (4,))) for _ in range(3)
-        ]
+        mock_data = [(torch.randn(4, 3, 32, 32), torch.randint(0, 10, (4,))) for _ in range(3)]
         mock_loader = Mock()
         mock_loader.__iter__ = Mock(return_value=iter(mock_data))
         mock_loader.__len__ = Mock(return_value=3)
@@ -183,9 +175,7 @@ class TestFlowerClientAttackSchedule:
 
         with patch.object(client, "train") as mock_train:
             mock_train.return_value = (0.5, 0.8)
-            result_params, dataset_size, metrics = client.fit(
-                initial_params, config={"round": 1}
-            )
+            result_params, dataset_size, metrics = client.fit(initial_params, config={"round": 1})
 
         assert isinstance(result_params, list)
         assert isinstance(metrics, dict)
@@ -305,9 +295,7 @@ class TestFlowerClientPredictions:
     def cnn_client_with_data(self, tmp_path):
         """Create CNN client with real data for prediction testing."""
         mock_net = MockCNNNetwork(num_classes=10, input_channels=3)
-        mock_data = [
-            (torch.randn(4, 3, 32, 32), torch.randint(0, 10, (4,))) for _ in range(2)
-        ]
+        mock_data = [(torch.randn(4, 3, 32, 32), torch.randint(0, 10, (4,))) for _ in range(2)]
 
         mock_loader = Mock()
         mock_loader.__iter__ = Mock(return_value=iter(mock_data))
@@ -341,6 +329,7 @@ class TestFlowerClientPredictions:
 
         # Probabilities should be numpy array of shape (N, num_classes)
         assert isinstance(probs, (type(None), type(probs)))  # numpy array
+        assert probs is not None
         assert probs.shape[0] == 4
         assert probs.shape[1] == 10  # num_classes
 
@@ -434,9 +423,7 @@ class TestFlowerClientTransformerAttacks:
         """Test transformer visual snapshot saving path."""
         with (
             patch("src.client_models.flower_client.save_attack_snapshot") as mock_save,
-            patch(
-                "src.client_models.flower_client.save_visual_snapshot"
-            ) as mock_visual,
+            patch("src.client_models.flower_client.save_visual_snapshot") as mock_visual,
         ):
             transformer_client._save_attack_snapshots(
                 current_round=1,
@@ -483,9 +470,7 @@ class TestFlowerClientTransformerAttacks:
 
         with (
             patch("src.client_models.flower_client.save_attack_snapshot") as mock_save,
-            patch(
-                "src.client_models.flower_client.save_visual_snapshot"
-            ) as mock_visual,
+            patch("src.client_models.flower_client.save_visual_snapshot") as mock_visual,
         ):
             client._save_attack_snapshots(
                 current_round=1,
@@ -507,9 +492,7 @@ class TestFlowerClientWeightPoisoning:
     def weight_poison_client(self, tmp_path):
         """Create client configured for weight poisoning with snapshots."""
         mock_net = MockCNNNetwork(num_classes=10, input_channels=3)
-        mock_data = [
-            (torch.randn(4, 3, 32, 32), torch.randint(0, 10, (4,))) for _ in range(2)
-        ]
+        mock_data = [(torch.randn(4, 3, 32, 32), torch.randint(0, 10, (4,))) for _ in range(2)]
 
         mock_loader = Mock()
         mock_loader.__iter__ = Mock(return_value=iter(mock_data))
@@ -533,9 +516,7 @@ class TestFlowerClientWeightPoisoning:
             strategy_number=0,
         )
 
-    def test_fit_with_weight_poisoning_returns_result(
-        self, weight_poison_client, tmp_path
-    ):
+    def test_fit_with_weight_poisoning_returns_result(self, weight_poison_client, tmp_path):
         """Test fit() with weight poisoning returns proper result."""
         initial_params = weight_poison_client.get_parameters(config={})
 
@@ -636,7 +617,7 @@ class TestFlowerClientFedProx:
         mock_outputs.loss = torch.tensor(0.5, requires_grad=True)
         mock_outputs.logits = torch.randn(4, 10)
         mock_net.return_value = mock_outputs
-        mock_net.__call__ = Mock(return_value=mock_outputs)
+        mock_net.__call__ = Mock(return_value=mock_outputs)  # type: ignore[method-assign]
 
         mock_batch = {
             "input_ids": torch.randint(0, 1000, (4, 32)),

@@ -29,9 +29,9 @@ class TimingDatabase:
         """
         if self.db_path.exists():
             try:
-                with open(self.db_path, "r") as f:
+                with open(self.db_path) as f:
                     return json.load(f)
-            except (json.JSONDecodeError, IOError):
+            except (OSError, json.JSONDecodeError):
                 return {}
         return {}
 

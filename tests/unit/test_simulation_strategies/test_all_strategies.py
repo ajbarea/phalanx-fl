@@ -169,9 +169,7 @@ BEGIN_REMOVING_ROUNDS = (1, 2, 3, 5)
 class TestAllStrategiesInitialization:
     """Consolidated initialization tests for all strategies using parameterization."""
 
-    @pytest.mark.parametrize(
-        "strategy_name,init_params,expected_attrs", STRATEGY_INIT_CONFIGS
-    )
+    @pytest.mark.parametrize("strategy_name,init_params,expected_attrs", STRATEGY_INIT_CONFIGS)
     def test_strategy_common_initialization(
         self,
         strategy_name,
@@ -190,17 +188,13 @@ class TestAllStrategiesInitialization:
 
         # Verify expected attributes exist
         for attr in expected_attrs:
-            assert hasattr(strategy, attr), (
-                f"Strategy {strategy_name} missing attribute: {attr}"
-            )
+            assert hasattr(strategy, attr), f"Strategy {strategy_name} missing attribute: {attr}"
 
         # Verify removed_client_ids is empty set if present
         if hasattr(strategy, "removed_client_ids"):
             assert strategy.removed_client_ids == set()
 
-    @pytest.mark.parametrize(
-        "strategy_name,init_params,expected_attrs", PID_INIT_CONFIGS
-    )
+    @pytest.mark.parametrize("strategy_name,init_params,expected_attrs", PID_INIT_CONFIGS)
     def test_pid_strategy_variants_initialization(
         self,
         strategy_name,
@@ -220,10 +214,7 @@ class TestAllStrategiesInitialization:
 
         assert strategy.remove_clients == init_params["remove_clients"]
         assert strategy.current_round == 0
-        assert (
-            strategy.aggregation_strategy_keyword
-            == init_params["aggregation_strategy_keyword"]
-        )
+        assert strategy.aggregation_strategy_keyword == init_params["aggregation_strategy_keyword"]
 
         # Verify expected attributes exist
         for attr in expected_attrs:
@@ -279,9 +270,7 @@ class TestAllStrategiesRemovalDisabled:
 
         # Create strategy with removal disabled
         disabled_params = {**init_params, "remove_clients": False}
-        strategy = strategy_class(
-            strategy_history=mock_strategy_history, **disabled_params
-        )
+        strategy = strategy_class(strategy_history=mock_strategy_history, **disabled_params)
         strategy.current_round = 5  # After begin_removing_from_round
 
         # Set up mock scores (different strategies use different score attributes)

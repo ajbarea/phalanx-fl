@@ -2,8 +2,11 @@
 Tests for HTML and JSON reporting utilities in attack snapshots.
 """
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
+from typing import Any, cast
 from unittest.mock import Mock, patch
 
 import pytest
@@ -364,9 +367,7 @@ class TestGenerateSnapshotIndex:
             }
         }
 
-        with patch(
-            "src.attack_utils.snapshot_html_reports._generate_index_html"
-        ) as mock_gen:
+        with patch("src.attack_utils.snapshot_html_reports._generate_index_html") as mock_gen:
             mock_gen.return_value = "<html>Test</html>"
             generate_snapshot_index(str(output_dir))
 
@@ -400,9 +401,7 @@ class TestGenerateSnapshotIndex:
             }
         }
 
-        with patch(
-            "src.attack_utils.snapshot_html_reports._generate_index_html"
-        ) as mock_gen:
+        with patch("src.attack_utils.snapshot_html_reports._generate_index_html") as mock_gen:
             mock_gen.return_value = "<html>Test</html>"
             generate_snapshot_index(str(output_dir))
 
@@ -433,9 +432,7 @@ class TestGenerateSnapshotIndex:
             }
         }
 
-        with patch(
-            "src.attack_utils.snapshot_html_reports._generate_index_html"
-        ) as mock_gen:
+        with patch("src.attack_utils.snapshot_html_reports._generate_index_html") as mock_gen:
             mock_gen.return_value = "<html>Test</html>"
             generate_snapshot_index(str(output_dir))
 
@@ -476,9 +473,7 @@ class TestGenerateIndexHtml:
         mock_env.get_template.return_value = mock_template
         mock_env_class.return_value = mock_env
 
-        result = _generate_index_html(
-            sample_snapshot_data, str(tmp_path), run_config=None
-        )
+        result = _generate_index_html(sample_snapshot_data, str(tmp_path), run_config=None)
 
         assert result == "<html>Test</html>"
         mock_template.render.assert_called_once()
@@ -503,9 +498,7 @@ class TestGenerateIndexHtml:
         assert call_args["total_rounds"] == 50
 
     @patch("src.attack_utils.snapshot_html_reports.Environment")
-    def test_should_extract_unique_values(
-        self, mock_env_class: Mock, tmp_path: Path
-    ) -> None:
+    def test_should_extract_unique_values(self, mock_env_class: Mock, tmp_path: Path) -> None:
         """Test that unique clients/rounds/attack types are extracted."""
         mock_env = Mock()
         mock_template = Mock()
@@ -719,7 +712,7 @@ class TestGenerateMainDashboardHtml:
             "config_files": [],
         }
 
-        result = _generate_main_dashboard_html(**data)
+        result = _generate_main_dashboard_html(**cast(dict[str, Any], data))
 
         assert isinstance(result, str)
         assert "<!DOCTYPE html>" in result
@@ -751,7 +744,7 @@ class TestGenerateMainDashboardHtml:
             "config_files": [],
         }
 
-        result = _generate_main_dashboard_html(**data)
+        result = _generate_main_dashboard_html(**cast(dict[str, Any], data))
 
         assert isinstance(result, str)
         for i in range(num_strategies):

@@ -265,13 +265,10 @@ class TestClientInfo:
         expected_accuracy = [0.85, 0.9, 0.95, 1.0]
         expected_participation = [1, 1, 0, 0]
 
-        assert client.get_metric_by_name("loss_history") == pytest.approx(
-            expected_loss, rel=1e-3
-        )
+        assert client.get_metric_by_name("loss_history") == pytest.approx(expected_loss, rel=1e-3)
         assert client.get_metric_by_name("accuracy_history") == pytest.approx(
             expected_accuracy, rel=1e-3
         )
         assert (
-            client.get_metric_by_name("aggregation_participation_history")
-            == expected_participation
+            client.get_metric_by_name("aggregation_participation_history") == expected_participation
         )

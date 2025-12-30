@@ -2,7 +2,7 @@
 Mock dataset generators for federated learning tests.
 """
 
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Optional
 
 import torch
 from torch.utils.data import DataLoader, Dataset
@@ -13,14 +13,14 @@ from tests.common import np
 NDArray = np.ndarray
 
 
-class MockDataset(Dataset[Tuple[torch.Tensor, torch.Tensor]]):
+class MockDataset(Dataset[tuple[torch.Tensor, torch.Tensor]]):
     """Lightweight mock dataset without real data dependencies."""
 
     def __init__(
         self,
         size: int = 100,
         num_classes: int = 10,
-        input_shape: Tuple[int, ...] = (3, 32, 32),
+        input_shape: tuple[int, ...] = (3, 32, 32),
         use_default_seed: bool = True,
     ):
         """Initialize mock dataset.
@@ -46,7 +46,7 @@ class MockDataset(Dataset[Tuple[torch.Tensor, torch.Tensor]]):
     def __len__(self) -> int:
         return self.size
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         return self.data[idx], self.targets[idx]
 
 
@@ -58,7 +58,7 @@ class MockFederatedDataset:
         num_clients: int = 10,
         samples_per_client: int = 50,
         num_classes: int = 10,
-        input_shape: Tuple[int, ...] = (3, 32, 32),
+        input_shape: tuple[int, ...] = (3, 32, 32),
     ):
         """
         Initialize mock federated dataset.
@@ -77,7 +77,7 @@ class MockFederatedDataset:
         # Generate client datasets
         self.client_datasets = self._generate_client_datasets()
 
-    def _generate_client_datasets(self) -> Dict[int, MockDataset]:
+    def _generate_client_datasets(self) -> dict[int, MockDataset]:
         """Generate datasets for each client."""
         client_datasets = {}
 
@@ -102,7 +102,7 @@ class MockFederatedDataset:
 
     def get_client_dataloader(
         self, client_id: int, batch_size: int = 32
-    ) -> DataLoader[Tuple[torch.Tensor, torch.Tensor]]:
+    ) -> DataLoader[tuple[torch.Tensor, torch.Tensor]]:
         """Get client DataLoader."""
         dataset = self.get_client_dataset(client_id)
         return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
@@ -172,7 +172,7 @@ class MockDatasetHandler(DatasetHandler):
         return self.federated_dataset.get_client_dataset(client_id)
 
 
-def generate_mock_dataset_config() -> Dict[str, str]:
+def generate_mock_dataset_config() -> dict[str, str]:
     """Generate dataset configuration mapping."""
     return {
         "its": "datasets/its",
@@ -185,9 +185,7 @@ def generate_mock_dataset_config() -> Dict[str, str]:
     }
 
 
-def generate_mock_client_parameters(
-    num_clients: int, param_size: int = 1000
-) -> List[NDArray]:
+def generate_mock_client_parameters(num_clients: int, param_size: int = 1000) -> list[NDArray]:
     """Generate client parameters for aggregation strategy testing.
 
     Args:
@@ -203,7 +201,7 @@ def generate_mock_client_parameters(
 
 def generate_mock_client_metrics(
     num_clients: int, num_rounds: int
-) -> Dict[int, Dict[str, List[float]]]:
+) -> dict[int, dict[str, list[float]]]:
     """Generate client metrics for history tracking tests.
 
     Args:
@@ -281,7 +279,7 @@ def _create_flip_attack(param_size: int) -> NDArray:
     return -base_param * 5
 
 
-ATTACK_FUNCTIONS: Dict[str, Callable[[int], NDArray]] = {
+ATTACK_FUNCTIONS: dict[str, Callable[[int], NDArray]] = {
     "gaussian_noise": _create_gaussian_attack,
     "label_flipping": _create_label_flipping_attack,
     "model_poisoning": _create_model_poisoning_attack,
@@ -298,7 +296,7 @@ def generate_byzantine_client_parameters(
     num_byzantine: int,
     param_size: int = 1000,
     attack_type: str = "gaussian_noise",
-) -> List[NDArray]:
+) -> list[NDArray]:
     """Generate client parameters with Byzantine clients for defense testing.
 
     Args:
@@ -314,8 +312,7 @@ def generate_byzantine_client_parameters(
 
     # Generate honest parameters
     honest_params = [
-        rng.standard_normal(param_size) * 0.1
-        for _ in range(num_clients - num_byzantine)
+        rng.standard_normal(param_size) * 0.1 for _ in range(num_clients - num_byzantine)
     ]
 
     # Get attack function with default fallback

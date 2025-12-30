@@ -184,24 +184,16 @@ class TestTrustBasedRemovalStrategy:
         """Test aggregate_fit performs clustering correctly."""
         # Setup mocks
         mock_kmeans_instance = Mock()
-        mock_kmeans_instance.transform.return_value = np.array(
-            [[0.1], [0.2], [0.3], [0.4], [0.5]]
-        )
+        mock_kmeans_instance.transform.return_value = np.array([[0.1], [0.2], [0.3], [0.4], [0.5]])
         mock_kmeans.return_value.fit.return_value = mock_kmeans_instance
 
         mock_scaler_instance = Mock()
-        mock_scaler_instance.transform.return_value = np.array(
-            [[0.1], [0.2], [0.3], [0.4], [0.5]]
-        )
+        mock_scaler_instance.transform.return_value = np.array([[0.1], [0.2], [0.3], [0.4], [0.5]])
         mock_scaler.return_value = mock_scaler_instance
 
-        with patch.object(
-            trust_strategy, "aggregate_fit", wraps=trust_strategy.aggregate_fit
-        ):
+        with patch.object(trust_strategy, "aggregate_fit", wraps=trust_strategy.aggregate_fit):
             # Mock the parent aggregate_fit method
-            with patch(
-                "flwr.server.strategy.FedAvg.aggregate_fit"
-            ) as mock_parent_aggregate:
+            with patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate:
                 mock_parent_aggregate.return_value = (Mock(), {})
 
                 trust_strategy.aggregate_fit(1, mock_client_results, [])
@@ -214,9 +206,7 @@ class TestTrustBasedRemovalStrategy:
     def test_aggregate_fit_trust_calculation(self, trust_strategy, mock_client_results):
         """Test aggregate_fit calculates trust scores for all clients."""
         with (
-            patch(
-                "src.simulation_strategies.trust_based_removal_strategy.KMeans"
-            ) as mock_kmeans,
+            patch("src.simulation_strategies.trust_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
                 "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
@@ -375,9 +365,7 @@ class TestTrustBasedRemovalStrategy:
             truth_value = np.array([0.8])
             current_round = 3
 
-            reputation = strategy.update_reputation(
-                prev_reputation, truth_value, current_round
-            )
+            reputation = strategy.update_reputation(prev_reputation, truth_value, current_round)
 
             # Beta value should affect the result
             assert 0 <= reputation <= 1
@@ -428,9 +416,7 @@ class TestTrustBasedRemovalStrategy:
     def test_strategy_history_integration(self, trust_strategy, mock_client_results):
         """Test integration with strategy history."""
         with (
-            patch(
-                "src.simulation_strategies.trust_based_removal_strategy.KMeans"
-            ) as mock_kmeans,
+            patch("src.simulation_strategies.trust_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
                 "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
@@ -455,16 +441,13 @@ class TestTrustBasedRemovalStrategy:
 
             # Verify strategy history methods were called
             assert (
-                trust_strategy.strategy_history.insert_single_client_history_entry.call_count
-                == 5
+                trust_strategy.strategy_history.insert_single_client_history_entry.call_count == 5
             )
             trust_strategy.strategy_history.insert_round_history_entry.assert_called_once()
 
     def test_edge_case_empty_results(self, trust_strategy):
         """Test handling of empty results."""
-        with patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
+        with patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate:
             mock_parent_aggregate.return_value = (None, {})
 
             result = trust_strategy.aggregate_fit(1, [], [])
@@ -485,9 +468,7 @@ class TestTrustBasedRemovalStrategy:
         single_result = [(client_proxy, fit_res)]
 
         with (
-            patch(
-                "src.simulation_strategies.trust_based_removal_strategy.KMeans"
-            ) as mock_kmeans,
+            patch("src.simulation_strategies.trust_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
                 "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
@@ -541,15 +522,11 @@ class TestTrustBasedRemovalStrategy:
         assert isinstance(loss_aggregated, float)
         assert loss_aggregated >= 0
 
-    def test_aggregate_evaluate_returns_empty_metrics(
-        self, trust_strategy, mock_evaluate_results
-    ):
+    def test_aggregate_evaluate_returns_empty_metrics(self, trust_strategy, mock_evaluate_results):
         """Test aggregate_evaluate returns empty metrics dict."""
         server_round = 1
 
-        _, metrics = trust_strategy.aggregate_evaluate(
-            server_round, mock_evaluate_results, []
-        )
+        _, metrics = trust_strategy.aggregate_evaluate(server_round, mock_evaluate_results, [])
 
         # Trust strategy doesn't return metrics in aggregate_evaluate
         assert isinstance(metrics, dict)
@@ -578,9 +555,7 @@ class TestTrustBasedRemovalStrategy:
         assert sixth_call[1]["current_round"] == 1
         assert sixth_call[1]["loss"] == 0.4
 
-    def test_aggregate_evaluate_with_failures(
-        self, trust_strategy, mock_evaluate_results
-    ):
+    def test_aggregate_evaluate_with_failures(self, trust_strategy, mock_evaluate_results):
         """Test aggregate_evaluate handles failures parameter."""
         server_round = 1
         failures = [Exception("Test failure")]

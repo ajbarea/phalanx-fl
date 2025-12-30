@@ -193,9 +193,7 @@ class TestVocabulariesDict(unittest.TestCase):
     def test_vocabularies_have_minimum_size(self):
         """Each vocabulary should have substantial size (600+ terms)."""
         for name, vocab in VOCABULARIES.items():
-            self.assertGreater(
-                len(vocab), 500, f"{name} vocabulary should have 500+ terms"
-            )
+            self.assertGreater(len(vocab), 500, f"{name} vocabulary should have 500+ terms")
 
 
 class TestReplacementStrategiesDict(unittest.TestCase):
@@ -270,7 +268,7 @@ class TestVocabularyIntegration(unittest.TestCase):
         for vocab_name in list_available_vocabularies():
             vocab = get_vocabulary(vocab_name)
             count = 0
-            for term in vocab:
+            for _term in vocab:
                 count += 1
                 if count > 10:
                     break
@@ -289,9 +287,7 @@ class TestVocabularyIntegration(unittest.TestCase):
         for vocab_name in list_available_vocabularies():
             vocab = get_vocabulary(vocab_name)
             unique_ratio = len(set(vocab)) / len(vocab)
-            self.assertGreater(
-                unique_ratio, 0.9, f"{vocab_name} should have >90% unique terms"
-            )
+            self.assertGreater(unique_ratio, 0.9, f"{vocab_name} should have >90% unique terms")
 
 
 if __name__ == "__main__":

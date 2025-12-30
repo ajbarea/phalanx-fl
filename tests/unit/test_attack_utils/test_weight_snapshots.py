@@ -70,12 +70,7 @@ class TestSnapshotStorage:
 
         path = _get_weight_snapshot_dir(str(output_dir), client_id, round_num)
 
-        expected = (
-            output_dir
-            / "weight_snapshots_0"
-            / f"client_{client_id}"
-            / f"round_{round_num}"
-        )
+        expected = output_dir / "weight_snapshots_0" / f"client_{client_id}" / f"round_{round_num}"
         assert path == expected
         assert path.exists()
 
@@ -112,9 +107,7 @@ class TestSnapshotStorage:
 
     def test_save_histogram_handling(self, tmp_path, mock_params, mock_params_after):
         """Tests that histogram saving is attempted."""
-        with patch(
-            "src.attack_utils.weight_snapshots._save_weight_histogram"
-        ) as mock_hist:
+        with patch("src.attack_utils.weight_snapshots._save_weight_histogram") as mock_hist:
             save_weight_snapshot(
                 parameters_before=mock_params,
                 parameters_after=mock_params_after,

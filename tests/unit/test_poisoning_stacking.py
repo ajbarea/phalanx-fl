@@ -102,9 +102,7 @@ class TestPoisoningStacking:
         """Test that overlapping attacks are correctly detected and returned."""
         schedule = _create_overlapping_schedule()
 
-        should_poison, attack_configs = should_poison_this_round(
-            round_num, client_id, schedule
-        )
+        should_poison, attack_configs = should_poison_this_round(round_num, client_id, schedule)
 
         # Verify poisoning status
         assert should_poison == (expected_count > 0), (
@@ -256,9 +254,7 @@ class TestPoisoningStacking:
 
         should_poison, attack_configs = should_poison_this_round(5, 0, schedule)
 
-        gaussian_cfg = next(
-            cfg for cfg in attack_configs if cfg["attack_type"] == "gaussian_noise"
-        )
+        gaussian_cfg = next(cfg for cfg in attack_configs if cfg["attack_type"] == "gaussian_noise")
 
         # Verify parameters are preserved
         assert gaussian_cfg["target_noise_snr"] == 15.0
@@ -279,9 +275,7 @@ class TestPoisoningStacking:
         types3 = [cfg["attack_type"] for cfg in configs3]
 
         # Order should be consistent across calls
-        assert types1 == types2 == types3, (
-            "Attack order should be consistent across multiple calls"
-        )
+        assert types1 == types2 == types3, "Attack order should be consistent across multiple calls"
 
     @pytest.mark.parametrize(
         "num_overlaps",

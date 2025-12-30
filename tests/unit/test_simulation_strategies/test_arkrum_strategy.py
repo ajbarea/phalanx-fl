@@ -40,9 +40,7 @@ class TestArKrumMedianFiltering:
     def test_median_filter_with_normal_distribution(self, strategy):
         """Test filtering with normally distributed distances."""
         # Honest clients should have similar distances
-        distances = np.array(
-            [0.1, 0.12, 0.11, 0.13, 0.14, 0.15, 0.9]
-        )  # Last is outlier
+        distances = np.array([0.1, 0.12, 0.11, 0.13, 0.14, 0.15, 0.9])  # Last is outlier
         sorted_distances = np.sort(distances)
 
         filtered = strategy._median_filter_distances(sorted_distances)
@@ -235,9 +233,7 @@ class TestArKrumAggregate:
         strategy.strategy_history.insert_round_history_entry.assert_called_once()
 
         # Should record client entries
-        assert (
-            strategy.strategy_history.insert_single_client_history_entry.call_count == 3
-        )
+        assert strategy.strategy_history.insert_single_client_history_entry.call_count == 3
 
     def test_aggregate_stores_client_scores(self, strategy):
         """Test that client scores are stored."""
@@ -318,14 +314,11 @@ class TestArKrumByzantineDetection:
         # 7 honest clients with similar parameters
         honest_base = np.random.randn(50).astype(np.float32)
         honest_params = [
-            honest_base + np.random.randn(50).astype(np.float32) * 0.01
-            for _ in range(7)
+            honest_base + np.random.randn(50).astype(np.float32) * 0.01 for _ in range(7)
         ]
 
         # 3 Byzantine clients with divergent parameters
-        byzantine_params = [
-            np.random.randn(50).astype(np.float32) * 100 for _ in range(3)
-        ]
+        byzantine_params = [np.random.randn(50).astype(np.float32) * 100 for _ in range(3)]
 
         results = create_mock_results(honest_params + byzantine_params)
 
@@ -344,14 +337,11 @@ class TestArKrumByzantineDetection:
         # 8 honest clients
         honest_base = np.random.randn(30).astype(np.float32)
         honest_params = [
-            honest_base + np.random.randn(30).astype(np.float32) * 0.01
-            for _ in range(8)
+            honest_base + np.random.randn(30).astype(np.float32) * 0.01 for _ in range(8)
         ]
 
         # 2 Byzantine clients
-        byzantine_params = [
-            np.random.randn(30).astype(np.float32) * 50 for _ in range(2)
-        ]
+        byzantine_params = [np.random.randn(30).astype(np.float32) * 50 for _ in range(2)]
 
         results = create_mock_results(honest_params + byzantine_params)
 

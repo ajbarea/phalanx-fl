@@ -39,7 +39,7 @@ def check_pytest_config() -> bool:
     logger.info("\n🔍 Checking pytest configuration...")
 
     try:
-        with open("pytest.ini", "r", encoding="utf-8") as f:
+        with open("pytest.ini", encoding="utf-8") as f:
             content = f.read()
 
         required_options = [
@@ -79,7 +79,7 @@ def check_coverage_rc() -> bool:
     logger.info("\n🔍 Checking .coveragerc configuration...")
 
     try:
-        with open(".coveragerc", "r", encoding="utf-8") as f:
+        with open(".coveragerc", encoding="utf-8") as f:
             content = f.read()
 
         required_sections = ["[run]", "[report]", "[html]"]
@@ -134,7 +134,7 @@ def check_ci_config() -> bool:
     logger.info("\n🔍 Checking CI configuration...")
 
     try:
-        with open(".github/workflows/ci.yml", "r", encoding="utf-8") as f:
+        with open(".github/workflows/ci.yml", encoding="utf-8") as f:
             ci_content = f.read()
 
         required_elements = [
@@ -144,9 +144,7 @@ def check_ci_config() -> bool:
             "--cov-report=term-missing",
         ]
 
-        missing_elements = [
-            elem for elem in required_elements if elem not in ci_content
-        ]
+        missing_elements = [elem for elem in required_elements if elem not in ci_content]
 
         if missing_elements:
             logger.error(f"❌ Missing CI elements: {missing_elements}")

@@ -99,9 +99,7 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch(
-            "src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"
-        ):
+        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
                 trainloaders, valloaders, num_labels = loader.load_datasets()
 
@@ -135,9 +133,7 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch(
-            "src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"
-        ):
+        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
                 trainloaders, valloaders, num_labels = loader.load_datasets()
 
@@ -166,9 +162,7 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch(
-            "src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"
-        ):
+        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
                 _, _, num_labels = loader.load_datasets()
 
@@ -196,9 +190,7 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch(
-            "src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"
-        ):
+        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
                 _, _, num_labels = loader.load_datasets()
 
@@ -228,9 +220,7 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch(
-            "src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"
-        ):
+        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
                 loader.load_datasets()
 
@@ -261,9 +251,7 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch(
-            "src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"
-        ):
+        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
                 loader.load_datasets()
 
@@ -292,9 +280,7 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch(
-            "src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"
-        ):
+        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
                 loader.load_datasets()
 
@@ -304,9 +290,7 @@ class TestTextClassificationLoader:
         example = {"text": ["Hello world"]}
         tokenize_fn(example)
 
-        mock_tokenizer.assert_called_with(
-            ["Hello world"], truncation=True, max_length=128
-        )
+        mock_tokenizer.assert_called_with(["Hello world"], truncation=True, max_length=128)
 
     @patch("src.dataset_loaders.text_classification_loader.load_dataset")
     @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
@@ -331,9 +315,7 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch(
-            "src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"
-        ):
+        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
                 loader.load_datasets()
 
@@ -342,9 +324,7 @@ class TestTextClassificationLoader:
         example = {"text": ["Hello"], "text2": ["World"]}
         tokenize_fn(example)
 
-        mock_tokenizer.assert_called_with(
-            ["Hello"], ["World"], truncation=True, max_length=128
-        )
+        mock_tokenizer.assert_called_with(["Hello"], ["World"], truncation=True, max_length=128)
 
     @patch("src.dataset_loaders.text_classification_loader.load_dataset")
     @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
@@ -369,9 +349,7 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch(
-            "src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"
-        ):
+        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
                 loader.load_datasets()
 
@@ -400,9 +378,7 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch(
-            "src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"
-        ):
+        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
                 loader.load_datasets()
 
@@ -429,9 +405,7 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch(
-            "src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"
-        ):
+        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
                 loader.load_datasets()
 
@@ -462,9 +436,7 @@ class TestTextClassificationLoader:
         loader.partitioning_strategy = "pathological"
         mock_dataset = Mock()
 
-        with patch.object(
-            loader, "_partition_pathological", return_value=[]
-        ) as mock_path:
+        with patch.object(loader, "_partition_pathological", return_value=[]) as mock_path:
             loader._partition_dataset(mock_dataset)
             mock_path.assert_called_once_with(mock_dataset)
 
@@ -638,9 +610,7 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch(
-            "src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"
-        ):
+        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             trainloaders, valloaders, _ = loader.load_datasets()
 
         assert len(trainloaders) == 3
@@ -669,15 +639,11 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch(
-            "src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"
-        ):
+        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             loader.load_datasets()
 
         train_calls = [
-            call
-            for i, call in enumerate(mock_dataloader_cls.call_args_list)
-            if i % 2 == 0
+            call for i, call in enumerate(mock_dataloader_cls.call_args_list) if i % 2 == 0
         ]
         for call in train_calls:
             _, kwargs = call
@@ -706,15 +672,11 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch(
-            "src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"
-        ):
+        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             loader.load_datasets()
 
         val_calls = [
-            call
-            for i, call in enumerate(mock_dataloader_cls.call_args_list)
-            if i % 2 == 1
+            call for i, call in enumerate(mock_dataloader_cls.call_args_list) if i % 2 == 1
         ]
         for call in val_calls:
             _, kwargs = call
@@ -745,9 +707,7 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch(
-            "src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"
-        ):
+        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             loader.load_datasets()
 
         for call in mock_dataloader_cls.call_args_list:
@@ -756,9 +716,7 @@ class TestTextClassificationLoader:
 
     @patch("src.dataset_loaders.text_classification_loader.load_dataset")
     @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
-    def test_load_datasets_uses_data_collator(
-        self, mock_tokenizer_cls, mock_load_dataset, loader
-    ):
+    def test_load_datasets_uses_data_collator(self, mock_tokenizer_cls, mock_load_dataset, loader):
         """Verify DataLoaders use DataCollatorWithPadding."""
         mock_train = Mock()
         mock_train.features = {"label": Mock(num_classes=2)}
@@ -782,9 +740,7 @@ class TestTextClassificationLoader:
             mock_collator = Mock()
             mock_collator_cls.return_value = mock_collator
 
-            with patch(
-                "src.dataset_loaders.text_classification_loader.DataLoader"
-            ) as mock_dl_cls:
+            with patch("src.dataset_loaders.text_classification_loader.DataLoader") as mock_dl_cls:
                 loader.load_datasets()
 
                 mock_collator_cls.assert_called_once_with(tokenizer=mock_tokenizer)

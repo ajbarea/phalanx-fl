@@ -13,7 +13,7 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable
 
 import pytest
 
@@ -43,7 +43,7 @@ def pytest_generate_tests(metafunc):
         combos = [
             (attack, defense)
             for attack in ATTACK_TYPES[:6]  # Limit to main attack types
-            for defense in DEFENSE_STRATEGIES.keys()
+            for defense in DEFENSE_STRATEGIES
         ]
         metafunc.parametrize(
             "attack_defense_combo",
@@ -67,7 +67,7 @@ def pytest_generate_tests(metafunc):
 
 
 @pytest.fixture
-def attack_scenario(request) -> Dict[str, Any]:
+def attack_scenario(request) -> dict[str, Any]:
     """Fixture for indirect parameterization of attack scenarios.
 
     Usage:
@@ -106,7 +106,7 @@ def attack_scenario(request) -> Dict[str, Any]:
 
 
 @pytest.fixture
-def defense_config(request) -> Dict[str, Any]:
+def defense_config(request) -> dict[str, Any]:
     """Fixture for indirect parameterization of defense strategies.
 
     Usage:
@@ -151,7 +151,7 @@ def sample_tensors_factory() -> Callable:
         batch_size: int = 5,
         image_shape: tuple = (1, 28, 28),
         num_classes: int = 10,
-    ) -> Tuple[Any, Any]:
+    ) -> tuple[Any, Any]:
         return create_sample_tensors(
             batch_size=batch_size,
             image_shape=image_shape,
@@ -174,7 +174,7 @@ def defense_strategy_param(request) -> str:
 
 
 @pytest.fixture(params=[(5, 3), (10, 5), (3, 10)])
-def batch_max_samples_combo(request) -> Tuple[int, int]:
+def batch_max_samples_combo(request) -> tuple[int, int]:
     """Parameterized fixture for batch_size × max_samples combinations.
 
     Yields:
@@ -213,7 +213,7 @@ def prevent_real_output_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
 
 
 @pytest.fixture(scope="session")
-def mock_strategy_configs() -> Dict[str, Dict[str, Any]]:
+def mock_strategy_configs() -> dict[str, dict[str, Any]]:
     """Returns strategy configurations for parameterized tests."""
     return STRATEGY_CONFIGS
 
@@ -239,8 +239,8 @@ def strategy_history():
 
 @pytest.fixture(params=["trust", "pid", "krum", "multi-krum", "trimmed_mean"])
 def strategy_config(
-    request: pytest.FixtureRequest, mock_strategy_configs: Dict[str, Dict[str, Any]]
-) -> Dict[str, Any]:
+    request: pytest.FixtureRequest, mock_strategy_configs: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
     """Returns parameterized strategy configuration."""
     return mock_strategy_configs[request.param]
 
@@ -344,9 +344,7 @@ def _setup_failure_logger():
         fh = logging.FileHandler(log_file, mode="w")
         fh.setLevel(logging.INFO)
 
-        formatter = logging.Formatter(
-            "%(asctime)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-        )
+        formatter = logging.Formatter("%(asctime)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
         fh.setFormatter(formatter)
 
         failure_logger.addHandler(fh)
@@ -388,9 +386,7 @@ def pytest_runtest_makereport(item, call):
                 failure_logger.warning(
                     "Hint: A FileNotFoundError suggests a missing file or incorrect path."
                 )
-                failure_logger.warning(
-                    "  - If loading data, check that the path is correct."
-                )
+                failure_logger.warning("  - If loading data, check that the path is correct.")
                 failure_logger.warning(
                     "  - Are you using a temporary directory fixture (e.g., `tmp_path`) correctly?"
                 )
@@ -408,9 +404,7 @@ def pytest_runtest_makereport(item, call):
                     "  - See `tests/docs/test_data_generation.md` to verify mock data shapes."
                 )
 
-            elif "test_simulation_strategies" in test_path and issubclass(
-                exc_type, AssertionError
-            ):
+            elif "test_simulation_strategies" in test_path and issubclass(exc_type, AssertionError):
                 failure_logger.warning(
                     "Hint: An AssertionError in a strategy test points to an algorithmic problem."
                 )

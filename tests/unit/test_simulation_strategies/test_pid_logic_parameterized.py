@@ -45,9 +45,7 @@ class TestPIDLogicParameterized:
                 0.5,
                 {"sum": 1.5, "dist": 0.2},
                 {"avg_sum": 1.0, "sum_std_dev": 0.5},
-                lambda p, d: (d * p.kp)
-                + (((1.5 - 1.0) / 0.5) * p.ki)
-                + (p.kd * (d - 0.2)),
+                lambda p, d: (d * p.kp) + (((1.5 - 1.0) / 0.5) * p.ki) + (p.kd * (d - 0.2)),
             ),
             (
                 "pid_standardized",

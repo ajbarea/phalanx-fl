@@ -152,15 +152,11 @@ class TestRFABasedRemovalStrategy:
         """Test aggregate_fit performs clustering correctly."""
         # Setup mocks
         mock_kmeans_instance = Mock()
-        mock_kmeans_instance.transform.return_value = np.array(
-            [[0.1], [0.2], [0.3], [0.4], [0.5]]
-        )
+        mock_kmeans_instance.transform.return_value = np.array([[0.1], [0.2], [0.3], [0.4], [0.5]])
         mock_kmeans.return_value.fit.return_value = mock_kmeans_instance
 
         mock_scaler_instance = Mock()
-        mock_scaler_instance.transform.return_value = np.array(
-            [[0.1], [0.2], [0.3], [0.4], [0.5]]
-        )
+        mock_scaler_instance.transform.return_value = np.array([[0.1], [0.2], [0.3], [0.4], [0.5]])
         mock_scaler.return_value = mock_scaler_instance
 
         rfa_strategy.aggregate_fit(1, mock_client_results, [])
@@ -170,14 +166,10 @@ class TestRFABasedRemovalStrategy:
         mock_scaler_instance.fit.assert_called_once()
         mock_scaler_instance.transform.assert_called_once()
 
-    def test_aggregate_fit_geometric_median_calculation(
-        self, rfa_strategy, mock_client_results
-    ):
+    def test_aggregate_fit_geometric_median_calculation(self, rfa_strategy, mock_client_results):
         """Test aggregate_fit calculates geometric median correctly."""
         with (
-            patch(
-                "src.simulation_strategies.rfa_based_removal_strategy.KMeans"
-            ) as mock_kmeans,
+            patch("src.simulation_strategies.rfa_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
                 "src.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
@@ -195,9 +187,7 @@ class TestRFABasedRemovalStrategy:
             )
             mock_scaler.return_value = mock_scaler_instance
 
-            result_params, result_metrics = rfa_strategy.aggregate_fit(
-                1, mock_client_results, []
-            )
+            result_params, result_metrics = rfa_strategy.aggregate_fit(1, mock_client_results, [])
 
             # Should return aggregated parameters
             assert result_params is not None
@@ -206,14 +196,10 @@ class TestRFABasedRemovalStrategy:
             # Verify current_round was incremented
             assert rfa_strategy.current_round == 1
 
-    def test_aggregate_fit_deviation_calculation(
-        self, rfa_strategy, mock_client_results
-    ):
+    def test_aggregate_fit_deviation_calculation(self, rfa_strategy, mock_client_results):
         """Test aggregate_fit calculates client deviations from geometric median."""
         with (
-            patch(
-                "src.simulation_strategies.rfa_based_removal_strategy.KMeans"
-            ) as mock_kmeans,
+            patch("src.simulation_strategies.rfa_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
                 "src.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
@@ -243,9 +229,7 @@ class TestRFABasedRemovalStrategy:
 
     def test_aggregate_fit_empty_results(self, rfa_strategy):
         """Test aggregate_fit handles empty results."""
-        with patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
+        with patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate:
             mock_parent_aggregate.return_value = (None, {})
             result_params, result_metrics = rfa_strategy.aggregate_fit(1, [], [])
 
@@ -362,9 +346,7 @@ class TestRFABasedRemovalStrategy:
     def test_rounds_history_tracking(self, rfa_strategy, mock_client_results):
         """Test that strategy_history is properly updated during aggregate_fit."""
         with (
-            patch(
-                "src.simulation_strategies.rfa_based_removal_strategy.KMeans"
-            ) as mock_kmeans,
+            patch("src.simulation_strategies.rfa_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
                 "src.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
@@ -385,10 +367,7 @@ class TestRFABasedRemovalStrategy:
             rfa_strategy.aggregate_fit(1, mock_client_results, [])
 
             # Verify strategy_history methods called correctly
-            assert (
-                rfa_strategy.strategy_history.insert_single_client_history_entry.call_count
-                == 5
-            )
+            assert rfa_strategy.strategy_history.insert_single_client_history_entry.call_count == 5
             rfa_strategy.strategy_history.insert_round_history_entry.assert_called_once()
 
             # Verify client_scores populated
@@ -407,9 +386,7 @@ class TestRFABasedRemovalStrategy:
         single_result = [(client_proxy, fit_res)]
 
         with (
-            patch(
-                "src.simulation_strategies.rfa_based_removal_strategy.KMeans"
-            ) as mock_kmeans,
+            patch("src.simulation_strategies.rfa_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
                 "src.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
@@ -452,24 +429,18 @@ class TestRFABasedRemovalStrategy:
             results.append((client_proxy, fit_res))
 
         with (
-            patch(
-                "src.simulation_strategies.rfa_based_removal_strategy.KMeans"
-            ) as mock_kmeans,
+            patch("src.simulation_strategies.rfa_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
                 "src.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
         ):
             # Setup mocks
             mock_kmeans_instance = Mock()
-            mock_kmeans_instance.transform.return_value = np.array(
-                [[0.1], [0.2], [0.3]]
-            )
+            mock_kmeans_instance.transform.return_value = np.array([[0.1], [0.2], [0.3]])
             mock_kmeans.return_value.fit.return_value = mock_kmeans_instance
 
             mock_scaler_instance = Mock()
-            mock_scaler_instance.transform.return_value = np.array(
-                [[0.1], [0.2], [0.3]]
-            )
+            mock_scaler_instance.transform.return_value = np.array([[0.1], [0.2], [0.3]])
             mock_scaler.return_value = mock_scaler_instance
 
             result_params, result_metrics = rfa_strategy.aggregate_fit(1, results, [])
@@ -499,24 +470,18 @@ class TestRFABasedRemovalStrategy:
             results.append((client_proxy, fit_res))
 
         with (
-            patch(
-                "src.simulation_strategies.rfa_based_removal_strategy.KMeans"
-            ) as mock_kmeans,
+            patch("src.simulation_strategies.rfa_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
                 "src.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
         ):
             # Setup mocks
             mock_kmeans_instance = Mock()
-            mock_kmeans_instance.transform.return_value = np.array(
-                [[0.1], [0.2], [0.3]]
-            )
+            mock_kmeans_instance.transform.return_value = np.array([[0.1], [0.2], [0.3]])
             mock_kmeans.return_value.fit.return_value = mock_kmeans_instance
 
             mock_scaler_instance = Mock()
-            mock_scaler_instance.transform.return_value = np.array(
-                [[0.1], [0.2], [0.3]]
-            )
+            mock_scaler_instance.transform.return_value = np.array([[0.1], [0.2], [0.3]])
             mock_scaler.return_value = mock_scaler_instance
 
             result_params, result_metrics = rfa_strategy.aggregate_fit(1, results, [])

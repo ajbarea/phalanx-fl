@@ -66,12 +66,8 @@ class TestRoundsInfo:
         ]
 
         # Should include both base and stats metrics
-        assert all(
-            metric in rounds_info.savable_metrics for metric in expected_base_savable
-        )
-        assert all(
-            metric in rounds_info.savable_metrics for metric in expected_stats_metrics
-        )
+        assert all(metric in rounds_info.savable_metrics for metric in expected_base_savable)
+        assert all(metric in rounds_info.savable_metrics for metric in expected_stats_metrics)
 
     def test_post_init_savable_metrics_without_removal(self):
         """Test savable_metrics initialization when remove_clients=False"""
@@ -125,15 +121,9 @@ class TestRoundsInfo:
             2000000,
             3000000,
         ]
-        assert rounds_info.removal_threshold_history == pytest.approx(
-            [0.5, 0.6, 0.7], rel=1e-3
-        )
-        assert rounds_info.aggregated_loss_history == pytest.approx(
-            [0.4, 0.3, 0.2], rel=1e-3
-        )
-        assert rounds_info.average_accuracy_history == pytest.approx(
-            [80, 85, 90], rel=8.0
-        )
+        assert rounds_info.removal_threshold_history == pytest.approx([0.5, 0.6, 0.7], rel=1e-3)
+        assert rounds_info.aggregated_loss_history == pytest.approx([0.4, 0.3, 0.2], rel=1e-3)
+        assert rounds_info.average_accuracy_history == pytest.approx([80, 85, 90], rel=8.0)
 
     def test_get_metric_by_name_valid_metrics(self):
         """Test get_metric_by_name with valid metric names"""
@@ -148,9 +138,7 @@ class TestRoundsInfo:
             average_accuracy=0.9,
         )
 
-        assert rounds_info.get_metric_by_name(
-            "score_calculation_time_nanos_history"
-        ) == [500000]
+        assert rounds_info.get_metric_by_name("score_calculation_time_nanos_history") == [500000]
         assert rounds_info.get_metric_by_name("removal_threshold_history") == [0.7]
         assert rounds_info.get_metric_by_name("aggregated_loss_history") == [0.25]
         assert rounds_info.get_metric_by_name("average_accuracy_history") == [0.9]
@@ -208,9 +196,7 @@ class TestRoundsInfo:
 
         assert len(rounds_info.removal_accuracy_history) == 1
         assert rounds_info.removal_accuracy_history[0] == pytest.approx(0.7, rel=1e-3)
-        assert rounds_info.removal_precision_history[0] == pytest.approx(
-            0.6667, rel=1e-3
-        )
+        assert rounds_info.removal_precision_history[0] == pytest.approx(0.6667, rel=1e-3)
         assert rounds_info.removal_recall_history[0] == pytest.approx(0.8, rel=1e-3)
         assert rounds_info.removal_f1_history[0] == pytest.approx(0.7273, rel=1e-3)
         assert rounds_info.total_fp_and_fn_history[0] == 3  # fp + fn = 2 + 1

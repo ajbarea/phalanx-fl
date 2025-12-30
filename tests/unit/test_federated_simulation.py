@@ -1,7 +1,7 @@
 """Unit tests for FederatedSimulation class."""
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import patch
 
 from src.data_models.simulation_strategy_config import StrategyConfig
@@ -13,7 +13,7 @@ from tests.fixtures.sample_models import MockNetwork
 NDArray = np.ndarray
 
 
-def _get_base_strategy_config_dict() -> Dict[str, Any]:
+def _get_base_strategy_config_dict() -> dict[str, Any]:
     """Base strategy configuration dictionary."""
     return {
         "aggregation_strategy_keyword": "trust",
@@ -135,9 +135,7 @@ class TestFederatedSimulationInitialization:
     ) -> None:
         """Test initialization with Krum strategy."""
         krum_config_dict = _get_base_strategy_config_dict()
-        krum_config_dict.update(
-            {"aggregation_strategy_keyword": "krum", "num_krum_selections": 3}
-        )
+        krum_config_dict.update({"aggregation_strategy_keyword": "krum", "num_krum_selections": 3})
         strategy_config = StrategyConfig.from_dict(krum_config_dict)
         simulation = _create_simulation_with_mocks(
             strategy_config, temp_dataset_dir, mock_dataset_handler
@@ -199,9 +197,7 @@ class TestFederatedSimulationInitialization:
             NotImplementedError,
             match="The strategy invalid_strategy not implemented",
         ):
-            _create_simulation_with_mocks(
-                strategy_config, temp_dataset_dir, mock_dataset_handler
-            )
+            _create_simulation_with_mocks(strategy_config, temp_dataset_dir, mock_dataset_handler)
 
     def test_simulation_strategy_history_initialization(
         self, temp_dataset_dir: str, mock_dataset_handler: MockDatasetHandler
@@ -226,9 +222,7 @@ class TestFederatedSimulationInitialization:
         strategy_config = StrategyConfig.from_dict(config_dict)
 
         with pytest.raises(SystemExit) as exc_info:
-            _create_simulation_with_mocks(
-                strategy_config, temp_dataset_dir, mock_dataset_handler
-            )
+            _create_simulation_with_mocks(strategy_config, temp_dataset_dir, mock_dataset_handler)
         assert exc_info.value.code == -1
 
     def test_unsupported_strategy_raises_error(
@@ -240,9 +234,7 @@ class TestFederatedSimulationInitialization:
         strategy_config = StrategyConfig.from_dict(config_dict)
 
         with pytest.raises(NotImplementedError, match="not implemented"):
-            _create_simulation_with_mocks(
-                strategy_config, temp_dataset_dir, mock_dataset_handler
-            )
+            _create_simulation_with_mocks(strategy_config, temp_dataset_dir, mock_dataset_handler)
 
     @pytest.mark.parametrize(
         "strategy,extra_params",
@@ -268,7 +260,7 @@ class TestFederatedSimulationInitialization:
         temp_dataset_dir: str,
         mock_dataset_handler: MockDatasetHandler,
         strategy: str,
-        extra_params: Dict[str, Any],
+        extra_params: dict[str, Any],
     ) -> None:
         """Test that all supported aggregation strategies can be initialized."""
         config_dict = _get_base_strategy_config_dict()
@@ -353,14 +345,10 @@ class TestFederatedSimulationClientFunction:
                 assert call_args.kwargs["client_id"] == int(client_id)
                 if simulation._trainloaders is not None:
                     assert (
-                        call_args.kwargs["trainloader"]
-                        == simulation._trainloaders[int(client_id)]
+                        call_args.kwargs["trainloader"] == simulation._trainloaders[int(client_id)]
                     )
                 if simulation._valloaders is not None:
-                    assert (
-                        call_args.kwargs["valloader"]
-                        == simulation._valloaders[int(client_id)]
-                    )
+                    assert call_args.kwargs["valloader"] == simulation._valloaders[int(client_id)]
 
     def test_client_fn_with_invalid_client_id(
         self, temp_dataset_dir: str, mock_dataset_handler: MockDatasetHandler
@@ -408,9 +396,7 @@ class TestFederatedSimulationClientFunction:
                     dataset_handler=mock_dataset_handler,
                 )
 
-                with patch(
-                    "src.federated_simulation.FlowerClient"
-                ) as mock_flower_client:
+                with patch("src.federated_simulation.FlowerClient") as mock_flower_client:
                     mock_client_instance = Mock()
                     mock_client_instance.to_client.return_value = Mock()
                     mock_flower_client.return_value = mock_client_instance
@@ -427,7 +413,7 @@ class TestFederatedSimulationModelParams:
     def test_get_model_params_with_regular_model(self) -> None:
         """Test _get_model_params with a standard PyTorch model."""
         model = MockNetwork(num_classes=10, input_size=100)
-        params: List[NDArray] = FederatedSimulation._get_model_params(model)
+        params: list[NDArray] = FederatedSimulation._get_model_params(model)
 
         assert isinstance(params, list)
         assert len(params) > 0
@@ -441,18 +427,14 @@ class TestFederatedSimulationModelParams:
     def test_get_model_params_handles_lora_model(self) -> None:
         """Test _get_model_params handles LORA models correctly."""
         with patch("src.federated_simulation.isinstance") as mock_isinstance:
-            mock_isinstance.return_value = (
-                True  # Make isinstance(model, PeftModel) return True
-            )
+            mock_isinstance.return_value = True  # Make isinstance(model, PeftModel) return True
             mock_model = Mock()
-            with patch(
-                "src.federated_simulation.get_peft_model_state_dict"
-            ) as mock_get_peft:
+            with patch("src.federated_simulation.get_peft_model_state_dict") as mock_get_peft:
                 mock_state_dict = {"lora_layer.weight": Mock()}
                 # Configure mock parameter to have proper cpu().numpy() chain
-                mock_state_dict[
-                    "lora_layer.weight"
-                ].cpu.return_value.numpy.return_value = np.array([1.0, 2.0])
+                mock_state_dict["lora_layer.weight"].cpu.return_value.numpy.return_value = np.array(
+                    [1.0, 2.0]
+                )
                 mock_get_peft.return_value = mock_state_dict
 
                 result = FederatedSimulation._get_model_params(mock_model)
@@ -508,13 +490,9 @@ class TestFederatedSimulationErrorHandling:
 
         # Assert component consistency
         if simulation._trainloaders is not None:
-            assert simulation.strategy_config.num_of_clients == len(
-                simulation._trainloaders
-            )
+            assert simulation.strategy_config.num_of_clients == len(simulation._trainloaders)
         if simulation._valloaders is not None:
-            assert simulation.strategy_config.num_of_clients == len(
-                simulation._valloaders
-            )
+            assert simulation.strategy_config.num_of_clients == len(simulation._valloaders)
         assert simulation._aggregation_strategy is not None
         assert simulation._network_model is not None
 
@@ -556,7 +534,7 @@ class TestWeightedAverage:
         """Test weighted average with empty metrics list."""
         from src.federated_simulation import weighted_average
 
-        metrics: List[tuple[int, dict]] = []
+        metrics: list[tuple[int, dict]] = []
         result = weighted_average(metrics)
 
         assert result == {}

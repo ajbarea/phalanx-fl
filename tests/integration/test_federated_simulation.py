@@ -6,7 +6,7 @@ cross-system interactions with mocked external dependencies.
 """
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import patch
 
 from src.data_models.simulation_strategy_config import StrategyConfig
@@ -18,7 +18,7 @@ from tests.fixtures.sample_models import MockNetwork
 NDArray = np.ndarray
 
 
-def _get_base_strategy_config_dict() -> Dict[str, Any]:
+def _get_base_strategy_config_dict() -> dict[str, Any]:
     """Return a base strategy configuration dictionary for testing."""
     return {
         "aggregation_strategy_keyword": "trust",
@@ -130,6 +130,7 @@ class TestFederatedSimulationIntegration:
             mock_flower_client.return_value = mock_client_instance
 
             # Test all clients can be created
+            assert strategy_config.num_of_clients is not None
             for client_id in range(strategy_config.num_of_clients):
                 client = simulation.client_fn(str(client_id))
                 assert client is not None
@@ -142,7 +143,7 @@ class TestFederatedSimulationIntegration:
         mock_dataset_handler: MockDatasetHandler,
     ) -> None:
         """Test simulation workflow works with different aggregation strategies."""
-        strategies_to_test = [
+        strategies_to_test: list[tuple[str, dict[str, Any]]] = [
             ("trust", {"trust_threshold": 0.7, "beta_value": 0.5}),
             ("pid", {"Kp": 1.0, "Ki": 0.1, "Kd": 0.01, "num_std_dev": 2.0}),
             ("krum", {"num_krum_selections": 3}),
@@ -151,7 +152,8 @@ class TestFederatedSimulationIntegration:
         for strategy_name, extra_params in strategies_to_test:
             config_dict = _get_base_strategy_config_dict()
             config_dict["aggregation_strategy_keyword"] = strategy_name
-            config_dict.update(extra_params)
+            for key, value in extra_params.items():
+                config_dict[key] = value
             strategy_config = StrategyConfig.from_dict(config_dict)
 
             simulation = _create_simulation_with_mocks(
@@ -166,9 +168,7 @@ class TestFederatedSimulationIntegration:
 
             # Verify strategy-specific integration
             assert simulation._aggregation_strategy is not None
-            assert (
-                simulation.strategy_config.aggregation_strategy_keyword == strategy_name
-            )
+            assert simulation.strategy_config.aggregation_strategy_keyword == strategy_name
 
     def test_cross_component_integration_dataset_network_strategy(
         self, temp_dataset_dir: str, mock_dataset_handler: MockDatasetHandler
@@ -238,6 +238,7 @@ class TestFederatedSimulationIntegration:
             mock_flower_client.return_value = mock_client_instance
 
             # Test that client creation integrates with all system components
+            assert strategy_config.num_of_clients is not None
             for client_id in range(strategy_config.num_of_clients):
                 _client = simulation.client_fn(str(client_id))
 
@@ -246,22 +247,12 @@ class TestFederatedSimulationIntegration:
                 assert call_args.kwargs["client_id"] == client_id
                 assert call_args.kwargs["net"] is simulation._network_model
                 if simulation._trainloaders is not None:
-                    assert (
-                        call_args.kwargs["trainloader"]
-                        == simulation._trainloaders[client_id]
-                    )
+                    assert call_args.kwargs["trainloader"] == simulation._trainloaders[client_id]
                 if simulation._valloaders is not None:
-                    assert (
-                        call_args.kwargs["valloader"]
-                        == simulation._valloaders[client_id]
-                    )
+                    assert call_args.kwargs["valloader"] == simulation._valloaders[client_id]
+                assert call_args.kwargs["training_device"] == strategy_config.training_device
                 assert (
-                    call_args.kwargs["training_device"]
-                    == strategy_config.training_device
-                )
-                assert (
-                    call_args.kwargs["num_of_client_epochs"]
-                    == strategy_config.num_of_client_epochs
+                    call_args.kwargs["num_of_client_epochs"] == strategy_config.num_of_client_epochs
                 )
 
     def test_simulation_error_recovery_integration(
@@ -274,9 +265,7 @@ class TestFederatedSimulationIntegration:
         strategy_config = StrategyConfig.from_dict(config_dict)
 
         with pytest.raises(SystemExit) as exc_info:
-            _create_simulation_with_mocks(
-                strategy_config, temp_dataset_dir, mock_dataset_handler
-            )
+            _create_simulation_with_mocks(strategy_config, temp_dataset_dir, mock_dataset_handler)
         assert exc_info.value.code == -1
 
         # Test unsupported strategy error propagation
@@ -285,9 +274,7 @@ class TestFederatedSimulationIntegration:
         strategy_config = StrategyConfig.from_dict(config_dict)
 
         with pytest.raises(NotImplementedError, match="not implemented"):
-            _create_simulation_with_mocks(
-                strategy_config, temp_dataset_dir, mock_dataset_handler
-            )
+            _create_simulation_with_mocks(strategy_config, temp_dataset_dir, mock_dataset_handler)
 
     def test_strategy_history_integration_workflow(
         self, temp_dataset_dir: str, mock_dataset_handler: MockDatasetHandler

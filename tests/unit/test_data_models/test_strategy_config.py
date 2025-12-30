@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict
+from typing import Any
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 
@@ -68,7 +68,7 @@ class TestStrategyConfig:
 
     def test_from_dict_valid_config(self) -> None:
         """Test from_dict with valid configuration dictionary."""
-        config_dict: Dict[str, Any] = {
+        config_dict: dict[str, Any] = {
             "aggregation_strategy_keyword": "krum",
             "num_of_rounds": 4,
             "num_of_clients": 8,
@@ -127,9 +127,7 @@ class TestStrategyConfig:
 
     def test_to_json_with_none_values(self):
         """Test to_json with None values."""
-        config = StrategyConfig(
-            aggregation_strategy_keyword="pid", num_of_rounds=None, Kp=1.5
-        )
+        config = StrategyConfig(aggregation_strategy_keyword="pid", num_of_rounds=None, Kp=1.5)
 
         json_str = config.to_json()
         parsed_json = json.loads(json_str)
@@ -158,8 +156,7 @@ class TestStrategyConfig:
 
         # Compare all relevant fields
         assert (
-            new_config.aggregation_strategy_keyword
-            == original_config.aggregation_strategy_keyword
+            new_config.aggregation_strategy_keyword == original_config.aggregation_strategy_keyword
         )
         assert new_config.num_of_rounds == original_config.num_of_rounds
         assert new_config.num_of_clients == original_config.num_of_clients
@@ -218,16 +215,12 @@ class TestStrategyConfig:
         assert pid_config.num_std_dev == 2.5
 
         # Krum strategy parameters
-        krum_config = StrategyConfig(
-            aggregation_strategy_keyword="krum", num_krum_selections=5
-        )
+        krum_config = StrategyConfig(aggregation_strategy_keyword="krum", num_krum_selections=5)
 
         assert krum_config.num_krum_selections == 5
 
         # Trimmed mean strategy parameters
-        trimmed_config = StrategyConfig(
-            aggregation_strategy_keyword="trimmed_mean", trim_ratio=0.2
-        )
+        trimmed_config = StrategyConfig(aggregation_strategy_keyword="trimmed_mean", trim_ratio=0.2)
 
         assert trimmed_config.trim_ratio == 0.2
 
@@ -275,6 +268,7 @@ class TestStrategyConfig:
 
         assert config.num_of_malicious_clients == 2
         assert config.attack_schedule == attack_schedule
+        assert config.attack_schedule is not None
         assert config.attack_schedule[0]["attack_type"] == "gaussian_noise"
         assert config.attack_schedule[0]["attack_ratio"] == 0.3
         assert config.attack_schedule[0]["target_noise_snr"] == 10.0

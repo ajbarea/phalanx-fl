@@ -45,9 +45,7 @@ def mock_load_dataset(mocker, mock_dataset):
     Returns:
         Mock: The mocked load_dataset function.
     """
-    mock = mocker.patch(
-        "src.dataset_loaders.huggingface_image_dataset_loader.load_dataset"
-    )
+    mock = mocker.patch("src.dataset_loaders.huggingface_image_dataset_loader.load_dataset")
     mock.return_value = {"train": mock_dataset}
     return mock
 
@@ -94,9 +92,7 @@ class TestHuggingFaceImageDatasetLoader:
 
     def test_partition_iid(self, mock_load_dataset):
         """Tests IID partitioning logic."""
-        loader = HuggingFaceImageDatasetLoader(
-            "test/path", num_of_clients=2, max_samples=100
-        )
+        loader = HuggingFaceImageDatasetLoader("test/path", num_of_clients=2, max_samples=100)
         mock_ds = mock_load_dataset.return_value["train"]
         mock_ds.__len__.return_value = 100
         mock_ds.column_names = ["image"]
@@ -109,9 +105,7 @@ class TestHuggingFaceImageDatasetLoader:
 
     def test_partition_non_iid_dirichlet(self, mock_load_dataset):
         """Tests Non-IID Dirichlet partitioning."""
-        loader = HuggingFaceImageDatasetLoader(
-            "test/path", num_of_clients=2, max_samples=100
-        )
+        loader = HuggingFaceImageDatasetLoader("test/path", num_of_clients=2, max_samples=100)
 
         mock_ds = mock_load_dataset.return_value["train"]
         mock_ds.column_names = ["image", "label"]

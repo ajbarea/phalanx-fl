@@ -162,9 +162,7 @@ class TestDynamicClientMaliciousUpdate:
         strategy_history.update_client_malicious_status(current_round=6)
         assert strategy_history._clients_dict[0].is_malicious is True  # Both attacks
         assert strategy_history._clients_dict[1].is_malicious is True  # Both attacks
-        assert (
-            strategy_history._clients_dict[2].is_malicious is True
-        )  # Only label_flipping
+        assert strategy_history._clients_dict[2].is_malicious is True  # Only label_flipping
         assert strategy_history._clients_dict[3].is_malicious is False
 
         # Round 9: Only gaussian_noise active

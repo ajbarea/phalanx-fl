@@ -1,5 +1,9 @@
 """Parameterized tests for attack scenarios in federated learning."""
 
+from __future__ import annotations
+
+from typing import Any
+
 from tests.common import ATTACK_SCENARIOS, DEFENSE_STRATEGIES, Mock, np, pytest
 from tests.fixtures.mock_datasets import (
     MockDatasetHandler,
@@ -28,9 +32,7 @@ class TestAttackScenarios:
             attack_type=attack_type,
         )
 
-        assert len(attack_params) == num_clients, (
-            "Should generate parameters for all clients"
-        )
+        assert len(attack_params) == num_clients, "Should generate parameters for all clients"
 
         for strategy_name in defense_strategies:
             mock_strategy = Mock()
@@ -40,9 +42,7 @@ class TestAttackScenarios:
                 mock_strategy.detect_byzantine_perturbation.return_value = list(
                     range(num_byzantine)
                 )
-                mock_strategy.aggregate_parameters.return_value = (
-                    np.random.randn(param_size) * 0.01
-                )
+                mock_strategy.aggregate_parameters.return_value = np.random.randn(param_size) * 0.01
             elif expected_robustness == "medium":
                 mock_strategy.detect_byzantine_perturbation.return_value = list(
                     range(num_byzantine // 2)
@@ -52,9 +52,7 @@ class TestAttackScenarios:
                 )
             else:
                 mock_strategy.detect_byzantine_perturbation.return_value = []
-                mock_strategy.aggregate_parameters.return_value = (
-                    np.random.randn(param_size) * 0.1
-                )
+                mock_strategy.aggregate_parameters.return_value = np.random.randn(param_size) * 0.1
 
             detected_byzantine = mock_strategy.detect_byzantine_perturbation()
             aggregated_params = mock_strategy.aggregate_parameters()
@@ -96,15 +94,11 @@ class TestAttackScenarios:
             attack_type=attack_type,
         )
 
-        assert len(attack_params) == num_clients, (
-            "Should generate parameters for all clients"
-        )
+        assert len(attack_params) == num_clients, "Should generate parameters for all clients"
 
         for params in attack_params:
             assert isinstance(params, np.ndarray), "Parameters should be numpy arrays"
-            assert params.shape == (param_size,), (
-                f"Parameters should have shape ({param_size},)"
-            )
+            assert params.shape == (param_size,), f"Parameters should have shape ({param_size},)"
 
         param_norms = [np.linalg.norm(params) for params in attack_params]
 
@@ -114,14 +108,10 @@ class TestAttackScenarios:
             "byzantine_perturbation",
         ]:
             max_norm = max(param_norms)
-            assert max_norm > 5.0, (
-                f"Attack {attack_type} should produce large parameter norms"
-            )
+            assert max_norm > 5.0, f"Attack {attack_type} should produce large parameter norms"
 
         param_means = [params.mean() for params in attack_params]
-        assert len(set(np.round(param_means, 2))) > 1, (
-            "Parameters should be diverse across clients"
-        )
+        assert len(set(np.round(param_means, 2))) > 1, "Parameters should be diverse across clients"
 
     @pytest.mark.parametrize(
         "num_byzantine,total_clients",
@@ -202,10 +192,10 @@ class TestAttackScenarios:
                 attack_type=attack_type,
             )
 
-            detection_results = []
+            detection_results: list[Any] = []
             aggregation_results = []
 
-            for strategy_name in strategy_combination:
+            for _strategy_name in strategy_combination:
                 mock_strategy = Mock()
 
                 strategy_detection = list(
@@ -217,14 +207,10 @@ class TestAttackScenarios:
                 detection_results.extend(strategy_detection)
 
                 np.random.seed(42)
-                aggregated = np.random.randn(param_size) * (
-                    0.01 / len(strategy_combination)
-                )
+                aggregated = np.random.randn(param_size) * (0.01 / len(strategy_combination))
                 aggregation_results.append(aggregated)
 
-                mock_strategy.detect_byzantine_perturbation.return_value = (
-                    strategy_detection
-                )
+                mock_strategy.detect_byzantine_perturbation.return_value = strategy_detection
                 mock_strategy.aggregate_parameters.return_value = aggregated
 
             total_detected = len(set(detection_results))
@@ -248,9 +234,7 @@ class TestAttackScenarios:
             (2.0, "very_hard"),  # Very high intensity attack
         ],
     )
-    def test_attack_intensity_levels(
-        self, attack_intensity, expected_detection_difficulty
-    ):
+    def test_attack_intensity_levels(self, attack_intensity, expected_detection_difficulty):
         """Test defense mechanisms against different attack intensity levels."""
         num_byzantine = 2
         param_size = 400
@@ -276,13 +260,9 @@ class TestAttackScenarios:
             else:
                 detected_count = int(num_byzantine * detection_success_rate)
 
-            mock_strategy.detect_byzantine_perturbation.return_value = list(
-                range(detected_count)
-            )
+            mock_strategy.detect_byzantine_perturbation.return_value = list(range(detected_count))
 
-            aggregation_noise = min(
-                attack_intensity * (1 - detection_success_rate), 0.1
-            )
+            aggregation_noise = min(attack_intensity * (1 - detection_success_rate), 0.1)
             mock_strategy.aggregate_parameters.return_value = (
                 np.random.randn(param_size) * aggregation_noise
             )
@@ -310,9 +290,7 @@ class TestAttackScenarios:
             ("bloodmnist", "medium"),
         ],
     )
-    def test_dataset_specific_attack_scenarios(
-        self, dataset_type, attack_effectiveness
-    ):
+    def test_dataset_specific_attack_scenarios(self, dataset_type, attack_effectiveness):
         """Test how attack effectiveness varies across different dataset types."""
         num_clients = 6
         num_byzantine = 2
@@ -342,13 +320,11 @@ class TestAttackScenarios:
             aggregation_noise = 0.01
 
         detected_count = int(num_byzantine * detection_rate)
-        mock_strategy.detect_byzantine_perturbation.return_value = list(
-            range(detected_count)
-        )
+        mock_strategy.detect_byzantine_perturbation.return_value = list(range(detected_count))
         np.random.seed(42)
-        mock_strategy.aggregate_parameters.return_value = np.random.randn(
-            param_size
-        ) * min(aggregation_noise, 0.1)
+        mock_strategy.aggregate_parameters.return_value = np.random.randn(param_size) * min(
+            aggregation_noise, 0.1
+        )
 
         detected_byzantine = mock_strategy.detect_byzantine_perturbation()
         aggregated_params = mock_strategy.aggregate_parameters()
@@ -385,9 +361,7 @@ class TestAttackScenarios:
                 detection_rate = 0.6
 
             detected_count = int(num_byzantine * detection_rate)
-            mock_strategy.detect_byzantine_perturbation.return_value = list(
-                range(detected_count)
-            )
+            mock_strategy.detect_byzantine_perturbation.return_value = list(range(detected_count))
 
             aggregation_noise = min(0.3 * (1 - detection_rate), 0.01)
             mock_strategy.aggregate_parameters.return_value = (
@@ -543,9 +517,7 @@ class TestCombinatorialAttackDefense:
         [0.1, 0.2, 0.3],
         ids=lambda x: f"byz={x}",
     )
-    def test_attack_defense_matrix(
-        self, attack_type, defense_strategy, byzantine_ratio
-    ):
+    def test_attack_defense_matrix(self, attack_type, defense_strategy, byzantine_ratio):
         """Test all attack × defense × byzantine_ratio combinations."""
         num_clients = 10
         num_byzantine = int(num_clients * byzantine_ratio)
@@ -571,9 +543,7 @@ class TestCombinatorialAttackDefense:
             detection_rate = 0.6 if byzantine_ratio <= 0.25 else 0.4
 
         detected_count = max(1, int(num_byzantine * detection_rate))
-        mock_strategy.detect_byzantine_perturbation.return_value = list(
-            range(detected_count)
-        )
+        mock_strategy.detect_byzantine_perturbation.return_value = list(range(detected_count))
 
         detected = mock_strategy.detect_byzantine_perturbation()
 
@@ -610,9 +580,7 @@ class TestCombinatorialAttackDefense:
 
         assert len(attack_params) == num_clients
 
-        honest_params = (
-            attack_params[:-num_byzantine] if num_byzantine > 0 else attack_params
-        )
+        honest_params = attack_params[:-num_byzantine] if num_byzantine > 0 else attack_params
         byzantine_params = attack_params[-num_byzantine:] if num_byzantine > 0 else []
 
         if byzantine_params:

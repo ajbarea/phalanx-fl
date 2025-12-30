@@ -6,6 +6,7 @@ Verifies each strategy's specific behavior across different configurations.
 """
 
 import importlib
+from typing import Any
 from unittest.mock import patch
 
 from src.simulation_strategies.krum_based_removal_strategy import (
@@ -263,15 +264,12 @@ class TestStrategyVariations:
             # Verify strategy-specific parameters
             if strategy_name == "trust":
                 assert strategy.beta_value == pytest.approx(params["beta_value"])
-                assert strategy.trust_threshold == pytest.approx(
-                    params["trust_threshold"]
-                )
+                assert strategy.trust_threshold == pytest.approx(params["trust_threshold"])
             elif strategy_name == "trimmed_mean":
                 assert strategy.trim_ratio == pytest.approx(params["trim_ratio"])
             elif strategy_name == "pid":
                 assert (
-                    strategy.aggregation_strategy_keyword
-                    == params["aggregation_strategy_keyword"]
+                    strategy.aggregation_strategy_keyword == params["aggregation_strategy_keyword"]
                 )
                 assert strategy.kp == pytest.approx(params["kp"])
                 assert strategy.ki == pytest.approx(params["ki"])
@@ -281,10 +279,7 @@ class TestStrategyVariations:
                 assert strategy.num_malicious_clients == params["num_malicious_clients"]
             elif strategy_name == "multi_krum":
                 assert strategy.num_krum_selections == params["num_krum_selections"]
-                assert (
-                    strategy.num_of_malicious_clients
-                    == params["num_of_malicious_clients"]
-                )
+                assert strategy.num_of_malicious_clients == params["num_of_malicious_clients"]
 
     @pytest.mark.parametrize(
         "strategy_name,strategy_class",
@@ -367,9 +362,7 @@ class TestStrategyVariations:
         few_client_results = mock_client_results[:2]
 
         # Mock the parent aggregate_fit method
-        with patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
+        with patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate:
             mock_parent_aggregate.return_value = (Mock(), {})
 
             # Should handle insufficient clients gracefully
@@ -477,15 +470,12 @@ class TestStrategyVariations:
             # Verify extreme values are handled
             if strategy_name == "trust":
                 assert strategy.beta_value == pytest.approx(params["beta_value"])
-                assert strategy.trust_threshold == pytest.approx(
-                    params["trust_threshold"]
-                )
+                assert strategy.trust_threshold == pytest.approx(params["trust_threshold"])
             elif strategy_name == "trimmed_mean":
                 assert strategy.trim_ratio == pytest.approx(params["trim_ratio"])
             elif strategy_name == "pid":
                 assert (
-                    strategy.aggregation_strategy_keyword
-                    == params["aggregation_strategy_keyword"]
+                    strategy.aggregation_strategy_keyword == params["aggregation_strategy_keyword"]
                 )
                 assert strategy.kp == pytest.approx(params["kp"])
                 assert strategy.ki == pytest.approx(params["ki"])
@@ -557,9 +547,7 @@ class TestStrategyVariations:
         # Test with specific client count
         client_results = mock_client_results[:client_count]
 
-        with patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
+        with patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate:
             mock_parent_aggregate.return_value = (Mock(), {})
 
             try:
@@ -646,9 +634,7 @@ class TestStrategyVariations:
         # Test with specific client count
         client_results = mock_client_results[:client_count]
 
-        with patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
+        with patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate:
             mock_parent_aggregate.return_value = (Mock(), {})
 
             if expected_valid:
@@ -720,24 +706,16 @@ class TestStrategyVariations:
             # Verify initialization
             assert strategy is not None
             assert strategy.remove_clients is True
-            assert (
-                strategy.begin_removing_from_round
-                == special_params["begin_removing_from_round"]
-            )
+            assert strategy.begin_removing_from_round == special_params["begin_removing_from_round"]
 
             # Verify strategy-specific parameters
             if "num_krum_selections" in special_params:
-                assert (
-                    strategy.num_krum_selections
-                    == special_params["num_krum_selections"]
-                )
+                assert strategy.num_krum_selections == special_params["num_krum_selections"]
 
         except (ImportError, AttributeError) as e:
             # Some strategies might not be available or have different interfaces
             # This is acceptable for testing purposes
-            pytest.skip(
-                f"Strategy {strategy_name} not available or has different interface: {e}"
-            )
+            pytest.skip(f"Strategy {strategy_name} not available or has different interface: {e}")
 
     @pytest.mark.parametrize(
         "num_std_dev,expected_behavior",
@@ -783,7 +761,7 @@ class TestStrategyVariations:
         """Test that different strategies can be used in combination scenarios."""
         _ = mock_output_directory
         # Test creating multiple strategies that could work together
-        strategies = []
+        strategies: list[tuple[str, Any]] = []
 
         # Trust-based strategy
         try:
@@ -831,9 +809,7 @@ class TestStrategyVariations:
             pass
 
         # Verify at least some strategies are available
-        assert len(strategies) >= 1, (
-            "At least one strategy should be available for testing"
-        )
+        assert len(strategies) >= 1, "At least one strategy should be available for testing"
 
         # Verify all strategies have compatible interfaces
         for _strategy_name, strategy in strategies:
@@ -878,19 +854,21 @@ class TestStrategyVariations:
         for case in edge_cases:
             try:
                 # Import the strategy class dynamically
-                module_path, class_name = case["strategy_class"].rsplit(".", 1)
+                strategy_class = str(case["strategy_class"])
+                module_path, class_name = strategy_class.rsplit(".", 1)
                 module = importlib.import_module(module_path)
                 strategy_cls = getattr(module, class_name)
 
                 # Base parameters
-                init_params = {
+                init_params: dict[str, Any] = {
                     "remove_clients": True,
                     "begin_removing_from_round": 1,
                     "strategy_history": mock_strategy_history,
                 }
 
                 # Add edge case parameters
-                init_params.update(case["params"])
+                case_params: dict[str, Any] = case["params"]  # type: ignore[assignment]
+                init_params.update(case_params)
 
                 # Create strategy with edge case parameters
                 strategy = strategy_cls(**init_params)
@@ -903,9 +881,7 @@ class TestStrategyVariations:
                 # Some edge cases might not be supported, which is acceptable
                 continue
 
-    def test_strategy_round_behavior_variations(
-        self, mock_strategy_history, mock_output_directory
-    ):
+    def test_strategy_round_behavior_variations(self, mock_strategy_history, mock_output_directory):
         """Test how strategies behave with different begin_removing_from_round values."""
         _ = mock_output_directory
         round_variations = [0, 1, 2, 5, 10]

@@ -86,7 +86,7 @@ class TestDirectoryHandler:
             dataset_handler=mock_dataset_handler,
         )
         history.rounds_history = mock_rounds
-        history.get_all_clients = Mock(return_value=mock_client_info_list)
+        history.get_all_clients = Mock(return_value=mock_client_info_list)  # type: ignore[method-assign]
         return history
 
     def test_init_creates_directories(self, tmp_path):
@@ -94,7 +94,9 @@ class TestDirectoryHandler:
         test_dir = tmp_path / "test_output"
         handler = DirectoryHandler(output_dir=str(test_dir))
 
+        assert handler.dirname is not None
         assert Path(handler.dirname).exists()
+        assert handler.new_csv_dirname is not None
         assert Path(handler.new_csv_dirname).exists()
         assert handler.simulation_strategy_history is None
         assert handler.dataset_dir is None
@@ -107,23 +109,23 @@ class TestDirectoryHandler:
         handler.assign_dataset_dir(1)
 
         assert handler.dataset_dir is not None
-        assert handler.dataset_dir.endswith(
-            "/dataset_1"
-        ) or handler.dataset_dir.endswith("\\dataset_1")
+        assert handler.dataset_dir.endswith("/dataset_1") or handler.dataset_dir.endswith(
+            "\\dataset_1"
+        )
         assert Path(handler.dataset_dir).exists()
 
-    def test_save_csv_and_config_calls_all_save_methods(
-        self, mock_simulation_history, tmp_path
-    ):
+    def test_save_csv_and_config_calls_all_save_methods(self, mock_simulation_history, tmp_path):
         """Verifies save_csv_and_config creates all expected output files."""
         test_dir = tmp_path / "test_output"
         handler = DirectoryHandler(output_dir=str(test_dir))
 
         handler.save_csv_and_config(mock_simulation_history)
 
+        assert handler.dirname is not None
         config_file = Path(handler.dirname) / "strategy_config_1.json"
         assert config_file.exists()
 
+        assert handler.new_csv_dirname is not None
         csv_dir = Path(handler.new_csv_dirname)
         client_csv = csv_dir / "per_client_metrics_1.csv"
         round_csv = csv_dir / "round_metrics_1.csv"
@@ -133,9 +135,7 @@ class TestDirectoryHandler:
         assert round_csv.exists()
         assert execution_csv.exists()
 
-    def test_save_simulation_config_creates_json_file(
-        self, mock_simulation_history, tmp_path
-    ):
+    def test_save_simulation_config_creates_json_file(self, mock_simulation_history, tmp_path):
         """Verifies _save_simulation_config creates valid JSON with expected fields."""
         test_dir = tmp_path / "config_test"
         handler = DirectoryHandler(output_dir=str(test_dir))
@@ -143,19 +143,18 @@ class TestDirectoryHandler:
 
         handler._save_simulation_config()
 
+        assert handler.dirname is not None
         config_file = Path(handler.dirname) / "strategy_config_1.json"
         assert config_file.exists()
 
-        with open(config_file, "r") as f:
+        with open(config_file) as f:
             saved_config = json.load(f)
 
         assert saved_config["aggregation_strategy_keyword"] == "trust"
         assert saved_config["num_of_rounds"] == 3
         assert saved_config["strategy_number"] == 1
 
-    def test_save_per_client_to_csv_creates_correct_format(
-        self, mock_simulation_history, tmp_path
-    ):
+    def test_save_per_client_to_csv_creates_correct_format(self, mock_simulation_history, tmp_path):
         """Verifies _save_per_client_to_csv creates CSV with expected headers and rows."""
         test_dir = tmp_path / "csv_test"
         handler = DirectoryHandler(output_dir=str(test_dir))
@@ -163,10 +162,11 @@ class TestDirectoryHandler:
 
         handler._save_per_client_to_csv()
 
+        assert handler.new_csv_dirname is not None
         csv_file = Path(handler.new_csv_dirname) / "per_client_metrics_1.csv"
         assert csv_file.exists()
 
-        with open(csv_file, "r") as f:
+        with open(csv_file) as f:
             reader = csv.reader(f)
             headers = next(reader)
 
@@ -177,9 +177,7 @@ class TestDirectoryHandler:
             rows = list(reader)
             assert len(rows) == 3
 
-    def test_save_per_client_to_csv_handles_missing_metrics(
-        self, mock_strategy_config, tmp_path
-    ):
+    def test_save_per_client_to_csv_handles_missing_metrics(self, mock_strategy_config, tmp_path):
         """Verifies _save_per_client_to_csv handles clients with missing metrics."""
 
         client_with_missing_metrics = ClientInfo(
@@ -194,7 +192,7 @@ class TestDirectoryHandler:
             dataset_handler=mock_dataset_handler,
         )
         history.rounds_history = Mock(spec=RoundsInfo)
-        history.get_all_clients = Mock(return_value=[client_with_missing_metrics])
+        history.get_all_clients = Mock(return_value=[client_with_missing_metrics])  # type: ignore[method-assign]
 
         test_dir = tmp_path / "csv_missing_test"
         handler = DirectoryHandler(output_dir=str(test_dir))
@@ -202,26 +200,23 @@ class TestDirectoryHandler:
 
         handler._save_per_client_to_csv()
 
+        assert handler.new_csv_dirname is not None
         csv_file = Path(handler.new_csv_dirname) / "per_client_metrics_1.csv"
         assert csv_file.exists()
 
-        with open(csv_file, "r") as f:
+        with open(csv_file) as f:
             reader = csv.reader(f)
             headers = next(reader)
             rows = list(reader)
 
             loss_col_index = headers.index("client_0_loss_history")
-            agg_part_col_index = headers.index(
-                "client_0_aggregation_participation_history"
-            )
+            agg_part_col_index = headers.index("client_0_aggregation_participation_history")
 
             for row in rows:
                 assert row[loss_col_index] == "not collected"
                 assert row[agg_part_col_index] == "1"
 
-    def test_save_per_round_to_csv_creates_correct_format(
-        self, mock_simulation_history, tmp_path
-    ):
+    def test_save_per_round_to_csv_creates_correct_format(self, mock_simulation_history, tmp_path):
         """Verifies _save_per_round_to_csv creates CSV with expected headers."""
         test_dir = tmp_path / "round_csv_test"
         handler = DirectoryHandler(output_dir=str(test_dir))
@@ -229,10 +224,11 @@ class TestDirectoryHandler:
 
         handler._save_per_round_to_csv()
 
+        assert handler.new_csv_dirname is not None
         csv_file = Path(handler.new_csv_dirname) / "round_metrics_1.csv"
         assert csv_file.exists()
 
-        with open(csv_file, "r") as f:
+        with open(csv_file) as f:
             reader = csv.reader(f)
             headers = next(reader)
 
@@ -240,9 +236,7 @@ class TestDirectoryHandler:
             assert "aggregated_loss_history" in headers
             assert "average_accuracy_history" in headers
 
-    def test_save_per_execution_to_csv_creates_file(
-        self, mock_simulation_history, tmp_path
-    ):
+    def test_save_per_execution_to_csv_creates_file(self, mock_simulation_history, tmp_path):
         """Verifies _save_per_execution_to_csv creates the execution stats file."""
         test_dir = tmp_path / "execution_csv_test"
         handler = DirectoryHandler(output_dir=str(test_dir))
@@ -250,6 +244,7 @@ class TestDirectoryHandler:
 
         handler._save_per_execution_to_csv()
 
+        assert handler.new_csv_dirname is not None
         csv_file = Path(handler.new_csv_dirname) / "exec_stats_1.csv"
         assert csv_file.exists()
 
@@ -260,6 +255,7 @@ class TestDirectoryHandler:
         monkeypatch.setattr(datetime, "datetime", Mock(now=Mock(return_value=mock_now)))
 
         handler = DirectoryHandler()
+        assert handler.dirname is not None
         assert f"out{os.sep}" in handler.dirname
 
     def test_csv_dirname_is_subdirectory_of_dirname(self, tmp_path):
@@ -267,4 +263,5 @@ class TestDirectoryHandler:
         test_dir = tmp_path / "test_dir"
         handler = DirectoryHandler(output_dir=str(test_dir))
 
+        assert handler.dirname is not None
         assert handler.new_csv_dirname == str(Path(handler.dirname) / "csv")

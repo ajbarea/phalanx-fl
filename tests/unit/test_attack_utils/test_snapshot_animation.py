@@ -3,9 +3,12 @@
 Tests GIF animation generation for attack timelines and metrics.
 """
 
+from __future__ import annotations
+
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 
 import matplotlib
 
@@ -45,7 +48,7 @@ class TestSaveAttackTimelineGif(unittest.TestCase):
         """Should handle empty attack timeline."""
         with tempfile.TemporaryDirectory() as tmpdir:
             filepath = Path(tmpdir) / "test_empty.gif"
-            attack_timeline = {}
+            attack_timeline: dict[str, dict[str, list[str]]] = {}
             save_attack_timeline_gif(
                 attack_timeline=attack_timeline,
                 filepath=filepath,
@@ -185,7 +188,7 @@ class TestSaveAccuracyProgressionGif(unittest.TestCase):
         """Should handle metrics without 'accuracy' key."""
         with tempfile.TemporaryDirectory() as tmpdir:
             filepath = Path(tmpdir) / "test_no_accuracy.gif"
-            round_metrics = [
+            round_metrics: list[dict[str, Any]] = [
                 {"round": 1},  # No accuracy
                 {"round": 2, "accuracy": 0.2},
             ]
@@ -199,7 +202,7 @@ class TestSaveAccuracyProgressionGif(unittest.TestCase):
         """Should handle metrics without 'round' key."""
         with tempfile.TemporaryDirectory() as tmpdir:
             filepath = Path(tmpdir) / "test_no_round.gif"
-            round_metrics = [
+            round_metrics: list[dict[str, Any]] = [
                 {"accuracy": 0.1},  # No round
                 {"accuracy": 0.2},
             ]
@@ -307,9 +310,7 @@ class TestGenerateAllAnimations(unittest.TestCase):
                 attack_summary=attack_summary,
                 round_metrics=round_metrics,
             )
-            accuracy_path = (
-                output_dir / "attack_snapshots_0" / "accuracy_progression.gif"
-            )
+            accuracy_path = output_dir / "attack_snapshots_0" / "accuracy_progression.gif"
             self.assertTrue(accuracy_path.exists())
 
     def test_generates_client_comparison_when_metrics_provided(self):
@@ -330,9 +331,7 @@ class TestGenerateAllAnimations(unittest.TestCase):
                 attack_summary=attack_summary,
                 per_client_metrics=per_client_metrics,
             )
-            comparison_path = (
-                output_dir / "attack_snapshots_0" / "client_comparison.gif"
-            )
+            comparison_path = output_dir / "attack_snapshots_0" / "client_comparison.gif"
             self.assertTrue(comparison_path.exists())
 
     def test_creates_snapshots_directory(self):

@@ -231,9 +231,7 @@ class TestSimulationStrategyHistory:
         )
 
         removed_client_ids = {1, 3}
-        history.update_client_participation(
-            current_round=2, removed_client_ids=removed_client_ids
-        )
+        history.update_client_participation(current_round=2, removed_client_ids=removed_client_ids)
 
         assert history._clients_dict[1].aggregation_participation_history[1] == 0
         assert history._clients_dict[3].aggregation_participation_history[1] == 0
@@ -268,31 +266,15 @@ class TestSimulationStrategyHistory:
 
         history.update_client_malicious_status(current_round=1)
 
-        history.insert_single_client_history_entry(
-            0, 1, accuracy=0.8, aggregation_participation=1
-        )
-        history.insert_single_client_history_entry(
-            1, 1, accuracy=0.6, aggregation_participation=0
-        )
-        history.insert_single_client_history_entry(
-            2, 1, accuracy=0.9, aggregation_participation=1
-        )
-        history.insert_single_client_history_entry(
-            3, 1, accuracy=0.7, aggregation_participation=1
-        )
+        history.insert_single_client_history_entry(0, 1, accuracy=0.8, aggregation_participation=1)
+        history.insert_single_client_history_entry(1, 1, accuracy=0.6, aggregation_participation=0)
+        history.insert_single_client_history_entry(2, 1, accuracy=0.9, aggregation_participation=1)
+        history.insert_single_client_history_entry(3, 1, accuracy=0.7, aggregation_participation=1)
 
-        history.insert_single_client_history_entry(
-            0, 2, accuracy=0.85, aggregation_participation=1
-        )
-        history.insert_single_client_history_entry(
-            1, 2, accuracy=0.65, aggregation_participation=0
-        )
-        history.insert_single_client_history_entry(
-            2, 2, accuracy=0.95, aggregation_participation=0
-        )
-        history.insert_single_client_history_entry(
-            3, 2, accuracy=0.75, aggregation_participation=0
-        )
+        history.insert_single_client_history_entry(0, 2, accuracy=0.85, aggregation_participation=1)
+        history.insert_single_client_history_entry(1, 2, accuracy=0.65, aggregation_participation=0)
+        history.insert_single_client_history_entry(2, 2, accuracy=0.95, aggregation_participation=0)
+        history.insert_single_client_history_entry(3, 2, accuracy=0.75, aggregation_participation=0)
 
         history.calculate_additional_rounds_data()
 
@@ -304,9 +286,7 @@ class TestSimulationStrategyHistory:
         assert rounds_info.fp_history == [0, 1]
         assert rounds_info.fn_history == [1, 0]
 
-        assert rounds_info.average_accuracy_history == pytest.approx(
-            [0.8, 0.85], rel=1e-3
-        )
+        assert rounds_info.average_accuracy_history == pytest.approx([0.8, 0.85], rel=1e-3)
 
     def test_calculate_additional_rounds_data_no_removal(self):
         """Verifies calculate_additional_rounds_data works when remove_clients is disabled."""
@@ -319,25 +299,13 @@ class TestSimulationStrategyHistory:
             dataset_handler=mock_dataset_handler,
         )
 
-        history.insert_single_client_history_entry(
-            0, 1, accuracy=0.8, aggregation_participation=1
-        )
-        history.insert_single_client_history_entry(
-            1, 1, accuracy=0.6, aggregation_participation=1
-        )
-        history.insert_single_client_history_entry(
-            2, 1, accuracy=0.9, aggregation_participation=1
-        )
+        history.insert_single_client_history_entry(0, 1, accuracy=0.8, aggregation_participation=1)
+        history.insert_single_client_history_entry(1, 1, accuracy=0.6, aggregation_participation=1)
+        history.insert_single_client_history_entry(2, 1, accuracy=0.9, aggregation_participation=1)
 
-        history.insert_single_client_history_entry(
-            0, 2, accuracy=0.85, aggregation_participation=1
-        )
-        history.insert_single_client_history_entry(
-            1, 2, accuracy=0.65, aggregation_participation=1
-        )
-        history.insert_single_client_history_entry(
-            2, 2, accuracy=0.95, aggregation_participation=1
-        )
+        history.insert_single_client_history_entry(0, 2, accuracy=0.85, aggregation_participation=1)
+        history.insert_single_client_history_entry(1, 2, accuracy=0.65, aggregation_participation=1)
+        history.insert_single_client_history_entry(2, 2, accuracy=0.95, aggregation_participation=1)
 
         history.calculate_additional_rounds_data()
 
@@ -364,22 +332,18 @@ class TestSimulationStrategyHistory:
             dataset_handler=mock_dataset_handler,
         )
 
-        history.insert_single_client_history_entry(
-            0, 1, accuracy=0.8, aggregation_participation=1
-        )
-        history.insert_single_client_history_entry(
-            1, 1, accuracy=0.9, aggregation_participation=1
-        )
+        history.insert_single_client_history_entry(0, 1, accuracy=0.8, aggregation_participation=1)
+        history.insert_single_client_history_entry(1, 1, accuracy=0.9, aggregation_participation=1)
 
         assert history.rounds_history is not None
         original_method = history.rounds_history.calculate_additional_metrics
-        history.rounds_history.calculate_additional_metrics = Mock()
+        history.rounds_history.calculate_additional_metrics = Mock()  # type: ignore[method-assign]
 
         history.calculate_additional_rounds_data()
 
         history.rounds_history.calculate_additional_metrics.assert_called_once()
 
-        history.rounds_history.calculate_additional_metrics = original_method
+        history.rounds_history.calculate_additional_metrics = original_method  # type: ignore[method-assign]
 
     def test_data_consistency_across_operations(self):
         """Verifies data integrity when combining multiple history operations."""
@@ -426,9 +390,7 @@ class TestSimulationStrategyHistory:
         assert history.rounds_history.removal_threshold_history == [0.5]
         assert history.rounds_history.aggregated_loss_history == [0.275]
 
-        assert history.rounds_history.average_accuracy_history[0] == pytest.approx(
-            0.825, rel=1e-3
-        )
+        assert history.rounds_history.average_accuracy_history[0] == pytest.approx(0.825, rel=1e-3)
 
     def test_edge_case_no_clients(self):
         """Verifies initialization handles zero clients."""
@@ -483,9 +445,7 @@ class TestSimulationStrategyHistory:
             dataset_handler=mock_dataset_handler,
         )
 
-        history.insert_single_client_history_entry(
-            0, 1, accuracy=0.9, aggregation_participation=1
-        )
+        history.insert_single_client_history_entry(0, 1, accuracy=0.9, aggregation_participation=1)
         history.calculate_additional_rounds_data()
 
         assert len(history._clients_dict) == 1

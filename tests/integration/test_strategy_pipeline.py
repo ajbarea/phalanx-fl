@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -53,15 +53,10 @@ STRATEGY_TEST_CONFIGS = [
 
 def get_config_dir() -> Path:
     """Get the testing config directory."""
-    return (
-        Path(__file__).parent.parent.parent
-        / "config"
-        / "simulation_strategies"
-        / "testing"
-    )
+    return Path(__file__).parent.parent.parent / "config" / "simulation_strategies" / "cpu"
 
 
-def load_config(config_name: str) -> Dict[str, Any]:
+def load_config(config_name: str) -> dict[str, Any]:
     """Load and merge a config file with shared settings."""
     config_dir = get_config_dir()
     config_path = config_dir / config_name
@@ -94,8 +89,8 @@ def load_config(config_name: str) -> Dict[str, Any]:
 
 
 def create_mock_fit_results(
-    num_clients: int, param_shapes: Optional[List[Tuple[int, ...]]] = None
-) -> List[Tuple[ClientProxy, FitRes]]:
+    num_clients: int, param_shapes: Optional[list[tuple[int, ...]]] = None
+) -> list[tuple[Any, Any]]:
     """
     Create mock client fit results with realistic parameter structures.
 
@@ -143,7 +138,7 @@ def create_mock_fit_results(
 
 def create_mock_evaluate_results(
     num_clients: int,
-) -> List[Tuple[ClientProxy, EvaluateRes]]:
+) -> list[tuple[Any, Any]]:
     """
     Create mock client evaluation results.
 
@@ -175,9 +170,7 @@ def create_mock_evaluate_results(
 class MockDatasetHandler:
     """Minimal mock dataset handler for strategy history."""
 
-    def __init__(
-        self, num_clients: int = 10, attack_schedule: Optional[List[Any]] = None
-    ):
+    def __init__(self, num_clients: int = 10, attack_schedule: Optional[list[Any]] = None):
         self.num_clients = num_clients
         self.malicious_clients: set[int] = set()
 
@@ -206,17 +199,17 @@ def create_strategy_instance(
     Returns:
         Strategy instance
     """
-    common_kwargs = dict(
-        initial_parameters=initial_parameters,
-        min_fit_clients=strategy_config.min_fit_clients,
-        min_evaluate_clients=strategy_config.min_evaluate_clients,
-        min_available_clients=strategy_config.min_available_clients,
-        evaluate_metrics_aggregation_fn=lambda x: x,
-        fit_metrics_aggregation_fn=lambda x: x,
-        remove_clients=strategy_config.remove_clients,
-        begin_removing_from_round=strategy_config.begin_removing_from_round,
-        strategy_history=strategy_history,
-    )
+    common_kwargs = {
+        "initial_parameters": initial_parameters,
+        "min_fit_clients": strategy_config.min_fit_clients,
+        "min_evaluate_clients": strategy_config.min_evaluate_clients,
+        "min_available_clients": strategy_config.min_available_clients,
+        "evaluate_metrics_aggregation_fn": lambda x: x,
+        "fit_metrics_aggregation_fn": lambda x: x,
+        "remove_clients": strategy_config.remove_clients,
+        "begin_removing_from_round": strategy_config.begin_removing_from_round,
+        "strategy_history": strategy_history,
+    }
 
     if strategy_keyword == "trust":
         return TrustBasedRemovalStrategy(
@@ -244,18 +237,21 @@ def create_strategy_instance(
             **common_kwargs,
         )
     elif strategy_keyword == "krum":
+        assert strategy_config.num_of_malicious_clients is not None
         return KrumBasedRemovalStrategy(
             num_malicious_clients=strategy_config.num_of_malicious_clients,
             num_krum_selections=getattr(strategy_config, "num_krum_selections", 3),
             **common_kwargs,
         )
     elif strategy_keyword == "multi-krum-based":
+        assert strategy_config.num_of_malicious_clients is not None
         return MultiKrumBasedRemovalStrategy(
             num_of_malicious_clients=strategy_config.num_of_malicious_clients,
             num_krum_selections=getattr(strategy_config, "num_krum_selections", 3),
             **common_kwargs,
         )
     elif strategy_keyword == "multi-krum":
+        assert strategy_config.num_of_malicious_clients is not None
         return MultiKrumStrategy(
             num_of_malicious_clients=strategy_config.num_of_malicious_clients,
             num_krum_selections=getattr(strategy_config, "num_krum_selections", 3),
@@ -290,9 +286,7 @@ class TestStrategyPipelineIntegration:
     def mock_clustering(self):
         """Mock clustering components to avoid sklearn dependencies in fast path."""
         with (
-            patch(
-                "src.simulation_strategies.krum_based_removal_strategy.KMeans"
-            ) as mock_kmeans,
+            patch("src.simulation_strategies.krum_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
                 "src.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
@@ -331,9 +325,7 @@ class TestStrategyPipelineIntegration:
 
         strategy_keyword = config_dict.get("aggregation_strategy_keyword", "krum")
         num_clients = config_dict.get("num_of_clients", 10)
-        num_rounds = min(
-            config_dict.get("num_of_rounds", 5), 3
-        )  # Limit rounds for speed
+        num_rounds = min(config_dict.get("num_of_rounds", 5), 3)  # Limit rounds for speed
 
         # Create strategy config
         strategy_config = StrategyConfig.from_dict(config_dict)
@@ -403,9 +395,7 @@ class TestStrategyPipelineIntegration:
         assert strategy_history is not None
         assert strategy_history.rounds_history is not None
 
-    def test_strategy_config_serialization(
-        self, mock_initial_parameters, mock_clustering
-    ):
+    def test_strategy_config_serialization(self, mock_initial_parameters, mock_clustering):
         """
         Test that strategy configs can be serialized to JSON.
 
@@ -446,9 +436,7 @@ class TestStrategyHistoryIntegration:
     def mock_clustering(self):
         """Mock clustering for fast testing."""
         with (
-            patch(
-                "src.simulation_strategies.krum_based_removal_strategy.KMeans"
-            ) as mock_kmeans,
+            patch("src.simulation_strategies.krum_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
                 "src.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
@@ -512,10 +500,7 @@ class TestStrategyHistoryIntegration:
         strategy.aggregate_fit(1, mock_fit_results, [])
 
         # Verify history was populated
-        assert (
-            len(strategy_history.rounds_history.score_calculation_time_nanos_history)
-            >= 1
-        )
+        assert len(strategy_history.rounds_history.score_calculation_time_nanos_history) >= 1
 
         # Verify client scores were recorded
         assert len(strategy.client_scores) == 5

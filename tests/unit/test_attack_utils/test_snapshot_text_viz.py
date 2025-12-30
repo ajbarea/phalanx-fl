@@ -2,6 +2,8 @@
 Tests for text visualization utilities in attack snapshots.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock
@@ -27,7 +29,7 @@ class TestExtractAttackParam:
 
     def test_should_extract_parameter_from_list_of_dicts(self) -> None:
         """Test that parameter is extracted from first dict in list."""
-        config = [
+        config: list[dict[str, Any]] = [
             {"attack_type": "label_flipping"},
             {"attack_type": "gaussian_noise", "target_noise_snr": 15},
         ]
@@ -54,7 +56,7 @@ class TestExtractAttackParam:
 
     def test_should_handle_empty_list_config(self) -> None:
         """Test that default is returned for empty list config."""
-        config = []
+        config: list[dict[str, Any]] = []
         result = _extract_attack_param(config, "any_param", default="empty")
         assert result == "empty"
 
@@ -102,7 +104,7 @@ class TestExtractAttackType:
 
     def test_should_return_unknown_for_empty_list(self) -> None:
         """Test that 'unknown' is returned for empty list config."""
-        config = []
+        config: list[dict[str, Any]] = []
         result = _extract_attack_type(config)
         assert result == "unknown"
 
@@ -135,9 +137,7 @@ class TestExtractAttackType:
             ({}, "unknown"),
         ],
     )
-    def test_attack_type_extraction_variations(
-        self, config: Any, expected: str
-    ) -> None:
+    def test_attack_type_extraction_variations(self, config: Any, expected: str) -> None:
         """Test various attack type extraction scenarios."""
         result = _extract_attack_type(config)
         assert result == expected
@@ -176,9 +176,7 @@ class TestSaveTextSamples:
         labels, original_labels = sample_labels
         filepath = tmp_path / "test_output.txt"
 
-        save_text_samples(
-            labels=labels, original_labels=original_labels, filepath=filepath
-        )
+        save_text_samples(labels=labels, original_labels=original_labels, filepath=filepath)
 
         assert filepath.exists()
         content = filepath.read_text(encoding="utf-8")
@@ -223,9 +221,7 @@ class TestSaveTextSamples:
         assert "ORIGINAL:" in content
         assert "POISONED:" in content
 
-    def test_should_skip_unchanged_samples(
-        self, tmp_path: Path, mock_tokenizer: Mock
-    ) -> None:
+    def test_should_skip_unchanged_samples(self, tmp_path: Path, mock_tokenizer: Mock) -> None:
         """Test that unchanged samples are skipped in output."""
         original_ids = np.array([[101, 2023, 102], [101, 1045, 102]])
         poisoned_ids = np.array([[101, 2023, 102], [101, 1045, 102]])
@@ -311,9 +307,7 @@ class TestSaveTextSamples:
         content = filepath.read_text(encoding="utf-8")
         assert "masked tokens" in content or "Label:" in content
 
-    def test_should_handle_decoding_errors(
-        self, tmp_path: Path, sample_token_ids: tuple
-    ) -> None:
+    def test_should_handle_decoding_errors(self, tmp_path: Path, sample_token_ids: tuple) -> None:
         """Test that decoding errors are handled gracefully."""
         original_ids, poisoned_ids = sample_token_ids
         labels = np.array([1, 0])
@@ -346,9 +340,7 @@ class TestSaveTextSamples:
         labels = np.array([1, 0])
         original_labels = np.array([0, 0])
         filepath = tmp_path / "test_output.txt"
-        attack_config = [
-            {"attack_type": "token_replacement", "target_vocabulary": "negative"}
-        ]
+        attack_config = [{"attack_type": "token_replacement", "target_vocabulary": "negative"}]
 
         save_text_samples(
             labels=labels,
@@ -365,26 +357,20 @@ class TestSaveTextSamples:
         assert "TOKEN REPLACEMENT ATTACK VISUALIZATION" in content
 
     @pytest.mark.parametrize("num_samples", [1, 5, 10])
-    def test_should_handle_various_sample_counts(
-        self, tmp_path: Path, num_samples: int
-    ) -> None:
+    def test_should_handle_various_sample_counts(self, tmp_path: Path, num_samples: int) -> None:
         """Test that various sample counts are handled correctly."""
         labels = np.random.randint(0, 10, size=num_samples)
         original_labels = np.random.randint(0, 10, size=num_samples)
         filepath = tmp_path / "test_output.txt"
 
-        save_text_samples(
-            labels=labels, original_labels=original_labels, filepath=filepath
-        )
+        save_text_samples(labels=labels, original_labels=original_labels, filepath=filepath)
 
         assert filepath.exists()
         content = filepath.read_text(encoding="utf-8")
         for i in range(num_samples):
             assert f"Sample {i}:" in content
 
-    def test_should_handle_unicode_text(
-        self, tmp_path: Path, sample_token_ids: tuple
-    ) -> None:
+    def test_should_handle_unicode_text(self, tmp_path: Path, sample_token_ids: tuple) -> None:
         """Test that unicode text is handled correctly."""
         original_ids, poisoned_ids = sample_token_ids
         labels = np.array([1, 0])
@@ -423,8 +409,6 @@ class TestSaveTextSamples:
         filepath = tmp_path / "subdir" / "nested" / "test_output.txt"
 
         filepath.parent.mkdir(parents=True, exist_ok=True)
-        save_text_samples(
-            labels=labels, original_labels=original_labels, filepath=filepath
-        )
+        save_text_samples(labels=labels, original_labels=original_labels, filepath=filepath)
 
         assert filepath.exists()

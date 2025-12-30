@@ -7,7 +7,7 @@ and performance scaling across different configurations.
 
 import statistics
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from src.data_models.client_info import ClientInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
@@ -25,7 +25,7 @@ class PerformanceTimer:
     """Measure execution time and performance metrics."""
 
     def __init__(self) -> None:
-        self.measurements: List[Tuple[str, float]] = []
+        self.measurements: list[tuple[str, float]] = []
         self.start_time: Optional[float] = None
 
     def start(self) -> None:
@@ -42,7 +42,7 @@ class PerformanceTimer:
         self.start_time = None
         return elapsed
 
-    def get_measurements(self) -> List[Tuple[str, float]]:
+    def get_measurements(self) -> list[tuple[str, float]]:
         """Return all recorded measurements."""
         return self.measurements.copy()
 
@@ -66,18 +66,16 @@ def performance_timer() -> PerformanceTimer:
 class TestClientScalability:
     """Test scalability with varying client counts."""
 
-    def test_client_info_creation_scaling(
-        self, performance_timer: PerformanceTimer
-    ) -> None:
+    def test_client_info_creation_scaling(self, performance_timer: PerformanceTimer) -> None:
         """Test ClientInfo creation time scales linearly with client count."""
         client_counts = [10, 25, 50, 100]
-        execution_times: List[Tuple[int, float]] = []
+        execution_times: list[tuple[int, float]] = []
 
         for num_clients in client_counts:
             performance_timer.start()
 
             # Create multiple ClientInfo objects
-            clients: List[ClientInfo] = []
+            clients: list[ClientInfo] = []
             for client_id in range(num_clients):
                 client_info = ClientInfo(client_id=client_id, num_of_rounds=10)
                 for round_num in range(10):
@@ -99,7 +97,7 @@ class TestClientScalability:
         self._assert_linear_complexity(execution_times, "ClientInfo creation")
 
     def _assert_linear_complexity(
-        self, execution_times: List[Tuple[int, float]], strategy_name: str
+        self, execution_times: list[tuple[int, float]], strategy_name: str
     ):
         """Assert that execution times scale roughly linearly with input size."""
         if len(execution_times) < 2:
@@ -119,16 +117,14 @@ class TestClientScalability:
                     f"{strategy_name} complexity issue: {client_ratio:.1f}x clients led to {time_ratio:.1f}x time"
                 )
 
-    def test_parameter_aggregation_scaling(
-        self, performance_timer: PerformanceTimer
-    ) -> None:
+    def test_parameter_aggregation_scaling(self, performance_timer: PerformanceTimer) -> None:
         """Test parameter aggregation time scaling is linear."""
         param_size: int = 10000
         client_counts = [10, 50, 100, 200]
-        execution_times: List[Tuple[int, float]] = []
+        execution_times: list[tuple[int, float]] = []
 
         for num_clients in client_counts:
-            client_params: List[np.ndarray] = generate_mock_client_parameters(
+            client_params: list[np.ndarray] = generate_mock_client_parameters(
                 num_clients, param_size
             )
             performance_timer.start()
@@ -141,9 +137,7 @@ class TestClientScalability:
 
         self._assert_linear_complexity(execution_times, "Parameter aggregation")
 
-    @pytest.mark.parametrize(
-        "num_clients,num_rounds", [(10, 5), (25, 10), (50, 15), (100, 20)]
-    )
+    @pytest.mark.parametrize("num_clients,num_rounds", [(10, 5), (25, 10), (50, 15), (100, 20)])
     def test_simulation_history_scaling(
         self, num_clients: int, num_rounds: int, performance_timer: PerformanceTimer
     ) -> None:
@@ -265,7 +259,7 @@ class TestStrategyScalability:
         ],
     )
     def test_strategy_configuration_performance(
-        self, strategy_config: Dict[str, Any], performance_timer: PerformanceTimer
+        self, strategy_config: dict[str, Any], performance_timer: PerformanceTimer
     ) -> None:
         """Test strategy configuration performance."""
         # Add common configuration parameters
@@ -283,7 +277,7 @@ class TestStrategyScalability:
         mock_strategy.aggregate_parameters.return_value = np.random.randn(5000)
 
         # Simulate strategy processing
-        for round_num in range(full_config["num_of_rounds"]):
+        for _round_num in range(full_config["num_of_rounds"]):
             _ = mock_strategy.aggregate_parameters(client_params)
 
         elapsed_time = performance_timer.stop(
@@ -341,18 +335,14 @@ class TestStrategyScalability:
 class TestComputationalComplexity:
     """Test computational complexity bounds for different strategies."""
 
-    def test_trust_strategy_complexity(
-        self, performance_timer: PerformanceTimer
-    ) -> None:
+    def test_trust_strategy_complexity(self, performance_timer: PerformanceTimer) -> None:
         """Test computational complexity of trust-based strategy operations."""
-        client_counts: List[int] = [10, 20, 40, 80]
-        execution_times: List[Tuple[int, float]] = []
+        client_counts: list[int] = [10, 20, 40, 80]
+        execution_times: list[tuple[int, float]] = []
 
         for num_clients in client_counts:
             # Generate client parameters and trust scores
-            client_params: List[np.ndarray] = generate_mock_client_parameters(
-                num_clients, 1000
-            )
+            client_params: list[np.ndarray] = generate_mock_client_parameters(num_clients, 1000)
             trust_scores: np.ndarray = np.random.uniform(0.3, 1.0, num_clients)
 
             performance_timer.start()
@@ -361,7 +351,7 @@ class TestComputationalComplexity:
             # Filter clients based on trust threshold
             threshold: float = 0.7
             trusted_indices: np.ndarray = trust_scores >= threshold
-            trusted_params: List[np.ndarray] = [
+            trusted_params: list[np.ndarray] = [
                 client_params[i] for i in range(num_clients) if trusted_indices[i]
             ]
 
@@ -381,7 +371,7 @@ class TestComputationalComplexity:
         self._assert_linear_complexity(execution_times, "trust strategy")
 
     def _assert_quadratic_complexity(
-        self, execution_times: List[Tuple[int, float]], strategy_name: str
+        self, execution_times: list[tuple[int, float]], strategy_name: str
     ):
         """Assert that execution times scale roughly quadratically with input size."""
         if len(execution_times) < 2:
@@ -435,9 +425,7 @@ class TestComputationalComplexity:
 
             # Aggregate remaining clients
             if np.any(keep_indices):
-                kept_params = [
-                    client_params[i] for i in range(num_clients) if keep_indices[i]
-                ]
+                kept_params = [client_params[i] for i in range(num_clients) if keep_indices[i]]
                 np.mean(kept_params, axis=0)
             else:
                 np.mean(client_params, axis=0)
@@ -449,7 +437,7 @@ class TestComputationalComplexity:
         self._assert_linear_complexity(execution_times, "PID strategy")
 
     def _assert_linear_complexity(
-        self, execution_times: List[Tuple[int, float]], strategy_name: str
+        self, execution_times: list[tuple[int, float]], strategy_name: str
     ):
         """Assert that execution times scale roughly linearly with input size."""
         if len(execution_times) < 2:
@@ -499,7 +487,7 @@ class TestDatasetScalability:
         ],
     )
     def test_dataset_loading_performance(
-        self, dataset_config: Dict[str, Any], performance_timer: PerformanceTimer
+        self, dataset_config: dict[str, Any], performance_timer: PerformanceTimer
     ) -> None:
         """Test dataset loading performance across different configurations."""
         performance_timer.start()
@@ -516,20 +504,14 @@ class TestDatasetScalability:
             client_dataset = fed_dataset.get_client_dataset(client_id)
 
             # Sample some data points
-            sample_indices = range(
-                0, len(client_dataset), max(1, len(client_dataset) // 10)
-            )
+            sample_indices = range(0, len(client_dataset), max(1, len(client_dataset) // 10))
             for idx in sample_indices:
                 _ = client_dataset[idx]
 
-        elapsed_time = performance_timer.stop(
-            f"dataset_{dataset_config['num_clients']}clients"
-        )
+        elapsed_time = performance_timer.stop(f"dataset_{dataset_config['num_clients']}clients")
 
         # Calculate expected time based on total data volume
-        total_samples = (
-            dataset_config["num_clients"] * dataset_config["samples_per_client"]
-        )
+        total_samples = dataset_config["num_clients"] * dataset_config["samples_per_client"]
         image_size = np.prod(dataset_config["input_shape"])
 
         # Expect reasonable performance (more generous threshold)
@@ -619,7 +601,7 @@ class TestByzantineScenarioPerformance:
         ],
     )
     def test_byzantine_defense_performance(
-        self, attack_config: Dict[str, Any], performance_timer: PerformanceTimer
+        self, attack_config: dict[str, Any], performance_timer: PerformanceTimer
     ) -> None:
         """Test performance of Byzantine defense mechanisms."""
         performance_timer.start()
@@ -643,9 +625,7 @@ class TestByzantineScenarioPerformance:
                 if i != j:
                     # Simple cosine similarity
                     dot_product = np.dot(client_params[i], client_params[j])
-                    norms = np.linalg.norm(client_params[i]) * np.linalg.norm(
-                        client_params[j]
-                    )
+                    norms = np.linalg.norm(client_params[i]) * np.linalg.norm(client_params[j])
                     similarity = dot_product / (norms + 1e-8)
                     similarities.append(similarity)
             trust_scores.append(np.mean(similarities))
@@ -658,22 +638,16 @@ class TestByzantineScenarioPerformance:
                 if i != j:
                     dist = np.linalg.norm(client_params[i] - client_params[j])
                     client_distances.append(dist)
-            distances.append(
-                sorted(client_distances)[: num_clients // 2]
-            )  # Closest half
+            distances.append(sorted(client_distances)[: num_clients // 2])  # Closest half
 
         krum_scores = [sum(dists) for dists in distances]
 
         # Select honest clients based on defense mechanisms
-        trust_threshold = np.percentile(trust_scores, 60)
-        krum_threshold = np.percentile(krum_scores, 60)
+        trust_threshold = np.percentile(np.array(trust_scores), 60)
+        krum_threshold = np.percentile(np.array(krum_scores), 60)
 
-        honest_by_trust = [
-            i for i, score in enumerate(trust_scores) if score >= trust_threshold
-        ]
-        honest_by_krum = [
-            i for i, score in enumerate(krum_scores) if score <= krum_threshold
-        ]
+        honest_by_trust = [i for i, score in enumerate(trust_scores) if score >= trust_threshold]
+        honest_by_krum = [i for i, score in enumerate(krum_scores) if score <= krum_threshold]
 
         # Aggregate honest clients
         if honest_by_trust:
@@ -699,9 +673,7 @@ class TestByzantineScenarioPerformance:
         assert len(honest_by_trust) < total_clients, (
             "Trust-based defense should filter some clients"
         )
-        assert len(honest_by_krum) < total_clients, (
-            "Krum-based defense should filter some clients"
-        )
+        assert len(honest_by_krum) < total_clients, "Krum-based defense should filter some clients"
 
 
 @pytest.mark.slow
@@ -716,7 +688,7 @@ class TestLargeScalePerformance:
         performance_timer.start()
 
         # Simulate rounds with many clients
-        for round_num in range(num_rounds):
+        for _round_num in range(num_rounds):
             # Generate parameters for all clients
             client_params = generate_mock_client_parameters(num_clients, 1000)
 
@@ -727,9 +699,7 @@ class TestLargeScalePerformance:
 
             trim_count = int(num_clients * 0.1)
             keep_indices = (
-                sorted_indices[trim_count:-trim_count]
-                if trim_count > 0
-                else sorted_indices
+                sorted_indices[trim_count:-trim_count] if trim_count > 0 else sorted_indices
             )
 
             kept_params = [client_params[i] for i in keep_indices]
@@ -743,9 +713,7 @@ class TestLargeScalePerformance:
             f"Large-scale simulation too slow: {elapsed_time:.2f}s for {num_clients} clients"
         )
 
-    def test_large_parameter_aggregation(
-        self, performance_timer: PerformanceTimer
-    ) -> None:
+    def test_large_parameter_aggregation(self, performance_timer: PerformanceTimer) -> None:
         """Test aggregation performance with large parameter vectors."""
         num_clients = 100
         param_size = 1_000_000  # 1M parameters (large neural network)
@@ -754,7 +722,7 @@ class TestLargeScalePerformance:
 
         # Generate large parameter vectors
         client_params = []
-        for client_id in range(num_clients):
+        for _client_id in range(num_clients):
             # Use float32 to reduce memory usage
             params = np.random.randn(param_size).astype(np.float32)
             client_params.append(params)

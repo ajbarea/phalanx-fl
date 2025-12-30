@@ -5,6 +5,10 @@ Tests strategy parameter validation, error handling for invalid JSON and missing
 and clear error message generation.
 """
 
+from __future__ import annotations
+
+from typing import Any
+
 from jsonschema import ValidationError
 
 from src.config_loaders.validate_strategy_config import (
@@ -226,9 +230,7 @@ class TestValidateStrategyConfigMissingRequiredParams:
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert "'aggregation_strategy_keyword' is a required property" in str(
-            exc_info.value
-        )
+        assert "'aggregation_strategy_keyword' is a required property" in str(exc_info.value)
 
     def test_missing_dataset_keyword(self):
         """Test validation fails when dataset_keyword is missing."""
@@ -640,9 +642,7 @@ class TestValidateDependentParams:
         with pytest.raises(ValidationError) as exc_info:
             _validate_dependent_params(config)
 
-        assert "Missing parameter beta_value for trust aggregation trust" in str(
-            exc_info.value
-        )
+        assert "Missing parameter beta_value for trust aggregation trust" in str(exc_info.value)
 
     def test_trust_strategy_missing_begin_removing_from_round(self):
         """Test validation fails when trust strategy is missing begin_removing_from_round."""
@@ -657,9 +657,8 @@ class TestValidateDependentParams:
         with pytest.raises(ValidationError) as exc_info:
             _validate_dependent_params(config)
 
-        assert (
-            "Missing parameter begin_removing_from_round for trust aggregation trust"
-            in str(exc_info.value)
+        assert "Missing parameter begin_removing_from_round for trust aggregation trust" in str(
+            exc_info.value
         )
 
     def test_trust_strategy_missing_num_of_clusters(self):
@@ -707,9 +706,7 @@ class TestValidateDependentParams:
         with pytest.raises(ValidationError) as exc_info:
             _validate_dependent_params(config)
 
-        assert "Missing parameter Ki for PID aggregation pid_scaled" in str(
-            exc_info.value
-        )
+        assert "Missing parameter Ki for PID aggregation pid_scaled" in str(exc_info.value)
 
     def test_pid_standardized_strategy_missing_kd(self):
         """Test validation fails when PID standardized strategy is missing Kd parameter."""
@@ -724,9 +721,7 @@ class TestValidateDependentParams:
         with pytest.raises(ValidationError) as exc_info:
             _validate_dependent_params(config)
 
-        assert "Missing parameter Kd for PID aggregation pid_standardized" in str(
-            exc_info.value
-        )
+        assert "Missing parameter Kd for PID aggregation pid_standardized" in str(exc_info.value)
 
     def test_pid_strategy_missing_num_std_dev(self):
         """Test validation fails when PID strategy is missing num_std_dev parameter."""
@@ -741,9 +736,7 @@ class TestValidateDependentParams:
         with pytest.raises(ValidationError) as exc_info:
             _validate_dependent_params(config)
 
-        assert "Missing parameter num_std_dev for PID aggregation pid" in str(
-            exc_info.value
-        )
+        assert "Missing parameter num_std_dev for PID aggregation pid" in str(exc_info.value)
 
     def test_krum_strategy_missing_num_krum_selections(self):
         """Test validation fails when Krum strategy is missing num_krum_selections."""
@@ -755,9 +748,8 @@ class TestValidateDependentParams:
         with pytest.raises(ValidationError) as exc_info:
             _validate_dependent_params(config)
 
-        assert (
-            "Missing parameter num_krum_selections for Krum-based aggregation krum"
-            in str(exc_info.value)
+        assert "Missing parameter num_krum_selections for Krum-based aggregation krum" in str(
+            exc_info.value
         )
 
     def test_multi_krum_strategy_missing_num_krum_selections(self):
@@ -770,9 +762,8 @@ class TestValidateDependentParams:
         with pytest.raises(ValidationError) as exc_info:
             _validate_dependent_params(config)
 
-        assert (
-            "Missing parameter num_krum_selections for Krum-based aggregation multi-krum"
-            in str(exc_info.value)
+        assert "Missing parameter num_krum_selections for Krum-based aggregation multi-krum" in str(
+            exc_info.value
         )
 
     def test_multi_krum_based_strategy_missing_num_krum_selections(self):
@@ -800,9 +791,8 @@ class TestValidateDependentParams:
         with pytest.raises(ValidationError) as exc_info:
             _validate_dependent_params(config)
 
-        assert (
-            "Missing parameter trim_ratio for trimmed mean aggregation trimmed_mean"
-            in str(exc_info.value)
+        assert "Missing parameter trim_ratio for trimmed mean aggregation trimmed_mean" in str(
+            exc_info.value
         )
 
 
@@ -1019,7 +1009,7 @@ class TestValidateStrategyConfigEdgeCases:
 
     def test_empty_config_validation(self):
         """Test validation of completely empty configuration."""
-        config = {}
+        config: dict[str, Any] = {}
 
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
@@ -1085,9 +1075,7 @@ class TestCheckLlmSpecificParameters:
         with pytest.raises(ValidationError) as exc_info:
             _validate_llm_parameters(config)
 
-        assert "LLM finetuning is only supported for transformer models" in str(
-            exc_info.value
-        )
+        assert "LLM finetuning is only supported for transformer models" in str(exc_info.value)
 
     def test_llm_missing_llm_model_parameter(self):
         """Test that validation fails when LLM config is missing llm_model."""
@@ -1117,9 +1105,7 @@ class TestCheckLlmSpecificParameters:
         with pytest.raises(ValidationError) as exc_info:
             _validate_llm_parameters(config)
 
-        assert "Missing parameter llm_finetuning for LLM finetuning" in str(
-            exc_info.value
-        )
+        assert "Missing parameter llm_finetuning for LLM finetuning" in str(exc_info.value)
 
     def test_llm_missing_llm_task_parameter(self):
         """Test that validation fails when LLM config is missing llm_task."""
@@ -1149,9 +1135,7 @@ class TestCheckLlmSpecificParameters:
         with pytest.raises(ValidationError) as exc_info:
             _validate_llm_parameters(config)
 
-        assert "Missing parameter llm_chunk_size for LLM finetuning" in str(
-            exc_info.value
-        )
+        assert "Missing parameter llm_chunk_size for LLM finetuning" in str(exc_info.value)
 
     def test_llm_mlm_task_missing_mlm_probability(self):
         """Test that MLM task requires mlm_probability parameter."""
@@ -1167,9 +1151,7 @@ class TestCheckLlmSpecificParameters:
         with pytest.raises(ValidationError) as exc_info:
             _validate_llm_parameters(config)
 
-        assert "Missing parameter mlm_probability for LLM task mlm" in str(
-            exc_info.value
-        )
+        assert "Missing parameter mlm_probability for LLM task mlm" in str(exc_info.value)
 
     def test_llm_lora_finetuning_missing_lora_rank(self):
         """Test that LORA finetuning requires lora_rank parameter."""
@@ -1342,10 +1324,7 @@ class TestStrictModeValidation:
             validate_strategy_config(config)
 
         error_message = str(exc_info.value)
-        assert (
-            "CONFIG REJECTED: strict_mode requires all clients to participate"
-            in error_message
-        )
+        assert "CONFIG REJECTED: strict_mode requires all clients to participate" in error_message
         assert "min_fit_clients: 8" in error_message
 
     def test_strict_mode_enabled_rejects_invalid_config(self):
@@ -1395,10 +1374,7 @@ class TestStrictModeValidation:
             validate_strategy_config(config)
 
         error_message = str(exc_info.value)
-        assert (
-            "CONFIG REJECTED: strict_mode requires all clients to participate"
-            in error_message
-        )
+        assert "CONFIG REJECTED: strict_mode requires all clients to participate" in error_message
         assert "min_fit_clients: 5" in error_message
         assert "min_evaluate_clients: 7" in error_message
 

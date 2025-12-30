@@ -1,5 +1,7 @@
 """Unit tests for weight snapshot plotting functionality."""
 
+import contextlib
+
 import numpy as np
 import pytest
 from numpy.typing import NDArray
@@ -31,9 +33,7 @@ def mock_params_after() -> list[NDArray]:
 class TestWeightSnapshotPlotting:
     """Tests specifically for plotting functionality using matplotlib."""
 
-    def test_save_weight_histogram_creates_file(
-        self, tmp_path, mock_params, mock_params_after
-    ):
+    def test_save_weight_histogram_creates_file(self, tmp_path, mock_params, mock_params_after):
         """Tests that the histogram file is created on disk."""
         attack_type = "test_plot"
         client_id = 99
@@ -52,9 +52,7 @@ class TestWeightSnapshotPlotting:
         assert expected_file.exists()
         assert expected_file.stat().st_size > 0
 
-    def test_save_weight_snapshot_calls_histogram(
-        self, tmp_path, mock_params, mock_params_after
-    ):
+    def test_save_weight_snapshot_calls_histogram(self, tmp_path, mock_params, mock_params_after):
         """Tests the complete flow including histogram generation."""
         output_dir = tmp_path / "out"
         client_id = 42
@@ -73,10 +71,7 @@ class TestWeightSnapshotPlotting:
         )
 
         snapshot_dir = (
-            output_dir
-            / "weight_snapshots_0"
-            / f"client_{client_id}"
-            / f"round_{round_num}"
+            output_dir / "weight_snapshots_0" / f"client_{client_id}" / f"round_{round_num}"
         )
         expected_hist = snapshot_dir / f"{attack_type}_weight_histogram.png"
 
@@ -86,7 +81,7 @@ class TestWeightSnapshotPlotting:
         """Tests robustness against empty parameters."""
         empty_params = [np.array([])]
 
-        try:
+        with contextlib.suppress(ValueError, IndexError):
             _save_weight_histogram(
                 params_before=empty_params,
                 params_after=empty_params,
@@ -95,5 +90,3 @@ class TestWeightSnapshotPlotting:
                 client_id=1,
                 round_num=1,
             )
-        except (ValueError, IndexError):
-            pass

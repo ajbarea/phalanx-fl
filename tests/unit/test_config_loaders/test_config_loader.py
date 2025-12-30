@@ -157,15 +157,11 @@ class TestConfigLoader:
             assert strategy["num_of_clients"] == 10
 
         # Verify strategy-specific parameters are preserved
-        trust_strategy = next(
-            s for s in result if s["aggregation_strategy_keyword"] == "trust"
-        )
+        trust_strategy = next(s for s in result if s["aggregation_strategy_keyword"] == "trust")
         assert trust_strategy["trust_threshold"] == 0.7
         assert trust_strategy["beta_value"] == 0.5
 
-        pid_strategy = next(
-            s for s in result if s["aggregation_strategy_keyword"] == "pid"
-        )
+        pid_strategy = next(s for s in result if s["aggregation_strategy_keyword"] == "pid")
         assert pid_strategy["Kp"] == 1.0
         assert pid_strategy["Ki"] == 0.1
 
@@ -468,9 +464,7 @@ class TestConfigLoader:
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("json.load")
-    def test_merge_usecase_configs_with_mocked_file_operations(
-        self, mock_json_load, mock_file
-    ):
+    def test_merge_usecase_configs_with_mocked_file_operations(self, mock_json_load, mock_file):
         """Test configuration merging with mocked file operations."""
         # Mock the JSON data that would be loaded
         mock_config_data = {

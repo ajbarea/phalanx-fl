@@ -9,8 +9,11 @@ Tests cover:
 - Background task spawning
 """
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 from fastapi.testclient import TestClient
@@ -36,9 +39,7 @@ def test_list_simulations_empty(api_client: TestClient, tmp_path: Path, monkeypa
     assert response.json() == []
 
 
-def test_list_simulations(
-    api_client: TestClient, mock_simulation_dir: Path, monkeypatch
-):
+def test_list_simulations(api_client: TestClient, mock_simulation_dir: Path, monkeypatch):
     """GET /api/simulations returns list of simulations."""
     # Mock OUTPUT_DIR to point to mock_simulation_dir parent
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
@@ -54,9 +55,7 @@ def test_list_simulations(
     assert "created_at" in sims[0]
 
 
-def test_get_simulation_details(
-    api_client: TestClient, mock_simulation_dir: Path, monkeypatch
-):
+def test_get_simulation_details(api_client: TestClient, mock_simulation_dir: Path, monkeypatch):
     """GET /api/simulations/{id} returns simulation details."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
@@ -73,9 +72,7 @@ def test_get_simulation_details(
     assert "accuracy_plot.pdf" in data["result_files"]
 
 
-def test_get_nonexistent_simulation(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_get_nonexistent_simulation(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/invalid_id returns 404."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     (tmp_path / "out").mkdir(parents=True)
@@ -98,16 +95,14 @@ def test_get_simulation_status_completed(
     assert data["progress"] == 1.0
 
 
-def test_get_simulation_status_pending(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_get_simulation_status_pending(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id}/status returns 'pending' when no results exist."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "api_run_pending"
     sim_dir.mkdir(parents=True)
 
     # Create config but no results
-    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
 
     response = api_client.get("/api/simulations/api_run_pending/status")
@@ -117,9 +112,7 @@ def test_get_simulation_status_pending(
     assert data["progress"] == 0.0
 
 
-def test_create_simulation_valid_config(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_create_simulation_valid_config(api_client: TestClient, tmp_path: Path, monkeypatch):
     """POST /api/simulations with valid config returns 201 and simulation_id."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
@@ -127,9 +120,7 @@ def test_create_simulation_valid_config(
     # Mock subprocess.Popen to prevent actual simulation run
     mock_process = MagicMock()
     mock_process.pid = 12345
-    monkeypatch.setattr(
-        "src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process
-    )
+    monkeypatch.setattr("src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
 
     config = {
         "aggregation_strategy_keyword": "fedavg",
@@ -193,15 +184,11 @@ def test_create_simulation_spawns_background_task(
 # --- File Serving Tests ---
 
 
-def test_get_metrics_csv(
-    api_client: TestClient, mock_simulation_dir: Path, monkeypatch
-):
+def test_get_metrics_csv(api_client: TestClient, mock_simulation_dir: Path, monkeypatch):
     """GET /api/simulations/{id}/results/metrics.csv serves CSV as JSON."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
-    response = api_client.get(
-        "/api/simulations/api_run_20250107_120000/results/metrics.csv"
-    )
+    response = api_client.get("/api/simulations/api_run_20250107_120000/results/metrics.csv")
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
@@ -210,9 +197,7 @@ def test_get_metrics_csv(
     assert data[0]["accuracy"] == 0.85
 
 
-def test_get_plot_data_json(
-    api_client: TestClient, mock_simulation_dir: Path, monkeypatch
-):
+def test_get_plot_data_json(api_client: TestClient, mock_simulation_dir: Path, monkeypatch):
     """GET /api/simulations/{id}/plot-data serves interactive plot JSON."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
@@ -229,7 +214,7 @@ def test_get_plot_data_not_found(api_client: TestClient, tmp_path: Path, monkeyp
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "api_run_no_plots"
     sim_dir.mkdir(parents=True)
-    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
 
     response = api_client.get("/api/simulations/api_run_no_plots/plot-data")
@@ -237,15 +222,11 @@ def test_get_plot_data_not_found(api_client: TestClient, tmp_path: Path, monkeyp
     assert "not yet available" in response.json()["detail"].lower()
 
 
-def test_get_static_plot(
-    api_client: TestClient, mock_simulation_dir: Path, monkeypatch
-):
+def test_get_static_plot(api_client: TestClient, mock_simulation_dir: Path, monkeypatch):
     """GET /api/simulations/{id}/results/{plot_name} serves PDF file."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
-    response = api_client.get(
-        "/api/simulations/api_run_20250107_120000/results/accuracy_plot.pdf"
-    )
+    response = api_client.get("/api/simulations/api_run_20250107_120000/results/accuracy_plot.pdf")
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/pdf"
 
@@ -256,22 +237,16 @@ def test_get_missing_file_returns_404(
     """GET nonexistent result file returns 404."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
-    response = api_client.get(
-        "/api/simulations/api_run_20250107_120000/results/nonexistent.pdf"
-    )
+    response = api_client.get("/api/simulations/api_run_20250107_120000/results/nonexistent.pdf")
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
 
 
-def test_get_unsupported_file_type(
-    api_client: TestClient, mock_simulation_dir: Path, monkeypatch
-):
+def test_get_unsupported_file_type(api_client: TestClient, mock_simulation_dir: Path, monkeypatch):
     """GET unsupported file type returns 400."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
-    response = api_client.get(
-        "/api/simulations/api_run_20250107_120000/results/malicious.exe"
-    )
+    response = api_client.get("/api/simulations/api_run_20250107_120000/results/malicious.exe")
     assert response.status_code == 400
     assert "unsupported" in response.json()["detail"].lower()
 
@@ -304,7 +279,7 @@ def test_path_traversal_blocked(api_client: TestClient, tmp_path: Path, monkeypa
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "test_sim"
     sim_dir.mkdir(parents=True)
-    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
 
     # Attempt path traversal
@@ -320,9 +295,7 @@ def test_invalid_simulation_id_format(api_client: TestClient):
     assert response.status_code in [400, 404]
 
 
-def test_missing_config_json_returns_404(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_missing_config_json_returns_404(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id} returns 404 when config.json missing."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "sim_no_config"
@@ -333,9 +306,7 @@ def test_missing_config_json_returns_404(
     assert "config.json not found" in response.json()["detail"]
 
 
-def test_malformed_config_json_returns_500(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_malformed_config_json_returns_500(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id} returns 500 when config.json is malformed."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "sim_bad_config"
@@ -347,14 +318,12 @@ def test_malformed_config_json_returns_500(
     assert "could not read" in response.json()["detail"].lower()
 
 
-def test_csv_read_error_returns_500(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_csv_read_error_returns_500(api_client: TestClient, tmp_path: Path, monkeypatch):
     """CSV read errors return 500 with error message."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "sim_bad_csv"
     sim_dir.mkdir(parents=True)
-    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
 
     # Create malformed CSV (binary content that pandas can't parse)
@@ -404,7 +373,7 @@ def test_simulation_status_failed_with_error_log(
     sim_dir.mkdir(parents=True)
 
     # Create config and execution log but no results
-    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
     (sim_dir / "execution.log").write_text("Critical error: Out of memory")
 
@@ -416,15 +385,13 @@ def test_simulation_status_failed_with_error_log(
     assert "Out of memory" in data["error"]
 
 
-def test_simulation_details_with_failed_status(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_simulation_details_with_failed_status(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id} returns 'failed' status when execution.log exists."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "failed_details"
     sim_dir.mkdir(parents=True)
 
-    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
     (sim_dir / "execution.log").write_text("Simulation failed")
 
@@ -440,9 +407,7 @@ def test_get_result_file_json_format(
     """GET /api/simulations/{id}/results/{file}.json serves JSON file."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
-    response = api_client.get(
-        "/api/simulations/api_run_20250107_120000/results/plot_data_0.json"
-    )
+    response = api_client.get("/api/simulations/api_run_20250107_120000/results/plot_data_0.json")
     assert response.status_code == 200
     # JSON files are served as FileResponse, not parsed
     assert response.headers["content-type"] == "application/json"
@@ -456,7 +421,7 @@ def test_simulation_status_with_finished_process_no_results(
     sim_dir = tmp_path / "out" / "failed_process"
     sim_dir.mkdir(parents=True)
 
-    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
     (sim_dir / "execution.log").write_text("Process exited with code 1")
 
@@ -483,7 +448,7 @@ def test_simulation_status_with_running_process(
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "api_run_active"
     sim_dir.mkdir(parents=True)
-    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
 
     # Mock a running process
@@ -560,9 +525,7 @@ def test_list_simulations_with_malformed_config(
     assert sims[0]["simulation_id"] == "valid_sim"
 
 
-def test_list_simulations_with_io_error(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_list_simulations_with_io_error(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations handles IO errors when reading config."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     (tmp_path / "out").mkdir(parents=True)
@@ -582,7 +545,7 @@ def test_list_simulations_with_io_error(
 
     def mock_open(self, *args, **kwargs):
         if "io_error_sim" in str(self) and "config.json" in str(self):
-            raise IOError("Permission denied")
+            raise OSError("Permission denied")
         return original_open(self, *args, **kwargs)
 
     monkeypatch.setattr("pathlib.Path.open", mock_open)
@@ -594,9 +557,7 @@ def test_list_simulations_with_io_error(
     assert all(sim["simulation_id"] != "io_error_sim" for sim in sims)
 
 
-def test_create_simulation_config_write_error(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_create_simulation_config_write_error(api_client: TestClient, tmp_path: Path, monkeypatch):
     """POST /api/simulations handles config write errors."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
@@ -611,7 +572,7 @@ def test_create_simulation_config_write_error(
 
     def mock_open(self, *args, **kwargs):
         if "config.json" in str(self):
-            raise IOError("Disk full")
+            raise OSError("Disk full")
         return original_open(self, *args, **kwargs)
 
     monkeypatch.setattr("pathlib.Path.open", mock_open)
@@ -623,9 +584,7 @@ def test_create_simulation_config_write_error(
     assert "failed to write config" in response.json()["detail"].lower()
 
 
-def test_create_simulation_subprocess_error(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_create_simulation_subprocess_error(api_client: TestClient, tmp_path: Path, monkeypatch):
     """POST /api/simulations handles subprocess creation errors."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
@@ -651,7 +610,7 @@ def test_get_simulation_status_execution_log_io_error(
     sim_dir = tmp_path / "out" / "execution_log_issue"
     sim_dir.mkdir(parents=True)
 
-    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
     (sim_dir / "execution.log").write_text("Some error")
 
@@ -668,7 +627,7 @@ def test_get_simulation_status_execution_log_io_error(
 
     def mock_open(self, *args, **kwargs):
         if "execution.log" in str(self):
-            raise IOError("Cannot read execution log")
+            raise OSError("Cannot read execution log")
         return original_open(self, *args, **kwargs)
 
     monkeypatch.setattr("pathlib.Path.open", mock_open)
@@ -681,9 +640,7 @@ def test_get_simulation_status_execution_log_io_error(
     assert data.get("error") is None
 
 
-def test_get_plot_data_nonexistent_simulation(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_get_plot_data_nonexistent_simulation(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id}/plot-data returns 404 for nonexistent simulation."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     (tmp_path / "out").mkdir(parents=True)
@@ -693,9 +650,7 @@ def test_get_plot_data_nonexistent_simulation(
     assert "not found" in response.json()["detail"].lower()
 
 
-def test_get_plot_data_json_parse_error(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_get_plot_data_json_parse_error(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id}/plot-data handles JSON parse errors."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "bad_json"
@@ -709,9 +664,7 @@ def test_get_plot_data_json_parse_error(
     # Should return generic error message
 
 
-def test_get_plot_data_file_not_found_error(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_get_plot_data_file_not_found_error(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id}/plot-data handles FileNotFoundError explicitly."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "missing_plot"
@@ -805,10 +758,7 @@ def test_validate_dataset_authentication_error(api_client: TestClient, monkeypat
     assert response.status_code == 200
     data = response.json()
     assert data["valid"] is False
-    assert (
-        "authentication" in data["error"].lower()
-        or "unauthorized" in data["error"].lower()
-    )
+    assert "authentication" in data["error"].lower() or "unauthorized" in data["error"].lower()
 
 
 def test_validate_dataset_forbidden_error(api_client: TestClient, monkeypatch):
@@ -857,7 +807,7 @@ def test_secure_join_prevents_traversal(tmp_path):
     # Path traversal attempts should raise HTTPException
     try:
         secure_join(base, "..", "..", "etc", "passwd")
-        assert False, "Should have raised HTTPException"
+        raise AssertionError("Should have raised HTTPException")
     except HTTPException as e:
         assert e.status_code == 400
         assert "invalid path" in e.detail.lower()
@@ -870,7 +820,7 @@ def test_get_simulation_path_invalid_id():
     # Invalid characters in simulation ID
     try:
         get_simulation_path("../../malicious")
-        assert False, "Should have raised HTTPException"
+        raise AssertionError("Should have raised HTTPException")
     except HTTPException as e:
         assert e.status_code in [400, 404]
 
@@ -900,7 +850,7 @@ def test_simulation_details_filters_dataset_directories(
     sim_dir = tmp_path / "out" / "test_filter"
     sim_dir.mkdir(parents=True)
 
-    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
 
     # Create result files
@@ -922,9 +872,7 @@ def test_simulation_details_filters_dataset_directories(
     assert not any("dataset_" in f for f in data["result_files"])
 
 
-def test_create_simulation_sets_loky_env_vars(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_create_simulation_sets_loky_env_vars(api_client: TestClient, tmp_path: Path, monkeypatch):
     """POST /api/simulations sets LOKY_MAX_CPU_COUNT environment variable."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
@@ -955,7 +903,7 @@ def test_delete_simulation_success(api_client: TestClient, tmp_path: Path, monke
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "test_delete"
     sim_dir.mkdir(parents=True)
-    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
     (sim_dir / "results.csv").write_text("data")
 
@@ -971,9 +919,7 @@ def test_delete_simulation_success(api_client: TestClient, tmp_path: Path, monke
     assert not sim_dir.exists()
 
 
-def test_delete_simulation_not_found(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_delete_simulation_not_found(api_client: TestClient, tmp_path: Path, monkeypatch):
     """DELETE /api/simulations/{id} returns 404 for nonexistent simulation."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     (tmp_path / "out").mkdir(parents=True)
@@ -983,14 +929,12 @@ def test_delete_simulation_not_found(
     assert "not found" in response.json()["detail"].lower()
 
 
-def test_delete_simulation_running_process(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_delete_simulation_running_process(api_client: TestClient, tmp_path: Path, monkeypatch):
     """DELETE /api/simulations/{id} returns 409 for running simulation."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "running_sim"
     sim_dir.mkdir(parents=True)
-    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
 
     # Mock a running process
@@ -1006,14 +950,12 @@ def test_delete_simulation_running_process(
     del main.running_processes["running_sim"]
 
 
-def test_delete_simulation_finished_process(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_delete_simulation_finished_process(api_client: TestClient, tmp_path: Path, monkeypatch):
     """DELETE /api/simulations/{id} succeeds when process is finished."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "finished_sim"
     sim_dir.mkdir(parents=True)
-    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
 
     # Mock a finished process
@@ -1029,9 +971,7 @@ def test_delete_simulation_finished_process(
     assert "finished_sim" not in main.running_processes
 
 
-def test_delete_multiple_simulations_success(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_delete_multiple_simulations_success(api_client: TestClient, tmp_path: Path, monkeypatch):
     """DELETE /api/simulations with simulation_ids deletes multiple simulations."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
 
@@ -1039,7 +979,7 @@ def test_delete_multiple_simulations_success(
     for sim_id in ["sim1", "sim2", "sim3"]:
         sim_dir = tmp_path / "out" / sim_id
         sim_dir.mkdir(parents=True)
-        config = {"shared_settings": {}, "simulation_strategies": [{}]}
+        config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
         (sim_dir / "config.json").write_text(json.dumps(config))
 
     response = api_client.request(
@@ -1069,7 +1009,7 @@ def test_delete_multiple_simulations_partial_failure(
     # Create one valid simulation
     sim_dir = tmp_path / "out" / "valid_sim"
     sim_dir.mkdir()
-    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
 
     # Delete valid + nonexistent
@@ -1097,7 +1037,7 @@ def test_delete_multiple_simulations_running_process(
     for sim_id in ["completed_sim", "running_sim"]:
         sim_dir = tmp_path / "out" / sim_id
         sim_dir.mkdir(parents=True)
-        config = {"shared_settings": {}, "simulation_strategies": [{}]}
+        config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
         (sim_dir / "config.json").write_text(json.dumps(config))
 
     # Mock running process
@@ -1151,31 +1091,25 @@ def test_rename_simulation_success(api_client: TestClient, tmp_path: Path, monke
     assert updated_config["shared_settings"]["display_name"] == "New Test Name"
 
 
-def test_rename_simulation_empty_name(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_rename_simulation_empty_name(api_client: TestClient, tmp_path: Path, monkeypatch):
     """PATCH /api/simulations/{id}/rename returns 400 for empty display_name."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "test_rename"
     sim_dir.mkdir(parents=True)
-    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
 
-    response = api_client.patch(
-        "/api/simulations/test_rename/rename", json={"display_name": ""}
-    )
+    response = api_client.patch("/api/simulations/test_rename/rename", json={"display_name": ""})
     assert response.status_code == 400
     assert "empty" in response.json()["detail"].lower()
 
 
-def test_rename_simulation_name_too_long(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_rename_simulation_name_too_long(api_client: TestClient, tmp_path: Path, monkeypatch):
     """PATCH /api/simulations/{id}/rename returns 400 for name >100 chars."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "test_rename"
     sim_dir.mkdir(parents=True)
-    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
 
     long_name = "A" * 101
@@ -1186,14 +1120,12 @@ def test_rename_simulation_name_too_long(
     assert "100 characters" in response.json()["detail"]
 
 
-def test_rename_simulation_invalid_characters(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_rename_simulation_invalid_characters(api_client: TestClient, tmp_path: Path, monkeypatch):
     """PATCH /api/simulations/{id}/rename returns 400 for invalid characters."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "test_rename"
     sim_dir.mkdir(parents=True)
-    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
 
     response = api_client.patch(
@@ -1242,15 +1174,13 @@ def test_stop_simulation_not_running(api_client: TestClient):
     assert "not running" in response.json()["detail"].lower()
 
 
-def test_simulation_status_stopped_marker(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
+def test_simulation_status_stopped_marker(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id}/status returns 'stopped' when .stopped marker exists."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "stopped_sim"
     sim_dir.mkdir(parents=True)
 
-    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
 
     stopped_marker = sim_dir / ".stopped"

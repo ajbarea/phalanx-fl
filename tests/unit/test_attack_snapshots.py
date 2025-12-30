@@ -44,11 +44,7 @@ class TestSaveAttackSnapshot:
         )
 
         snapshot_path = (
-            tmp_path
-            / "attack_snapshots_0"
-            / "client_0"
-            / "round_3"
-            / "label_flipping.pickle"
+            tmp_path / "attack_snapshots_0" / "client_0" / "round_3" / "label_flipping.pickle"
         )
         verify_pickle_snapshot(
             snapshot_path,
@@ -76,11 +72,7 @@ class TestSaveAttackSnapshot:
         )
 
         snapshot_path = (
-            tmp_path
-            / "attack_snapshots_0"
-            / "client_0"
-            / "round_1"
-            / "label_flipping.pickle"
+            tmp_path / "attack_snapshots_0" / "client_0" / "round_1" / "label_flipping.pickle"
         )
         with open(snapshot_path, "rb") as f:
             snapshot = pickle.load(f)
@@ -110,11 +102,7 @@ class TestSaveAttackSnapshot:
         )
 
         snapshot_path = (
-            tmp_path
-            / "attack_snapshots_0"
-            / "client_2"
-            / "round_7"
-            / "label_flipping.pickle"
+            tmp_path / "attack_snapshots_0" / "client_2" / "round_7" / "label_flipping.pickle"
         )
         with open(snapshot_path, "rb") as f:
             snapshot = pickle.load(f)
@@ -179,11 +167,7 @@ class TestSaveAttackSnapshot:
 
         # Should have latest data (5 samples, not 3)
         snapshot_path = (
-            tmp_path
-            / "attack_snapshots_0"
-            / "client_0"
-            / "round_1"
-            / "label_flipping.pickle"
+            tmp_path / "attack_snapshots_0" / "client_0" / "round_1" / "label_flipping.pickle"
         )
         with open(snapshot_path, "rb") as f:
             snapshot = pickle.load(f)
@@ -192,9 +176,7 @@ class TestSaveAttackSnapshot:
 
     @patch("src.attack_utils.attack_snapshots.pickle.dump")
     @patch("src.attack_utils.attack_snapshots.logging")
-    def test_save_snapshot_handles_exception(
-        self, mock_logging, mock_pickle_dump, tmp_path
-    ):
+    def test_save_snapshot_handles_exception(self, mock_logging, mock_pickle_dump, tmp_path):
         """Test that exceptions are caught and logged."""
         data, labels = create_sample_tensors(batch_size=5)
         attack_config = create_attack_config("label_flipping")
@@ -244,11 +226,7 @@ class TestSaveAttackSnapshot:
         )
 
         snapshot_path = (
-            tmp_path
-            / "attack_snapshots_0"
-            / "client_0"
-            / "round_1"
-            / "label_flipping.pickle"
+            tmp_path / "attack_snapshots_0" / "client_0" / "round_1" / "label_flipping.pickle"
         )
         with open(snapshot_path, "rb") as f:
             snapshot = pickle.load(f)
@@ -275,11 +253,7 @@ class TestSaveAttackSnapshot:
         )
 
         snapshot_path = (
-            tmp_path
-            / "attack_snapshots_0"
-            / "client_0"
-            / "round_1"
-            / "label_flipping.pickle"
+            tmp_path / "attack_snapshots_0" / "client_0" / "round_1" / "label_flipping.pickle"
         )
         with open(snapshot_path, "rb") as f:
             snapshot = pickle.load(f)
@@ -310,11 +284,7 @@ class TestLoadAttackSnapshot:
 
         # Load snapshot
         snapshot_path = (
-            tmp_path
-            / "attack_snapshots_0"
-            / "client_0"
-            / "round_1"
-            / "label_flipping.pickle"
+            tmp_path / "attack_snapshots_0" / "client_0" / "round_1" / "label_flipping.pickle"
         )
         snapshot = load_attack_snapshot(str(snapshot_path))
 

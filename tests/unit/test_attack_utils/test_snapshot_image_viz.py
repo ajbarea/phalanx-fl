@@ -2,9 +2,11 @@
 Tests for image visualization utilities in attack snapshots.
 """
 
+from __future__ import annotations
+
 import math
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from unittest.mock import Mock, patch
 
 import matplotlib
@@ -125,9 +127,7 @@ class TestNormalizeAxes:
             (2, 2, [[Mock(), Mock()], [Mock(), Mock()]]),
         ],
     )
-    def test_normalize_axes_variations(
-        self, rows: int, cols: int, axes_input: Any
-    ) -> None:
+    def test_normalize_axes_variations(self, rows: int, cols: int, axes_input: Any) -> None:
         """Test various axes configurations are normalized correctly."""
         result = _normalize_axes(axes_input, rows=rows, cols=cols)
 
@@ -214,7 +214,7 @@ class TestExtractAttackType:
 
     def test_should_return_unknown_for_empty_list(self) -> None:
         """Test that 'unknown' is returned for empty list."""
-        config = []
+        config: list[dict[str, Any]] = []
         result = _extract_attack_type(config)
         assert result == "unknown"
 
@@ -249,9 +249,7 @@ class TestBuildSingleAttackTitle:
         original_labels = np.array([1, 3, 2])
         return labels, original_labels
 
-    def test_should_build_label_flipping_title_side_by_side(
-        self, sample_labels: tuple
-    ) -> None:
+    def test_should_build_label_flipping_title_side_by_side(self, sample_labels: tuple) -> None:
         """Test label flipping title for side-by-side style."""
         labels, original_labels = sample_labels
         config = {"attack_type": "label_flipping"}
@@ -264,9 +262,7 @@ class TestBuildSingleAttackTitle:
         assert "Poisoned" in title
         assert "Label: 5" in title
 
-    def test_should_build_label_flipping_title_fallback(
-        self, sample_labels: tuple
-    ) -> None:
+    def test_should_build_label_flipping_title_fallback(self, sample_labels: tuple) -> None:
         """Test label flipping title for fallback style."""
         labels, original_labels = sample_labels
         config = {"attack_type": "label_flipping"}
@@ -279,9 +275,7 @@ class TestBuildSingleAttackTitle:
         assert "Label: 5" in title
         assert "(was 1)" in title
 
-    def test_should_build_gaussian_noise_title_side_by_side(
-        self, sample_labels: tuple
-    ) -> None:
+    def test_should_build_gaussian_noise_title_side_by_side(self, sample_labels: tuple) -> None:
         """Test gaussian noise title for side-by-side style."""
         labels, original_labels = sample_labels
         config = {"attack_type": "gaussian_noise", "target_noise_snr": 10}
@@ -295,9 +289,7 @@ class TestBuildSingleAttackTitle:
         assert "SNR: 10dB" in title
         assert "Label: 5" in title
 
-    def test_should_build_gaussian_noise_title_fallback(
-        self, sample_labels: tuple
-    ) -> None:
+    def test_should_build_gaussian_noise_title_fallback(self, sample_labels: tuple) -> None:
         """Test gaussian noise title for fallback style."""
         labels, original_labels = sample_labels
         config = {"attack_type": "gaussian_noise", "target_noise_snr": 15}
@@ -384,9 +376,7 @@ class TestBuildAttackTitle:
         assert "Poisoned" in title
         assert "Label: 5" in title
 
-    def test_should_build_composite_attack_title_side_by_side(
-        self, sample_labels: tuple
-    ) -> None:
+    def test_should_build_composite_attack_title_side_by_side(self, sample_labels: tuple) -> None:
         """Test composite attack title for side-by-side style."""
         labels, original_labels = sample_labels
         config = [
@@ -395,7 +385,7 @@ class TestBuildAttackTitle:
         ]
 
         title = _build_attack_title(
-            config,
+            cast(list[dict[str, Any]], config),
             "label_flipping_gaussian_noise",
             labels,
             original_labels,
@@ -406,9 +396,7 @@ class TestBuildAttackTitle:
         assert "Poisoned" in title
         assert "Label: 5" in title or "Noise:" in title
 
-    def test_should_build_composite_attack_title_fallback(
-        self, sample_labels: tuple
-    ) -> None:
+    def test_should_build_composite_attack_title_fallback(self, sample_labels: tuple) -> None:
         """Test composite attack title for fallback style."""
         labels, original_labels = sample_labels
         config = [
@@ -417,7 +405,7 @@ class TestBuildAttackTitle:
         ]
 
         title = _build_attack_title(
-            config,
+            cast(list[dict[str, Any]], config),
             "label_flipping_gaussian_noise",
             labels,
             original_labels,
@@ -439,9 +427,7 @@ class TestBuildAttackTitle:
         assert "Poisoned" in title or "Label:" in title
 
     @pytest.mark.parametrize("style", ["side_by_side", "fallback"])
-    def test_build_composite_title_styles(
-        self, sample_labels: tuple, style: str
-    ) -> None:
+    def test_build_composite_title_styles(self, sample_labels: tuple, style: str) -> None:
         """Test composite titles with different styles."""
         labels, original_labels = sample_labels
         config = [
@@ -450,7 +436,12 @@ class TestBuildAttackTitle:
         ]
 
         title = _build_attack_title(
-            config, "label_flipping_gaussian_noise", labels, original_labels, 0, style
+            cast(list[dict[str, Any]], config),
+            "label_flipping_gaussian_noise",
+            labels,
+            original_labels,
+            0,
+            style,
         )
 
         assert isinstance(title, str)
@@ -542,9 +533,7 @@ class TestSaveImageGrid:
 
         mock_subplots.return_value = (mock_fig, mock_axes)
 
-        save_image_grid(
-            images, labels, original_labels, filepath, config, original_images
-        )
+        save_image_grid(images, labels, original_labels, filepath, config, original_images)
 
         mock_subplots.assert_called_once()
         call_args = mock_subplots.call_args
@@ -606,6 +595,7 @@ class TestSaveImageGrid:
             expected_rows = math.ceil(num_samples / max_cols)
 
         mock_fig = Mock()
+        mock_axes: Any
         if num_samples == 1:
             mock_axes = Mock()
         else:
@@ -683,7 +673,9 @@ class TestSaveImageGrid:
         mock_axes = [Mock() for _ in range(8)]
         mock_subplots.return_value = (mock_fig, mock_axes)
 
-        save_image_grid(images, labels, original_labels, filepath, config)
+        save_image_grid(
+            images, labels, original_labels, filepath, cast(list[dict[str, Any]], config)
+        )
 
         mock_subplots.assert_called_once()
         mock_savefig.assert_called_once()

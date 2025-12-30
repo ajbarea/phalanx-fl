@@ -5,15 +5,15 @@ Provides minimal PyTorch models that simulate training behavior without
 actual gradient computation for fast test execution.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import numpy as np
 import torch
 import torch.nn as nn
 
 NDArray = np.ndarray
-Config = Dict[str, Any]
-Metrics = Dict[str, Any]
+Config = dict[str, Any]
+Metrics = dict[str, Any]
 
 
 class MockBaseNetwork(nn.Module):
@@ -23,7 +23,7 @@ class MockBaseNetwork(nn.Module):
     in federated learning scenarios.
     """
 
-    def get_parameters(self) -> List[NDArray]:
+    def get_parameters(self) -> list[NDArray]:
         """Extract model weights as numpy arrays.
 
         Returns:
@@ -31,7 +31,7 @@ class MockBaseNetwork(nn.Module):
         """
         return [param.detach().numpy() for param in self.parameters()]
 
-    def set_parameters(self, parameters: List[NDArray]) -> None:
+    def set_parameters(self, parameters: list[NDArray]) -> None:
         """Load model weights from numpy arrays.
 
         Args:
@@ -55,7 +55,7 @@ class MockNetwork(MockBaseNetwork):
             num_classes: Number of output classes for classification
             input_size: Flattened input dimension (default: 3072 for CIFAR-10)
         """
-        super(MockNetwork, self).__init__()
+        super().__init__()
         self.num_classes = num_classes
         self.input_size = input_size
 
@@ -94,7 +94,7 @@ class MockCNNNetwork(MockBaseNetwork):
             num_classes: Number of output classes for classification
             input_channels: Input channels (1=grayscale, 3=RGB)
         """
-        super(MockCNNNetwork, self).__init__()
+        super().__init__()
         self.num_classes = num_classes
         self.input_channels = input_channels
 
@@ -153,11 +153,9 @@ class MockFlowerClient:
         self.dataset_size = dataset_size
 
         # Track simulated training metrics
-        self.training_history: Dict[str, List[float]] = {"loss": [], "accuracy": []}
+        self.training_history: dict[str, list[float]] = {"loss": [], "accuracy": []}
 
-    def fit(
-        self, parameters: List[NDArray], _config: Config
-    ) -> Tuple[List[NDArray], int, Metrics]:
+    def fit(self, parameters: list[NDArray], _config: Config) -> tuple[list[NDArray], int, Metrics]:
         """
         Simulate training by adding noise to parameters.
 
@@ -188,9 +186,7 @@ class MockFlowerClient:
 
         return updated_params, self.dataset_size, metrics
 
-    def evaluate(
-        self, parameters: List[NDArray], _config: Config
-    ) -> Tuple[float, int, Metrics]:
+    def evaluate(self, parameters: list[NDArray], _config: Config) -> tuple[float, int, Metrics]:
         """
         Simulate model evaluation with random metrics.
 
@@ -244,17 +240,13 @@ class MockNetworkFactory:
             "medquad": {"input_size": 768, "network_type": "linear"},  # Text data
         }
 
-        config = network_configs.get(
-            dataset_type, {"input_channels": 3, "network_type": "cnn"}
-        )
+        config = network_configs.get(dataset_type, {"input_channels": 3, "network_type": "cnn"})
 
         if config["network_type"] == "cnn":
             input_channels = config.get("input_channels", 3)
             if not isinstance(input_channels, int):
                 input_channels = 3
-            return MockCNNNetwork(
-                num_classes=num_classes, input_channels=input_channels
-            )
+            return MockCNNNetwork(num_classes=num_classes, input_channels=input_channels)
         else:
             input_size = config.get("input_size", 3072)
             if not isinstance(input_size, int):
@@ -264,7 +256,7 @@ class MockNetworkFactory:
 
 def create_mock_client_models(
     num_clients: int, dataset_type: str = "its", num_classes: int = 10
-) -> List[MockFlowerClient]:
+) -> list[MockFlowerClient]:
     """
     Generate list of federated learning clients with varying dataset sizes.
 
@@ -291,7 +283,7 @@ def create_mock_client_models(
     return clients
 
 
-def generate_mock_model_parameters(model: nn.Module) -> List[NDArray]:
+def generate_mock_model_parameters(model: nn.Module) -> list[NDArray]:
     """
     Create random parameters matching model architecture.
 
@@ -313,8 +305,8 @@ def generate_mock_model_parameters(model: nn.Module) -> List[NDArray]:
 
 
 def create_mock_aggregated_parameters(
-    client_parameters: List[List[NDArray]], weights: Optional[List[float]] = None
-) -> List[NDArray]:
+    client_parameters: list[list[NDArray]], weights: Optional[list[float]] = None
+) -> list[NDArray]:
     """
     Aggregate client parameters using weighted averaging.
 
@@ -339,9 +331,7 @@ def create_mock_aggregated_parameters(
     # Use numpy vectorization for efficient aggregation
     aggregated = []
     for param_idx in range(len(client_parameters[0])):
-        param_stack = np.stack(
-            [client_params[param_idx] for client_params in client_parameters]
-        )
+        param_stack = np.stack([client_params[param_idx] for client_params in client_parameters])
         weighted_avg = np.average(param_stack, axis=0, weights=weights_array)
         aggregated.append(weighted_avg)
 

@@ -145,9 +145,7 @@ class TestGPUTraining:
 
         # Verify GPU was utilized
         peak_memory = torch.cuda.max_memory_allocated()
-        assert peak_memory > initial_memory, (
-            "GPU memory should increase during training"
-        )
+        assert peak_memory > initial_memory, "GPU memory should increase during training"
 
         # Verify model parameters were updated
         assert any(param.grad is not None for param in model.parameters()), (
@@ -196,7 +194,4 @@ class TestGPUTraining:
             assert any("CUDA" in record.message for record in caplog.records)
         else:
             # Should log fallback warning
-            assert any(
-                "no compatible GPU detected" in record.message
-                for record in caplog.records
-            )
+            assert any("no compatible GPU detected" in record.message for record in caplog.records)

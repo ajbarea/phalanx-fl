@@ -226,9 +226,7 @@ class TestDynamicCNNAdaptability:
             (224, 224, 64 * 56 * 56),  # 224/4 = 56
         ],
     )
-    def test_fc1_adapts_to_input_size(
-        self, height: int, width: int, expected_fc1_in: int
-    ) -> None:
+    def test_fc1_adapts_to_input_size(self, height: int, width: int, expected_fc1_in: int) -> None:
         """Test FC1 layer adapts to different input dimensions."""
         model = DynamicCNN(
             num_classes=10,
@@ -311,9 +309,7 @@ class TestDynamicCNNParameters:
         model2.load_state_dict(state_dict)
 
         # Verify parameters match
-        for (n1, p1), (n2, p2) in zip(
-            model1.named_parameters(), model2.named_parameters()
-        ):
+        for (n1, p1), (n2, p2) in zip(model1.named_parameters(), model2.named_parameters()):
             assert n1 == n2
             assert torch.allclose(p1, p2)
 
@@ -337,9 +333,7 @@ class TestDynamicCNNParameters:
         # Verify gradients are zeroed
         for p in model.parameters():
             if p.requires_grad:
-                assert p.grad is None or torch.allclose(
-                    p.grad, torch.zeros_like(p.grad)
-                )
+                assert p.grad is None or torch.allclose(p.grad, torch.zeros_like(p.grad))
 
 
 class TestDynamicCNNGradients:
@@ -493,9 +487,7 @@ class TestDynamicCNNRepr:
 
     def test_repr_format(self) -> None:
         """Test __repr__ has correct format."""
-        model = DynamicCNN(
-            num_classes=5, input_channels=1, input_height=28, input_width=28
-        )
+        model = DynamicCNN(num_classes=5, input_channels=1, input_height=28, input_width=28)
         repr_str = repr(model)
 
         assert repr_str == "DynamicCNN(classes=5, input_shape=(1, 28, 28))"
@@ -547,7 +539,7 @@ class TestDynamicCNNIntegration:
                 total_loss += loss.item()
                 _, predicted = torch.max(output, 1)
                 total += target.size(0)
-                correct += (predicted == target).sum().item()
+                correct += int((predicted == target).sum().item())
 
         avg_loss = total_loss / 3
         accuracy = correct / total

@@ -3,7 +3,7 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -31,10 +31,8 @@ class ConfigReader:
             project_root: Root directory of the project
         """
         self.project_root = Path(project_root)
-        self.config_dir = (
-            self.project_root / "config" / "simulation_strategies" / "testing"
-        )
-        self._cache: Dict[str, Dict[str, Any]] = {}
+        self.config_dir = self.project_root / "config" / "simulation_strategies" / "testing"
+        self._cache: dict[str, dict[str, Any]] = {}
 
     def _get_config_path(self, config_name: str) -> Path:
         """Get full path to config file.
@@ -47,7 +45,7 @@ class ConfigReader:
         """
         return self.config_dir / config_name
 
-    def _load_config(self, config_name: str, use_cache: bool = True) -> Dict[str, Any]:
+    def _load_config(self, config_name: str, use_cache: bool = True) -> dict[str, Any]:
         """Load config file as dictionary.
 
         Args:
@@ -66,7 +64,7 @@ class ConfigReader:
 
         config_path = self._get_config_path(config_name)
 
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             config = json.load(f)
 
         if use_cache:
@@ -128,9 +126,7 @@ class ConfigReader:
                 num_clients=shared.get("num_of_clients", 0),
             )
         except (FileNotFoundError, json.JSONDecodeError, KeyError):
-            return ConfigMetadata(
-                title=None, device="cuda", num_rounds=0, num_clients=0
-            )
+            return ConfigMetadata(title=None, device="cuda", num_rounds=0, num_clients=0)
 
     def clear_cache(self) -> None:
         """Clear the config cache."""

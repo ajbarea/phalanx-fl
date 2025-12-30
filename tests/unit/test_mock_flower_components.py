@@ -5,6 +5,9 @@ Tests verify that mock implementations behave correctly and provide consistent
 results for federated learning simulation testing.
 """
 
+from __future__ import annotations
+
+from typing import Any
 from unittest.mock import MagicMock
 
 from tests.common import np, pytest
@@ -141,7 +144,7 @@ class TestMockClientProxy:
         tensors = [np.array([1.0, 2.0, 3.0], dtype=np.float32).tobytes()]
         params = MockParameters(tensors, "numpy.ndarray")
 
-        config = {}
+        config: dict[str, Any] = {}
         eval_res = proxy.evaluate(params, config)
 
         # Verify result structure

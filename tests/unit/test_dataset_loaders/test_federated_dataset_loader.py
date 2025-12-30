@@ -154,9 +154,7 @@ class TestLoadDatasets:
     """Test dataset loading and partitioning."""
 
     @patch("src.dataset_loaders.federated_dataset_loader.FederatedDataset")
-    def test_load_datasets_creates_correct_number_of_loaders(
-        self, mock_federated_dataset
-    ):
+    def test_load_datasets_creates_correct_number_of_loaders(self, mock_federated_dataset):
         """Should create trainloaders and valloaders for each client."""
         # Setup mock partition
         mock_partition = MagicMock()
@@ -239,9 +237,7 @@ class TestLoadDatasets:
 
     @patch("src.dataset_loaders.federated_dataset_loader.FederatedDataset")
     @patch("src.dataset_loaders.federated_dataset_loader.random_split")
-    def test_load_datasets_splits_data_correctly(
-        self, mock_random_split, mock_federated_dataset
-    ):
+    def test_load_datasets_splits_data_correctly(self, mock_random_split, mock_federated_dataset):
         """Should split data according to training_subset_fraction."""
         mock_partition = MagicMock()
         mock_partition.__len__ = Mock(return_value=100)
@@ -399,9 +395,7 @@ class TestLoadDatasets:
 
     @patch("src.dataset_loaders.federated_dataset_loader.FederatedDataset")
     @patch("src.dataset_loaders.federated_dataset_loader.DataLoader")
-    def test_load_datasets_shuffles_training_data(
-        self, mock_dataloader, mock_federated_dataset
-    ):
+    def test_load_datasets_shuffles_training_data(self, mock_dataloader, mock_federated_dataset):
         """Should shuffle training data but not validation data."""
         mock_partition = MagicMock()
         mock_partition.__len__ = Mock(return_value=100)
