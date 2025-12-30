@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import csv
 import datetime
 import json
@@ -9,9 +11,9 @@ from src.data_models.simulation_strategy_history import SimulationStrategyHistor
 
 
 class DirectoryHandler:
-    dirname: str = None
+    dirname: str | None = None
 
-    def __init__(self, output_dir: str = None):
+    def __init__(self, output_dir: str | None = None):
         """Initialize directory handler.
 
         Args:
@@ -25,8 +27,8 @@ class DirectoryHandler:
         self.dirname = str(base)
         self.new_plots_dirname = self.dirname
         self.new_csv_dirname = str(base / "csv")
-        self.simulation_strategy_history: SimulationStrategyHistory = None
-        self.dataset_dir = None
+        self.simulation_strategy_history: SimulationStrategyHistory | None = None
+        self.dataset_dir: str | None = None
 
         DirectoryHandler.dirname = self.dirname
 
@@ -35,13 +37,12 @@ class DirectoryHandler:
 
     def assign_dataset_dir(self, strategy_number):
         """Create and set dataset directory for the strategy."""
+        assert self.dirname is not None
         dataset_path = Path(self.dirname) / f"dataset_{strategy_number}"
         dataset_path.mkdir(exist_ok=True)
         self.dataset_dir = str(dataset_path)
 
-    def save_csv_and_config(
-        self, simulation_strategy_history: SimulationStrategyHistory
-    ) -> None:
+    def save_csv_and_config(self, simulation_strategy_history: SimulationStrategyHistory) -> None:
         """
         Save per-client, per-round and per-execution metrics to CSV files, as well as simulation strategy config.
         """
@@ -55,13 +56,12 @@ class DirectoryHandler:
 
     def _save_simulation_config(self):
         """Save simulation config to current directory"""
+        assert self.simulation_strategy_history is not None
 
         config_dict = self.simulation_strategy_history.strategy_config.__dict__.copy()
 
         # Convert PyTorch device to string for JSON serialization
-        if "training_device" in config_dict and hasattr(
-            config_dict["training_device"], "type"
-        ):
+        if "training_device" in config_dict and hasattr(config_dict["training_device"], "type"):
             config_dict["training_device"] = str(config_dict["training_device"])
 
         with open(
@@ -73,6 +73,8 @@ class DirectoryHandler:
 
     def _save_per_client_to_csv(self):
         """Save per-client metrics to csv"""
+        assert self.simulation_strategy_history is not None
+        assert self.simulation_strategy_history.strategy_config.num_of_rounds is not None
 
         csv_filepath = (
             f"{self.new_csv_dirname}/"
@@ -81,10 +83,8 @@ class DirectoryHandler:
         with open(csv_filepath, mode="w", newline="") as client_csv:
             writer = csv.writer(client_csv)
 
-            csv_headers = ["round"]
-            savable_metrics = self.simulation_strategy_history.get_all_clients()[
-                0
-            ].savable_metrics
+            csv_headers: list[str] = ["round"]
+            savable_metrics = self.simulation_strategy_history.get_all_clients()[0].savable_metrics
 
             for metric_name in savable_metrics:
                 for client_info in self.simulation_strategy_history.get_all_clients():
@@ -95,16 +95,12 @@ class DirectoryHandler:
             for round_num in range(
                 1, self.simulation_strategy_history.strategy_config.num_of_rounds + 1
             ):
-                row = [round_num]
+                row: list[str | int | float] = [round_num]
 
                 for metric_name in savable_metrics:
-                    for (
-                        client_info
-                    ) in self.simulation_strategy_history.get_all_clients():
+                    for client_info in self.simulation_strategy_history.get_all_clients():
                         try:
-                            value = client_info.get_metric_by_name(metric_name)[
-                                round_num - 1
-                            ]
+                            value = client_info.get_metric_by_name(metric_name)[round_num - 1]
                             row.append(value if value is not None else "not collected")
                         except IndexError:
                             row.append("not collected")
@@ -113,6 +109,8 @@ class DirectoryHandler:
 
     def _save_per_round_to_csv(self):
         """Save per-round metrics to csv"""
+        assert self.simulation_strategy_history is not None
+        assert self.simulation_strategy_history.strategy_config.num_of_rounds is not None
 
         csv_filepath = (
             f"{self.new_csv_dirname}/"
@@ -121,21 +119,21 @@ class DirectoryHandler:
         with open(csv_filepath, mode="w", newline="") as round_csv:
             writer = csv.writer(round_csv)
 
-            savable_metrics = (
-                self.simulation_strategy_history.rounds_history.savable_metrics
-            )
+            savable_metrics = self.simulation_strategy_history.rounds_history.savable_metrics
 
-            csv_headers = ["round"] + [metric_name for metric_name in savable_metrics]
+            csv_headers = ["round"] + list(savable_metrics)
             writer.writerow(csv_headers)
 
             for round_num in range(
                 1, self.simulation_strategy_history.strategy_config.num_of_rounds + 1
             ):
-                row = [round_num]
+                row: list[str | int | float] = [round_num]
 
                 for metric_name in savable_metrics:
-                    collected_history = self.simulation_strategy_history.rounds_history.get_metric_by_name(
-                        metric_name
+                    collected_history = (
+                        self.simulation_strategy_history.rounds_history.get_metric_by_name(
+                            metric_name
+                        )
                     )
                     try:
                         value = collected_history[round_num - 1]
@@ -151,6 +149,7 @@ class DirectoryHandler:
             mean for (TP, TN, FP, FN, accuracy, precision, recall, f1)
                     ± std
         """
+        assert self.simulation_strategy_history is not None
 
         if not self.simulation_strategy_history.strategy_config.remove_clients:
             return
@@ -162,24 +161,21 @@ class DirectoryHandler:
         with open(csv_filepath, mode="w", newline="") as exec_stats:
             writer = csv.writer(exec_stats)
 
-            statsable_metrics = (
-                self.simulation_strategy_history.rounds_history.statsable_metrics
-            )
+            statsable_metrics = self.simulation_strategy_history.rounds_history.statsable_metrics
 
             csv_headers = [f"mean_{metric_name}" for metric_name in statsable_metrics]
             writer.writerow(csv_headers)
 
             metric_cells = []
             started_removing_from = (
-                self.simulation_strategy_history.strategy_config.begin_removing_from_round
-                or 1
+                self.simulation_strategy_history.strategy_config.begin_removing_from_round or 1
             )
 
             for metric_name in statsable_metrics:
                 collected_history = (
-                    self.simulation_strategy_history.rounds_history.get_metric_by_name(
-                        metric_name
-                    )[started_removing_from - 1 :]
+                    self.simulation_strategy_history.rounds_history.get_metric_by_name(metric_name)[
+                        started_removing_from - 1 :
+                    ]
                 )
 
                 metric_mean = np.mean(collected_history) if collected_history else 0.0
@@ -201,9 +197,8 @@ class DirectoryHandler:
                     "fp_history",
                     "fn_history",
                 ):
-                    total_cases = (
-                        self.simulation_strategy_history.strategy_config.num_of_clients
-                    )
+                    total_cases = self.simulation_strategy_history.strategy_config.num_of_clients
+                    assert total_cases is not None
                     metric_mean = metric_mean / total_cases * 100
                     metric_std = metric_std / total_cases * 100
 

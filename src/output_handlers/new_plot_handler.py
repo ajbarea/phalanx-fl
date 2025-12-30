@@ -1,17 +1,19 @@
+from __future__ import annotations
+
 import json
+
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import numpy as np
 import math
 
+import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.ticker import MaxNLocator
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.federated_simulation import FederatedSimulation
 from src.output_handlers.directory_handler import DirectoryHandler
-
 
 plot_size = (11, 7)
 bar_width = 0.2
@@ -85,7 +87,7 @@ def _generate_multi_string_strategy_label(strategy_config: StrategyConfig) -> st
 def _add_attack_background_shading(
     ax: plt.Axes,
     attack_schedule: list,
-    client_id: int = None,
+    client_id: int | None = None,
 ) -> None:
     """
     Add background shading for attack-active rounds.
@@ -172,16 +174,15 @@ def save_plot_data_json(
 
     per_client_metrics = []
     for client in client_histories:
+        metrics_dict: dict[str, list[float | None]] = {}
+        for metric_name in plottable_metrics:
+            values = client.get_metric_by_name(metric_name)
+            metrics_dict[metric_name] = [float(v) if v is not None else None for v in values]
         client_data = {
             "client_id": client.client_id,
             "is_malicious": _is_client_malicious(client.client_id, attack_schedule),
-            "metrics": {},
+            "metrics": metrics_dict,
         }
-        for metric_name in plottable_metrics:
-            values = client.get_metric_by_name(metric_name)
-            client_data["metrics"][metric_name] = [
-                float(v) if v is not None else None for v in values
-            ]
         per_client_metrics.append(client_data)
 
     plot_data = {
@@ -235,7 +236,9 @@ def show_plots_within_strategy(
                 client_id=None,
             )
 
-        removal_threshold_history = simulation_strategy.strategy_history.rounds_history.removal_threshold_history
+        removal_threshold_history = (
+            simulation_strategy.strategy_history.rounds_history.removal_threshold_history
+        )
 
         if (
             metric_name == "removal_criterion_history" and removal_threshold_history
@@ -260,7 +263,7 @@ def show_plots_within_strategy(
             # Generate label with attack summary
             attack_summary = _get_client_attack_summary(
                 client_info.client_id,
-                simulation_strategy.strategy_config.attack_schedule,
+                simulation_strategy.strategy_config.attack_schedule or [],
             )
             client_label = f"client_{client_info.client_id}{attack_summary}"
 
@@ -292,12 +295,13 @@ def show_plots_within_strategy(
         )
 
         legend_title = "clients and attacks"
+        num_clients = simulation_strategy.strategy_config.num_of_clients or 1
 
         plt.legend(
             title=legend_title,
             bbox_to_anchor=(1.05, 1),
             loc="upper left",
-            ncol=math.ceil(simulation_strategy.strategy_config.num_of_clients / 20),
+            ncol=math.ceil(num_clients / 20),
         )
         ax = plt.gca()
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
@@ -326,9 +330,7 @@ def show_inter_strategy_plots(
     ):
         return
 
-    rounds = (
-        executed_simulation_strategies[0].strategy_history.get_all_clients()[0].rounds
-    )
+    rounds = executed_simulation_strategies[0].strategy_history.get_all_clients()[0].rounds
 
     # line plots
     plottable_metrics = executed_simulation_strategies[
@@ -359,9 +361,7 @@ def show_inter_strategy_plots(
         ax = plt.gca()
         # Only show legend if there are labeled artists
         if any(ax.get_legend_handles_labels()):
-            plt.legend(
-                title="strategies", loc="upper center", bbox_to_anchor=(0.5, -0.1)
-            )
+            plt.legend(title="strategies", loc="upper center", bbox_to_anchor=(0.5, -0.1))
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
         plt.tight_layout()
 
@@ -405,9 +405,7 @@ def show_inter_strategy_plots(
         ax = plt.gca()
         # Only show legend if there are labeled artists
         if any(ax.get_legend_handles_labels()):
-            plt.legend(
-                title="strategies", loc="upper center", bbox_to_anchor=(0.5, -0.1)
-            )
+            plt.legend(title="strategies", loc="upper center", bbox_to_anchor=(0.5, -0.1))
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
         ax.set_xticks(
             rounds_array + (num_strategies - 1) * bar_width / 2
