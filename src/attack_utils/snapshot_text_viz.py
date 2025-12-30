@@ -4,19 +4,17 @@ Text visualization utilities for attack snapshots.
 
 import html
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 
 
 def _extract_attack_param(
-    attack_config: Union[dict, List[dict]], *attack_parameters: str, default: any = "?"
-) -> any:
+    attack_config: Union[dict, list[dict]], *attack_parameters: str, default: Any = "?"
+) -> Any:
     """Extract first matching parameter from attack config."""
     config = (
-        attack_config[0]
-        if isinstance(attack_config, list) and attack_config
-        else attack_config
+        attack_config[0] if isinstance(attack_config, list) and attack_config else attack_config
     )
 
     if isinstance(config, dict):
@@ -27,13 +25,12 @@ def _extract_attack_param(
     return default
 
 
-def _extract_attack_type(attack_config: Union[dict, List[dict]]) -> str:
+def _extract_attack_type(attack_config: Union[dict, list[dict]]) -> str:
     """Extract attack type string from config, joining multiple with underscore."""
     if isinstance(attack_config, list):
         if attack_config:
             attack_types = [
-                cfg.get("attack_type") or cfg.get("type", "unknown")
-                for cfg in attack_config
+                cfg.get("attack_type") or cfg.get("type", "unknown") for cfg in attack_config
             ]
             return "_".join(attack_types)
         else:
@@ -46,7 +43,7 @@ def save_text_samples(
     labels: np.ndarray,
     original_labels: np.ndarray,
     filepath: Path,
-    attack_config: Optional[Union[dict, List[dict]]] = None,
+    attack_config: Optional[Union[dict, list[dict]]] = None,
     tokenizer=None,
     input_ids_original: Optional[np.ndarray] = None,
     input_ids_poisoned: Optional[np.ndarray] = None,
@@ -101,12 +98,8 @@ def save_text_samples(
                 poisoned_tokens = input_ids_poisoned[i]
 
                 try:
-                    original_text = tokenizer.decode(
-                        original_tokens, skip_special_tokens=True
-                    )
-                    poisoned_text = tokenizer.decode(
-                        poisoned_tokens, skip_special_tokens=True
-                    )
+                    original_text = tokenizer.decode(original_tokens, skip_special_tokens=True)
+                    poisoned_text = tokenizer.decode(poisoned_tokens, skip_special_tokens=True)
 
                     if original_text == poisoned_text:
                         samples_skipped += 1
@@ -119,9 +112,7 @@ def save_text_samples(
 
                     num_replaced = np.sum(original_tokens != poisoned_tokens)
                     total_tokens = len(original_tokens)
-                    replacement_rate = (
-                        num_replaced / total_tokens * 100 if total_tokens > 0 else 0
-                    )
+                    replacement_rate = num_replaced / total_tokens * 100 if total_tokens > 0 else 0
 
                     f.write(
                         f"          {num_replaced}/{total_tokens} tokens replaced ({replacement_rate:.1f}%)\n"
@@ -132,9 +123,7 @@ def save_text_samples(
                     original_label = original_labels[i]
 
                     if isinstance(current_label, np.ndarray) and current_label.size > 1:
-                        label_changed = not np.array_equal(
-                            current_label, original_label
-                        )
+                        label_changed = not np.array_equal(current_label, original_label)
                         num_masked_original = np.sum(original_label != -100)
                         num_masked_current = np.sum(current_label != -100)
 
@@ -143,28 +132,20 @@ def save_text_samples(
                                 f"Labels: {num_masked_original} masked tokens → {num_masked_current} masked tokens (CHANGED)\n"
                             )
                         else:
-                            f.write(
-                                f"Labels: {num_masked_original} masked tokens (unchanged)\n"
-                            )
+                            f.write(f"Labels: {num_masked_original} masked tokens (unchanged)\n")
                     else:
                         if np.array_equal(current_label, original_label):
                             f.write(f"Label: {current_label} (unchanged)\n")
                         else:
-                            f.write(
-                                f"Label: {original_label} → {current_label} (FLIPPED)\n"
-                            )
+                            f.write(f"Label: {original_label} → {current_label} (FLIPPED)\n")
 
                     samples_shown += 1
 
                 except Exception as e:
                     f.write(f"--- Sample {i} ---\n\n")
                     f.write(f"[Decoding error: {e}]\n")
-                    f.write(
-                        f"Original token IDs (first 10): {original_tokens[:10].tolist()}\n"
-                    )
-                    f.write(
-                        f"Poisoned token IDs (first 10): {poisoned_tokens[:10].tolist()}\n"
-                    )
+                    f.write(f"Original token IDs (first 10): {original_tokens[:10].tolist()}\n")
+                    f.write(f"Poisoned token IDs (first 10): {poisoned_tokens[:10].tolist()}\n")
                     samples_shown += 1
 
                 f.write("\n")
@@ -186,7 +167,7 @@ def save_text_samples_html(
     labels: np.ndarray,
     original_labels: np.ndarray,
     filepath: Path,
-    attack_config: Optional[Union[dict, List[dict]]] = None,
+    attack_config: Optional[Union[dict, list[dict]]] = None,
     tokenizer=None,
     input_ids_original: Optional[np.ndarray] = None,
     input_ids_poisoned: Optional[np.ndarray] = None,
@@ -426,23 +407,15 @@ def save_text_samples_html(
     samples_modified = 0
     samples_unchanged = 0
 
-    if (
-        tokenizer is not None
-        and input_ids_original is not None
-        and input_ids_poisoned is not None
-    ):
+    if tokenizer is not None and input_ids_original is not None and input_ids_poisoned is not None:
         for i in range(len(labels)):
             original_tokens = input_ids_original[i]
             poisoned_tokens = input_ids_poisoned[i]
 
             try:
                 # Decode full texts
-                original_text = tokenizer.decode(
-                    original_tokens, skip_special_tokens=True
-                )
-                poisoned_text = tokenizer.decode(
-                    poisoned_tokens, skip_special_tokens=True
-                )
+                original_text = tokenizer.decode(original_tokens, skip_special_tokens=True)
+                poisoned_text = tokenizer.decode(poisoned_tokens, skip_special_tokens=True)
 
                 if original_text == poisoned_text:
                     samples_unchanged += 1
@@ -455,9 +428,7 @@ def save_text_samples_html(
                 poisoned_html_tokens = []
 
                 # Get individual token strings for highlighting
-                for j, (orig_id, pois_id) in enumerate(
-                    zip(original_tokens, poisoned_tokens)
-                ):
+                for _j, (orig_id, pois_id) in enumerate(zip(original_tokens, poisoned_tokens)):
                     orig_token_str = tokenizer.decode([orig_id])
                     pois_token_str = tokenizer.decode([pois_id])
 
@@ -480,9 +451,7 @@ def save_text_samples_html(
 
                 num_replaced = np.sum(original_tokens != poisoned_tokens)
                 replacement_rate = (
-                    num_replaced / len(original_tokens) * 100
-                    if len(original_tokens) > 0
-                    else 0
+                    num_replaced / len(original_tokens) * 100 if len(original_tokens) > 0 else 0
                 )
 
                 # Label change info

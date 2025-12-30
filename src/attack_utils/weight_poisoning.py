@@ -1,11 +1,10 @@
 """Weight-level poisoning attacks for FL model updates."""
 
 import logging
-from typing import Dict, List, Optional, Callable
+from typing import Callable, Optional
 
 import numpy as np
 from numpy.typing import NDArray
-
 
 logger = logging.getLogger(__name__)
 
@@ -14,10 +13,10 @@ _MAX_SAFE_WEIGHT_VALUE = 1e6
 
 
 def _check_and_warn_overflow(
-    params: List[NDArray],
+    params: list[NDArray],
     attack_type: str,
     max_safe_value: float = _MAX_SAFE_WEIGHT_VALUE,
-) -> List[NDArray]:
+) -> list[NDArray]:
     """
     Detects and warns about numerical overflow in poisoned weights.
 
@@ -51,11 +50,11 @@ WEIGHT_ATTACK_TYPES = frozenset(
 
 
 def apply_model_poisoning(
-    parameters: List[NDArray],
+    parameters: list[NDArray],
     poison_ratio: float = 0.1,
     magnitude: float = 5.0,
     seed: Optional[int] = None,
-) -> List[NDArray]:
+) -> list[NDArray]:
     """
     Applies targeted weight manipulation to a subset of parameters.
 
@@ -83,17 +82,15 @@ def apply_model_poisoning(
 
         poisoned_params.append(flat.reshape(param.shape))
 
-    logger.debug(
-        f"Model poisoning applied: ratio={poison_ratio}, magnitude={magnitude} std"
-    )
+    logger.debug(f"Model poisoning applied: ratio={poison_ratio}, magnitude={magnitude} std")
     return poisoned_params
 
 
 def apply_gradient_scaling(
-    parameters: List[NDArray],
+    parameters: list[NDArray],
     scale_factor: float = 2.0,
     seed: Optional[int] = None,
-) -> List[NDArray]:
+) -> list[NDArray]:
     """
     Scales all model parameters by a constant factor.
 
@@ -112,10 +109,10 @@ def apply_gradient_scaling(
 
 
 def apply_byzantine_perturbation(
-    parameters: List[NDArray],
+    parameters: list[NDArray],
     noise_scale: float = 3.0,
     seed: Optional[int] = None,
-) -> List[NDArray]:
+) -> list[NDArray]:
     """
     Applies random perturbations to model weights.
 
@@ -141,7 +138,7 @@ def apply_byzantine_perturbation(
 
 
 # Registry mapping attack type names to functions
-_WEIGHT_ATTACK_FUNCTIONS: Dict[str, Callable] = {
+_WEIGHT_ATTACK_FUNCTIONS: dict[str, Callable] = {
     "model_poisoning": apply_model_poisoning,
     "gradient_scaling": apply_gradient_scaling,
     "byzantine_perturbation": apply_byzantine_perturbation,
@@ -149,9 +146,9 @@ _WEIGHT_ATTACK_FUNCTIONS: Dict[str, Callable] = {
 
 
 def apply_weight_poisoning(
-    parameters: List[NDArray],
-    attack_configs: List[dict],
-) -> List[NDArray]:
+    parameters: list[NDArray],
+    attack_configs: list[dict],
+) -> list[NDArray]:
     """
     Applies weight-level poisoning attacks based on configuration.
 

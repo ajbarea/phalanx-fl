@@ -3,9 +3,10 @@ Utility functions for applying poisoning attacks to datasets.
 """
 
 import logging
-from typing import Optional, Tuple
+from typing import Optional
 
 import torch
+
 from src.attack_utils.vocabularies.registry import (
     get_replacement_strategy,
     get_vocabulary,
@@ -69,9 +70,7 @@ def apply_gaussian_noise(
     poisoned_images = images.clone()
 
     if target_noise_snr is not None:
-        signal_power = torch.mean(
-            poisoned_images[indices] ** 2, dim=(1, 2, 3), keepdim=True
-        )
+        signal_power = torch.mean(poisoned_images[indices] ** 2, dim=(1, 2, 3), keepdim=True)
         noise_power = signal_power / (10 ** (target_noise_snr / 10))
         noise = torch.randn_like(poisoned_images[indices]) * torch.sqrt(noise_power)
     else:
@@ -114,7 +113,7 @@ def _apply_sequence_replacement(
 ) -> torch.Tensor:
     """Replace multi-token sequences matching target vocabulary with random replacement tokens."""
     modified_tokens = tokens.clone()
-    max_seq_length = max(len(seq) for seq in target_sequences.keys())
+    max_seq_length = max(len(seq) for seq in target_sequences)
 
     total_replacements = 0
     total_matches = 0
@@ -136,7 +135,7 @@ def _apply_sequence_replacement(
 
                     if torch.rand(1).item() < replacement_prob:
                         replacement_id = replacement_token_ids[
-                            torch.randint(0, len(replacement_token_ids), (1,)).item()
+                            int(torch.randint(0, len(replacement_token_ids), (1,)).item())
                         ]
 
                         modified_tokens[batch_idx, seq_idx] = replacement_id
@@ -183,12 +182,11 @@ def _apply_single_token_replacement(
         for seq_idx in range(tokens.shape[1]):
             token_id = tokens[batch_idx, seq_idx].item()
 
-            if token_id in target_token_ids:
-                if torch.rand(1).item() < replacement_prob:
-                    replacement_id = replacement_token_ids[
-                        torch.randint(0, len(replacement_token_ids), (1,)).item()
-                    ]
-                    modified_tokens[batch_idx, seq_idx] = replacement_id
+            if token_id in target_token_ids and torch.rand(1).item() < replacement_prob:
+                replacement_id = replacement_token_ids[
+                    int(torch.randint(0, len(replacement_token_ids), (1,)).item())
+                ]
+                modified_tokens[batch_idx, seq_idx] = replacement_id
 
     return modified_tokens
 
@@ -232,7 +230,7 @@ def apply_token_replacement(
 
 def should_poison_this_round(
     current_round: int, client_id: int, attack_schedule: Optional[list]
-) -> Tuple[bool, list]:
+) -> tuple[bool, list]:
     """Determine if a client should be poisoned this round based on attack schedule.
 
     Args:
@@ -264,12 +262,7 @@ def should_poison_this_round(
             if client_id in malicious_client_ids:
                 is_match = True
 
-        elif selection_strategy == "random":
-            targeted_clients = attack_entry.get("_selected_clients", [])
-            if client_id in targeted_clients:
-                is_match = True
-
-        elif selection_strategy == "percentage":
+        elif selection_strategy == "random" or selection_strategy == "percentage":
             targeted_clients = attack_entry.get("_selected_clients", [])
             if client_id in targeted_clients:
                 is_match = True
@@ -288,7 +281,7 @@ def apply_poisoning_attack(
     attack_config: dict,
     tokenizer=None,
     num_classes: Optional[int] = None,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor]:
     """Apply a poisoning attack to dataset based on attack configuration.
 
     Supports label_flipping, gaussian_noise, and token_replacement attack types.
@@ -355,7 +348,7 @@ def apply_poisoning_attack(
                     "See src/attack_utils/token_vocabularies.py for available vocabularies."
                 )
 
-            vocab_name = attack_config.get("target_vocabulary")
+            vocab_name: str = attack_config["target_vocabulary"]
             strategy_name = attack_config.get("replacement_strategy", "negative")
 
             target_tokens = get_vocabulary(vocab_name)
@@ -369,9 +362,7 @@ def apply_poisoning_attack(
             )
 
             if target_tokens and replacement_tokens:
-                target_sequences = _encode_vocabulary_sequences(
-                    tokenizer, target_tokens
-                )
+                target_sequences = _encode_vocabulary_sequences(tokenizer, target_tokens)
 
                 replacement_token_ids = [
                     tokenizer.encode(token, add_special_tokens=False)[0]

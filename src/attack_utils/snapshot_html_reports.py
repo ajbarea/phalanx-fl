@@ -18,15 +18,11 @@ from .attack_snapshots import (
 from .snapshot_animation import save_attack_timeline_gif
 
 
-def _get_snapshots_dir_checked(
-    output_dir: str, strategy_number: int = 0
-) -> Optional[Path]:
+def _get_snapshots_dir_checked(output_dir: str, strategy_number: int = 0) -> Optional[Path]:
     """Get snapshots directory path, returning None if it doesn't exist."""
     snapshots_dir = Path(output_dir) / f"attack_snapshots_{strategy_number}"
     if not snapshots_dir.exists():
-        logging.warning(
-            f"No attack_snapshots_{strategy_number} directory found in {output_dir}"
-        )
+        logging.warning(f"No attack_snapshots_{strategy_number} directory found in {output_dir}")
         return None
     return snapshots_dir
 
@@ -96,9 +92,7 @@ def generate_summary_json(
     if run_config:
         full_summary["experiment"]["total_clients"] = run_config.get("num_of_clients")
         full_summary["experiment"]["total_rounds"] = run_config.get("num_of_rounds")
-        full_summary["experiment"]["config_file"] = (
-            f"strategy_config_{strategy_number}.json"
-        )
+        full_summary["experiment"]["config_file"] = f"strategy_config_{strategy_number}.json"
 
     snapshots = list_attack_snapshots(output_dir, strategy_number)
     for snapshot_path in snapshots:
@@ -177,9 +171,7 @@ def generate_snapshot_index(
             round_num = metadata.get("round_num")
 
             if isinstance(attack_config, list) and len(attack_config) > 1:
-                attack_info_list = _split_composite_attack_info(
-                    attack_type, attack_config
-                )
+                attack_info_list = _split_composite_attack_info(attack_type, attack_config)
 
                 attack_types = [info["type"] for info in attack_info_list]
                 all_params = []
@@ -195,9 +187,7 @@ def generate_snapshot_index(
                         "is_stacked": True,
                         "samples": metadata.get("num_samples", 0),
                         "parameters": ", ".join(all_params) if all_params else "N/A",
-                        "pickle_path": snapshot_path.relative_to(
-                            snapshots_dir
-                        ).as_posix(),
+                        "pickle_path": snapshot_path.relative_to(snapshots_dir).as_posix(),
                         "visual_path": (
                             Path(f"client_{client_id}")
                             / f"round_{round_num}"
@@ -215,9 +205,7 @@ def generate_snapshot_index(
                 if isinstance(attack_config, list):
                     attack_config = attack_config[0] if attack_config else {}
 
-                attack_parameters = _extract_attack_params_for_display(
-                    attack_type, attack_config
-                )
+                attack_parameters = _extract_attack_params_for_display(attack_type, attack_config)
 
                 if attack_type == "token_replacement":
                     visual_filename = f"{attack_type}_samples.txt"
@@ -236,13 +224,9 @@ def generate_snapshot_index(
                         "parameters": (
                             ", ".join(attack_parameters) if attack_parameters else "N/A"
                         ),
-                        "pickle_path": snapshot_path.relative_to(
-                            snapshots_dir
-                        ).as_posix(),
+                        "pickle_path": snapshot_path.relative_to(snapshots_dir).as_posix(),
                         "visual_path": (
-                            Path(f"client_{client_id}")
-                            / f"round_{round_num}"
-                            / visual_filename
+                            Path(f"client_{client_id}") / f"round_{round_num}" / visual_filename
                         ).as_posix(),
                         "visual_type": visual_type,
                         "metadata_path": (
@@ -282,8 +266,8 @@ def _generate_index_html(
     total_rounds = run_config.get("num_of_rounds", "?") if run_config else "?"
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    unique_clients = sorted(set(s["client"] for s in snapshot_data))
-    unique_rounds = sorted(set(s["round"] for s in snapshot_data))
+    unique_clients = sorted({s["client"] for s in snapshot_data})
+    unique_rounds = sorted({s["round"] for s in snapshot_data})
     all_attack_types = []
     for s in snapshot_data:
         all_attack_types.extend(s["attack_types"])
@@ -341,9 +325,7 @@ def generate_main_dashboard(output_dir: str) -> None:
                     timeline = summary.get("attack_timeline", {})
                     for client_rounds in timeline.values():
                         num_rounds = max(num_rounds, len(client_rounds))
-                    total_snapshots = summary.get("attack_summary", {}).get(
-                        "total_snapshots", 0
-                    )
+                    total_snapshots = summary.get("attack_summary", {}).get("total_snapshots", 0)
             except Exception:
                 pass
 
@@ -360,7 +342,7 @@ def generate_main_dashboard(output_dir: str) -> None:
 
     # Find plots (organized by category)
     all_plots = sorted(output_path.glob("*.pdf"))
-    plot_categories = {
+    plot_categories: dict[str, list[str]] = {
         "Performance Metrics": [],
         "Attack Detection": [],
         "Client Analysis": [],
@@ -371,9 +353,7 @@ def generate_main_dashboard(output_dir: str) -> None:
         name = plot.name
         if any(x in name for x in ["accuracy", "loss", "average"]):
             plot_categories["Performance Metrics"].append(name)
-        elif any(
-            x in name for x in ["removal", "precision", "recall", "f1", "fp", "fn"]
-        ):
+        elif any(x in name for x in ["removal", "precision", "recall", "f1", "fp", "fn"]):
             plot_categories["Attack Detection"].append(name)
         elif any(x in name for x in ["distance", "criterion"]):
             plot_categories["Client Analysis"].append(name)
@@ -610,9 +590,7 @@ def _generate_main_dashboard_html(
 """
         for snap in snapshot_info:
             strategy_label = (
-                f"Strategy {snap['strategy_num']}"
-                if num_strategies > 1
-                else "Attack Snapshots"
+                f"Strategy {snap['strategy_num']}" if num_strategies > 1 else "Attack Snapshots"
             )
             html += f"""
                 <div class="snapshot-card">

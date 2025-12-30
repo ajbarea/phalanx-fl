@@ -37,11 +37,11 @@ def save_attack_timeline_gif(
         figsize: Figure dimensions in inches.
     """
     if attack_types is None:
-        attack_types = set()
+        detected_types: set[str] = set()
         for client_data in attack_timeline.values():
             for round_attacks in client_data.values():
-                attack_types.update(round_attacks)
-        attack_types = sorted(list(attack_types))
+                detected_types.update(round_attacks)
+        attack_types = sorted(detected_types)
 
     attack_colors = {
         "label_flipping": "#e74c3c",
@@ -53,7 +53,9 @@ def save_attack_timeline_gif(
     }
 
     matrix = np.zeros((total_clients, total_rounds))
-    attack_matrix = [[None for _ in range(total_rounds)] for _ in range(total_clients)]
+    attack_matrix: list[list[Optional[str]]] = [
+        [None for _ in range(total_rounds)] for _ in range(total_clients)
+    ]
 
     for client_id, client_data in attack_timeline.items():
         client_idx = int(client_id)
@@ -247,7 +249,7 @@ def save_accuracy_progression_gif(
         fontsize=12,
         fontweight="bold",
         color="#7f8c8d",
-        bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="#bdc3c7"),
+        bbox={"boxstyle": "round,pad=0.3", "facecolor": "white", "edgecolor": "#bdc3c7"},
     )
 
     ax.legend(loc="lower right")
@@ -319,8 +321,7 @@ def save_client_comparison_gif(
     honest_color = "#2ecc71"
     malicious_color = "#e74c3c"
     colors = {
-        cid: malicious_color if cid in malicious_clients else honest_color
-        for cid in client_ids
+        cid: malicious_color if cid in malicious_clients else honest_color for cid in client_ids
     }
 
     ax.set_xlim(0.5, total_rounds + 0.5)
@@ -355,7 +356,7 @@ def save_client_comparison_gif(
         fontsize=14,
         fontweight="bold",
         color="#2c3e50",
-        bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="#bdc3c7"),
+        bbox={"boxstyle": "round,pad=0.3", "facecolor": "white", "edgecolor": "#bdc3c7"},
     )
 
     ax.legend(loc="lower right", ncol=2, fontsize=9)
@@ -443,9 +444,7 @@ def generate_all_animations(
             logging.warning(f"Failed to generate attack timeline animation: {e}")
 
     if round_metrics:
-        attack_rounds = attack_summary.get("attack_summary", {}).get(
-            "rounds_with_attacks", []
-        )
+        attack_rounds = attack_summary.get("attack_summary", {}).get("rounds_with_attacks", [])
         accuracy_path = snapshots_dir / "accuracy_progression.gif"
         try:
             save_accuracy_progression_gif(
@@ -458,9 +457,7 @@ def generate_all_animations(
             logging.warning(f"Failed to generate accuracy animation: {e}")
 
     if per_client_metrics:
-        malicious_clients = attack_summary.get("attack_summary", {}).get(
-            "clients_attacked", []
-        )
+        malicious_clients = attack_summary.get("attack_summary", {}).get("clients_attacked", [])
         comparison_path = snapshots_dir / "client_comparison.gif"
         try:
             save_client_comparison_gif(

@@ -9,11 +9,10 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional, Union
 
 import numpy as np
 from numpy.typing import NDArray
-
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +40,7 @@ def _get_weight_snapshot_dir(
     return snapshot_dir
 
 
-def _compute_weight_statistics(parameters: List[NDArray]) -> Dict[str, float]:
+def _compute_weight_statistics(parameters: list[NDArray]) -> dict[str, float]:
     """Compute summary statistics for model parameters.
 
     Args:
@@ -65,9 +64,9 @@ def _compute_weight_statistics(parameters: List[NDArray]) -> Dict[str, float]:
 
 
 def compute_weight_diff_statistics(
-    params_before: List[NDArray],
-    params_after: List[NDArray],
-) -> Dict[str, float]:
+    params_before: list[NDArray],
+    params_after: list[NDArray],
+) -> dict[str, float]:
     """Compute statistics on the difference between weight sets.
 
     Args:
@@ -99,15 +98,15 @@ def compute_weight_diff_statistics(
 
 
 def save_weight_snapshot(
-    parameters_before: List[NDArray],
-    parameters_after: List[NDArray],
+    parameters_before: list[NDArray],
+    parameters_after: list[NDArray],
     attack_type: str,
     attack_config: dict,
     client_id: int,
     round_num: int,
     output_dir: str,
     strategy_number: int = 0,
-    experiment_info: Optional[Dict[str, Any]] = None,
+    experiment_info: Optional[dict[str, Any]] = None,
     save_histogram: bool = True,
 ) -> None:
     """Save weight distribution snapshot before/after poisoning.
@@ -127,9 +126,7 @@ def save_weight_snapshot(
         experiment_info: Additional experiment metadata.
         save_histogram: Whether to save histogram plot (requires matplotlib).
     """
-    snapshot_dir = _get_weight_snapshot_dir(
-        output_dir, client_id, round_num, strategy_number
-    )
+    snapshot_dir = _get_weight_snapshot_dir(output_dir, client_id, round_num, strategy_number)
 
     stats_before = _compute_weight_statistics(parameters_before)
     stats_after = _compute_weight_statistics(parameters_after)
@@ -156,8 +153,7 @@ def save_weight_snapshot(
         json.dump(metadata, f, indent=2)
 
     logger.debug(
-        f"Saved {attack_type} weight snapshot: client {client_id}, round {round_num} "
-        f"-> {json_path}"
+        f"Saved {attack_type} weight snapshot: client {client_id}, round {round_num} -> {json_path}"
     )
 
     if save_histogram:
@@ -177,8 +173,8 @@ def save_weight_snapshot(
 
 
 def _save_weight_histogram(
-    params_before: List[NDArray],
-    params_after: List[NDArray],
+    params_before: list[NDArray],
+    params_after: list[NDArray],
     attack_type: str,
     snapshot_dir: Path,
     client_id: int,
@@ -216,21 +212,15 @@ def _save_weight_histogram(
     axes[1].set_ylabel("Density")
     axes[1].set_yscale("log")
 
-    axes[2].hist(
-        weights_before, bins=100, alpha=0.5, color="blue", density=True, label="Before"
-    )
-    axes[2].hist(
-        weights_after, bins=100, alpha=0.5, color="red", density=True, label="After"
-    )
+    axes[2].hist(weights_before, bins=100, alpha=0.5, color="blue", density=True, label="Before")
+    axes[2].hist(weights_after, bins=100, alpha=0.5, color="red", density=True, label="After")
     axes[2].set_title("Comparison")
     axes[2].set_xlabel("Weight Value")
     axes[2].set_ylabel("Density")
     axes[2].set_yscale("log")
     axes[2].legend()
 
-    fig.suptitle(
-        f"Weight Distribution - Client {client_id}, Round {round_num} ({attack_type})"
-    )
+    fig.suptitle(f"Weight Distribution - Client {client_id}, Round {round_num} ({attack_type})")
     plt.tight_layout()
 
     histogram_path = snapshot_dir / f"{attack_type}_weight_histogram.png"
@@ -240,7 +230,7 @@ def _save_weight_histogram(
     logger.debug(f"Saved weight histogram: {histogram_path}")
 
 
-def load_weight_snapshot(filepath: str) -> Optional[dict]:
+def load_weight_snapshot(filepath: Union[str, Path]) -> Optional[dict]:
     """Load a weight snapshot metadata file.
 
     Args:
@@ -249,21 +239,21 @@ def load_weight_snapshot(filepath: str) -> Optional[dict]:
     Returns:
         Dictionary containing snapshot metadata, or None if load fails.
     """
-    filepath = Path(filepath)
+    path = Path(filepath)
 
-    if not filepath.exists():
-        logger.error(f"Weight snapshot file not found: {filepath}")
+    if not path.exists():
+        logger.error(f"Weight snapshot file not found: {path}")
         return None
 
     try:
-        with open(filepath, "r") as f:
+        with open(path) as f:
             return json.load(f)
     except Exception as e:
-        logger.error(f"Failed to load weight snapshot {filepath}: {e}")
+        logger.error(f"Failed to load weight snapshot {path}: {e}")
         return None
 
 
-def list_weight_snapshots(output_dir: str, strategy_number: int = 0) -> List[Path]:
+def list_weight_snapshots(output_dir: str, strategy_number: int = 0) -> list[Path]:
     """List all weight snapshots in an output directory.
 
     Args:

@@ -9,7 +9,7 @@ Provides publication-quality visualizations for federated learning attack resear
 
 import math
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Any, Optional, Union
 
 import matplotlib
 import numpy as np
@@ -40,13 +40,11 @@ def _normalize_axes(axes, rows: int, cols: int):
 
 
 def _extract_attack_param(
-    attack_config: Union[dict, List[dict]], *attack_parameters: str, default: any = "?"
-) -> any:
+    attack_config: Union[dict, list[dict]], *attack_parameters: str, default: Any = "?"
+) -> Any:
     """Extract first matching parameter from attack config."""
     config = (
-        attack_config[0]
-        if isinstance(attack_config, list) and attack_config
-        else attack_config
+        attack_config[0] if isinstance(attack_config, list) and attack_config else attack_config
     )
 
     if isinstance(config, dict):
@@ -57,13 +55,12 @@ def _extract_attack_param(
     return default
 
 
-def _extract_attack_type(attack_config: Union[dict, List[dict]]) -> str:
+def _extract_attack_type(attack_config: Union[dict, list[dict]]) -> str:
     """Extract attack type string from config, joining multiple with underscore."""
     if isinstance(attack_config, list):
         if attack_config:
             attack_types = [
-                cfg.get("attack_type") or cfg.get("type", "unknown")
-                for cfg in attack_config
+                cfg.get("attack_type") or cfg.get("type", "unknown") for cfg in attack_config
             ]
             return "_".join(attack_types)
         else:
@@ -73,7 +70,7 @@ def _extract_attack_type(attack_config: Union[dict, List[dict]]) -> str:
 
 
 def _build_single_attack_title(
-    attack_config: Union[dict, List[dict]],
+    attack_config: Union[dict, list[dict]],
     attack_type: str,
     labels: np.ndarray,
     original_labels: np.ndarray,
@@ -101,7 +98,7 @@ def _build_single_attack_title(
 
 
 def _build_attack_title(
-    attack_config: Union[dict, List[dict]],
+    attack_config: Union[dict, list[dict]],
     attack_type: str,
     labels: np.ndarray,
     original_labels: np.ndarray,
@@ -130,11 +127,7 @@ def _build_attack_title(
             elif cfg_type == "token_replacement" and style == "fallback":
                 title_parts.append("Token poisoned")
 
-        return (
-            "\n".join(title_parts)
-            if title_parts
-            else f"{attack_type}\nLabel: {labels[index]}"
-        )
+        return "\n".join(title_parts) if title_parts else f"{attack_type}\nLabel: {labels[index]}"
     else:
         return _build_single_attack_title(
             attack_config, attack_type, labels, original_labels, index, style
@@ -146,7 +139,7 @@ def save_image_grid(
     labels: np.ndarray,
     original_labels: np.ndarray,
     filepath: Path,
-    attack_config: Union[dict, List[dict]],
+    attack_config: Union[dict, list[dict]],
     original_images: Optional[np.ndarray] = None,
 ) -> None:
     """Save image grid visualization comparing original and poisoned samples.
@@ -200,9 +193,7 @@ def save_image_grid(
                 attack_config, attack_type, labels, original_labels, i, "side_by_side"
             )
 
-            ax_poisoned.set_title(
-                title, fontsize=10, fontweight="bold", color="#c0392b"
-            )
+            ax_poisoned.set_title(title, fontsize=10, fontweight="bold", color="#c0392b")
             ax_poisoned.axis("off")
 
         total_pairs_needed = num_samples
@@ -273,8 +264,8 @@ def save_label_confusion_matrix(
     original_labels: np.ndarray,
     poisoned_labels: np.ndarray,
     filepath: Path,
-    attack_config: Optional[Union[dict, List[dict]]] = None,
-    class_names: Optional[List[str]] = None,
+    attack_config: Optional[Union[dict, list[dict]]] = None,
+    class_names: Optional[list[str]] = None,
 ) -> None:
     """Saves a publication-quality confusion matrix showing label flipping mappings.
 
@@ -369,7 +360,9 @@ def save_label_confusion_matrix(
     flipped_count = np.sum(original_labels != poisoned_labels)
     flip_rate = flipped_count / total_samples * 100 if total_samples > 0 else 0
 
-    stats_text = f"Total Samples: {total_samples} | Labels Flipped: {flipped_count} ({flip_rate:.1f}%)"
+    stats_text = (
+        f"Total Samples: {total_samples} | Labels Flipped: {flipped_count} ({flip_rate:.1f}%)"
+    )
     fig.text(
         0.5,
         0.02,
@@ -389,7 +382,7 @@ def save_noise_difference_heatmap(
     original_images: np.ndarray,
     noisy_images: np.ndarray,
     filepath: Path,
-    attack_config: Optional[Union[dict, List[dict]]] = None,
+    attack_config: Optional[Union[dict, list[dict]]] = None,
     max_samples: int = 4,
 ) -> None:
     """Saves a publication-quality difference heatmap for noise attack visualization.
@@ -452,6 +445,8 @@ def save_noise_difference_heatmap(
         global_max_diff = 0.1
 
     norm = TwoSlopeNorm(vmin=-global_max_diff, vcenter=0, vmax=global_max_diff)
+
+    im = None  # Initialize before loop to avoid possibly unbound error
 
     for i in range(num_samples):
         orig_img = orig_norm[i]
@@ -523,6 +518,7 @@ def save_noise_difference_heatmap(
             )
 
     cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])
+    assert im is not None, "No samples to display"
     cbar = fig.colorbar(im, cax=cbar_ax)
     cbar.set_label(
         "Pixel Difference (Noisy - Original)",
@@ -563,12 +559,12 @@ def save_noise_difference_heatmap(
 def save_weight_attack_prediction_grid(
     images: np.ndarray,
     labels: np.ndarray,
-    predictions_before: List[List[tuple]],
-    predictions_after: List[List[tuple]],
+    predictions_before: list[list[tuple]],
+    predictions_after: list[list[tuple]],
     weight_stats: dict,
     filepath: Path,
-    attack_config: Union[dict, List[dict]],
-    class_names: Optional[List[str]] = None,
+    attack_config: Union[dict, list[dict]],
+    class_names: Optional[list[str]] = None,
     full_probs_before: Optional[np.ndarray] = None,
     full_probs_after: Optional[np.ndarray] = None,
 ) -> None:
@@ -689,8 +685,7 @@ def save_weight_attack_prediction_grid(
 
         ax_before = fig.add_subplot(gs[i, 1])
         bar_labels = [
-            f"*{get_class_name(c)}*" if c == true_label else get_class_name(c)
-            for c in all_classes
+            f"*{get_class_name(c)}*" if c == true_label else get_class_name(c) for c in all_classes
         ]
         bar_values = [before_confs.get(c, 0) * 100 for c in all_classes]
         bar_colors = ["#27ae60" if c == true_label else "#3498db" for c in all_classes]
@@ -699,9 +694,7 @@ def save_weight_attack_prediction_grid(
         ax_before.invert_yaxis()  # Flip so highest confidence is at top
         ax_before.set_xlim(0, 105)
         ax_before.set_xlabel("Confidence %", fontsize=9)
-        ax_before.set_title(
-            "BEFORE Attack", fontsize=11, fontweight="bold", color="#27ae60"
-        )
+        ax_before.set_title("BEFORE Attack", fontsize=11, fontweight="bold", color="#27ae60")
         ax_before.tick_params(axis="y", labelsize=10)
 
         for bar, val in zip(bars, bar_values):
@@ -715,19 +708,13 @@ def save_weight_attack_prediction_grid(
 
         ax_after = fig.add_subplot(gs[i, 2])
         bar_values_after = [after_confs.get(c, 0) * 100 for c in all_classes]
-        bar_colors_after = [
-            "#27ae60" if c == true_label else "#e74c3c" for c in all_classes
-        ]
+        bar_colors_after = ["#27ae60" if c == true_label else "#e74c3c" for c in all_classes]
 
-        bars_after = ax_after.barh(
-            bar_labels, bar_values_after, color=bar_colors_after, height=0.6
-        )
+        bars_after = ax_after.barh(bar_labels, bar_values_after, color=bar_colors_after, height=0.6)
         ax_after.invert_yaxis()  # Match BEFORE chart orientation
         ax_after.set_xlim(0, 105)
         ax_after.set_xlabel("Confidence %", fontsize=9)
-        ax_after.set_title(
-            "AFTER Attack", fontsize=11, fontweight="bold", color="#c0392b"
-        )
+        ax_after.set_title("AFTER Attack", fontsize=11, fontweight="bold", color="#c0392b")
         ax_after.tick_params(axis="y", labelsize=10)
 
         for bar, val in zip(bars_after, bar_values_after):
@@ -741,8 +728,7 @@ def save_weight_attack_prediction_grid(
 
     attack_display = attack_type.replace("_", " ").title()
     fig.suptitle(
-        f"Weight Attack Prediction Impact: {attack_display}\n"
-        f"(* = True Label, shown in green)",
+        f"Weight Attack Prediction Impact: {attack_display}\n(* = True Label, shown in green)",
         fontsize=14,
         fontweight="bold",
     )
@@ -757,9 +743,7 @@ def save_weight_attack_prediction_grid(
         for pb, pa in zip(predictions_before, predictions_after)
         if pb and pa and pb[0][0] != pa[0][0]
     )
-    pred_change_pct = (
-        (pred_changes / len(predictions_before) * 100) if predictions_before else 0
-    )
+    pred_change_pct = (pred_changes / len(predictions_before) * 100) if predictions_before else 0
 
     stats_text = (
         f"Weight Stats: {pct_changed:.1f}% changed | "
@@ -777,7 +761,7 @@ def save_weight_attack_prediction_grid(
         fontsize=10,
         style="italic",
         color="#555555",
-        bbox=dict(boxstyle="round,pad=0.5", facecolor="#f8f9fa", edgecolor="#dee2e6"),
+        bbox={"boxstyle": "round,pad=0.5", "facecolor": "#f8f9fa", "edgecolor": "#dee2e6"},
     )
 
     plt.savefig(filepath, dpi=150, bbox_inches="tight", facecolor="white")

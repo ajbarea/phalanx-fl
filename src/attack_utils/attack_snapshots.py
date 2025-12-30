@@ -7,7 +7,7 @@ import logging
 import pickle
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 import torch
@@ -20,13 +20,12 @@ from .snapshot_image_viz import (
 from .snapshot_text_viz import save_text_samples, save_text_samples_html
 
 
-def _extract_attack_type(attack_config: Union[dict, List[dict]]) -> str:
+def _extract_attack_type(attack_config: Union[dict, list[dict]]) -> str:
     """Extract attack type string from config, joining multiple with underscore."""
     if isinstance(attack_config, list):
         if attack_config:
             attack_types = [
-                cfg.get("attack_type") or cfg.get("type", "unknown")
-                for cfg in attack_config
+                cfg.get("attack_type") or cfg.get("type", "unknown") for cfg in attack_config
             ]
             return "_".join(attack_types)
         else:
@@ -49,11 +48,11 @@ def _create_snapshot_metadata(
     client_id: int,
     round_num: int,
     attack_type: str,
-    attack_config: Union[dict, List[dict]],
+    attack_config: Union[dict, list[dict]],
     num_samples: int,
     data_shape: Optional[list] = None,
     labels_shape: Optional[list] = None,
-    experiment_info: Optional[Dict[str, Any]] = None,
+    experiment_info: Optional[dict[str, Any]] = None,
 ) -> dict:
     """Create metadata dictionary for attack snapshot."""
     metadata = {
@@ -100,9 +99,7 @@ def _save_pickle_snapshot(
         "data": data_sample.cpu().numpy(),
         "labels": labels_sample.cpu().numpy(),
         "original_labels": (
-            original_labels_sample.cpu().numpy()
-            if original_labels_sample is not None
-            else None
+            original_labels_sample.cpu().numpy() if original_labels_sample is not None else None
         ),
     }
 
@@ -120,14 +117,14 @@ def _save_pickle_snapshot(
 def save_attack_snapshot(
     client_id: int,
     round_num: int,
-    attack_config: Union[dict, List[dict]],
+    attack_config: Union[dict, list[dict]],
     data_sample: torch.Tensor,
     labels_sample: torch.Tensor,
     original_labels_sample: Optional[torch.Tensor],
     output_dir: str,
     max_samples: int = 5,
     save_format: str = "pickle",
-    experiment_info: Optional[Dict[str, Any]] = None,
+    experiment_info: Optional[dict[str, Any]] = None,
     strategy_number: int = 0,
 ) -> None:
     """Save attack snapshot for inspection.
@@ -195,7 +192,7 @@ def save_attack_snapshot(
         logging.warning(f"Failed to save attack snapshot for client {client_id}: {e}")
 
 
-def load_attack_snapshot(filepath: str) -> Optional[dict]:
+def load_attack_snapshot(filepath: Union[str, Path]) -> Optional[dict]:
     """Load an attack snapshot for inspection.
 
     Args:
@@ -204,25 +201,25 @@ def load_attack_snapshot(filepath: str) -> Optional[dict]:
     Returns:
         Dictionary containing snapshot data and metadata, or None if load fails
     """
-    filepath = Path(filepath)
+    path = Path(filepath)
 
-    if not filepath.exists():
-        logging.error(f"Snapshot file not found: {filepath}")
+    if not path.exists():
+        logging.error(f"Snapshot file not found: {path}")
         return None
 
     try:
-        if filepath.suffix == ".pickle":
-            with open(filepath, "rb") as f:
+        if path.suffix == ".pickle":
+            with open(path, "rb") as f:
                 return pickle.load(f)
-        elif filepath.suffix == ".json":
-            with open(filepath, "r") as f:
+        elif path.suffix == ".json":
+            with open(path) as f:
                 return json.load(f)
         else:
-            logging.error(f"Unsupported snapshot format: {filepath.suffix}")
+            logging.error(f"Unsupported snapshot format: {path.suffix}")
             return None
 
     except Exception as e:
-        logging.error(f"Failed to load snapshot {filepath}: {e}")
+        logging.error(f"Failed to load snapshot {path}: {e}")
         return None
 
 
@@ -248,9 +245,7 @@ def list_attack_snapshots(output_dir: str, strategy_number: int = 0) -> list:
         if pickle_snapshots:
             all_snapshots.extend(pickle_snapshots)
         else:
-            json_snapshots = list(
-                attack_snapshots_dir.glob("client_*/round_*/*_metadata.json")
-            )
+            json_snapshots = list(attack_snapshots_dir.glob("client_*/round_*/*_metadata.json"))
             all_snapshots.extend(json_snapshots)
 
     weight_snapshots_dir = base_path / f"weight_snapshots_{strategy_number}"
@@ -275,37 +270,35 @@ def get_snapshot_summary(output_dir: str, strategy_number: int = 0) -> dict:
     """
     snapshots = list_attack_snapshots(output_dir, strategy_number)
 
-    summary = {
-        "total_snapshots": len(snapshots),
-        "clients_attacked": set(),
-        "rounds_with_attacks": set(),
-        "attack_types": set(),
-    }
+    clients_attacked: set[Any] = set()
+    rounds_with_attacks: set[Any] = set()
+    attack_types: set[Any] = set()
 
     for snapshot_path in snapshots:
         snapshot = load_attack_snapshot(str(snapshot_path))
         if snapshot:
             metadata = snapshot.get("metadata", snapshot)
-            summary["clients_attacked"].add(metadata.get("client_id"))
-            summary["rounds_with_attacks"].add(metadata.get("round_num"))
-            summary["attack_types"].add(metadata.get("attack_type"))
+            clients_attacked.add(metadata.get("client_id"))
+            rounds_with_attacks.add(metadata.get("round_num"))
+            attack_types.add(metadata.get("attack_type"))
 
-    summary["clients_attacked"] = sorted(list(summary["clients_attacked"]))
-    summary["rounds_with_attacks"] = sorted(list(summary["rounds_with_attacks"]))
-    summary["attack_types"] = sorted(list(summary["attack_types"]))
-
-    return summary
+    return {
+        "total_snapshots": len(snapshots),
+        "clients_attacked": sorted(clients_attacked),
+        "rounds_with_attacks": sorted(rounds_with_attacks),
+        "attack_types": sorted(attack_types),
+    }
 
 
 def save_visual_snapshot(
     client_id: int,
     round_num: int,
-    attack_config: Union[dict, List[dict]],
+    attack_config: Union[dict, list[dict]],
     data_sample: np.ndarray,
     labels_sample: np.ndarray,
     original_labels_sample: np.ndarray,
     output_dir: str,
-    experiment_info: Optional[Dict[str, Any]] = None,
+    experiment_info: Optional[dict[str, Any]] = None,
     strategy_number: int = 0,
     tokenizer=None,
     original_data_sample: Optional[np.ndarray] = None,
@@ -367,9 +360,7 @@ def save_visual_snapshot(
                     snapshot_dir / heatmap_filename,
                     attack_config=attack_config,
                 )
-                logging.debug(
-                    f"Saved noise difference heatmap: {snapshot_dir / heatmap_filename}"
-                )
+                logging.debug(f"Saved noise difference heatmap: {snapshot_dir / heatmap_filename}")
         else:
             filename = f"{attack_type}_samples.txt"
             save_text_samples(
