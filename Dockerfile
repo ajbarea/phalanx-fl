@@ -1,30 +1,53 @@
-# Dockerfile for FL Execution Framework API
-# Enables PyTorch 2.6.0 on Intel Macs via Linux container
+# Research: Reproducible container guidelines (Rule 4: Version Control)
+# https://doi.org/10.1371/journal.pcbi.1008316
 
-FROM python:3.11-slim
+# PyTorch base with CUDA (auto-detects GPU at runtime via torch.cuda.is_available)
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+
+# OCI labels for artifact identification and citation
+LABEL org.opencontainers.image.title="FL Execution Framework"
+LABEL org.opencontainers.image.description="Federated Learning simulation framework for Byzantine-resilient aggregation research"
+LABEL org.opencontainers.image.authors="AJ Bartocci <ajbartocci@example.com>"
+LABEL org.opencontainers.image.source="https://github.com/ajbartocci/fl-execution-framework"
+LABEL org.opencontainers.image.version="1.0.0"
+# LABEL org.opencontainers.image.url="https://doi.org/10.5281/zenodo.XXXXXXX"  # Add after Zenodo upload
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.created="2025-01-01"
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    CUDA_VISIBLE_DEVICES="" \
+    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 WORKDIR /app
 
-# Install system dependencies
+# curl for healthcheck, git for model downloads
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
+    curl \
     git \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Copy requirements first for layer caching
-# Use CPU-only requirements (no CUDA needed for Intel Mac development)
-COPY requirements-docker.txt ./requirements.txt
-
-# Install Python dependencies (torch 2.6.0 works on Linux!)
+# Requirements first for layer caching (PyTorch already in base image)
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code
 COPY src/ ./src/
 COPY config/ ./config/
-COPY datasets/ ./datasets/
 
-# Expose API port
+# Entrypoint auto-downloads datasets on first run
+COPY entrypoint.sh ./
+RUN chmod +x entrypoint.sh
+
+# Mounted at runtime for data persistence
+RUN mkdir -p /app/out /app/datasets
+
 EXPOSE 8000
 
-# Run the API server
-CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/api/health || exit 1
+
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
