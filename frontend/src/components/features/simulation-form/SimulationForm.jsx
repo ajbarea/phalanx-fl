@@ -9,7 +9,7 @@ import { FlowerSettings } from './ConfigSections/FlowerSettings';
 import { TransformerSettings } from './ConfigSections/TransformerSettings';
 import { LLMSettings } from './ConfigSections/LLMSettings';
 import { OutputSettings } from './ConfigSections/OutputSettings';
-import { DynamicAttacks } from './ConfigSections/DynamicAttacks';
+import { AttackSchedule } from './ConfigSections/AttackSchedule';
 import ValidationSummary from '@components/ValidationSummary';
 import { StickyFormFooter } from '@components/common/StickyFormFooter';
 import { TOOLTIP_DELAYS } from '@constants/ui';
@@ -43,7 +43,6 @@ const FIELD_TO_SECTION = {
   preserve_dataset: '7',
   save_csv: '7',
   save_plots: '7',
-  dynamic_attacks: '8',
   attack_schedule: '8',
 };
 
@@ -80,8 +79,8 @@ export function SimulationForm({
       case 'output':
         return `${config.preserve_dataset === 'true' ? 'Preserve dataset' : 'Clean after run'}`;
       case 'dynamic':
-        return config.dynamic_attacks?.enabled
-          ? `${config.dynamic_attacks.schedule?.length || 0} attack phases`
+        return config.attack_schedule?.length > 0
+          ? `${config.attack_schedule.length} attack phases`
           : 'Disabled';
       default:
         return '';
@@ -201,18 +200,18 @@ export function SimulationForm({
           </div>
         );
       case 'dynamic':
-        return config.dynamic_attacks?.enabled ? (
+        return config.attack_schedule?.length > 0 ? (
           <div style={{ textAlign: 'left' }}>
             <div>
-              <strong>{config.dynamic_attacks.schedule?.length || 0} attack phases</strong> - Number
-              of scheduled attack phases
+              <strong>{config.attack_schedule.length} attack phases</strong> - Number of scheduled
+              attack phases
             </div>
             <div>Attacks that change during training rounds</div>
           </div>
         ) : (
           <div style={{ textAlign: 'left' }}>
             <div>
-              <strong>Disabled</strong> - No dynamic attacks configured
+              <strong>Disabled</strong> - No attack schedule configured
             </div>
           </div>
         );
@@ -503,7 +502,7 @@ export function SimulationForm({
         <Accordion.Item eventKey="8" data-section-key="8">
           <Accordion.Header>
             <div className="d-flex align-items-center justify-content-between w-100 me-3">
-              <span>Dynamic Attacks (Advanced)</span>
+              <span>Attack Schedule (Advanced)</span>
               {!activeSection.includes('8') && (
                 <OverlayTrigger
                   placement="left"
@@ -522,7 +521,7 @@ export function SimulationForm({
             </div>
           </Accordion.Header>
           <Accordion.Body>
-            <DynamicAttacks config={config} onChange={onConfigChange} />
+            <AttackSchedule config={config} onChange={onConfigChange} />
           </Accordion.Body>
         </Accordion.Item>
       </Accordion>

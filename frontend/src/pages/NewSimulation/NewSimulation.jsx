@@ -153,21 +153,6 @@ export function NewSimulation() {
       gpus_per_client: deviceSettings.gpus_per_client ?? initialConfig.gpus_per_client,
     };
 
-    // Sync attack_schedule to dynamic_attacks for UI
-    if (preset.config.attack_schedule?.length > 0) {
-      newConfig.dynamic_attacks = {
-        enabled: true,
-        schedule: preset.config.attack_schedule,
-      };
-    } else {
-      // Clear dynamic_attacks when preset has no attacks
-      newConfig.dynamic_attacks = {
-        enabled: false,
-        schedule: [],
-      };
-      newConfig.attack_schedule = [];
-    }
-
     setSelectedPreset(presetKey);
     setConfig(newConfig);
   };

@@ -680,19 +680,12 @@ export function validateLLMConfig(config) {
  * Checks for overlapping rounds with the same attack type (not allowed)
  * Different attack types CAN overlap (they stack)
  */
-export function validateDynamicAttacks(config) {
+export function validateAttackSchedule(config) {
   const errors = [];
   const warnings = [];
   const infos = [];
 
-  const { num_of_rounds, preserve_dataset, dynamic_attacks } = config;
-
-  // Get attack schedule from either location (form uses dynamic_attacks.schedule)
-  // Note: config.attack_schedule may be [] which is truthy, so check length
-  const attack_schedule =
-    config.attack_schedule && config.attack_schedule.length > 0
-      ? config.attack_schedule
-      : (dynamic_attacks?.enabled && dynamic_attacks?.schedule) || [];
+  const { num_of_rounds, preserve_dataset, attack_schedule = [] } = config;
 
   // Skip if no attack schedule
   if (!attack_schedule || attack_schedule.length === 0) {
@@ -812,7 +805,7 @@ export function validateConfig(config) {
   const attackValidation = validateAttackConfig(config);
   const datasetModelValidation = validateDatasetModelCompatibility(config);
   const llmValidation = validateLLMConfig(config);
-  const dynamicAttacksValidation = validateDynamicAttacks(config);
+  const attackScheduleValidation = validateAttackSchedule(config);
 
   // Aggregate all errors, warnings, and infos
   const errors = [
@@ -822,7 +815,7 @@ export function validateConfig(config) {
     ...attackValidation.errors,
     ...datasetModelValidation.errors,
     ...llmValidation.errors,
-    ...dynamicAttacksValidation.errors,
+    ...attackScheduleValidation.errors,
   ];
 
   const warnings = [
@@ -832,7 +825,7 @@ export function validateConfig(config) {
     ...attackValidation.warnings,
     ...datasetModelValidation.warnings,
     ...llmValidation.warnings,
-    ...dynamicAttacksValidation.warnings,
+    ...attackScheduleValidation.warnings,
   ];
 
   const infos = [
@@ -842,7 +835,7 @@ export function validateConfig(config) {
     ...attackValidation.infos,
     ...datasetModelValidation.infos,
     ...llmValidation.infos,
-    ...dynamicAttacksValidation.infos,
+    ...attackScheduleValidation.infos,
   ];
 
   return {

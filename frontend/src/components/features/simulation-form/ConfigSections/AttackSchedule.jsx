@@ -5,25 +5,45 @@ import { NumberField } from '../FormFields/NumberField';
 import { SelectField } from '../FormFields/SelectField';
 import { ATTACKS } from '@constants/attacks';
 
-export function DynamicAttacks({ config, onChange }) {
-  const [schedule, setSchedule] = useState(config.dynamic_attacks?.schedule || []);
+export function AttackSchedule({ config, onChange }) {
+  const [schedule, setSchedule] = useState(config.attack_schedule || []);
 
-  // Sync local schedule state when dynamic attack changes
+  // Sync local schedule state when attack_schedule changes
   useEffect(() => {
-    const configSchedule = config.dynamic_attacks?.schedule || [];
+    const configSchedule = config.attack_schedule || [];
     if (JSON.stringify(configSchedule) !== JSON.stringify(schedule)) {
       setSchedule(configSchedule);
     }
-  }, [config.dynamic_attacks?.schedule, schedule]);
+  }, [config.attack_schedule, schedule]);
+
+  // Derive enabled state from whether schedule has items
+  const isEnabled = schedule.length > 0;
+
+  const emitChange = newSchedule => {
+    setSchedule(newSchedule);
+    onChange({
+      target: {
+        name: 'attack_schedule',
+        value: newSchedule,
+      },
+    });
+  };
 
   const handleEnabledChange = e => {
     const enabled = e.target.checked;
-    onChange({
-      target: {
-        name: 'dynamic_attacks',
-        value: { enabled, schedule: enabled ? schedule : [] },
-      },
-    });
+    if (enabled && schedule.length === 0) {
+      // Add a default phase when enabling
+      const defaultPhase = {
+        start_round: 1,
+        end_round: config.num_of_rounds || 10,
+        selection_strategy: 'specific',
+        malicious_client_ids: [0],
+        attack_type: 'label_flipping',
+      };
+      emitChange([defaultPhase]);
+    } else if (!enabled) {
+      emitChange([]);
+    }
   };
 
   const handleAddAttackPhase = () => {
@@ -34,53 +54,33 @@ export function DynamicAttacks({ config, onChange }) {
       malicious_client_ids: [0],
       attack_type: 'label_flipping',
     };
-    const newSchedule = [...schedule, newPhase];
-    setSchedule(newSchedule);
-    onChange({
-      target: {
-        name: 'dynamic_attacks',
-        value: { enabled: true, schedule: newSchedule },
-      },
-    });
+    emitChange([...schedule, newPhase]);
   };
 
   const handleRemovePhase = index => {
-    const newSchedule = schedule.filter((_, i) => i !== index);
-    setSchedule(newSchedule);
-    onChange({
-      target: {
-        name: 'dynamic_attacks',
-        value: { enabled: config.dynamic_attacks?.enabled || false, schedule: newSchedule },
-      },
-    });
+    emitChange(schedule.filter((_, i) => i !== index));
   };
 
   const handlePhaseChange = (index, field, value) => {
     const newSchedule = [...schedule];
-    newSchedule[index][field] = value;
-    setSchedule(newSchedule);
-    onChange({
-      target: {
-        name: 'dynamic_attacks',
-        value: { enabled: config.dynamic_attacks?.enabled || false, schedule: newSchedule },
-      },
-    });
+    newSchedule[index] = { ...newSchedule[index], [field]: value };
+    emitChange(newSchedule);
   };
 
   return (
     <>
       <SwitchField
-        name="dynamic_attacks_enabled"
-        label="Enable Dynamic Attacks"
-        checked={config.dynamic_attacks?.enabled || false}
+        name="attack_schedule_enabled"
+        label="Enable Attack Schedule"
+        checked={isEnabled}
         onChange={handleEnabledChange}
         tooltip="Schedule attacks to occur during specific rounds (advanced feature)"
       />
 
-      {config.dynamic_attacks?.enabled && (
+      {isEnabled && (
         <>
           <Alert variant="info" className="small">
-            Dynamic attacks allow you to schedule different attacks at different rounds. This is
+            Attack scheduling allows you to configure different attacks at different rounds. This is
             useful for testing defense adaptation over time.
           </Alert>
 

@@ -71,7 +71,7 @@ export const PRESETS = {
         {
           start_round: 8,
           end_round: 18,
-          attack_type: 'label_flip',
+          attack_type: 'label_flipping',
           poison_ratio: 0.15,
           selection_strategy: 'specific',
           malicious_client_ids: [0, 1],
@@ -451,7 +451,7 @@ export const PRESETS = {
   },
   adaptive_defense: {
     name: 'Adaptive Multi-Phase',
-    subtitle: '15 rounds - 5 clients - Dynamic Attacks',
+    subtitle: '15 rounds - 5 clients - Attack Schedule',
     description:
       'Advanced defense showcasing multiple attack types: data poisoning, weight poisoning, and gradient manipulation. PID controller adapts to evolving threats.',
     estimatedTime: '3-4 minutes',
