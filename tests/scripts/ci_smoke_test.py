@@ -298,7 +298,7 @@ def main():
     args = parser.parse_args()
 
     configs = [args.config] if args.config else FAST_CONFIGS
-    config_dir = project_root / "config" / "simulation_strategies" / "testing"
+    config_dir = project_root / "config" / "simulation_strategies" / "cpu"
     baselines_dir = project_root / "tests" / "fixtures" / "baselines"
 
     missing = [c for c in configs if not (config_dir / c).exists()]

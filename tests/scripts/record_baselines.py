@@ -6,7 +6,7 @@ to create lightweight baseline JSON files for CI validation.
 
 Usage:
     # Record a single config
-    python tests/scripts/record_baselines.py --config testing/femnist_bulyan_baseline.json
+    python tests/scripts/record_baselines.py --config cpu/femnist_bulyan_baseline.json
 
     # Record all fast configs (under 2 min)
     python tests/scripts/record_baselines.py --all-fast
@@ -391,8 +391,8 @@ def main():
     )
     parser.add_argument(
         "--config-dir",
-        default="testing",
-        help="Subdirectory under config/simulation_strategies/ (default: testing)",
+        default="cpu",
+        help="Subdirectory under config/simulation_strategies/ (default: cpu)",
     )
     parser.add_argument(
         "--output-dir",

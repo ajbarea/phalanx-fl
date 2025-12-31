@@ -550,8 +550,8 @@ def main():
     )
     parser.add_argument(
         "--config-dir",
-        default="testing",
-        help="Subdirectory under config/simulation_strategies/ (default: testing)",
+        default="cpu",
+        help="Subdirectory under config/simulation_strategies/ (default: cpu)",
     )
     parser.add_argument(
         "--baselines-dir",

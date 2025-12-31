@@ -31,7 +31,7 @@ class ConfigReader:
             project_root: Root directory of the project
         """
         self.project_root = Path(project_root)
-        self.config_dir = self.project_root / "config" / "simulation_strategies" / "testing"
+        self.config_dir = self.project_root / "config" / "simulation_strategies" / "cpu"
         self._cache: dict[str, dict[str, Any]] = {}
 
     def _get_config_path(self, config_name: str) -> Path:
