@@ -9,7 +9,6 @@
         "dataset_keyword": "medquad",
         "model_type": "transformer",
         "use_llm": "true",
-        "attack_type": "token_replacement",
         "attack_schedule": [
             {
                 "start_round": 1,
@@ -60,21 +59,7 @@
         "lora_target_modules": [
             "q_lin",
             "v_lin"
-        ],
-        "dynamic_attacks": {
-            "enabled": true,
-            "schedule": [
-                {
-                    "start_round": 1,
-                    "end_round": 5,
-                    "attack_type": "token_replacement",
-                    "target_vocabulary": "medical",
-                    "replacement_strategy": "negative",
-                    "selection_strategy": "specific",
-                    "malicious_client_ids": [0]
-                }
-            ]
-        }
+        ]
     },
     "simulation_strategies": [
         {}
