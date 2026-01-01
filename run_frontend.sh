@@ -30,7 +30,7 @@ fi
 log_info "✅ Setup complete!"
 echo ""
 log_info "Starting servers..."
-echo "  - API: http://127.0.0.1:8000"
+echo "  - API: http://localhost:8000"
 echo "  - Frontend: http://localhost:5173"
 echo ""
 log_info "Press Ctrl+C to stop both servers"
@@ -53,7 +53,7 @@ log_info "Waiting for API to be ready..."
 max_attempts=30
 attempt=0
 while [ $attempt -lt $max_attempts ]; do
-    if curl -s http://127.0.0.1:8000/api/health > /dev/null 2>&1; then
+    if curl -s http://localhost:8000/api/health > /dev/null 2>&1; then
         log_info "API is ready!"
         break
     fi
