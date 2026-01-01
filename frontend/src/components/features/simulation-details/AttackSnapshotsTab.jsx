@@ -1,6 +1,214 @@
-import { useState, useEffect } from 'react';
-import { Card, Alert, Spinner, Badge, Row, Col, Form, Modal, Button } from 'react-bootstrap';
+import { useState, useEffect, useMemo } from 'react';
+import {
+  Card,
+  Alert,
+  Spinner,
+  Badge,
+  Row,
+  Col,
+  Form,
+  Modal,
+  Button,
+  Nav,
+} from 'react-bootstrap';
 import { apiClient } from '@api/client';
+
+// Visualization type labels and display order
+const VIZ_TYPES = {
+  primary: { label: 'Samples', icon: '🖼️' },
+  comparison: { label: 'Comparison', icon: '🔄' },
+  confusion_matrix: { label: 'Confusion Matrix', icon: '📊' },
+  difference_heatmap: { label: 'Difference Heatmap', icon: '🌡️' },
+  weight_histogram: { label: 'Weight Distribution', icon: '📈' },
+  prediction_grid: { label: 'Prediction Impact', icon: '🎯' },
+  html_diff: { label: 'Token Diff', icon: '📝' },
+};
+
+// Attack type descriptions for education
+const ATTACK_DESCRIPTIONS = {
+  label_flipping: {
+    title: 'Label Flipping Attack',
+    description:
+      'Changes training labels to wrong classes without modifying the actual images. The visual comparison shows identical images with different labels.',
+    tip: 'Check the Confusion Matrix tab to see label remapping patterns.',
+  },
+  gaussian_noise: {
+    title: 'Gaussian Noise Attack',
+    description: 'Adds random noise to training images, disrupting the learning process.',
+    tip: 'Check the Difference Heatmap tab to see pixel-level noise patterns.',
+  },
+  model_poisoning: {
+    title: 'Model Poisoning Attack',
+    description: 'Manipulates model weights to extreme values, degrading performance.',
+    tip: 'Check the Prediction Impact and Weight Distribution tabs.',
+  },
+  gradient_scaling: {
+    title: 'Gradient Scaling Attack',
+    description: 'Multiplies weight updates by a factor, amplifying malicious changes.',
+    tip: 'Check the Weight Distribution tab to see the scale of modifications.',
+  },
+  byzantine_perturbation: {
+    title: 'Byzantine Perturbation Attack',
+    description: 'Injects random noise into model weights during training.',
+    tip: 'Check the Weight Distribution tab to see noise patterns.',
+  },
+  token_replacement: {
+    title: 'Token Replacement Attack',
+    description: 'Replaces tokens in text data with adversarial alternatives.',
+    tip: 'Check the Token Diff tab for detailed before/after comparison.',
+  },
+};
+
+function AttackSnapshotCard({ snapshot, simulationId, onImageClick }) {
+  const [activeTab, setActiveTab] = useState('primary');
+
+  // Memoize visualizations to prevent dependency changes on every render
+  const visualizations = useMemo(
+    () => snapshot.visualizations || { primary: snapshot.image_path },
+    [snapshot.visualizations, snapshot.image_path]
+  );
+
+  // Get available visualization types for this snapshot
+  const availableViz = useMemo(() => {
+    return Object.entries(VIZ_TYPES)
+      .filter(([key]) => visualizations[key])
+      .map(([key, config]) => ({ key, ...config }));
+  }, [visualizations]);
+
+  // Get attack info
+  const attackInfo = ATTACK_DESCRIPTIONS[snapshot.attack_type] || null;
+
+  // Ensure active tab is valid
+  useEffect(() => {
+    if (!visualizations[activeTab]) {
+      const firstAvailable = availableViz[0]?.key || 'primary';
+      setActiveTab(firstAvailable);
+    }
+  }, [activeTab, visualizations, availableViz]);
+
+  const renderVisualization = () => {
+    const vizPath = visualizations[activeTab];
+    if (!vizPath) return null;
+
+    // Check if the path is an HTML file (for text-based attacks)
+    const isHtmlViz = activeTab === 'html_diff' || vizPath.endsWith('.html');
+
+    if (isHtmlViz) {
+      return (
+        <iframe
+          src={`/api/simulations/${simulationId}/results/${vizPath}`}
+          title="Token Replacement Visualization"
+          className="w-100 rounded border-0"
+          style={{ height: '500px', backgroundColor: '#1e1e1e' }}
+        />
+      );
+    }
+
+    return (
+      <img
+        src={`/api/simulations/${simulationId}/results/${vizPath}`}
+        alt={`${snapshot.attack_type} - ${VIZ_TYPES[activeTab]?.label || activeTab}`}
+        className="img-fluid rounded"
+        style={{ maxHeight: '400px', width: '100%', objectFit: 'contain', cursor: 'pointer' }}
+        onClick={() => onImageClick({ ...snapshot, currentViz: activeTab })}
+      />
+    );
+  };
+
+  return (
+    <Card className="h-100 shadow-sm">
+      <Card.Header className="py-2">
+        <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <Badge bg="primary" className="me-2">
+              Round {snapshot.round_num}
+            </Badge>
+            <Badge bg="secondary" className="me-2">
+              Client {snapshot.client_id}
+            </Badge>
+          </div>
+          <Badge bg="danger">{snapshot.attack_type.replace(/_/g, ' ')}</Badge>
+        </div>
+      </Card.Header>
+
+      {availableViz.length > 1 && (
+        <Card.Body className="py-2 px-3 border-bottom">
+          <Nav variant="pills" className="flex-row flex-wrap gap-1" activeKey={activeTab}>
+            {availableViz.map(viz => (
+              <Nav.Item key={viz.key}>
+                <Nav.Link
+                  eventKey={viz.key}
+                  onClick={() => setActiveTab(viz.key)}
+                  className="py-1 px-2 small"
+                  style={{ fontSize: '0.75rem' }}
+                >
+                  {viz.icon} {viz.label}
+                </Nav.Link>
+              </Nav.Item>
+            ))}
+          </Nav>
+        </Card.Body>
+      )}
+
+      <Card.Body className="p-2">{renderVisualization()}</Card.Body>
+
+      {snapshot.metadata && (
+        <Card.Footer className="py-2 small text-muted">
+          <div className="d-flex justify-content-between flex-wrap gap-1">
+            {snapshot.metadata.num_samples && <span>Samples: {snapshot.metadata.num_samples}</span>}
+            {snapshot.metadata.data_shape && (
+              <span>Shape: {snapshot.metadata.data_shape.join(' × ')}</span>
+            )}
+            {/* Weight attack statistics */}
+            {snapshot.metadata.statistics?.difference && (
+              <>
+                <span>
+                  Changed: {snapshot.metadata.statistics.difference.pct_changed?.toFixed(1)}%
+                </span>
+                <span>
+                  L2 Norm: {snapshot.metadata.statistics.difference.diff_l2_norm?.toFixed(2)}
+                </span>
+              </>
+            )}
+          </div>
+        </Card.Footer>
+      )}
+
+      {/* Label Flipping Summary Stats */}
+      {snapshot.flip_summary && snapshot.attack_type === 'label_flipping' && (
+        <Card.Footer className="py-2 small border-top" style={{ backgroundColor: '#fff3cd' }}>
+          <div className="d-flex flex-wrap gap-2 align-items-center">
+            <Badge bg="danger">
+              {snapshot.flip_summary.flipped_samples}/{snapshot.flip_summary.total_samples} flipped
+              ({snapshot.flip_summary.flip_rate}%)
+            </Badge>
+            {snapshot.flip_summary.top_flip_patterns?.slice(0, 2).map((pattern, i) => (
+              <Badge key={i} bg="secondary">
+                {pattern.from} → {pattern.to} ({pattern.count})
+              </Badge>
+            ))}
+          </div>
+        </Card.Footer>
+      )}
+
+      {attackInfo && activeTab === 'primary' && (
+        <Card.Footer className="py-2 small border-top bg-light">
+          <div className="text-muted">
+            <strong className="d-block mb-1">{attackInfo.title}</strong>
+            <p className="mb-1" style={{ fontSize: '0.75rem' }}>
+              {attackInfo.description}
+            </p>
+            {availableViz.length > 1 && (
+              <p className="mb-0 fst-italic" style={{ fontSize: '0.7rem' }}>
+                💡 {attackInfo.tip}
+              </p>
+            )}
+          </div>
+        </Card.Footer>
+      )}
+    </Card>
+  );
+}
 
 export function AttackSnapshotsTab({ simulationId, status }) {
   const [loading, setLoading] = useState(true);
@@ -94,6 +302,16 @@ export function AttackSnapshotsTab({ simulationId, status }) {
   // Get summary from first strategy
   const summary = data.strategies[0]?.summary;
 
+  // Count visualization types available
+  const vizTypeCounts = {};
+  allSnapshots.forEach(s => {
+    if (s.visualizations) {
+      Object.keys(s.visualizations).forEach(vt => {
+        vizTypeCounts[vt] = (vizTypeCounts[vt] || 0) + 1;
+      });
+    }
+  });
+
   return (
     <Card className="mt-3">
       <Card.Body>
@@ -118,6 +336,18 @@ export function AttackSnapshotsTab({ simulationId, status }) {
                 ))}
               </div>
             </div>
+            {Object.keys(vizTypeCounts).length > 1 && (
+              <div className="mt-2 small text-muted">
+                <strong>Available Visualizations:</strong>{' '}
+                {Object.entries(VIZ_TYPES)
+                  .filter(([key]) => vizTypeCounts[key])
+                  .map(([key, config]) => (
+                    <Badge key={key} bg="secondary" className="me-1">
+                      {config.icon} {config.label}
+                    </Badge>
+                  ))}
+              </div>
+            )}
           </Alert>
         )}
 
@@ -166,41 +396,11 @@ export function AttackSnapshotsTab({ simulationId, status }) {
         <Row className="g-3">
           {filteredSnapshots.map((snapshot, idx) => (
             <Col key={idx} xs={12} lg={6}>
-              <Card
-                className="h-100 shadow-sm"
-                style={{ cursor: 'pointer' }}
-                onClick={() => setModalImage(snapshot)}
-              >
-                <Card.Header className="py-2 d-flex justify-content-between align-items-center">
-                  <div>
-                    <Badge bg="primary" className="me-2">
-                      Round {snapshot.round_num}
-                    </Badge>
-                    <Badge bg="secondary" className="me-2">
-                      Client {snapshot.client_id}
-                    </Badge>
-                  </div>
-                  <Badge bg="danger">{snapshot.attack_type.replace(/_/g, ' ')}</Badge>
-                </Card.Header>
-                <Card.Body className="p-2">
-                  <img
-                    src={`/api/simulations/${simulationId}/results/${snapshot.image_path}`}
-                    alt={`${snapshot.attack_type} attack - Client ${snapshot.client_id} Round ${snapshot.round_num}`}
-                    className="img-fluid rounded"
-                    style={{ maxHeight: '300px', width: '100%', objectFit: 'contain' }}
-                  />
-                </Card.Body>
-                {snapshot.metadata && (
-                  <Card.Footer className="py-2 small text-muted">
-                    <div className="d-flex justify-content-between">
-                      <span>Samples: {snapshot.metadata.num_samples}</span>
-                      {snapshot.metadata.data_shape && (
-                        <span>Shape: {snapshot.metadata.data_shape.join(' x ')}</span>
-                      )}
-                    </div>
-                  </Card.Footer>
-                )}
-              </Card>
+              <AttackSnapshotCard
+                snapshot={snapshot}
+                simulationId={simulationId}
+                onImageClick={setModalImage}
+              />
             </Col>
           ))}
         </Row>
@@ -253,16 +453,44 @@ export function AttackSnapshotsTab({ simulationId, status }) {
               <Modal.Title>
                 {modalImage.attack_type.replace(/_/g, ' ')} - Client {modalImage.client_id}, Round{' '}
                 {modalImage.round_num}
+                {modalImage.currentViz &&
+                  modalImage.currentViz !== 'primary' &&
+                  ` - ${VIZ_TYPES[modalImage.currentViz]?.label || modalImage.currentViz}`}
               </Modal.Title>
             </Modal.Header>
             <Modal.Body className="text-center p-0">
-              <img
-                src={`/api/simulations/${simulationId}/results/${modalImage.image_path}`}
-                alt="Full size attack snapshot"
-                style={{ maxWidth: '100%', maxHeight: '80vh' }}
-              />
+              {modalImage.currentViz === 'html_diff' ? (
+                <iframe
+                  src={`/api/simulations/${simulationId}/results/${modalImage.visualizations?.html_diff}`}
+                  title="Token Replacement Visualization"
+                  className="w-100 border-0"
+                  style={{ height: '80vh' }}
+                />
+              ) : (
+                <img
+                  src={`/api/simulations/${simulationId}/results/${
+                    modalImage.visualizations?.[modalImage.currentViz] || modalImage.image_path
+                  }`}
+                  alt="Full size attack snapshot"
+                  style={{ maxWidth: '100%', maxHeight: '80vh' }}
+                />
+              )}
             </Modal.Body>
             <Modal.Footer>
+              {modalImage.visualizations && Object.keys(modalImage.visualizations).length > 1 && (
+                <div className="me-auto">
+                  <small className="text-muted">
+                    Available views:{' '}
+                    {Object.entries(VIZ_TYPES)
+                      .filter(([key]) => modalImage.visualizations[key])
+                      .map(([key, config]) => (
+                        <Badge key={key} bg="secondary" className="me-1">
+                          {config.icon} {config.label}
+                        </Badge>
+                      ))}
+                  </small>
+                </div>
+              )}
               <Button variant="secondary" onClick={() => setModalImage(null)}>
                 Close
               </Button>
