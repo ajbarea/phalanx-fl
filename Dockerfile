@@ -5,10 +5,10 @@
 FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
 
 # OCI labels for artifact identification and citation
-LABEL org.opencontainers.image.title="FL Execution Framework"
+LABEL org.opencontainers.image.title="IntelliFL"
 LABEL org.opencontainers.image.description="Federated Learning simulation framework for Byzantine-resilient aggregation research"
-LABEL org.opencontainers.image.authors="AJ Bartocci <ajbartocci@example.com>"
-LABEL org.opencontainers.image.source="https://github.com/ajbartocci/fl-execution-framework"
+LABEL org.opencontainers.image.authors="AJ Barea <ajbareaa@gmail.com>"
+LABEL org.opencontainers.image.source="https://github.com/dmitrykoro/fl-execution-framework/tree/aj-ux-enhancements"
 LABEL org.opencontainers.image.version="1.0.0"
 # LABEL org.opencontainers.image.url="https://doi.org/10.5281/zenodo.XXXXXXX"  # Add after Zenodo upload
 LABEL org.opencontainers.image.licenses="MIT"

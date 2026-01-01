@@ -1,5 +1,5 @@
 #!/bin/sh
-# Dev server startup script for FL Execution Framework
+# Dev server startup script for IntelliFL
 
 set -eu
 
