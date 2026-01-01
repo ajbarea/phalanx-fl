@@ -72,21 +72,33 @@ function ChartPanel({
   clientColors,
   maliciousColor,
   syncId,
-  showBrush,
-  brushIndex,
-  onBrushChange,
   height,
 }) {
   const defenseColors = DEFENSE_COLORS[theme] || DEFENSE_COLORS.light;
+  // Reserve space for title above chart
+  const titleHeight = 28;
+  const chartHeight = height - titleHeight;
 
   return (
     <div style={{ width: '100%', height }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart
-          data={data}
-          margin={{ top: 5, right: 20, left: 40, bottom: showBrush ? 60 : 20 }}
-          syncId={syncId}
-        >
+      <div
+        style={{
+          textAlign: 'center',
+          fontSize: 13,
+          fontWeight: 600,
+          color: chartColors.text,
+          height: titleHeight,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderBottom: `1px solid ${chartColors.grid}`,
+          marginBottom: 4,
+        }}
+      >
+        {metricLabel}
+      </div>
+      <ResponsiveContainer width="100%" height={chartHeight}>
+        <LineChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }} syncId={syncId}>
           {attackPhases.map((phase, idx) => (
             <ReferenceArea
               key={`attack-phase-${idx}`}
@@ -112,25 +124,20 @@ function ChartPanel({
             dataKey="round"
             stroke={chartColors.axis}
             tick={{ fill: chartColors.text, fontSize: 10 }}
-            label={{
-              value: 'Round',
-              position: 'insideBottom',
-              offset: -5,
-              fill: chartColors.text,
-              fontSize: 10,
-            }}
           />
           <YAxis
             stroke={chartColors.axis}
-            tick={{ fill: chartColors.text, fontSize: 10 }}
+            tick={{ fill: chartColors.text, fontSize: 9 }}
             label={{
               value: yAxisLabel,
               angle: -90,
               position: 'insideLeft',
               fill: chartColors.text,
-              fontSize: 10,
+              fontSize: 9,
+              offset: 5,
             }}
-            width={35}
+            width={45}
+            tickFormatter={v => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : (v.toFixed?.(2) ?? v))}
           />
           <Tooltip
             content={
@@ -142,7 +149,12 @@ function ChartPanel({
               />
             }
           />
-          <Legend wrapperStyle={{ fontSize: 10, color: chartColors.text }} iconSize={8} />
+          <Legend
+            verticalAlign="top"
+            height={20}
+            wrapperStyle={{ fontSize: 10, color: chartColors.text, paddingBottom: 4 }}
+            iconSize={8}
+          />
 
           {clients.map((client, idx) => {
             const clientKey = `client_${client.client_id}`;
@@ -164,31 +176,8 @@ function ChartPanel({
               )
             );
           })}
-
-          {showBrush && (
-            <Brush
-              dataKey="round"
-              height={25}
-              stroke={chartColors.brush}
-              fill={chartColors.brushFill}
-              startIndex={brushIndex?.startIndex}
-              endIndex={brushIndex?.endIndex}
-              onChange={onBrushChange}
-            />
-          )}
         </LineChart>
       </ResponsiveContainer>
-      <div
-        style={{
-          textAlign: 'center',
-          fontSize: 11,
-          fontWeight: 500,
-          color: chartColors.text,
-          marginTop: -5,
-        }}
-      >
-        {metricLabel}
-      </div>
     </div>
   );
 }
@@ -208,9 +197,6 @@ ChartPanel.propTypes = {
   clientColors: PropTypes.array.isRequired,
   maliciousColor: PropTypes.string.isRequired,
   syncId: PropTypes.string.isRequired,
-  showBrush: PropTypes.bool,
-  brushIndex: PropTypes.object,
-  onBrushChange: PropTypes.func,
   height: PropTypes.number.isRequired,
 };
 
@@ -290,7 +276,8 @@ export default function SynchronizedMetricsChart({
   const clients = plotData.per_client_metrics || [];
   const syncId = 'synchronized-metrics';
   const panelCount = selectedMetrics.length;
-  const panelHeight = layout === 'horizontal' ? 250 : 200;
+  const panelHeight = layout === 'horizontal' ? 280 : 220;
+  const useGrid = layout === 'horizontal' && panelCount >= 2;
 
   return (
     <div className="synchronized-metrics-chart">
@@ -325,27 +312,39 @@ export default function SynchronizedMetricsChart({
       </div>
 
       <div
-        className={`chart-panels d-flex ${layout === 'vertical' ? 'flex-column' : 'flex-row'} gap-2`}
-        style={{ width: '100%' }}
+        className="chart-panels"
+        style={
+          useGrid
+            ? {
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '16px',
+                width: '100%',
+              }
+            : {
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                width: '100%',
+              }
+        }
       >
-        {selectedMetrics.map((metricKey, idx) => {
+        {selectedMetrics.map(metricKey => {
           const info = METRIC_INFO[metricKey] || {
             label: metricKey,
             shortLabel: metricKey,
             yAxisLabel: 'Value',
           };
-          const isLast = idx === panelCount - 1;
+
+          // Filter data based on brush selection
+          const filteredData = brushIndex
+            ? chartDataByMetric[metricKey].slice(brushIndex.startIndex, brushIndex.endIndex + 1)
+            : chartDataByMetric[metricKey];
 
           return (
-            <div
-              key={metricKey}
-              style={{
-                flex: layout === 'horizontal' ? 1 : 'none',
-                minWidth: layout === 'horizontal' ? 0 : '100%',
-              }}
-            >
+            <div key={metricKey} style={{ width: '100%' }}>
               <ChartPanel
-                data={chartDataByMetric[metricKey]}
+                data={filteredData}
                 metricKey={metricKey}
                 metricLabel={info.shortLabel}
                 yAxisLabel={info.yAxisLabel}
@@ -359,24 +358,52 @@ export default function SynchronizedMetricsChart({
                 clientColors={clientColors}
                 maliciousColor={maliciousColor}
                 syncId={syncId}
-                showBrush={isLast}
-                brushIndex={brushIndex}
-                onBrushChange={handleBrushChange}
                 height={panelHeight}
               />
             </div>
           );
         })}
       </div>
-
-      {attackPhases.length > 0 && (
-        <div className="mt-2 text-center">
-          <small className="text-muted">
-            Shaded regions = attack phases | Dashed line = defense activation | Hover syncs all
-            panels
+      <div
+        className="shared-brush-container mt-3 px-4"
+        style={{
+          borderTop: `1px solid ${chartColors.grid}`,
+          paddingTop: 12,
+        }}
+      >
+        <div className="d-flex align-items-center gap-2 mb-1">
+          <small className="text-muted" style={{ fontSize: 10, fontWeight: 500 }}>
+            📊 Zoom Range (affects all charts):
           </small>
         </div>
-      )}
+        <div style={{ width: '100%', height: 40 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={chartDataByMetric[selectedMetrics[0]] || []}
+              margin={{ top: 0, right: 20, left: 45, bottom: 0 }}
+            >
+              <XAxis dataKey="round" hide />
+              <Brush
+                dataKey="round"
+                height={30}
+                stroke={chartColors.brush}
+                fill={chartColors.brushFill}
+                startIndex={brushIndex?.startIndex}
+                endIndex={brushIndex?.endIndex}
+                onChange={handleBrushChange}
+                tickFormatter={v => `R${v}`}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="mt-2 text-center">
+        <small className="text-muted">
+          Choose which Simulation Rounds to display
+          {attackPhases.length > 0 && ' | Shaded regions = attack phases | Dashed line = defense'}
+        </small>
+      </div>
     </div>
   );
 }

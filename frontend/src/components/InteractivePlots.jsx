@@ -58,6 +58,13 @@ const METRIC_LABELS = Object.fromEntries(
   Object.entries(METRIC_INFO).map(([key, { label }]) => [key, label])
 );
 
+const PREFERRED_METRICS = [
+  'accuracy_history',
+  'loss_history',
+  'removal_criterion_history',
+  'absolute_distance_history',
+];
+
 const getAvailableMetrics = perClientMetrics => {
   if (!perClientMetrics || perClientMetrics.length === 0) return [];
   const allMetrics = Object.keys(perClientMetrics[0].metrics);
@@ -75,8 +82,8 @@ export default function InteractivePlots({ simulation }) {
   const [selectedMetric, setSelectedMetric] = useState('');
   const [visibleClients, setVisibleClients] = useState({});
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState('single'); // 'single' or 'compare'
-  const [compareMetrics, setCompareMetrics] = useState(['accuracy_history', 'loss_history']);
+  const [viewMode, setViewMode] = useState('compare'); // 'single' or 'compare'
+  const [compareMetrics, setCompareMetrics] = useState(PREFERRED_METRICS);
 
   useEffect(() => {
     if (simulation.status !== 'completed') {
@@ -123,6 +130,10 @@ export default function InteractivePlots({ simulation }) {
     const metrics = getAvailableMetrics(plotData.per_client_metrics);
     if (metrics.length > 0 && (!selectedMetric || !metrics.includes(selectedMetric))) {
       setSelectedMetric(metrics[0]);
+    }
+    const availableCompareMetrics = PREFERRED_METRICS.filter(m => metrics.includes(m));
+    if (availableCompareMetrics.length > 0) {
+      setCompareMetrics(availableCompareMetrics);
     }
   }, [plotData, selectedMetric]);
 
@@ -185,16 +196,16 @@ export default function InteractivePlots({ simulation }) {
         {metrics.length >= 2 && (
           <ButtonGroup size="sm">
             <Button
+              variant={viewMode === 'compare' ? 'primary' : 'outline-secondary'}
+              onClick={() => setViewMode('compare')}
+            >
+              Metrics
+            </Button>
+            <Button
               variant={viewMode === 'single' ? 'primary' : 'outline-secondary'}
               onClick={() => setViewMode('single')}
             >
               Single Metric
-            </Button>
-            <Button
-              variant={viewMode === 'compare' ? 'primary' : 'outline-secondary'}
-              onClick={() => setViewMode('compare')}
-            >
-              Compare Metrics
             </Button>
           </ButtonGroup>
         )}
