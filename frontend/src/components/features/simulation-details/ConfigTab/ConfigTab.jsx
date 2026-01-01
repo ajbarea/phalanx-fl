@@ -1,11 +1,29 @@
 import { useState } from 'react';
 import { Accordion, Table, OverlayTrigger, Tooltip } from 'react-bootstrap';
+import { toast } from 'sonner';
 import OutlineButton from '@components/common/Button/OutlineButton';
 import { formatStrategyName, formatDatasetName, formatAttackName } from '@constants/strategyLabels';
+import { useTheme } from '@contexts/ThemeContext';
 
 export function ConfigTab({ config }) {
   const [showRawJSON, setShowRawJSON] = useState(false);
+  const { theme } = useTheme();
   const cfg = config.shared_settings || config;
+
+  const handleCopyJSON = async () => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(config, null, 2));
+      toast.success('Configuration copied to clipboard');
+    } catch {
+      const textArea = document.createElement('textarea');
+      textArea.value = JSON.stringify(config, null, 2);
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      toast.success('Configuration copied to clipboard');
+    }
+  };
 
   const ConfigRow = ({ label, value, tooltip }) => (
     <tr>
@@ -28,17 +46,54 @@ export function ConfigTab({ config }) {
           <h5 className="mb-0">Raw Configuration JSON</h5>
           <OutlineButton onClick={() => setShowRawJSON(false)}>View Human-Readable</OutlineButton>
         </div>
-        <pre
-          className="text-body"
-          style={{
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-            fontFamily: 'monospace',
-            fontSize: '0.875rem',
-          }}
-        >
-          {JSON.stringify(config, null, 2)}
-        </pre>
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={handleCopyJSON}
+            title="Copy to clipboard"
+            style={{
+              position: 'absolute',
+              top: '0.5rem',
+              right: '0.5rem',
+              background: theme === 'dark' ? '#333' : '#e9ecef',
+              border: `1px solid ${theme === 'dark' ? '#444' : '#ced4da'}`,
+              borderRadius: '4px',
+              padding: '4px 8px',
+              cursor: 'pointer',
+              color: theme === 'dark' ? '#e0e0e0' : '#495057',
+              fontSize: '0.8rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              transition: 'background-color 0.2s',
+            }}
+            onMouseEnter={e => {
+              e.target.style.backgroundColor = theme === 'dark' ? '#444' : '#dee2e6';
+            }}
+            onMouseLeave={e => {
+              e.target.style.backgroundColor = theme === 'dark' ? '#333' : '#e9ecef';
+            }}
+          >
+            <span style={{ fontSize: '0.9rem' }}>📋</span>
+            Copy
+          </button>
+          <pre
+            style={{
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              fontFamily: 'monospace',
+              fontSize: '0.875rem',
+              color: theme === 'dark' ? '#e0e0e0' : '#1a1a1a',
+              backgroundColor: theme === 'dark' ? '#1e1e1e' : '#f8f9fa',
+              padding: '1rem',
+              paddingTop: '2.5rem',
+              borderRadius: '0.5rem',
+              border: `1px solid ${theme === 'dark' ? '#333' : '#dee2e6'}`,
+              margin: 0,
+            }}
+          >
+            {JSON.stringify(config, null, 2)}
+          </pre>
+        </div>
       </>
     );
   }
