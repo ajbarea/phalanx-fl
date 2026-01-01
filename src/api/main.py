@@ -318,7 +318,7 @@ def get_simulation_details(
         if (
             item.is_file()
             and item.name != "config.json"
-            and item.suffix in [".png", ".pdf", ".csv", ".json"]
+            and item.suffix in [".png", ".pdf", ".csv", ".json", ".html", ".txt"]
         ):
             rel_path = item.relative_to(sim_path)
             rel_path_str = str(rel_path).replace("\\", "/")
@@ -374,7 +374,7 @@ def get_result_file(
     Raises:
         HTTPException: If the file type is unsupported or file is missing.
     """
-    if not result_filename.endswith((".png", ".pdf", ".csv", ".json")):
+    if not result_filename.endswith((".png", ".pdf", ".csv", ".json", ".html", ".txt")):
         raise HTTPException(status_code=400, detail="Unsupported file type.")
 
     file_path = secure_join(sim_path, result_filename)
@@ -397,6 +397,12 @@ def get_result_file(
         except Exception as e:
             logger.exception(f"Failed to read or parse CSV file {file_path}")
             raise HTTPException(status_code=500, detail=f"Failed to process CSV file: {str(e)}")
+
+    if result_filename.endswith(".html"):
+        return FileResponse(file_path, media_type="text/html")
+
+    if result_filename.endswith(".txt"):
+        return FileResponse(file_path, media_type="text/plain")
 
     return FileResponse(file_path)
 
@@ -1146,11 +1152,13 @@ async def get_attack_snapshots(
         sim_path: The validated path to the simulation directory.
 
     Returns:
-        A dictionary containing snapshot summaries, timelines, and image paths.
+        A dictionary containing snapshot summaries, timelines, and image paths
+        including additional visualizations (confusion matrices, heatmaps, etc.).
     """
     snapshot_dirs = sorted(sim_path.glob("attack_snapshots_*"))
+    weight_snapshot_dirs = sorted(sim_path.glob("weight_snapshots_*"))
 
-    if not snapshot_dirs:
+    if not snapshot_dirs and not weight_snapshot_dirs:
         return {"has_snapshots": False, "strategies": []}
 
     strategies_data = []
@@ -1176,6 +1184,41 @@ async def get_attack_snapshots(
 
                 visual_files = list(round_dir.glob("*_visual.png"))
 
+                html_files = list(round_dir.glob("*_samples.html"))
+                for html_file in html_files:
+                    attack_type = html_file.stem.replace("_samples", "")
+                    has_png = any(
+                        vf.stem.replace("_visual", "") == attack_type for vf in visual_files
+                    )
+                    if not has_png:
+                        visualizations = {
+                            "html_diff": str(html_file.relative_to(sim_path)).replace("\\", "/"),
+                            "primary": str(html_file.relative_to(sim_path)).replace("\\", "/"),
+                        }
+
+                        metadata = None
+                        metadata_path = round_dir / f"{attack_type}_metadata.json"
+                        if metadata_path.is_file():
+                            try:
+                                with metadata_path.open("r") as f:
+                                    metadata = json.load(f)
+                            except (OSError, json.JSONDecodeError) as e:
+                                logger.warning(
+                                    f"Failed to load attack metadata: {metadata_path}: {e}"
+                                )
+
+                        snapshots.append(
+                            {
+                                "client_id": client_id,
+                                "round_num": round_num,
+                                "attack_type": attack_type,
+                                "image_path": "",
+                                "visualizations": visualizations,
+                                "metadata": metadata,
+                                "is_text_attack": True,
+                            }
+                        )
+
                 for visual_file in visual_files:
                     attack_type = visual_file.stem.replace("_visual", "")
                     rel_path = visual_file.relative_to(sim_path)
@@ -1189,15 +1232,129 @@ async def get_attack_snapshots(
                         except (OSError, json.JSONDecodeError) as e:
                             logger.warning(f"Failed to load attack metadata: {metadata_path}: {e}")
 
-                    snapshots.append(
-                        {
-                            "client_id": client_id,
-                            "round_num": round_num,
-                            "attack_type": attack_type,
-                            "image_path": str(rel_path).replace("\\", "/"),
-                            "metadata": metadata,
-                        }
-                    )
+                    visualizations = {
+                        "primary": str(rel_path).replace("\\", "/"),
+                    }
+
+                    confusion_path = round_dir / f"{attack_type}_confusion_matrix.png"
+                    if confusion_path.is_file():
+                        visualizations["confusion_matrix"] = str(
+                            confusion_path.relative_to(sim_path)
+                        ).replace("\\", "/")
+
+                    heatmap_path = round_dir / f"{attack_type}_difference_heatmap.png"
+                    if heatmap_path.is_file():
+                        visualizations["difference_heatmap"] = str(
+                            heatmap_path.relative_to(sim_path)
+                        ).replace("\\", "/")
+
+                    html_path = round_dir / f"{attack_type}_samples.html"
+                    if html_path.is_file():
+                        visualizations["html_diff"] = str(html_path.relative_to(sim_path)).replace(
+                            "\\", "/"
+                        )
+
+                    pred_grid_path = round_dir / f"{attack_type}_weight_prediction_grid.png"
+                    if pred_grid_path.is_file():
+                        visualizations["prediction_grid"] = str(
+                            pred_grid_path.relative_to(sim_path)
+                        ).replace("\\", "/")
+
+                    flip_summary_path = round_dir / f"{attack_type}_summary.json"
+                    flip_summary = None
+                    if flip_summary_path.is_file():
+                        try:
+                            with flip_summary_path.open("r") as f:
+                                flip_summary = json.load(f)
+                        except (OSError, json.JSONDecodeError) as e:
+                            logger.warning(f"Failed to load flip summary: {flip_summary_path}: {e}")
+
+                    comparison_path = round_dir / f"{attack_type}_comparison.png"
+                    if comparison_path.is_file():
+                        visualizations["comparison"] = str(
+                            comparison_path.relative_to(sim_path)
+                        ).replace("\\", "/")
+
+                    snapshot_data = {
+                        "client_id": client_id,
+                        "round_num": round_num,
+                        "attack_type": attack_type,
+                        "image_path": str(rel_path).replace("\\", "/"),
+                        "visualizations": visualizations,
+                        "metadata": metadata,
+                    }
+
+                    if flip_summary:
+                        snapshot_data["flip_summary"] = flip_summary
+
+                    snapshots.append(snapshot_data)
+
+        weight_dir = sim_path / f"weight_snapshots_{strategy_num}"
+        if weight_dir.is_dir():
+            for client_dir in sorted(weight_dir.glob("client_*")):
+                client_id = int(client_dir.name.replace("client_", ""))
+
+                for round_dir in sorted(client_dir.glob("round_*")):
+                    round_num = int(round_dir.name.replace("round_", ""))
+
+                    histogram_files = list(round_dir.glob("*_weight_histogram.png"))
+
+                    for hist_file in histogram_files:
+                        attack_type = hist_file.stem.replace("_weight_histogram", "")
+
+                        existing = next(
+                            (
+                                s
+                                for s in snapshots
+                                if s["client_id"] == client_id and s["round_num"] == round_num
+                            ),
+                            None,
+                        )
+
+                        if existing is not None:
+                            existing_viz = existing.get("visualizations")
+                            if isinstance(existing_viz, dict):
+                                existing_viz["weight_histogram"] = str(
+                                    hist_file.relative_to(sim_path)
+                                ).replace("\\", "/")
+                        else:
+                            visualizations = {
+                                "weight_histogram": str(hist_file.relative_to(sim_path)).replace(
+                                    "\\", "/"
+                                ),
+                            }
+
+                            pred_grid = round_dir / f"{attack_type}_weight_prediction_grid.png"
+                            if pred_grid.is_file():
+                                visualizations["prediction_grid"] = str(
+                                    pred_grid.relative_to(sim_path)
+                                ).replace("\\", "/")
+                                visualizations["primary"] = visualizations["prediction_grid"]
+                            else:
+                                visualizations["primary"] = visualizations["weight_histogram"]
+
+                            weight_metadata = None
+                            weight_meta_path = round_dir / f"{attack_type}_weight_metadata.json"
+                            if weight_meta_path.is_file():
+                                try:
+                                    with weight_meta_path.open("r") as f:
+                                        weight_metadata = json.load(f)
+                                except (OSError, json.JSONDecodeError) as e:
+                                    logger.warning(
+                                        f"Failed to load weight metadata: {weight_meta_path}: {e}"
+                                    )
+
+                            snapshots.append(
+                                {
+                                    "client_id": client_id,
+                                    "round_num": round_num,
+                                    "attack_type": attack_type,
+                                    "image_path": visualizations.get("primary", ""),
+                                    "visualizations": visualizations,
+                                    "metadata": weight_metadata,
+                                    "is_weight_attack": True,
+                                }
+                            )
 
         strategies_data.append(
             {

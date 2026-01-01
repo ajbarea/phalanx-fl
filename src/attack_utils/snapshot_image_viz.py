@@ -322,7 +322,6 @@ def save_label_confusion_matrix(
     ax.set_xticklabels(tick_labels, fontsize=10)
     ax.set_yticklabels(tick_labels, fontsize=10)
 
-    # Rotate x-axis labels for readability if many classes
     if num_classes > 6:
         plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
 
@@ -331,7 +330,6 @@ def save_label_confusion_matrix(
         for j in range(num_classes):
             count = confusion[i, j]
             pct = percentages[i, j]
-            # Show count and percentage, highlight diagonal (unchanged labels)
             if count > 0:
                 text = f"{count}\n({pct:.0f}%)"
                 color = "white" if count > thresh else "black"
@@ -556,6 +554,223 @@ def save_noise_difference_heatmap(
     plt.close()
 
 
+def save_label_flipping_grid(
+    images: np.ndarray,
+    labels: np.ndarray,
+    original_labels: np.ndarray,
+    filepath: Path,
+    attack_config: Union[dict, list[dict]],
+) -> None:
+    """Save label flipping visualization with prominent label badges.
+
+    Args:
+        images: Image array of shape (N, C, H, W).
+        labels: Poisoned labels array.
+        original_labels: Original labels array before attack.
+        filepath: Output file path for the visualization.
+        attack_config: Attack configuration dict or list of dicts.
+    """
+    matplotlib.use("Agg")
+
+    num_samples = len(images)
+
+    samples_per_row = 2
+    num_rows = math.ceil(num_samples / samples_per_row)
+
+    fig_width = 14
+    fig_height = 4 * num_rows + 1.5
+
+    fig = plt.figure(figsize=(fig_width, fig_height))
+
+    gs = fig.add_gridspec(
+        num_rows + 1,
+        samples_per_row * 2,  # 2 columns per sample (image + labels)
+        height_ratios=[0.4] + [1] * num_rows,
+        width_ratios=[1, 1.2] * samples_per_row,
+        hspace=0.4,
+        wspace=0.3,
+        left=0.05,
+        right=0.95,
+        top=0.92,
+        bottom=0.05,
+    )
+
+    ax_header = fig.add_subplot(gs[0, :])
+    ax_header.set_facecolor("#fff3cd")
+    ax_header.text(
+        0.5,
+        0.5,
+        "⚠️  LABEL FLIPPING ATTACK  ⚠️\n"
+        "Training labels have been corrupted - images remain unchanged",
+        ha="center",
+        va="center",
+        fontsize=12,
+        fontweight="bold",
+        color="#856404",
+        transform=ax_header.transAxes,
+    )
+    ax_header.set_xlim(0, 1)
+    ax_header.set_ylim(0, 1)
+    ax_header.axis("off")
+
+    num_flipped = np.sum(original_labels != labels)
+    flip_rate = num_flipped / len(labels) * 100 if len(labels) > 0 else 0
+
+    for i in range(num_samples):
+        row_idx = i // samples_per_row + 1
+        col_offset = (i % samples_per_row) * 2
+
+        ax_img = fig.add_subplot(gs[row_idx, col_offset])
+        _display_image(ax_img, images[i])
+        ax_img.axis("off")
+        ax_img.set_title(f"Sample {i + 1}", fontsize=10, fontweight="bold", pad=5)
+
+        ax_labels = fig.add_subplot(gs[row_idx, col_offset + 1])
+        ax_labels.set_xlim(0, 1)
+        ax_labels.set_ylim(0, 1)
+        ax_labels.axis("off")
+
+        orig_label = original_labels[i]
+        pois_label = labels[i]
+        label_changed = orig_label != pois_label
+
+        ax_labels.add_patch(
+            plt.Rectangle(
+                (0.1, 0.6),
+                0.8,
+                0.25,
+                facecolor="#27ae60",
+                edgecolor="#1e8449",
+                linewidth=2,
+                transform=ax_labels.transAxes,
+            )
+        )
+        ax_labels.text(
+            0.5,
+            0.725,
+            f"Original: {orig_label}",
+            ha="center",
+            va="center",
+            fontsize=14,
+            fontweight="bold",
+            color="white",
+            transform=ax_labels.transAxes,
+        )
+
+        if label_changed:
+            ax_labels.annotate(
+                "",
+                xy=(0.5, 0.45),
+                xytext=(0.5, 0.55),
+                xycoords="axes fraction",
+                textcoords="axes fraction",
+                arrowprops={"arrowstyle": "->", "color": "#c0392b", "lw": 3},
+            )
+
+        badge_color = "#c62828" if label_changed else "#95a5a6"
+        edge_color = "#8b1c1c" if label_changed else "#7f8c8d"
+        ax_labels.add_patch(
+            plt.Rectangle(
+                (0.1, 0.15),
+                0.8,
+                0.25,
+                facecolor=badge_color,
+                edgecolor=edge_color,
+                linewidth=2,
+                transform=ax_labels.transAxes,
+            )
+        )
+
+        label_text = f"Poisoned: {pois_label}" if label_changed else f"Unchanged: {pois_label}"
+        ax_labels.text(
+            0.5,
+            0.275,
+            label_text,
+            ha="center",
+            va="center",
+            fontsize=14,
+            fontweight="bold",
+            color="white",
+            transform=ax_labels.transAxes,
+        )
+
+    fig.text(
+        0.5,
+        0.01,
+        f"Labels Flipped: {num_flipped}/{len(labels)} ({flip_rate:.1f}%)",
+        ha="center",
+        fontsize=11,
+        style="italic",
+        color="#555555",
+        bbox={"boxstyle": "round,pad=0.5", "facecolor": "#f8f9fa", "edgecolor": "#dee2e6"},
+    )
+
+    plt.savefig(filepath, dpi=150, bbox_inches="tight", facecolor="white")
+    plt.close()
+
+
+def save_label_flipping_summary(
+    original_labels: np.ndarray,
+    poisoned_labels: np.ndarray,
+    filepath: Path,
+    attack_config: Optional[Union[dict, list[dict]]] = None,
+) -> dict:
+    """Save summary statistics for label flipping attack as JSON.
+
+    Args:
+        original_labels: Original label array before poisoning.
+        poisoned_labels: Poisoned label array after attack.
+        filepath: Output file path for the JSON summary.
+        attack_config: Attack configuration for metadata (optional).
+
+    Returns:
+        Dictionary with summary statistics.
+    """
+    import json
+
+    total_samples = len(original_labels)
+    flipped_mask = original_labels != poisoned_labels
+    flipped_count = np.sum(flipped_mask)
+    flip_rate = flipped_count / total_samples * 100 if total_samples > 0 else 0
+
+    flip_patterns: dict[str, int] = {}
+    for orig, pois in zip(original_labels[flipped_mask], poisoned_labels[flipped_mask]):
+        key = f"{int(orig)}->{int(pois)}"
+        flip_patterns[key] = flip_patterns.get(key, 0) + 1
+
+    sorted_patterns = sorted(flip_patterns.items(), key=lambda x: -x[1])
+
+    top_patterns = []
+    for pattern, count in sorted_patterns[:5]:
+        from_label, to_label = pattern.split("->")
+        top_patterns.append(
+            {
+                "from": int(from_label),
+                "to": int(to_label),
+                "count": count,
+                "percentage": round(count / flipped_count * 100, 1) if flipped_count > 0 else 0,
+            }
+        )
+
+    classes_affected = sorted(set(original_labels[flipped_mask].tolist()))
+    classes_targeted = sorted(set(poisoned_labels[flipped_mask].tolist()))
+
+    summary = {
+        "total_samples": int(total_samples),
+        "flipped_samples": int(flipped_count),
+        "flip_rate": round(flip_rate, 2),
+        "top_flip_patterns": top_patterns,
+        "classes_affected": classes_affected,
+        "classes_targeted": classes_targeted,
+        "attack_config": attack_config if isinstance(attack_config, dict) else None,
+    }
+
+    with open(filepath, "w") as f:
+        json.dump(summary, f, indent=2)
+
+    return summary
+
+
 def save_weight_attack_prediction_grid(
     images: np.ndarray,
     labels: np.ndarray,
@@ -605,7 +820,6 @@ def save_weight_attack_prediction_grid(
             if full_probs is not None:
                 display_classes[true_label] = float(full_probs[true_label])
             else:
-                # Find true label confidence from predictions list
                 true_conf = 0.0
                 for cls_idx, conf in preds_list:
                     if cls_idx == true_label:
@@ -623,11 +837,9 @@ def save_weight_attack_prediction_grid(
         preds_after = predictions_after[i]
         true_label = int(labels[i])
 
-        # Get full probs if available
         probs_before = full_probs_before[i] if full_probs_before is not None else None
         probs_after = full_probs_after[i] if full_probs_after is not None else None
 
-        # Get confidences for all classes
         before_confs = {}
         after_confs = {}
 
@@ -636,7 +848,6 @@ def save_weight_attack_prediction_grid(
         for cls_idx, conf in preds_after:
             after_confs[cls_idx] = conf
 
-        # Get full probability arrays if available
         if probs_before is not None:
             for cls in range(len(probs_before)):
                 if cls not in before_confs:
@@ -646,26 +857,21 @@ def save_weight_attack_prediction_grid(
                 if cls not in after_confs:
                     after_confs[cls] = float(probs_after[cls])
 
-        # Sort by BEFORE confidence descending, take top 5
         all_classes = sorted(
             before_confs.keys(),
             key=lambda c: before_confs.get(c, 0),
             reverse=True,
         )[:5]
 
-        # Ensure true label is in the list
         if true_label not in all_classes:
             all_classes = all_classes[:4] + [true_label]
 
-        # Sort for display: highest BEFORE confidence at top
-        # barh displays in list order (top to bottom), so use reverse=True
         all_classes = sorted(
             all_classes,
             key=lambda c: before_confs.get(c, 0),
-            reverse=True,  # descending - highest first = top of chart
+            reverse=True,
         )
 
-        # Create subplot grid for this sample
         gs = fig.add_gridspec(
             num_samples,
             3,

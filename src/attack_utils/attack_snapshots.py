@@ -15,6 +15,8 @@ import torch
 from .snapshot_image_viz import (
     save_image_grid,
     save_label_confusion_matrix,
+    save_label_flipping_grid,
+    save_label_flipping_summary,
     save_noise_difference_heatmap,
 )
 from .snapshot_text_viz import save_text_samples, save_text_samples_html
@@ -331,14 +333,35 @@ def save_visual_snapshot(
     try:
         if len(data_sample.shape) == 4:
             filename = f"{attack_type}_visual.png"
-            save_image_grid(
-                data_sample,
-                labels_sample,
-                original_labels_sample,
-                snapshot_dir / filename,
-                attack_config,
-                original_images=original_data_sample,
-            )
+
+            if attack_type == "label_flipping":
+                save_label_flipping_grid(
+                    data_sample,
+                    labels_sample,
+                    original_labels_sample,
+                    snapshot_dir / filename,
+                    attack_config,
+                )
+
+                if original_data_sample is not None:
+                    standard_filename = f"{attack_type}_comparison.png"
+                    save_image_grid(
+                        data_sample,
+                        labels_sample,
+                        original_labels_sample,
+                        snapshot_dir / standard_filename,
+                        attack_config,
+                        original_images=original_data_sample,
+                    )
+            else:
+                save_image_grid(
+                    data_sample,
+                    labels_sample,
+                    original_labels_sample,
+                    snapshot_dir / filename,
+                    attack_config,
+                    original_images=original_data_sample,
+                )
 
             if "label_flipping" in attack_type:
                 confusion_filename = f"{attack_type}_confusion_matrix.png"
@@ -351,6 +374,15 @@ def save_visual_snapshot(
                 logging.debug(
                     f"Saved label flipping confusion matrix: {snapshot_dir / confusion_filename}"
                 )
+
+                summary_filename = f"{attack_type}_summary.json"
+                save_label_flipping_summary(
+                    original_labels_sample,
+                    labels_sample,
+                    snapshot_dir / summary_filename,
+                    attack_config=attack_config,
+                )
+                logging.debug(f"Saved label flipping summary: {snapshot_dir / summary_filename}")
 
             if "gaussian_noise" in attack_type and original_data_sample is not None:
                 heatmap_filename = f"{attack_type}_difference_heatmap.png"
