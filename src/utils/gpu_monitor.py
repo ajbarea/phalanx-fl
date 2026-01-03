@@ -9,7 +9,7 @@ import torch
 class GPUMemoryMonitor:
     """Monitor and log GPU memory usage during experiments."""
 
-    def __init__(self, device: Union[str, torch.device], log_level: int = logging.INFO):
+    def __init__(self, device: Union[str, torch.device], log_level: int = logging.DEBUG):
         """Initialize GPU memory monitor.
 
         Args:

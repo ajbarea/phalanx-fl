@@ -395,7 +395,7 @@ class RaySimulationMonitor:
         with open(summary_file, "w") as f:
             json.dump(summary, f, indent=2, default=str)
 
-        logging.info(f"Ray simulation summary saved to: {summary_file}")
+        logging.debug(f"Ray simulation summary saved to: {summary_file}")
 
         # Cleanup
         if self.log_handler:

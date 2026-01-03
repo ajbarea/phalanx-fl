@@ -115,7 +115,7 @@ def generate_summary_json(
     try:
         with open(summary_path, "w") as f:
             json.dump(full_summary, f, indent=2)
-        logging.info(f"Generated attack summary: {summary_path}")
+        logging.debug(f"Generated attack summary: {summary_path}")
     except Exception as e:
         logging.warning(f"Failed to generate summary.json: {e}")
 
@@ -245,7 +245,7 @@ def generate_snapshot_index(
     try:
         with open(index_path, "w", encoding="utf-8") as f:
             f.write(html_content)
-        logging.info(f"Generated attack snapshot index: {index_path}")
+        logging.debug(f"Generated attack snapshot index: {index_path}")
     except Exception as e:
         logging.warning(f"Failed to generate index.html: {e}")
 
@@ -384,7 +384,7 @@ def generate_main_dashboard(output_dir: str) -> None:
     try:
         with open(index_path, "w", encoding="utf-8") as f:
             f.write(html_content)
-        logging.info(f"Generated main dashboard: {index_path}")
+        logging.debug(f"Generated main dashboard: {index_path}")
     except Exception as e:
         logging.warning(f"Failed to generate main dashboard: {e}")
 
