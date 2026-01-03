@@ -44,6 +44,14 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
         if self.status_tracker:
             self.status_tracker.update_round(self.current_round)
 
+        # Register node_id -> partition_id mappings (Flower 1.25+ compatibility)
+        # FitRes.metrics contains partition_id set by FlowerClient
+        for client_proxy, fit_res in results:
+            metrics = getattr(fit_res, "metrics", None)
+            if metrics and "partition_id" in metrics:
+                partition_id = int(metrics["partition_id"])
+                self.strategy_history.register_node_mapping(client_proxy.cid, partition_id)
+
         return super().aggregate_fit(server_round, results, failures)
 
     def aggregate_evaluate(
@@ -73,14 +81,14 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
         aggregate_loss_values = []
 
         for client_proxy, evaluate_res in results:
-            client_id = int(client_proxy.cid)
+            node_id = client_proxy.cid  # Flower 1.25+: use node_id directly
             num_examples = evaluate_res.num_examples
             loss = evaluate_res.loss
             accuracy = float(evaluate_res.metrics.get("accuracy", 0.0))
 
             # Store per-client metrics
             self.strategy_history.insert_single_client_history_entry(
-                client_id=client_id,
+                client_id=node_id,  # Flower 1.25+: node_id translated via get_partition_id()
                 current_round=self.current_round,
                 loss=loss,
                 accuracy=accuracy,
@@ -92,7 +100,7 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
             total_examples += num_examples
 
             self.logger.debug(
-                f"Round {server_round} - Client {client_id}: "
+                f"Round {server_round} - Client {node_id}: "
                 f"loss={loss:.4f}, accuracy={accuracy:.4f}, examples={num_examples}"
             )
 

@@ -76,6 +76,14 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         if not results:
             return None, {}
 
+        # Register node_id -> partition_id mappings (Flower 1.25+ compatibility)
+        # FitRes.metrics contains partition_id set by FlowerClient
+        for client_proxy, fit_res in results:
+            metrics = getattr(fit_res, "metrics", None)
+            if metrics and "partition_id" in metrics:
+                partition_id = int(metrics["partition_id"])
+                self.strategy_history.register_node_mapping(client_proxy.cid, partition_id)
+
         participating_clients = [client.cid for client, _ in results]
         weights_results = [
             (
@@ -96,7 +104,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
                 self.client_scores[cid] = 0.0
                 self.strategy_history.insert_single_client_history_entry(
                     current_round=self.current_round,
-                    client_id=int(cid),
+                    client_id=cid,  # Flower 1.25+: node_id translated via get_partition_id()
                     removal_criterion=0.0,
                 )
 
@@ -143,7 +151,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             self.client_scores[cid] = trim_frequency
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
-                client_id=int(cid),
+                client_id=cid,  # Flower 1.25+: node_id translated via get_partition_id()
                 removal_criterion=trim_frequency,
             )
 
@@ -224,7 +232,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             accuracy_matrix = client_result[1].metrics
 
             self.strategy_history.insert_single_client_history_entry(
-                client_id=int(cid),
+                client_id=cid,  # Flower 1.25+: node_id translated via get_partition_id()
                 current_round=self.current_round,
                 accuracy=float(accuracy_matrix.get("accuracy", 0.0)),
             )
@@ -239,7 +247,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             client_id = client_metadata.cid
 
             self.strategy_history.insert_single_client_history_entry(
-                client_id=int(client_id),
+                client_id=client_id,  # Flower 1.25+: node_id translated via get_partition_id()
                 current_round=self.current_round,
                 loss=evaluate_res.loss,
             )

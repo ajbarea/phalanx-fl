@@ -26,7 +26,7 @@ from src.network_models.bert_model_definition import (
 )
 
 
-class FlowerClient(fl.client.NumPyClient):
+class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
     def __init__(
         self,
         client_id,
@@ -569,13 +569,21 @@ class FlowerClient(fl.client.NumPyClient):
             return (
                 poisoned_parameters,
                 len(self.trainloader.dataset),
-                {"loss": epoch_loss, "accuracy": epoch_acc},
+                {
+                    "loss": epoch_loss,
+                    "accuracy": epoch_acc,
+                    "partition_id": self.client_id,  # For Flower 1.25+ node_id mapping
+                },
             )
 
         return (
             trained_parameters,
             len(self.trainloader.dataset),
-            {"loss": epoch_loss, "accuracy": epoch_acc},
+            {
+                "loss": epoch_loss,
+                "accuracy": epoch_acc,
+                "partition_id": self.client_id,  # For Flower 1.25+ node_id mapping
+            },
         )
 
     def evaluate(

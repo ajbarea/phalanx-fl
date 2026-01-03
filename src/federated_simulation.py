@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 import flwr
 import torch.nn as nn
 from flwr.client import Client
-from flwr.common import ndarrays_to_parameters
+from flwr.common import Context, ndarrays_to_parameters
 from peft import PeftModel, get_peft_model_state_dict
 
 from src.attack_utils.snapshot_html_reports import (
@@ -160,7 +160,7 @@ class FederatedSimulation:
         assert self.strategy_config.cpus_per_client is not None, "cpus_per_client must be set"
         assert self.strategy_config.gpus_per_client is not None, "gpus_per_client must be set"
 
-        flwr.simulation.start_simulation(
+        flwr.simulation.start_simulation(  # type: ignore[attr-defined]
             client_fn=self.client_fn,
             num_clients=self.strategy_config.num_of_clients,
             config=flwr.server.ServerConfig(num_rounds=self.strategy_config.num_of_rounds),
@@ -537,13 +537,24 @@ class FederatedSimulation:
                 f"The strategy {aggregation_strategy_keyword} not implemented!"
             )
 
-    def client_fn(self, cid: str) -> Client:
-        """Create a Flower client."""
+    def client_fn(self, context: Context) -> Client:
+        """Create a Flower client.
 
+        Args:
+            context: Flower Context object containing node configuration.
+                     - context.node_config["partition-id"]: Client partition index (0, 1, 2, ...)
+                     - context.node_id: Unique node identifier (large integer)
+
+        Returns:
+            A Flower Client instance.
+        """
         # Assert required attributes are set
         assert self._network_model is not None, "_network_model must be set"
         assert self._trainloaders is not None, "_trainloaders must be set"
         assert self._valloaders is not None, "_valloaders must be set"
+
+        # Get partition ID from Context (Flower 1.25+ API)
+        partition_id: int = int(context.node_config["partition-id"])
 
         net = self._network_model.to(self.strategy_config.training_device)
 
@@ -551,8 +562,8 @@ class FederatedSimulation:
             self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora"
         )
 
-        trainloader = self._trainloaders[int(cid)]
-        valloader = self._valloaders[int(cid)]
+        trainloader = self._trainloaders[partition_id]
+        valloader = self._valloaders[partition_id]
 
         attacks_schedule = None
         if self.strategy_config.attack_schedule:
@@ -587,7 +598,7 @@ class FederatedSimulation:
         strategy_num = self.strategy_config.strategy_number or 0
 
         return FlowerClient(
-            client_id=int(cid),
+            client_id=partition_id,
             net=net,
             trainloader=trainloader,
             valloader=valloader,

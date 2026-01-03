@@ -223,6 +223,14 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         if not results:
             return super().aggregate_fit(server_round, results, failures)
 
+        # Register node_id -> partition_id mappings (Flower 1.25+ compatibility)
+        # FitRes.metrics contains partition_id set by FlowerClient
+        for client_proxy, fit_res in results:
+            metrics = getattr(fit_res, "metrics", None)
+            if metrics and "partition_id" in metrics:
+                partition_id = int(metrics["partition_id"])
+                self.strategy_history.register_node_mapping(client_proxy.cid, partition_id)
+
         aggregate_clients = []
 
         for result in results:
@@ -275,7 +283,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
-                client_id=int(client_id),
+                client_id=client_id,  # Flower 1.25+: node_id translated via get_partition_id()
                 removal_criterion=float(new_PID),
                 absolute_distance=float(distances[i][0]),
             )
@@ -395,7 +403,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             accuracy_matrix["cid"] = cid
 
             self.strategy_history.insert_single_client_history_entry(
-                client_id=int(cid),
+                client_id=cid,  # Flower 1.25+: node_id translated via get_partition_id()
                 current_round=self.current_round,
                 accuracy=float(accuracy_matrix.get("accuracy", 0.0)),
             )
@@ -408,7 +416,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         for client_metadata, evaluate_res in results:
             self.strategy_history.insert_single_client_history_entry(
-                client_id=int(client_metadata.cid),
+                client_id=client_metadata.cid,  # Flower 1.25+: node_id translated via get_partition_id()
                 current_round=self.current_round,
                 loss=evaluate_res.loss,
             )

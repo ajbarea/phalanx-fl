@@ -170,6 +170,14 @@ class ArKrumStrategy(FedAvg):
         if not results:
             return super().aggregate_fit(server_round, results, failures)
 
+        # Register node_id -> partition_id mappings (Flower 1.25+ compatibility)
+        # FitRes.metrics contains partition_id set by FlowerClient
+        for client_proxy, fit_res in results:
+            metrics = getattr(fit_res, "metrics", None)
+            if metrics and "partition_id" in metrics:
+                partition_id = int(metrics["partition_id"])
+                self.strategy_history.register_node_mapping(client_proxy.cid, partition_id)
+
         num_clients = len(results)
 
         time_start = time.time_ns()
@@ -199,7 +207,7 @@ class ArKrumStrategy(FedAvg):
             self.client_scores[cid] = arkrum_scores[i]
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
-                client_id=int(cid),
+                client_id=cid,  # Flower 1.25+: node_id translated via get_partition_id()
                 removal_criterion=arkrum_scores[i],
                 absolute_distance=float(dist_matrix[best_idx, i]),
             )

@@ -101,6 +101,14 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         if not results:
             return None, {}
 
+        # Register node_id -> partition_id mappings (Flower 1.25+ compatibility)
+        # FitRes.metrics contains partition_id set by FlowerClient
+        for client_proxy, fit_res in results:
+            metrics = getattr(fit_res, "metrics", None)
+            if metrics and "partition_id" in metrics:
+                partition_id = int(metrics["partition_id"])
+                self.strategy_history.register_node_mapping(client_proxy.cid, partition_id)
+
         clustering_param_data = []
         for _, fit_res in results:
             tensors = [
@@ -162,7 +170,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
             self.client_scores[cid] = deviation
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
-                client_id=int(cid),
+                client_id=cid,  # Flower 1.25+: node_id translated via get_partition_id()
                 removal_criterion=deviation,
                 absolute_distance=float(abs_distances[i][0]),
             )
@@ -260,7 +268,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
             acc_metrics = dict(ev.metrics)
             acc_metrics["cid"] = cid
             self.strategy_history.insert_single_client_history_entry(
-                client_id=int(cid),
+                client_id=cid,  # Flower 1.25+: node_id translated via get_partition_id()
                 current_round=self.current_round,
                 accuracy=float(acc_metrics.get("accuracy", 0.0)),
             )
@@ -271,7 +279,9 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         aggregate_value, num_clients_loss = [], 0
         for cp, ev in results:
             self.strategy_history.insert_single_client_history_entry(
-                client_id=int(cp.cid), current_round=self.current_round, loss=ev.loss
+                client_id=cp.cid,  # Flower 1.25+: node_id translated via get_partition_id()
+                current_round=self.current_round,
+                loss=ev.loss,
             )
             if cp.cid not in self.removed_client_ids:
                 aggregate_value.append((ev.num_examples, ev.loss))

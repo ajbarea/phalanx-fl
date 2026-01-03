@@ -72,6 +72,14 @@ class RFABasedRemovalStrategy(FedAvg):
         if self.strategy_history:
             self.strategy_history.update_client_malicious_status(server_round)
 
+        # Register node_id -> partition_id mappings (Flower 1.25+ compatibility)
+        # FitRes.metrics contains partition_id set by FlowerClient
+        for client_proxy, fit_res in results:
+            metrics = getattr(fit_res, "metrics", None)
+            if metrics and "partition_id" in metrics:
+                partition_id = int(metrics["partition_id"])
+                self.strategy_history.register_node_mapping(client_proxy.cid, partition_id)
+
         aggregate_clients = []
         for result in results:
             client_id = result[0].cid
@@ -124,7 +132,7 @@ class RFABasedRemovalStrategy(FedAvg):
 
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
-                client_id=int(client_id),
+                client_id=client_id,  # Flower 1.25+: node_id translated via get_partition_id()
                 removal_criterion=deviation,
                 absolute_distance=float(distances[i][0]),
             )
@@ -236,7 +244,7 @@ class RFABasedRemovalStrategy(FedAvg):
             accuracy_matrix = client_result[1].metrics
 
             self.strategy_history.insert_single_client_history_entry(
-                client_id=int(cid),
+                client_id=cid,  # Flower 1.25+: node_id translated via get_partition_id()
                 current_round=self.current_round,
                 accuracy=accuracy_matrix.get("accuracy"),
             )
@@ -250,7 +258,7 @@ class RFABasedRemovalStrategy(FedAvg):
         for client_metadata, evaluate_res in results:
             client_id = client_metadata.cid
             self.strategy_history.insert_single_client_history_entry(
-                client_id=int(client_id),
+                client_id=client_id,  # Flower 1.25+: node_id translated via get_partition_id()
                 current_round=self.current_round,
                 loss=evaluate_res.loss,
             )

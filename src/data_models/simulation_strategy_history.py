@@ -17,6 +17,9 @@ class SimulationStrategyHistory:
     dataset_handler: DatasetHandler
     rounds_history: RoundsInfo = field(init=False)
     _clients_dict: dict[int, ClientInfo] = field(default_factory=dict)
+    # Mapping from Flower node_id (str) to our internal partition_id (int)
+    # In Flower 1.25+, ClientProxy.cid returns node IDs instead of sequential integers
+    _node_id_to_partition_id: dict[str, int] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.rounds_history = RoundsInfo(simulation_strategy_config=self.strategy_config)
@@ -35,9 +38,57 @@ class SimulationStrategyHistory:
 
         return list(self._clients_dict.values())
 
+    def register_node_mapping(self, node_id: str, partition_id: int) -> None:
+        """Register a mapping from Flower node_id to internal partition_id.
+
+        In Flower 1.25+, ClientProxy.cid returns node IDs (large integers as strings)
+        instead of sequential integers. This method maps those back to our partition IDs.
+
+        Args:
+            node_id: The Flower node ID (ClientProxy.cid)
+            partition_id: Our internal sequential partition ID (0, 1, 2, ...)
+        """
+        self._node_id_to_partition_id[str(node_id)] = partition_id
+
+    def get_partition_id(self, node_id: str | int) -> int:
+        """Get the internal partition_id for a Flower node_id.
+
+        If the node_id is already a valid partition_id (sequential integer),
+        returns it directly for backward compatibility.
+
+        Args:
+            node_id: The Flower node ID (ClientProxy.cid) or partition_id
+
+        Returns:
+            The internal partition_id (0, 1, 2, ...)
+
+        Raises:
+            KeyError: If the node_id is not registered and not a valid partition_id
+        """
+        node_id_str = str(node_id)
+
+        # Check if it's in our mapping (Flower 1.25+ node IDs)
+        if node_id_str in self._node_id_to_partition_id:
+            return self._node_id_to_partition_id[node_id_str]
+
+        # For backward compatibility: if it's a small integer that matches a partition_id
+        try:
+            int_id = int(node_id)
+            num_clients = self.strategy_config.num_of_clients or 0
+            if 0 <= int_id < num_clients:
+                return int_id
+        except (ValueError, TypeError):
+            pass
+
+        raise KeyError(
+            f"Unknown node_id: {node_id}. "
+            f"Registered mappings: {len(self._node_id_to_partition_id)}. "
+            f"Call register_node_mapping() first or ensure node_id is a valid partition_id."
+        )
+
     def insert_single_client_history_entry(
         self,
-        client_id: int,
+        client_id: int | str,
         current_round: int,
         removal_criterion: float | None = None,
         absolute_distance: float | None = None,
@@ -45,9 +96,15 @@ class SimulationStrategyHistory:
         accuracy: float | None = None,
         aggregation_participation: int | None = None,
     ) -> None:
-        """Insert history entry for a single client. Only those values provided will be updated."""
+        """Insert history entry for a single client. Only those values provided will be updated.
 
-        updating_client: ClientInfo = self._clients_dict[client_id]
+        Args:
+            client_id: Either a Flower node_id (str) or partition_id (int).
+                       Will be automatically translated to partition_id if needed.
+        """
+        # Translate node_id to partition_id if necessary (Flower 1.25+ compatibility)
+        partition_id = self.get_partition_id(client_id)
+        updating_client: ClientInfo = self._clients_dict[partition_id]
 
         updating_client.add_history_entry(
             current_round,
