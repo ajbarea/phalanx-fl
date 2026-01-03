@@ -4,6 +4,9 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+from flwr.common import Context
+from flwr.common.record import RecordDict
+
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.federated_simulation import FederatedSimulation
 from tests.common import Mock, np, pytest
@@ -67,6 +70,25 @@ def _create_simulation_with_mocks(
             dataset_dir=dataset_dir,
             dataset_handler=dataset_handler,
         )
+
+
+def _create_mock_context(partition_id: int, num_partitions: int = 5) -> Context:
+    """Create a mock Flower Context object for testing.
+
+    Args:
+        partition_id: The client partition index (0, 1, 2, ...)
+        num_partitions: Total number of partitions/clients
+
+    Returns:
+        A Context object with the partition-id set in node_config
+    """
+    return Context(
+        run_id=1,
+        node_id=partition_id + 1000000,  # Simulate large node_id
+        node_config={"partition-id": partition_id, "num-partitions": num_partitions},
+        state=RecordDict(),
+        run_config={},
+    )
 
 
 class TestFederatedSimulationInitialization:
@@ -312,7 +334,9 @@ class TestFederatedSimulationClientFunction:
             mock_client_instance.to_client.return_value = Mock()
             mock_flower_client.return_value = mock_client_instance
 
-            simulation.client_fn(cid="0")
+            # Use Context API (Flower 1.25+) instead of cid string
+            context = _create_mock_context(0, 5)
+            simulation.client_fn(context)
 
             mock_flower_client.assert_called_once()
             call_args = mock_flower_client.call_args
@@ -337,30 +361,31 @@ class TestFederatedSimulationClientFunction:
             mock_client_instance.to_client.return_value = Mock()
             mock_flower_client.return_value = mock_client_instance
 
-            # Test different client IDs
-            for client_id in ["0", "1", "2", "3", "4"]:
-                simulation.client_fn(client_id)
+            # Test different client IDs using Context API (Flower 1.25+)
+            for client_id in range(5):
+                context = _create_mock_context(client_id, 5)
+                simulation.client_fn(context)
 
                 call_args = mock_flower_client.call_args
-                assert call_args.kwargs["client_id"] == int(client_id)
+                assert call_args.kwargs["client_id"] == client_id
                 if simulation._trainloaders is not None:
-                    assert (
-                        call_args.kwargs["trainloader"] == simulation._trainloaders[int(client_id)]
-                    )
+                    assert call_args.kwargs["trainloader"] == simulation._trainloaders[client_id]
                 if simulation._valloaders is not None:
-                    assert call_args.kwargs["valloader"] == simulation._valloaders[int(client_id)]
+                    assert call_args.kwargs["valloader"] == simulation._valloaders[client_id]
 
     def test_client_fn_with_invalid_client_id(
         self, temp_dataset_dir: str, mock_dataset_handler: MockDatasetHandler
     ) -> None:
-        """Test client_fn with invalid client ID raises IndexError."""
+        """Test client_fn with invalid partition ID raises IndexError."""
         strategy_config = StrategyConfig.from_dict(_get_base_strategy_config_dict())
         simulation = _create_simulation_with_mocks(
             strategy_config, temp_dataset_dir, mock_dataset_handler
         )
 
+        # Use Context API (Flower 1.25+) with invalid partition ID
+        context = _create_mock_context(10, 5)  # Only 5 clients available (0-4)
         with pytest.raises(IndexError):
-            simulation.client_fn("10")  # Only 5 clients available (0-4)
+            simulation.client_fn(context)
 
     def test_client_fn_handles_llm_model_loading(
         self, temp_dataset_dir: str, mock_dataset_handler: MockDatasetHandler
@@ -401,7 +426,9 @@ class TestFederatedSimulationClientFunction:
                     mock_client_instance.to_client.return_value = Mock()
                     mock_flower_client.return_value = mock_client_instance
 
-                    result = simulation.client_fn("0")
+                    # Use Context API (Flower 1.25+)
+                    context = _create_mock_context(0, 5)
+                    result = simulation.client_fn(context)
 
                     mock_flower_client.assert_called_once()
                     assert result is not None

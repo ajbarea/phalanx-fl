@@ -105,8 +105,9 @@ class TestFedAvgStrategy:
         fedavg_strategy.aggregate_evaluate(server_round, mock_evaluate_results, [])
 
         # Verify correct data was stored for first client
+        # client_id is str (node ID) in Flower 1.25+
         first_call = mock_strategy_history.insert_single_client_history_entry.call_args_list[0]
-        assert first_call[1]["client_id"] == 0
+        assert first_call[1]["client_id"] == "0"
         assert first_call[1]["current_round"] == 2
         assert first_call[1]["loss"] == 0.5
         assert first_call[1]["accuracy"] == 0.8

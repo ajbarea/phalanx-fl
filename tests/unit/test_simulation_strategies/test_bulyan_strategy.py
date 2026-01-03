@@ -903,13 +903,13 @@ class TestBulyanAggregateEvaluate:
 
         bulyan_strategy.aggregate_evaluate(1, results, [])
 
-        # Verify client_id was converted to int in calls
+        # Verify client_id is str (node ID) in Flower 1.25+
         for (
             call
         ) in bulyan_strategy.strategy_history.insert_single_client_history_entry.call_args_list:
             if "client_id" in call[1]:
-                assert isinstance(call[1]["client_id"], int)
-                assert call[1]["client_id"] == 42
+                assert isinstance(call[1]["client_id"], str)
+                assert call[1]["client_id"] == "42"
 
     def test_aggregate_evaluate_missing_accuracy_metric(self, bulyan_strategy):
         """Test aggregate_evaluate when accuracy is missing from metrics."""

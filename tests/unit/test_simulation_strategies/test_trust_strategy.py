@@ -544,14 +544,15 @@ class TestTrustBasedRemovalStrategy:
         calls = mock_strategy_history.insert_single_client_history_entry.call_args_list
 
         # First 5 calls should be accuracy
+        # client_id is str (node ID) in Flower 1.25+
         first_call = calls[0]
-        assert first_call[1]["client_id"] == 0
+        assert first_call[1]["client_id"] == "0"
         assert first_call[1]["current_round"] == 1
         assert first_call[1]["accuracy"] == 0.82
 
         # Next 5 calls should be loss
         sixth_call = calls[5]
-        assert sixth_call[1]["client_id"] == 0
+        assert sixth_call[1]["client_id"] == "0"
         assert sixth_call[1]["current_round"] == 1
         assert sixth_call[1]["loss"] == 0.4
 

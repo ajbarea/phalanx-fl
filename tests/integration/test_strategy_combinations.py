@@ -480,7 +480,7 @@ class TestByzantineFaultTolerance:
                     )
                     return honest_client
 
-            simulation.client_fn = mock_client_fn_with_byzantine  # type: ignore[method-assign]
+            simulation.client_fn = mock_client_fn_with_byzantine  # type: ignore[method-assign, assignment]
 
             simulation.run_simulation()
 

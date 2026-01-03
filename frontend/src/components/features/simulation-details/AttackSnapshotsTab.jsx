@@ -1,16 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import {
-  Card,
-  Alert,
-  Spinner,
-  Badge,
-  Row,
-  Col,
-  Form,
-  Modal,
-  Button,
-  Nav,
-} from 'react-bootstrap';
+import { Card, Alert, Spinner, Badge, Row, Col, Form, Modal, Button, Nav } from 'react-bootstrap';
 import { apiClient } from '@api/client';
 
 // Visualization type labels and display order

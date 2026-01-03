@@ -9,6 +9,9 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+from flwr.common import Context
+from flwr.common.record import RecordDict
+
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.federated_simulation import FederatedSimulation
 from tests.common import Mock, np, pytest
@@ -44,6 +47,25 @@ def _get_base_strategy_config_dict() -> dict[str, Any]:
         "use_llm": False,
         "llm_finetuning": None,
     }
+
+
+def _create_mock_context(partition_id: int, num_partitions: int = 5) -> Context:
+    """Create a mock Flower Context object for testing.
+
+    Args:
+        partition_id: The client partition index (0, 1, 2, ...)
+        num_partitions: Total number of partitions/clients
+
+    Returns:
+        A Context object with the partition-id set in node_config
+    """
+    return Context(
+        run_id=1,
+        node_id=partition_id + 1000000,  # Simulate large node_id
+        node_config={"partition-id": partition_id, "num-partitions": num_partitions},
+        state=RecordDict(),
+        run_config={},
+    )
 
 
 def _create_simulation_with_mocks(
@@ -132,7 +154,9 @@ class TestFederatedSimulationIntegration:
             # Test all clients can be created
             assert strategy_config.num_of_clients is not None
             for client_id in range(strategy_config.num_of_clients):
-                client = simulation.client_fn(str(client_id))
+                # Use Context API (Flower 1.25+) instead of string cid
+                context = _create_mock_context(client_id, strategy_config.num_of_clients)
+                client = simulation.client_fn(context)
                 assert client is not None
 
     @patch("src.federated_simulation.flwr.simulation.start_simulation")
@@ -240,7 +264,9 @@ class TestFederatedSimulationIntegration:
             # Test that client creation integrates with all system components
             assert strategy_config.num_of_clients is not None
             for client_id in range(strategy_config.num_of_clients):
-                _client = simulation.client_fn(str(client_id))
+                # Use Context API (Flower 1.25+) instead of string cid
+                context = _create_mock_context(client_id, strategy_config.num_of_clients)
+                _client = simulation.client_fn(context)
 
                 # Verify client was created with proper integration
                 call_args = mock_flower_client.call_args
