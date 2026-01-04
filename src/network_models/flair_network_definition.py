@@ -36,13 +36,13 @@ class FlairNetwork(nn.Module):
 
         # Initialize fc1 on first forward pass
         if self.fc1 is None:
-            self.fc1 = nn.Linear(x.size(1), 512)
+            fc1_layer = nn.Linear(x.size(1), 512)
             if x.is_cuda:
-                self.fc1 = self.fc1.cuda()
-            # Initialize weights for the new layer
-            nn.init.xavier_uniform_(self.fc1.weight)
-            if self.fc1.bias is not None:
-                nn.init.zeros_(self.fc1.bias)
+                fc1_layer = fc1_layer.cuda()
+            nn.init.xavier_uniform_(fc1_layer.weight)
+            if fc1_layer.bias is not None:
+                nn.init.zeros_(fc1_layer.bias)
+            self.fc1 = fc1_layer
 
         assert self.fc1 is not None
         x = F.relu(self.fc1(x))
