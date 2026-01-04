@@ -14,12 +14,24 @@ build-backend = "setuptools.build_meta"
 line-length = 100
 target-version = "py39"
 exclude = [
-    "src/attack_utils/vocabularies",
+    # Virtual environments
     "venv",
     ".venv",
+    # Cache directories
     "__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".hypothesis",
+    # Build/output directories
+    "out",
+    "datasets",
+    "cache",
+    # Other projects
     "frontend",
     ".git",
+    # Project-specific
+    "src/attack_utils/vocabularies",
 ]
 
 [tool.ruff.lint]
@@ -48,9 +60,17 @@ indent-style = "space"
 profile = "black"
 line_length = 100
 skip = [
-    "src/attack_utils/vocabularies",
     "venv",
     ".venv",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".hypothesis",
+    "out",
+    "datasets",
+    "cache",
+    "frontend",
+    "src/attack_utils/vocabularies",
 ]
 known_first_party = ["src"]
 
@@ -58,7 +78,7 @@ known_first_party = ["src"]
 # mypy Configuration
 # =============================================================================
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 warn_return_any = false
 warn_unused_configs = true
 show_error_codes = true
@@ -66,7 +86,7 @@ no_implicit_optional = true
 ignore_missing_imports = true
 follow_imports = "normal"
 
-# Real type checking - NOT ignored
+# Type checking
 check_untyped_defs = true
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
@@ -80,11 +100,18 @@ files = ["src", "tests"]
 
 # Global exclusions
 exclude = [
-    "src/attack_utils/vocabularies",
-    "src/utils/legacy",
     "venv",
     ".venv",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".hypothesis",
+    "out",
+    "datasets",
+    "cache",
     "frontend",
+    "src/attack_utils/vocabularies",
+    "src/utils/legacy",
 ]
 
 # Per-module overrides for stricter checking on cleaned modules
@@ -106,3 +133,54 @@ paths_to_mutate = ["src/simulation_strategies/", "src/attack_utils/"]
 tests_dir = "tests/"
 runner = "python -m pytest"
 pytest_add_cli_args_test_selection = ["-m", "not slow", "-x", "-q"]
+
+# =============================================================================
+# Flower Federated Learning Configuration (flwr 1.25+)
+# =============================================================================
+# This section enables `flwr run` CLI usage as an alternative to the
+# programmatic run_simulation() API. Both approaches are fully supported.
+#
+# Usage:
+#   flwr run .                           # Run default federation
+#   flwr run . local-simulation-gpu      # Run GPU-enabled federation
+#
+# Reference: https://flower.ai/docs/framework/how-to-configure-pyproject-toml.html
+
+[tool.flwr.app]
+publisher = "intellifl"
+
+[tool.flwr.app.config]
+# Default simulation parameters (overridable via --run-config)
+num-server-rounds = 10
+num-clients = 5
+dataset = "femnist_iid"
+aggregation-strategy = "fedavg"
+
+[tool.flwr.federations]
+default = "local-simulation"
+
+# CPU-only local simulation (default)
+[tool.flwr.federations.local-simulation]
+options.num-supernodes = 5
+options.backend.client-resources.num-cpus = 2
+options.backend.client-resources.num-gpus = 0.0
+
+# GPU-enabled local simulation (4 clients per GPU)
+[tool.flwr.federations.local-simulation-gpu]
+options.num-supernodes = 5
+options.backend.client-resources.num-cpus = 2
+options.backend.client-resources.num-gpus = 0.25
+
+# High-performance GPU simulation (2 clients per GPU)
+[tool.flwr.federations.local-simulation-gpu-hp]
+options.num-supernodes = 10
+options.backend.client-resources.num-cpus = 4
+options.backend.client-resources.num-gpus = 0.5
+options.backend.init_args.num_cpus = 8
+options.backend.init_args.num_gpus = 1
+
+# Remote deployment template (configure for production)
+# [tool.flwr.federations.remote-deployment]
+# address = "<SUPERLINK-ADDRESS>:9093"
+# root-certificate = "certs/ca.pem"
+# insecure = false

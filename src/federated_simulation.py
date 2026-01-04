@@ -7,8 +7,10 @@ from typing import TYPE_CHECKING, Any
 
 import flwr
 import torch.nn as nn
-from flwr.client import Client
+from flwr.client import Client, ClientApp
 from flwr.common import Context, ndarrays_to_parameters
+from flwr.server import ServerApp, ServerAppComponents, ServerConfig
+from flwr.simulation import run_simulation
 from peft import PeftModel, get_peft_model_state_dict
 
 from src.attack_utils.snapshot_html_reports import (
@@ -152,22 +154,45 @@ class FederatedSimulation:
         self._assign_all_properties()
 
     def run_simulation(self) -> None:
-        """Start federated simulation"""
+        """Start federated simulation using Flower's modern run_simulation API."""
         self.gpu_monitor.log_memory_usage("before simulation start")
 
         # Assert required config values are set
+        assert self.strategy_config.num_of_clients is not None, "num_of_clients must be set"
         assert self.strategy_config.num_of_rounds is not None, "num_of_rounds must be set"
         assert self.strategy_config.cpus_per_client is not None, "cpus_per_client must be set"
         assert self.strategy_config.gpus_per_client is not None, "gpus_per_client must be set"
 
-        flwr.simulation.start_simulation(  # type: ignore[attr-defined]
-            client_fn=self.client_fn,
-            num_clients=self.strategy_config.num_of_clients,
-            config=flwr.server.ServerConfig(num_rounds=self.strategy_config.num_of_rounds),
-            strategy=self._aggregation_strategy,
-            client_resources={
-                "num_cpus": self.strategy_config.cpus_per_client,
-                "num_gpus": self.strategy_config.gpus_per_client,
+        # Research: Flower 1.13+ requires ClientApp/ServerApp architecture (Flower Framework Docs)
+        # https://flower.ai/docs/framework/how-to-upgrade-to-flower-1.13.html
+        # The start_simulation() API is deprecated; run_simulation() with App wrappers is preferred.
+        client_app = ClientApp(client_fn=self.client_fn)
+
+        # Capture strategy in closure for server_fn
+        strategy = self._aggregation_strategy
+        num_rounds = self.strategy_config.num_of_rounds
+
+        def server_fn(context: Context) -> ServerAppComponents:
+            """Create ServerAppComponents with the configured strategy."""
+            return ServerAppComponents(
+                strategy=strategy,
+                config=ServerConfig(num_rounds=num_rounds),
+            )
+
+        server_app = ServerApp(server_fn=server_fn)
+
+        # Research: run_simulation replaces deprecated start_simulation (Flower 1.11+)
+        # https://flower.ai/docs/framework/how-to-run-simulations.html
+        # num_supernodes = number of virtual clients; backend_config sets resource allocation
+        run_simulation(
+            server_app=server_app,
+            client_app=client_app,
+            num_supernodes=self.strategy_config.num_of_clients,
+            backend_config={
+                "client_resources": {
+                    "num_cpus": self.strategy_config.cpus_per_client,
+                    "num_gpus": self.strategy_config.gpus_per_client,
+                }
             },
         )
 
@@ -553,7 +578,9 @@ class FederatedSimulation:
         assert self._trainloaders is not None, "_trainloaders must be set"
         assert self._valloaders is not None, "_valloaders must be set"
 
-        # Get partition ID from Context (Flower 1.25+ API)
+        # Research: Flower 1.25+ uses Context.node_config for client partition assignment
+        # https://flower.ai/docs/framework/how-to-upgrade-to-flower-1.13.html
+        # partition-id maps to data partition index; node_id is Flower's internal ID
         partition_id: int = int(context.node_config["partition-id"])
 
         net = self._network_model.to(self.strategy_config.training_device)
