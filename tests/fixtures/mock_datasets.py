@@ -2,7 +2,7 @@
 Mock dataset generators for federated learning tests.
 """
 
-from typing import Callable, Optional
+from typing import Callable, Optional, TypeAlias
 
 import torch
 from torch.utils.data import DataLoader, Dataset
@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, Dataset
 from src.dataset_handlers.dataset_handler import DatasetHandler
 from tests.common import np
 
-NDArray = np.ndarray
+NDArray: TypeAlias = np.ndarray
 
 
 class MockDataset(Dataset[tuple[torch.Tensor, torch.Tensor]]):

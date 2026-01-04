@@ -5,15 +5,15 @@ Provides minimal PyTorch models that simulate training behavior without
 actual gradient computation for fast test execution.
 """
 
-from typing import Any, Optional
+from typing import Any, Optional, TypeAlias
 
 import numpy as np
 import torch
 import torch.nn as nn
 
-NDArray = np.ndarray
-Config = dict[str, Any]
-Metrics = dict[str, Any]
+NDArray: TypeAlias = np.ndarray
+Config: TypeAlias = dict[str, Any]
+Metrics: TypeAlias = dict[str, Any]
 
 
 class MockBaseNetwork(nn.Module):
