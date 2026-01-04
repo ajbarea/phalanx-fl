@@ -74,7 +74,7 @@ class TestGPUMemoryMonitor:
 
         mock_logging.log.assert_called_once()
         args = mock_logging.log.call_args[0]
-        assert args[0] == logging.INFO
+        assert args[0] == logging.DEBUG
         assert "TestCtx" in args[1]
         assert "2.00GB allocated" in args[1]
 
