@@ -1,6 +1,6 @@
 """Mock Flower FL components for testing without distributed execution."""
 
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional, TypeAlias, Union
 
 import numpy as np
 from flwr.common import (
@@ -11,10 +11,10 @@ from flwr.common import (
     parameters_to_ndarrays,
 )
 
-NDArray = np.ndarray
-Config = dict[str, Any]
-Metrics = dict[str, Any]
-Scalar = Union[bool, bytes, float, int, str]
+NDArray: TypeAlias = np.ndarray
+Config: TypeAlias = dict[str, Any]
+Metrics: TypeAlias = dict[str, Any]
+Scalar: TypeAlias = Union[bool, bytes, float, int, str]
 
 TENSOR_TYPE_NUMPY = "numpy.ndarray"
 
