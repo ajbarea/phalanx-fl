@@ -113,10 +113,10 @@ class TestFederatedSimulationIntegration:
         dataset_dir.mkdir(parents=True)
         return str(dataset_dir)
 
-    @patch("src.federated_simulation.flwr.simulation.start_simulation")
+    @patch("src.federated_simulation.run_simulation")
     def test_complete_simulation_workflow_with_trust_strategy(
         self,
-        mock_start_simulation: Mock,
+        mock_run_simulation: Mock,
         temp_dataset_dir: str,
         mock_dataset_handler: MockDatasetHandler,
     ) -> None:
@@ -127,23 +127,23 @@ class TestFederatedSimulationIntegration:
         )
 
         # Mock successful simulation completion
-        mock_start_simulation.return_value = Mock()
+        mock_run_simulation.return_value = Mock()
 
         # Execute the simulation
         simulation.run_simulation()
 
         # Verify all components are properly integrated
-        mock_start_simulation.assert_called_once()
-        call_args = mock_start_simulation.call_args
+        # Research: Flower 1.13+ run_simulation uses server_app, client_app, num_supernodes
+        # https://flower.ai/docs/framework/how-to-run-simulations.html
+        mock_run_simulation.assert_called_once()
+        call_args = mock_run_simulation.call_args
 
-        # Verify the full integration chain
-        assert "client_fn" in call_args.kwargs
-        assert "strategy" in call_args.kwargs
-        assert "config" in call_args.kwargs
-        assert call_args.kwargs["num_clients"] == 5
-        assert call_args.kwargs["config"].num_rounds == 3
-        assert call_args.kwargs["strategy"] == simulation._aggregation_strategy
-        assert call_args.kwargs["client_resources"]["num_cpus"] == 1
+        # Verify the new API parameters
+        assert "server_app" in call_args.kwargs
+        assert "client_app" in call_args.kwargs
+        assert call_args.kwargs["num_supernodes"] == 5
+        assert "backend_config" in call_args.kwargs
+        assert call_args.kwargs["backend_config"]["client_resources"]["num_cpus"] == 1
 
         # Test client creation works across the workflow
         with patch("src.federated_simulation.FlowerClient") as mock_flower_client:
@@ -159,10 +159,10 @@ class TestFederatedSimulationIntegration:
                 client = simulation.client_fn(context)
                 assert client is not None
 
-    @patch("src.federated_simulation.flwr.simulation.start_simulation")
+    @patch("src.federated_simulation.run_simulation")
     def test_simulation_workflow_with_multiple_strategies(
         self,
-        mock_start_simulation: Mock,
+        mock_run_simulation: Mock,
         temp_dataset_dir: str,
         mock_dataset_handler: MockDatasetHandler,
     ) -> None:
@@ -185,7 +185,7 @@ class TestFederatedSimulationIntegration:
             )
 
             # Mock successful simulation
-            mock_start_simulation.return_value = Mock()
+            mock_run_simulation.return_value = Mock()
 
             # Execute simulation
             simulation.run_simulation()
@@ -227,10 +227,10 @@ class TestFederatedSimulationIntegration:
             assert len(simulation._trainloaders) == strategy_config.num_of_clients
             assert len(simulation._valloaders) == strategy_config.num_of_clients
 
-    @patch("src.federated_simulation.flwr.simulation.start_simulation")
+    @patch("src.federated_simulation.run_simulation")
     def test_simulation_handles_flower_exceptions(
         self,
-        mock_start_simulation: Mock,
+        mock_run_simulation: Mock,
         temp_dataset_dir: str,
         mock_dataset_handler: MockDatasetHandler,
     ) -> None:
@@ -241,7 +241,7 @@ class TestFederatedSimulationIntegration:
         )
 
         # Mock Flower to raise an exception
-        mock_start_simulation.side_effect = RuntimeError("Flower simulation failed")
+        mock_run_simulation.side_effect = RuntimeError("Flower simulation failed")
 
         # Act & Assert
         with pytest.raises(RuntimeError, match="Flower simulation failed"):

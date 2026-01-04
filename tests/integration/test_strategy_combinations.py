@@ -329,7 +329,7 @@ class TestByzantineFaultTolerance:
         with (
             patch("src.federated_simulation.ImageDatasetLoader") as mock_loader,
             patch("src.federated_simulation.ITSNetwork") as mock_network,
-            patch("src.federated_simulation.flwr.simulation.start_simulation") as mock_start_sim,
+            patch("src.federated_simulation.run_simulation") as mock_run_sim,
             patch(
                 "src.federated_simulation.FederatedSimulation._assign_aggregation_strategy"
             ) as mock_assign_strategy,
@@ -349,12 +349,12 @@ class TestByzantineFaultTolerance:
             mock_assign_strategy.return_value = mock_strategy
 
             # Mock Flower simulation to simulate Byzantine behavior
-            mock_start_sim.return_value = None
+            mock_run_sim.return_value = None
 
             yield {
                 "loader": mock_loader,
                 "network": mock_network,
-                "start_simulation": mock_start_sim,
+                "run_simulation": mock_run_sim,
                 "assign_strategy": mock_assign_strategy,
                 "loader_instance": mock_loader_instance,
                 "network_instance": mock_network_instance,
@@ -484,7 +484,7 @@ class TestByzantineFaultTolerance:
 
             simulation.run_simulation()
 
-            mocks["start_simulation"].assert_called()
+            mocks["run_simulation"].assert_called()
 
             assert strategy_config.num_of_malicious_clients is not None
             assert strategy_config.num_of_clients is not None
