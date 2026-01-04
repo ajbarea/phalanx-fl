@@ -379,7 +379,7 @@ class TestRoundtripProperties:
             st.text(
                 min_size=1,
                 max_size=20,
-                alphabet=st.characters(blacklist_categories=("Cs",)),
+                alphabet=st.characters(blacklist_categories=["Cs"]),
             ),
             st.one_of(
                 st.integers(min_value=-1000000, max_value=1000000),
@@ -387,7 +387,7 @@ class TestRoundtripProperties:
                 st.text(
                     min_size=0,
                     max_size=50,
-                    alphabet=st.characters(blacklist_categories=("Cs",)),
+                    alphabet=st.characters(blacklist_categories=["Cs"]),
                 ),
                 st.booleans(),
             ),
@@ -535,7 +535,9 @@ class TestAggregationInvariants:
             return
 
         result = np.mean(final_trimmed)
-        assert min(final_trimmed) <= result <= max(final_trimmed)
+        # Use tolerance for floating point comparison
+        eps = 1e-10
+        assert min(final_trimmed) - eps <= result <= max(final_trimmed) + eps
 
 
 class TestModelParameterProperties:
