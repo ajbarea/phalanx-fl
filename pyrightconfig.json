@@ -1,5 +1,19 @@
 {
-  "include": ["tests/"],
+  "include": ["src/", "tests/"],
+  "exclude": [
+    "venv",
+    ".venv",
+    "**/__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".hypothesis",
+    "out",
+    "datasets",
+    "cache",
+    "frontend",
+    "src/attack_utils/vocabularies"
+  ],
   "pythonVersion": "3.10",
   "reportMissingImports": false,
   "reportAttributeAccessIssue": false,

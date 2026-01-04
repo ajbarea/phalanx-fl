@@ -27,13 +27,13 @@ if [ "$TEST_MODE" = true ] || [ "$SONAR_MODE" = true ]; then
 fi
 
 log_info "⚡ Running ruff check..."
-ruff check --fix --exclude src/attack_utils/vocabularies src tests
+ruff check --fix src tests
 
 log_info "⚡ Running isort..."
-isort --quiet --skip src/attack_utils/vocabularies src tests
+isort --quiet src tests
 
 log_info "⚡ Running ruff format..."
-ruff format --exclude src/attack_utils/vocabularies src tests
+ruff format src tests
 
 log_info "✨ Running frontend linting..."
 cd frontend && npm run lint && npm run format -- --log-level warn && cd ..
