@@ -322,6 +322,7 @@ class TestStrategyPipelineIntegration:
             config_dict = load_config(config_name)
         except Exception as e:
             pytest.skip(f"Could not load config {config_name}: {e}")
+            return  # pytest.skip raises, unreachable
 
         strategy_keyword = config_dict.get("aggregation_strategy_keyword", "krum")
         num_clients = config_dict.get("num_of_clients", 10)
@@ -352,6 +353,7 @@ class TestStrategyPipelineIntegration:
             )
         except Exception as e:
             pytest.fail(f"Failed to create strategy {strategy_keyword}: {e}")
+            return  # pytest.fail raises, unreachable
 
         # Create mock client data
         mock_fit_results = create_mock_fit_results(num_clients)
