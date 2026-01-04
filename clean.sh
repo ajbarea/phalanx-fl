@@ -23,6 +23,11 @@ rm -rf .mypy_cache .ruff_cache
 find . -type d -name ".pytest_cache" -depth -exec rm -rf {} + 2>/dev/null
 log_info "Cleaned tool caches (.mypy_cache, .pytest_cache, .ruff_cache)."
 
+# Clean coverage data
+rm -f .coverage .coverage.*
+rm -f tests/.coverage tests/.coverage.*
+log_info "Cleaned coverage data files."
+
 # Clean Python bytecode caches
 find . -type d -name "__pycache__" -depth -exec rm -rf {} + 2>/dev/null
 log_info "Cleaned __pycache__ directories."
@@ -43,4 +48,10 @@ log_info "Cleaned egg-info directories."
 if [ -d ".playwright-mcp" ]; then
     rm -rf .playwright-mcp
     log_info "Cleaned .playwright-mcp directory."
+fi
+
+# Clean frontend build artifacts
+if [ -d "frontend/dist" ]; then
+    rm -rf frontend/dist
+    log_info "Cleaned frontend/dist/ directory."
 fi
