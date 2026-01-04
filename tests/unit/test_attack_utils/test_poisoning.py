@@ -190,7 +190,7 @@ class TestApplyTokenReplacement:
             replacement_token_ids=[20, 30, 40],
         )
 
-        changed = ~torch.equal(result, tokens)
+        changed = not torch.equal(result, tokens)
         assert changed
 
     def test_full_replacement(self):
