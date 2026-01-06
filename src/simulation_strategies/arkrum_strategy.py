@@ -10,9 +10,10 @@ ArKrum improves upon Krum by:
 3. Averaging top (n - f) updates closest to the selected update for stability
 """
 
+from __future__ import annotations
+
 import logging
 import time
-from typing import Optional, Union
 
 import numpy as np
 from flwr.common import FitRes, Parameters, Scalar, parameters_to_ndarrays
@@ -40,7 +41,7 @@ class ArKrumStrategy(FedAvg):
         strategy_history: SimulationStrategyHistory,
         remove_clients: bool = False,
         begin_removing_from_round: int = 1,
-        status_tracker: Optional[StatusTracker] = None,
+        status_tracker: StatusTracker | None = None,
         *args,
         **kwargs,
     ):
@@ -152,8 +153,8 @@ class ArKrumStrategy(FedAvg):
         self,
         server_round: int,
         results: list[tuple[ClientProxy, FitRes]],
-        failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
-    ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
+        failures: list[tuple[ClientProxy | FitRes, BaseException]],
+    ) -> tuple[Parameters | None, dict[str, Scalar]]:
         """
         Aggregate client updates using ArKrum.
 

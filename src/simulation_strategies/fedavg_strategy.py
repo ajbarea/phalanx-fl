@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import logging
-from typing import Optional, Union
 
 import flwr as fl
 from flwr.common import EvaluateRes, FitRes, Parameters, Scalar
@@ -20,7 +21,7 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
     def __init__(
         self,
         strategy_history: SimulationStrategyHistory,
-        status_tracker: Optional[StatusTracker] = None,
+        status_tracker: StatusTracker | None = None,
         *args,
         **kwargs,
     ):
@@ -35,8 +36,8 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
         self,
         server_round: int,
         results: list[tuple[ClientProxy, FitRes]],
-        failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
-    ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
+        failures: list[tuple[ClientProxy | FitRes, BaseException]],
+    ) -> tuple[Parameters | None, dict[str, Scalar]]:
         """Aggregate fit results and track round number."""
         self.current_round = server_round
 
@@ -58,8 +59,8 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
         self,
         server_round: int,
         results: list[tuple[ClientProxy, EvaluateRes]],
-        failures: list[Union[tuple[ClientProxy, EvaluateRes], BaseException]],
-    ) -> tuple[Optional[float], dict[str, Scalar]]:
+        failures: list[tuple[ClientProxy | EvaluateRes, BaseException]],
+    ) -> tuple[float | None, dict[str, Scalar]]:
         """Aggregate evaluation results and track round-level metrics.
 
         Collects per-client loss/accuracy and computes weighted averages.
@@ -72,6 +73,8 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
         Returns:
             Tuple of (weighted average loss, metrics dict with accuracy).
         """
+        self.strategy_history.register_node_mappings_from_results(results)
+
         if not results:
             return None, {}
 

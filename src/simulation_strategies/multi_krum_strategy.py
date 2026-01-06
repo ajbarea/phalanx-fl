@@ -285,6 +285,8 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
         Returns:
             Tuple of (aggregated loss, metrics dict).
         """
+        self.strategy_history.register_node_mappings_from_results(results)
+
         self.logger.info("\n" + "-" * 50 + f"AGGREGATION ROUND {server_round}" + "-" * 50)
 
         for client_result in results:
