@@ -1,7 +1,8 @@
 """GPU memory monitoring utilities for federated learning experiments."""
 
+from __future__ import annotations
+
 import logging
-from typing import Union
 
 import torch
 
@@ -9,7 +10,7 @@ import torch
 class GPUMemoryMonitor:
     """Monitor and log GPU memory usage during experiments."""
 
-    def __init__(self, device: Union[str, torch.device], log_level: int = logging.DEBUG):
+    def __init__(self, device: str | torch.device, log_level: int = logging.DEBUG):
         """Initialize GPU memory monitor.
 
         Args:
@@ -103,7 +104,7 @@ class GPUMemoryMonitor:
             torch.cuda.reset_peak_memory_stats(self.device)
 
 
-def log_gpu_memory(device: Union[str, torch.device], context: str = ""):
+def log_gpu_memory(device: str | torch.device, context: str = ""):
     """Convenience function for quick memory logging.
 
     Args:

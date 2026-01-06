@@ -4,12 +4,13 @@ This module provides a StatusTracker class that writes simulation progress
 to a status.json file for real-time progress monitoring from the API.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 
 class StatusTracker:
@@ -43,7 +44,7 @@ class StatusTracker:
         self.total_strategies = total_strategies
         self.current_strategy = 0
         self.current_round = 0
-        self.started_at: Optional[str] = None
+        self.started_at: str | None = None
         self._pid = os.getpid()
 
     def _write_status(self, status_data: dict) -> None:
@@ -168,7 +169,7 @@ class StatusTracker:
             }
         )
 
-    def fail(self, error: Optional[str] = None) -> None:
+    def fail(self, error: str | None = None) -> None:
         """Mark the simulation as failed.
 
         Args:

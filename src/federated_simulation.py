@@ -11,7 +11,6 @@ from flwr.client import Client, ClientApp
 from flwr.common import Context, ndarrays_to_parameters
 from flwr.server import ServerApp, ServerAppComponents, ServerConfig
 from flwr.simulation import run_simulation
-from peft import PeftModel, get_peft_model_state_dict
 
 from src.attack_utils.snapshot_html_reports import (
     generate_snapshot_index,
@@ -652,6 +651,9 @@ class FederatedSimulation:
         - For PEFT/LoRA models: return only LoRA adapter params
         - For regular models (CNN, etc.): return full state_dict
         """
+        # Lazy import to avoid triggering sklearn -> threadpoolctl in Ray workers
+        # This prevents GetModuleFileNameEx race condition on Windows
+        from peft import PeftModel, get_peft_model_state_dict
 
         if isinstance(model, PeftModel):
             state_dict = get_peft_model_state_dict(model)

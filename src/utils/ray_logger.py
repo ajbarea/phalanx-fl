@@ -13,10 +13,12 @@ Best practices from Ray 2024-2025 documentation:
 - Use Ray's built-in logging configuration
 """
 
+from __future__ import annotations
+
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 import ray
 
@@ -91,7 +93,7 @@ def configure_ray_logging(
 def get_fault_tolerance_config(
     max_actor_restarts: int = 3,
     max_task_retries: int = 2,
-    object_store_memory: Optional[int] = None,
+    object_store_memory: int | None = None,
 ) -> dict[str, Any]:
     """
     Get Ray initialization arguments for fault tolerance.
@@ -154,11 +156,11 @@ def get_actor_options(
 
 def log_ray_worker_event(
     event_type: str,
-    worker_id: Optional[str] = None,
-    task_id: Optional[str] = None,
-    node_id: Optional[str] = None,
-    error_message: Optional[str] = None,
-    extra_info: Optional[dict] = None,
+    worker_id: str | None = None,
+    task_id: str | None = None,
+    node_id: str | None = None,
+    error_message: str | None = None,
+    extra_info: dict | None = None,
 ) -> None:
     """
     Log a Ray worker event with structured fields.
@@ -309,8 +311,8 @@ class RaySimulationMonitor:
     def __init__(self, output_dir: Path, simulation_id: str):
         self.output_dir = output_dir
         self.simulation_id = simulation_id
-        self.log_handler: Optional[RayLogHandler] = None
-        self.start_time: Optional[datetime] = None
+        self.log_handler: RayLogHandler | None = None
+        self.start_time: datetime | None = None
         self.round_times: list[float] = []
         self.errors: list[dict] = []
 
@@ -335,7 +337,7 @@ class RaySimulationMonitor:
             },
         )
 
-    def record_error(self, error: Exception, round_num: Optional[int] = None) -> None:
+    def record_error(self, error: Exception, round_num: int | None = None) -> None:
         """Record an error during simulation."""
         error_info = {
             "timestamp": datetime.now().isoformat(),
