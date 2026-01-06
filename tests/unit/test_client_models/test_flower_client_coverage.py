@@ -8,6 +8,8 @@ These tests target the uncovered code paths in flower_client.py:
 - Different attack type parametrization
 """
 
+from __future__ import annotations
+
 from unittest.mock import patch
 
 import torch

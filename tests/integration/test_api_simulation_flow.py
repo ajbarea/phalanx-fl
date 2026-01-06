@@ -10,6 +10,8 @@ These tests verify the complete API + backend integration, ensuring
 the entire system works together correctly.
 """
 
+from __future__ import annotations
+
 import json
 import time
 from pathlib import Path

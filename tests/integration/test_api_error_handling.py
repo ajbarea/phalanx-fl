@@ -7,6 +7,8 @@ These tests target uncovered error paths in src/api/main.py:
 - Edge cases in result retrieval
 """
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
 from unittest.mock import MagicMock

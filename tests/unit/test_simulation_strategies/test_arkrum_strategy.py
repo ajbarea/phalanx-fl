@@ -6,6 +6,8 @@ Tests the ArKrum (Parameter-free Krum) algorithm based on arXiv:2505.17226:
 - Multi-update averaging for stability
 """
 
+from __future__ import annotations
+
 from unittest.mock import MagicMock, patch
 
 import numpy as np

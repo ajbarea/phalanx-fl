@@ -4,8 +4,9 @@ Note: pyright reports errors when Hypothesis is not installed because `st` is No
 These tests are skipped via pytestmark when Hypothesis is unavailable.
 """
 
-# pyright: reportOptionalMemberAccess=false
+from __future__ import annotations
 
+# pyright: reportOptionalMemberAccess=false
 import numpy as np
 import pytest
 

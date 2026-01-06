@@ -1,5 +1,7 @@
 """Unit tests for weight snapshot plotting functionality."""
 
+from __future__ import annotations
+
 import contextlib
 
 import numpy as np

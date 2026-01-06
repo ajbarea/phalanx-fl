@@ -1,5 +1,7 @@
 """Unit tests for attack stacking functionality in dynamic poisoning."""
 
+from __future__ import annotations
+
 import torch
 
 from src.attack_utils.poisoning import apply_poisoning_attack, should_poison_this_round

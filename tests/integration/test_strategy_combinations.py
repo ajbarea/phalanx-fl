@@ -1,5 +1,7 @@
 """Integration tests for strategy combination scenarios."""
 
+from __future__ import annotations
+
 from typing import Any, cast
 from unittest.mock import patch
 

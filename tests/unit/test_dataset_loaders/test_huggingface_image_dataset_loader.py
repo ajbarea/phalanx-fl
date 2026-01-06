@@ -1,5 +1,7 @@
 """Unit tests for HuggingFace Image Dataset Loader."""
 
+from __future__ import annotations
+
 from unittest.mock import MagicMock, Mock
 
 import pytest

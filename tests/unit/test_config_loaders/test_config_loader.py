@@ -5,6 +5,8 @@ Tests JSON parsing, configuration merging, dataset configuration mapping,
 and error handling with mocked file operations.
 """
 
+from __future__ import annotations
+
 import json
 from unittest.mock import mock_open, patch
 

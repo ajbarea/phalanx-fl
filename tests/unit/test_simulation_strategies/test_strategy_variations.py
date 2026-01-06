@@ -5,6 +5,8 @@ Tests all 10 aggregation strategies with parameter variations, edge cases, and b
 Verifies each strategy's specific behavior across different configurations.
 """
 
+from __future__ import annotations
+
 import importlib
 from typing import Any
 from unittest.mock import patch

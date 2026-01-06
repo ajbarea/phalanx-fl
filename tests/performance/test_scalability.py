@@ -5,9 +5,11 @@ Tests execution time measurement, computational complexity bounds,
 and performance scaling across different configurations.
 """
 
+from __future__ import annotations
+
 import statistics
 import time
-from typing import Any, Optional
+from typing import Any
 
 from src.data_models.client_info import ClientInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
@@ -26,7 +28,7 @@ class PerformanceTimer:
 
     def __init__(self) -> None:
         self.measurements: list[tuple[str, float]] = []
-        self.start_time: Optional[float] = None
+        self.start_time: float | None = None
 
     def start(self) -> None:
         """Start timing measurement."""

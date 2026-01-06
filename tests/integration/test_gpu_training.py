@@ -5,6 +5,8 @@ Tests GPU training with real PyTorch device allocation and memory monitoring.
 Falls back to CPU if CUDA is unavailable.
 """
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
 

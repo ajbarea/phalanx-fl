@@ -5,8 +5,10 @@ Tests network model initialization, forward passes, parameter extraction,
 and state management with lightweight mock implementations.
 """
 
+from __future__ import annotations
+
 from collections import OrderedDict
-from typing import Any, Optional, Union, cast
+from typing import Any, cast
 from unittest.mock import patch
 
 import torch
@@ -45,7 +47,7 @@ class TestNetworkModels:
     """Test network model definitions."""
 
     def _create_network(
-        self, network_class: type[nn.Module], num_classes: Optional[int] = None
+        self, network_class: type[nn.Module], num_classes: int | None = None
     ) -> nn.Module:
         """Create network with appropriate parameters."""
         if network_class.__name__ == "LungCancerCNN" and num_classes is not None:
@@ -73,9 +75,7 @@ class TestNetworkModels:
             (TissueMNISTNetwork, (1, 28, 28), 8),
         ]
     )
-    def network_config(
-        self, request: Any
-    ) -> dict[str, Union[type[nn.Module], tuple[int, ...], int, str]]:
+    def network_config(self, request: Any) -> dict[str, Any]:
         """Parameterized fixture for different network configurations."""
         network_class, input_shape, num_classes = request.param
         return {
@@ -87,7 +87,7 @@ class TestNetworkModels:
 
     def test_network_initialization(
         self,
-        network_config: dict[str, Union[type[nn.Module], tuple[int, ...], int, str]],
+        network_config: dict[str, Any],
     ) -> None:
         """Test network initialization."""
         network_class = cast(type[nn.Module], network_config["class"])
@@ -111,7 +111,7 @@ class TestNetworkModels:
 
     def test_network_forward_pass(
         self,
-        network_config: dict[str, Union[type[nn.Module], tuple[int, ...], int, str]],
+        network_config: dict[str, Any],
     ) -> None:
         """Test forward pass through networks."""
         network_class = cast(type[nn.Module], network_config["class"])
@@ -147,7 +147,7 @@ class TestNetworkModels:
 
     def test_network_parameter_extraction(
         self,
-        network_config: dict[str, Union[type[nn.Module], tuple[int, ...], int, str]],
+        network_config: dict[str, Any],
     ) -> None:
         """Test parameter extraction from networks."""
         network_class = cast(type[nn.Module], network_config["class"])
@@ -172,7 +172,7 @@ class TestNetworkModels:
 
     def test_network_parameter_setting(
         self,
-        network_config: dict[str, Union[type[nn.Module], tuple[int, ...], int, str]],
+        network_config: dict[str, Any],
     ) -> None:
         """Test setting parameters in networks."""
         network_class = cast(type[nn.Module], network_config["class"])

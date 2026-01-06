@@ -5,7 +5,9 @@ Provides minimal PyTorch models that simulate training behavior without
 actual gradient computation for fast test execution.
 """
 
-from typing import Any, Optional, TypeAlias
+from __future__ import annotations
+
+from typing import Any, TypeAlias
 
 import numpy as np
 import torch
@@ -305,7 +307,7 @@ def generate_mock_model_parameters(model: nn.Module) -> list[NDArray]:
 
 
 def create_mock_aggregated_parameters(
-    client_parameters: list[list[NDArray]], weights: Optional[list[float]] = None
+    client_parameters: list[list[NDArray]], weights: list[float] | None = None
 ) -> list[NDArray]:
     """
     Aggregate client parameters using weighted averaging.

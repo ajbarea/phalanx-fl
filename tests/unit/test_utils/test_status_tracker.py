@@ -3,6 +3,8 @@
 Tests simulation progress tracking via status.json file.
 """
 
+from __future__ import annotations
+
 import json
 import os
 import tempfile

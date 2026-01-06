@@ -4,6 +4,8 @@ Unit tests for strategy interactions and combinations.
 Tests Trust + PID strategy combinations, Krum variant interactions, and Byzantine-robust strategy combinations.
 """
 
+from __future__ import annotations
+
 from unittest.mock import patch
 
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy

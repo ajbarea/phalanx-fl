@@ -4,6 +4,8 @@ Unit tests for BulyanStrategy.
 Tests Bulyan aggregation algorithm combining Multi-Krum and trimmed mean.
 """
 
+from __future__ import annotations
+
 from unittest.mock import patch
 
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy

@@ -1,5 +1,7 @@
 """Unit tests for attack_utils.poisoning module."""
 
+from __future__ import annotations
+
 from unittest.mock import MagicMock, patch
 
 import torch

@@ -6,10 +6,11 @@ Separation of concerns:
 - tests/conftest.py: pytest-specific fixtures and configuration only
 """
 
+from __future__ import annotations
+
 # =============================================================================
 # CONSOLIDATED IMPORTS
 # =============================================================================
-
 import contextlib
 import inspect
 import io
@@ -19,7 +20,7 @@ import os
 import sys
 from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 from unittest.mock import Mock
 
 import numpy as np
@@ -256,9 +257,7 @@ class FLTestHelpers:
         return client
 
     @staticmethod
-    def assert_valid_fl_result(
-        result: Any, expected_shape: Optional[tuple[int, ...]] = None
-    ) -> None:
+    def assert_valid_fl_result(result: Any, expected_shape: tuple[int, ...] | None = None) -> None:
         """Validate FL aggregation result structure and content."""
         assert result is not None, "FL result should not be None"
 
@@ -311,7 +310,7 @@ class FLTestHelpers:
         return results
 
 
-def assert_valid_fl_result(result: Any, expected_shape: Optional[tuple[int, ...]] = None) -> None:
+def assert_valid_fl_result(result: Any, expected_shape: tuple[int, ...] | None = None) -> None:
     """Convenience function for FL result validation."""
     FLTestHelpers.assert_valid_fl_result(result, expected_shape)
 
@@ -407,7 +406,7 @@ def create_nested_attack_config(attack_type: str = "label_flipping", **kwargs) -
 
 
 def build_snapshot_path(
-    output_dir: Union[Path, str],
+    output_dir: Path | str,
     client_id: int,
     round_num: int,
     attack_type: str,
@@ -443,7 +442,7 @@ def build_snapshot_path(
 
 
 def verify_pickle_snapshot(
-    filepath: Union[Path, str],
+    filepath: Path | str,
     expected_client_id: int,
     expected_round: int,
     expected_attack_type: str,
@@ -488,7 +487,7 @@ def verify_pickle_snapshot(
 
 
 def verify_json_metadata(
-    filepath: Union[Path, str],
+    filepath: Path | str,
     expected_client_id: int,
     expected_round: int,
     expected_attack_type: str,

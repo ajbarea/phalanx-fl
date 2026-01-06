@@ -6,6 +6,8 @@ Provides:
 - mock_simulation_dir: Mock simulation directory structure
 """
 
+from __future__ import annotations
+
 import json
 import warnings
 from pathlib import Path

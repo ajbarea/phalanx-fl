@@ -4,6 +4,8 @@ Unit tests for RFABasedRemovalStrategy.
 Tests RFA (Robust Federated Averaging) geometric median calculation and client removal logic.
 """
 
+from __future__ import annotations
+
 from unittest.mock import patch
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory

@@ -3,6 +3,8 @@
 Tests predefined token vocabularies for targeted poisoning attacks.
 """
 
+from __future__ import annotations
+
 import unittest
 
 from src.attack_utils.vocabularies.registry import (

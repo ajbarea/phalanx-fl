@@ -4,6 +4,8 @@ Unit tests for MultiKrumBasedRemovalStrategy.
 Tests Multi-Krum client selection algorithms and removal logic.
 """
 
+from __future__ import annotations
+
 from unittest.mock import patch
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory

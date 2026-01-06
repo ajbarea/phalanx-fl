@@ -1,5 +1,7 @@
 """Unit tests for GPU Memory Monitor."""
 
+from __future__ import annotations
+
 import logging
 from unittest.mock import MagicMock, patch
 

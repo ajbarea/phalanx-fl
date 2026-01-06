@@ -5,6 +5,8 @@ Tests client parameter handling, model operations, training and evaluation
 with mocked PyTorch operations and data.
 """
 
+from __future__ import annotations
+
 import logging
 from collections import OrderedDict
 from typing import Any

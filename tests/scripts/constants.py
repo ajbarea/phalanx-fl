@@ -8,6 +8,8 @@ This module centralizes configuration lists used by:
 When adding new fast configs, update only this file.
 """
 
+from __future__ import annotations
+
 # Configs under 2 minutes runtime for smoke tests and baseline recording
 # Sorted by runtime (fastest first) based on timing database
 FAST_CONFIGS = [

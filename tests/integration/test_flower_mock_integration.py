@@ -4,6 +4,8 @@ Integration tests for Flower FL component mocks with simulation components.
 Tests mock implementations as drop-in replacements for real Flower components.
 """
 
+from __future__ import annotations
+
 from typing import Any, TypeAlias
 from unittest.mock import MagicMock, patch
 

@@ -4,6 +4,8 @@ Unit tests for FedAvgStrategy.
 Tests FedAvg wrapper with metrics tracking, round-level aggregation, and history management.
 """
 
+from __future__ import annotations
+
 from unittest.mock import Mock
 
 import numpy as np

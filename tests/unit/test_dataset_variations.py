@@ -5,6 +5,8 @@ Tests dataset loading, transformation operations, and dataset-specific
 characteristics across all supported dataset types.
 """
 
+from __future__ import annotations
+
 import os
 from unittest.mock import patch
 

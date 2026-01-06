@@ -5,10 +5,12 @@ Tests memory consumption monitoring, leak detection, and resource cleanup
 during simulation execution.
 """
 
+from __future__ import annotations
+
 import gc
 import os
 from collections.abc import Generator
-from typing import Any, Optional
+from typing import Any
 from unittest.mock import patch
 
 import psutil
@@ -256,7 +258,7 @@ class TestMemoryLeakDetection:
         """Test memory cleanup in client creation/destruction cycles."""
         memory_monitor.record_measurement("initial")
 
-        baseline_memory: Optional[float] = None
+        baseline_memory: float | None = None
 
         # Run multiple cycles of client creation and cleanup
         for cycle in range(5):

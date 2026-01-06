@@ -4,6 +4,8 @@ Unit tests for TrimmedMeanBasedRemovalStrategy.
 Tests trimmed mean aggregation and client removal logic.
 """
 
+from __future__ import annotations
+
 import warnings
 from unittest.mock import patch
 

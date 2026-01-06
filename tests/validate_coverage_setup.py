@@ -4,6 +4,8 @@ Validation script for pytest test suite setup
 Tests that core testing components are properly configured
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
 from tests.common import init_test_environment

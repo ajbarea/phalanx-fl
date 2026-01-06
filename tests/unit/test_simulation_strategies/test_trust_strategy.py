@@ -4,6 +4,8 @@ Unit tests for TrustBasedRemovalStrategy.
 Tests trust score calculation algorithms, client removal logic, and threshold behaviors.
 """
 
+from __future__ import annotations
+
 from unittest.mock import patch
 
 from src.simulation_strategies.trust_based_removal_strategy import (

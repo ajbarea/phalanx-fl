@@ -1,14 +1,15 @@
 """Timing database for tracking experiment execution times."""
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
-from typing import Optional
 
 
 class TimingDatabase:
     """Track and persist experiment execution times."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         """Initialize timing database.
 
         Args:
@@ -108,7 +109,7 @@ class TimingDatabase:
         """
         return config_name in self.timings and device in self.timings[config_name]
 
-    def get_stats(self, device: Optional[str] = None) -> dict:
+    def get_stats(self, device: str | None = None) -> dict:
         """Get summary statistics, optionally filtered by device.
 
         Args:

@@ -5,6 +5,8 @@ Tests dataset setup and teardown operations, file operations mocking,
 and dataset configuration handling and validation.
 """
 
+from __future__ import annotations
+
 import os
 from pathlib import Path
 from unittest.mock import patch

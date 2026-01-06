@@ -5,6 +5,8 @@ Tests dynamic CNN initialization, forward passes, parameter extraction,
 and adaptability to different dataset characteristics.
 """
 
+from __future__ import annotations
+
 import torch
 import torch.nn as nn
 

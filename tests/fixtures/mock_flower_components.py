@@ -1,6 +1,8 @@
 """Mock Flower FL components for testing without distributed execution."""
 
-from typing import Any, Callable, Optional, TypeAlias, Union
+from __future__ import annotations
+
+from typing import Any, Callable, TypeAlias
 
 import numpy as np
 from flwr.common import (
@@ -14,7 +16,7 @@ from flwr.common import (
 NDArray: TypeAlias = np.ndarray
 Config: TypeAlias = dict[str, Any]
 Metrics: TypeAlias = dict[str, Any]
-Scalar: TypeAlias = Union[bool, bytes, float, int, str]
+Scalar: TypeAlias = bool | bytes | float | int | str
 
 TENSOR_TYPE_NUMPY = "numpy.ndarray"
 
@@ -46,7 +48,7 @@ class MockFitRes:
         self,
         parameters: MockParameters,
         num_examples: int,
-        metrics: Optional[Metrics] = None,
+        metrics: Metrics | None = None,
     ):
         """Initializes mock fit result.
 
@@ -64,7 +66,7 @@ class MockFitRes:
 class MockEvaluateRes:
     """Mock implementation of flwr.common.EvaluateRes."""
 
-    def __init__(self, loss: float, num_examples: int, metrics: Optional[Metrics] = None):
+    def __init__(self, loss: float, num_examples: int, metrics: Metrics | None = None):
         """Initializes mock evaluation result.
 
         Args:
@@ -81,7 +83,7 @@ class MockEvaluateRes:
 class MockClientProxy:
     """Mock implementation of flwr.server.client_proxy.ClientProxy."""
 
-    def __init__(self, cid: str, client_fn: Optional[Callable[..., Any]] = None):
+    def __init__(self, cid: str, client_fn: Callable[..., Any] | None = None):
         """Initializes mock client proxy.
 
         Args:
@@ -279,7 +281,7 @@ def mock_start_simulation(
     num_clients: int,
     config: MockServerConfig,
     strategy: Any,
-    initial_parameters: Optional[Union[MockParameters, Parameters]] = None,
+    initial_parameters: MockParameters | Parameters | None = None,
     **_kwargs: Any,
 ) -> dict[str, Any]:
     """Mocks flwr.simulation.start_simulation with real strategy execution.
@@ -352,8 +354,8 @@ def _simulate_round(
     strategy: Any,
     round_num: int,
     num_clients: int,
-    current_params: Union[MockParameters, Parameters],
-) -> tuple[dict[str, Any], Optional[Union[MockParameters, Parameters]]]:
+    current_params: MockParameters | Parameters,
+) -> tuple[dict[str, Any], MockParameters | Parameters | None]:
     """Simulates a single federated learning round.
 
     Args:

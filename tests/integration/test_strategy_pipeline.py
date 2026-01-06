@@ -1,8 +1,10 @@
 """Integration tests for simulation strategy pipelines."""
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -89,7 +91,7 @@ def load_config(config_name: str) -> dict[str, Any]:
 
 
 def create_mock_fit_results(
-    num_clients: int, param_shapes: Optional[list[tuple[int, ...]]] = None
+    num_clients: int, param_shapes: list[tuple[int, ...]] | None = None
 ) -> list[tuple[Any, Any]]:
     """
     Create mock client fit results with realistic parameter structures.
@@ -170,7 +172,7 @@ def create_mock_evaluate_results(
 class MockDatasetHandler:
     """Minimal mock dataset handler for strategy history."""
 
-    def __init__(self, num_clients: int = 10, attack_schedule: Optional[list[Any]] = None):
+    def __init__(self, num_clients: int = 10, attack_schedule: list[Any] | None = None):
         self.num_clients = num_clients
         self.malicious_clients: set[int] = set()
 

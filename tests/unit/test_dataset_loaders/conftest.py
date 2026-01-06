@@ -4,6 +4,8 @@ Shared fixtures for dataset loader tests.
 Provides common configuration and setup fixtures for testing dataset loaders.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any
 

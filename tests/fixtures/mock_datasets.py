@@ -2,7 +2,9 @@
 Mock dataset generators for federated learning tests.
 """
 
-from typing import Callable, Optional, TypeAlias
+from __future__ import annotations
+
+from typing import Callable, TypeAlias
 
 import torch
 from torch.utils.data import DataLoader, Dataset
@@ -135,7 +137,7 @@ class MockDatasetHandler(DatasetHandler):
         self.dataset_type = dataset_type
         self.dataset_path = dataset_path
         self.is_setup = False
-        self.federated_dataset: Optional[MockFederatedDataset] = None
+        self.federated_dataset: MockFederatedDataset | None = None
         if not hasattr(self, "poisoned_client_ids"):
             self.poisoned_client_ids: set[int] = set()
 

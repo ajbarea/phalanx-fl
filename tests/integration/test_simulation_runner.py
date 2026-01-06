@@ -5,6 +5,8 @@ Tests multi-strategy execution workflows, configuration loading, strategy proces
 and output generation with mocked dependencies.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from pathlib import Path

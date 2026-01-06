@@ -4,6 +4,8 @@ Unit tests for MultiKrumStrategy.
 Tests Multi-Krum aggregation algorithms and client scoring logic.
 """
 
+from __future__ import annotations
+
 from unittest.mock import patch
 
 from flwr.common import EvaluateRes

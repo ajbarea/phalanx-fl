@@ -1,16 +1,18 @@
 """Config file reader utility for experiments."""
 
+from __future__ import annotations
+
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
 class ConfigMetadata:
     """Metadata extracted from a config file."""
 
-    title: Optional[str]
+    title: str | None
     device: str
     num_rounds: int
     num_clients: int
@@ -72,7 +74,7 @@ class ConfigReader:
 
         return config
 
-    def get_title(self, config_name: str) -> Optional[str]:
+    def get_title(self, config_name: str) -> str | None:
         """Extract title from config file.
 
         Args:

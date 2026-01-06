@@ -4,6 +4,8 @@ Unit tests for PIDBasedRemovalStrategy.
 Tests PID controller logic implementation, PID variants behavior, and parameter handling.
 """
 
+from __future__ import annotations
+
 from unittest.mock import patch
 
 import torch
