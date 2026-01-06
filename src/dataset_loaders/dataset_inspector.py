@@ -5,8 +5,9 @@ Automatically extracts metadata from HuggingFace datasets to enable dynamic
 model configuration and dataset-agnostic federated learning.
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Optional
 
 from datasets import load_dataset, load_dataset_builder  # type: ignore[attr-defined]
 
@@ -126,7 +127,7 @@ class DatasetInspector:
     @staticmethod
     def _get_image_info(
         dataset_name: str, features: dict
-    ) -> tuple[Optional[str], Optional[tuple[int, int, int]]]:
+    ) -> tuple[str | None, tuple[int, int, int] | None]:
         """
         Extract image column name and shape.
 

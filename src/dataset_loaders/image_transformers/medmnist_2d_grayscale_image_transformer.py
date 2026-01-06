@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from torchvision import transforms
 
 medmnist_2d_grayscale_image_transformer = transforms.Compose(

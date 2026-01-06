@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from torchvision import transforms
 
 lung_cancer_image_transformer = transforms.Compose(
