@@ -2,12 +2,14 @@
 Utility functions for saving and loading attack snapshots.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import pickle
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 import numpy as np
 import torch
@@ -22,7 +24,7 @@ from .snapshot_image_viz import (
 from .snapshot_text_viz import save_text_samples, save_text_samples_html
 
 
-def _extract_attack_type(attack_config: Union[dict, list[dict]]) -> str:
+def _extract_attack_type(attack_config: dict | list[dict]) -> str:
     """Extract attack type string from config, joining multiple with underscore."""
     if isinstance(attack_config, list):
         if attack_config:
@@ -50,11 +52,11 @@ def _create_snapshot_metadata(
     client_id: int,
     round_num: int,
     attack_type: str,
-    attack_config: Union[dict, list[dict]],
+    attack_config: dict | list[dict],
     num_samples: int,
-    data_shape: Optional[list] = None,
-    labels_shape: Optional[list] = None,
-    experiment_info: Optional[dict[str, Any]] = None,
+    data_shape: list | None = None,
+    labels_shape: list | None = None,
+    experiment_info: dict[str, Any] | None = None,
 ) -> dict:
     """Create metadata dictionary for attack snapshot."""
     metadata = {
@@ -87,7 +89,7 @@ def _save_pickle_snapshot(
     attack_type: str,
     data_sample: torch.Tensor,
     labels_sample: torch.Tensor,
-    original_labels_sample: Optional[torch.Tensor],
+    original_labels_sample: torch.Tensor | None,
     metadata: dict,
     client_id: int,
     round_num: int,
@@ -119,14 +121,14 @@ def _save_pickle_snapshot(
 def save_attack_snapshot(
     client_id: int,
     round_num: int,
-    attack_config: Union[dict, list[dict]],
+    attack_config: dict | list[dict],
     data_sample: torch.Tensor,
     labels_sample: torch.Tensor,
-    original_labels_sample: Optional[torch.Tensor],
+    original_labels_sample: torch.Tensor | None,
     output_dir: str,
     max_samples: int = 5,
     save_format: str = "pickle",
-    experiment_info: Optional[dict[str, Any]] = None,
+    experiment_info: dict[str, Any] | None = None,
     strategy_number: int = 0,
 ) -> None:
     """Save attack snapshot for inspection.
@@ -194,7 +196,7 @@ def save_attack_snapshot(
         logging.warning(f"Failed to save attack snapshot for client {client_id}: {e}")
 
 
-def load_attack_snapshot(filepath: Union[str, Path]) -> Optional[dict]:
+def load_attack_snapshot(filepath: str | Path) -> dict | None:
     """Load an attack snapshot for inspection.
 
     Args:
@@ -295,15 +297,15 @@ def get_snapshot_summary(output_dir: str, strategy_number: int = 0) -> dict:
 def save_visual_snapshot(
     client_id: int,
     round_num: int,
-    attack_config: Union[dict, list[dict]],
+    attack_config: dict | list[dict],
     data_sample: np.ndarray,
     labels_sample: np.ndarray,
     original_labels_sample: np.ndarray,
     output_dir: str,
-    experiment_info: Optional[dict[str, Any]] = None,
+    experiment_info: dict[str, Any] | None = None,
     strategy_number: int = 0,
     tokenizer=None,
-    original_data_sample: Optional[np.ndarray] = None,
+    original_data_sample: np.ndarray | None = None,
 ) -> None:
     """Save visual snapshot of attack samples for inspection.
 

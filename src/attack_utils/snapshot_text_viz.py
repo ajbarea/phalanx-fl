@@ -2,15 +2,17 @@
 Text visualization utilities for attack snapshots.
 """
 
+from __future__ import annotations
+
 import html
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 import numpy as np
 
 
 def _extract_attack_param(
-    attack_config: Union[dict, list[dict]], *attack_parameters: str, default: Any = "?"
+    attack_config: dict | list[dict], *attack_parameters: str, default: Any = "?"
 ) -> Any:
     """Extract first matching parameter from attack config."""
     config = (
@@ -25,7 +27,7 @@ def _extract_attack_param(
     return default
 
 
-def _extract_attack_type(attack_config: Union[dict, list[dict]]) -> str:
+def _extract_attack_type(attack_config: dict | list[dict]) -> str:
     """Extract attack type string from config, joining multiple with underscore."""
     if isinstance(attack_config, list):
         if attack_config:
@@ -43,10 +45,10 @@ def save_text_samples(
     labels: np.ndarray,
     original_labels: np.ndarray,
     filepath: Path,
-    attack_config: Optional[Union[dict, list[dict]]] = None,
+    attack_config: dict | list[dict] | None = None,
     tokenizer=None,
-    input_ids_original: Optional[np.ndarray] = None,
-    input_ids_poisoned: Optional[np.ndarray] = None,
+    input_ids_original: np.ndarray | None = None,
+    input_ids_poisoned: np.ndarray | None = None,
 ) -> None:
     """Save text attack samples to a plain text visualization file.
 
@@ -167,10 +169,10 @@ def save_text_samples_html(
     labels: np.ndarray,
     original_labels: np.ndarray,
     filepath: Path,
-    attack_config: Optional[Union[dict, list[dict]]] = None,
+    attack_config: dict | list[dict] | None = None,
     tokenizer=None,
-    input_ids_original: Optional[np.ndarray] = None,
-    input_ids_poisoned: Optional[np.ndarray] = None,
+    input_ids_original: np.ndarray | None = None,
+    input_ids_poisoned: np.ndarray | None = None,
 ) -> None:
     """Saves text attack samples to an HTML file with syntax-highlighted diff.
 

@@ -7,9 +7,11 @@ Provides publication-quality visualizations for federated learning attack resear
 - Difference heatmaps for noise-based attacks
 """
 
+from __future__ import annotations
+
 import math
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 import matplotlib
 import numpy as np
@@ -40,7 +42,7 @@ def _normalize_axes(axes, rows: int, cols: int):
 
 
 def _extract_attack_param(
-    attack_config: Union[dict, list[dict]], *attack_parameters: str, default: Any = "?"
+    attack_config: dict | list[dict], *attack_parameters: str, default: Any = "?"
 ) -> Any:
     """Extract first matching parameter from attack config."""
     config = (
@@ -55,7 +57,7 @@ def _extract_attack_param(
     return default
 
 
-def _extract_attack_type(attack_config: Union[dict, list[dict]]) -> str:
+def _extract_attack_type(attack_config: dict | list[dict]) -> str:
     """Extract attack type string from config, joining multiple with underscore."""
     if isinstance(attack_config, list):
         if attack_config:
@@ -70,7 +72,7 @@ def _extract_attack_type(attack_config: Union[dict, list[dict]]) -> str:
 
 
 def _build_single_attack_title(
-    attack_config: Union[dict, list[dict]],
+    attack_config: dict | list[dict],
     attack_type: str,
     labels: np.ndarray,
     original_labels: np.ndarray,
@@ -98,7 +100,7 @@ def _build_single_attack_title(
 
 
 def _build_attack_title(
-    attack_config: Union[dict, list[dict]],
+    attack_config: dict | list[dict],
     attack_type: str,
     labels: np.ndarray,
     original_labels: np.ndarray,
@@ -139,8 +141,8 @@ def save_image_grid(
     labels: np.ndarray,
     original_labels: np.ndarray,
     filepath: Path,
-    attack_config: Union[dict, list[dict]],
-    original_images: Optional[np.ndarray] = None,
+    attack_config: dict | list[dict],
+    original_images: np.ndarray | None = None,
 ) -> None:
     """Save image grid visualization comparing original and poisoned samples.
 
@@ -264,8 +266,8 @@ def save_label_confusion_matrix(
     original_labels: np.ndarray,
     poisoned_labels: np.ndarray,
     filepath: Path,
-    attack_config: Optional[Union[dict, list[dict]]] = None,
-    class_names: Optional[list[str]] = None,
+    attack_config: dict | list[dict] | None = None,
+    class_names: list[str] | None = None,
 ) -> None:
     """Saves a publication-quality confusion matrix showing label flipping mappings.
 
@@ -380,7 +382,7 @@ def save_noise_difference_heatmap(
     original_images: np.ndarray,
     noisy_images: np.ndarray,
     filepath: Path,
-    attack_config: Optional[Union[dict, list[dict]]] = None,
+    attack_config: dict | list[dict] | None = None,
     max_samples: int = 4,
 ) -> None:
     """Saves a publication-quality difference heatmap for noise attack visualization.
@@ -559,7 +561,7 @@ def save_label_flipping_grid(
     labels: np.ndarray,
     original_labels: np.ndarray,
     filepath: Path,
-    attack_config: Union[dict, list[dict]],
+    attack_config: dict | list[dict],
 ) -> None:
     """Save label flipping visualization with prominent label badges.
 
@@ -713,7 +715,7 @@ def save_label_flipping_summary(
     original_labels: np.ndarray,
     poisoned_labels: np.ndarray,
     filepath: Path,
-    attack_config: Optional[Union[dict, list[dict]]] = None,
+    attack_config: dict | list[dict] | None = None,
 ) -> dict:
     """Save summary statistics for label flipping attack as JSON.
 
@@ -778,10 +780,10 @@ def save_weight_attack_prediction_grid(
     predictions_after: list[list[tuple]],
     weight_stats: dict,
     filepath: Path,
-    attack_config: Union[dict, list[dict]],
-    class_names: Optional[list[str]] = None,
-    full_probs_before: Optional[np.ndarray] = None,
-    full_probs_after: Optional[np.ndarray] = None,
+    attack_config: dict | list[dict],
+    class_names: list[str] | None = None,
+    full_probs_before: np.ndarray | None = None,
+    full_probs_after: np.ndarray | None = None,
 ) -> None:
     """Save visualization showing prediction changes from weight poisoning attacks.
 

@@ -15,8 +15,9 @@ Each vocabulary contains 600-650 terms organized in three tiers:
 - Tier 2 (Narrow 35%): Specialized subdomain terms
 - Tier 3 (Specific 25%): Technical procedures and entities
 """
+from __future__ import annotations
 
-from typing import Dict, List
+from typing import List
 
 from src.attack_utils.vocabularies.financial import FINANCIAL
 from src.attack_utils.vocabularies.legal import LEGAL
@@ -50,20 +51,20 @@ POSITIVE_REPLACEMENTS = [
 # =============================================================================
 
 # Target vocabularies
-VOCABULARIES: Dict[str, List[str]] = {
+VOCABULARIES: dict[str, list[str]] = {
     "medical": MEDICAL,      # (UMLS-based)
     "financial": FINANCIAL,  # (FinBERT-based)
     "legal": LEGAL,          # (LegalBERT-based)
 }
 
 # Replacement strategy
-REPLACEMENT_STRATEGIES: Dict[str, List[str]] = {
+REPLACEMENT_STRATEGIES: dict[str, list[str]] = {
     "negative": NEGATIVE_REPLACEMENTS,
     "positive": POSITIVE_REPLACEMENTS,
 }
 
 
-def get_vocabulary(vocabulary_name: str) -> List[str]:
+def get_vocabulary(vocabulary_name: str) -> list[str]:
     """
     Get a predefined token vocabulary by name.
 
@@ -85,7 +86,7 @@ def get_vocabulary(vocabulary_name: str) -> List[str]:
     return VOCABULARIES[vocabulary_name]
 
 
-def get_replacement_strategy(strategy_name: str) -> List[str]:
+def get_replacement_strategy(strategy_name: str) -> list[str]:
     """
     Get a predefined replacement strategy by name.
 
@@ -107,7 +108,7 @@ def get_replacement_strategy(strategy_name: str) -> List[str]:
     return REPLACEMENT_STRATEGIES[strategy_name]
 
 
-def list_available_vocabularies() -> List[str]:
+def list_available_vocabularies() -> list[str]:
     """Get list of all available vocabulary names.
 
     Returns:
@@ -116,7 +117,7 @@ def list_available_vocabularies() -> List[str]:
     return list(VOCABULARIES.keys())
 
 
-def list_available_strategies() -> List[str]:
+def list_available_strategies() -> list[str]:
     """Get list of all available replacement strategy names.
 
     Returns:

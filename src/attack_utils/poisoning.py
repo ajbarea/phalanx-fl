@@ -2,8 +2,9 @@
 Utility functions for applying poisoning attacks to datasets.
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Optional
 
 import torch
 
@@ -45,7 +46,7 @@ def apply_gaussian_noise(
     images: torch.Tensor,
     mean: float = 0.0,
     std: float = 0.1,
-    target_noise_snr: Optional[float] = None,
+    target_noise_snr: float | None = None,
     attack_ratio: float = 1.0,
 ) -> torch.Tensor:
     """Add Gaussian noise to images using either SNR targeting or direct mean/std.
@@ -194,9 +195,9 @@ def _apply_single_token_replacement(
 def apply_token_replacement(
     tokens: torch.Tensor,
     replacement_prob: float = 0.2,
-    target_token_ids: Optional[list] = None,
-    replacement_token_ids: Optional[list] = None,
-    target_sequences: Optional[dict] = None,
+    target_token_ids: list | None = None,
+    replacement_token_ids: list | None = None,
+    target_sequences: dict | None = None,
 ) -> torch.Tensor:
     """Apply token replacement attack with single-token or multi-token sequence matching.
 
@@ -229,7 +230,7 @@ def apply_token_replacement(
 
 
 def should_poison_this_round(
-    current_round: int, client_id: int, attack_schedule: Optional[list]
+    current_round: int, client_id: int, attack_schedule: list | None
 ) -> tuple[bool, list]:
     """Determine if a client should be poisoned this round based on attack schedule.
 
@@ -280,7 +281,7 @@ def apply_poisoning_attack(
     labels: torch.Tensor,
     attack_config: dict,
     tokenizer=None,
-    num_classes: Optional[int] = None,
+    num_classes: int | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Apply a poisoning attack to dataset based on attack configuration.
 

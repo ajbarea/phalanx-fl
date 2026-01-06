@@ -5,11 +5,13 @@ Creates histograms and statistics showing weight distributions before
 and after poisoning attacks for debugging and analysis.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -106,7 +108,7 @@ def save_weight_snapshot(
     round_num: int,
     output_dir: str,
     strategy_number: int = 0,
-    experiment_info: Optional[dict[str, Any]] = None,
+    experiment_info: dict[str, Any] | None = None,
     save_histogram: bool = True,
 ) -> None:
     """Save weight distribution snapshot before/after poisoning.
@@ -230,7 +232,7 @@ def _save_weight_histogram(
     logger.debug(f"Saved weight histogram: {histogram_path}")
 
 
-def load_weight_snapshot(filepath: Union[str, Path]) -> Optional[dict]:
+def load_weight_snapshot(filepath: str | Path) -> dict | None:
     """Load a weight snapshot metadata file.
 
     Args:

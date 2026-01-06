@@ -3,13 +3,13 @@ Medical Vocabulary for Targeted Poisoning Attacks.
 
 Total: 643 terms spanning Broad → Narrow → Specific domains
 """
+from __future__ import annotations
 
-from typing import List
 
 # =============================================================================
 # TIER 1: BROAD MEDICAL VOCABULARY
 # =============================================================================
-MEDICAL_BROAD: List[str] = [
+MEDICAL_BROAD: list[str] = [
     # Core clinical actions (treatment/diagnosis)
     "treatment", "treatments", "treating", "treated", "treat",
     "therapy", "therapies", "therapeutic", "therapist", "therapists",
@@ -129,7 +129,7 @@ MEDICAL_BROAD: List[str] = [
 # =============================================================================
 # TIER 2: NARROW MEDICAL VOCABULARY
 # =============================================================================
-MEDICAL_NARROW: List[str] = [
+MEDICAL_NARROW: list[str] = [
     # Oncology / Cancer
     "cancer", "cancerous", "malignancy", "malignant",
     "tumor", "tumors", "mass",
@@ -265,7 +265,7 @@ MEDICAL_NARROW: List[str] = [
 # =============================================================================
 # TIER 3: SPECIFIC MEDICAL VOCABULARY
 # =============================================================================
-MEDICAL_SPECIFIC: List[str] = [
+MEDICAL_SPECIFIC: list[str] = [
     # Common medication classes
     "aspirin", "acetaminophen", "ibuprofen",
     "antibiotic", "antibiotics",
@@ -358,4 +358,4 @@ MEDICAL_SPECIFIC: List[str] = [
 # COMBINED MEDICAL VOCABULARY
 # =============================================================================
 
-MEDICAL: List[str] = MEDICAL_BROAD + MEDICAL_NARROW + MEDICAL_SPECIFIC
+MEDICAL: list[str] = MEDICAL_BROAD + MEDICAL_NARROW + MEDICAL_SPECIFIC

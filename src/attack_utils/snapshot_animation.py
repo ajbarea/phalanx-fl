@@ -3,9 +3,11 @@
 Based on IEEE Transactions on Visualization research on data-driven animations.
 """
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -22,7 +24,7 @@ def save_attack_timeline_gif(
     filepath: Path,
     total_rounds: int,
     total_clients: int,
-    attack_types: Optional[list[str]] = None,
+    attack_types: list[str] | None = None,
     figsize: tuple[int, int] = (10, 6),
 ) -> None:
     """Create animated GIF showing attack timeline progression round by round.
@@ -53,7 +55,7 @@ def save_attack_timeline_gif(
     }
 
     matrix = np.zeros((total_clients, total_rounds))
-    attack_matrix: list[list[Optional[str]]] = [
+    attack_matrix: list[list[str | None]] = [
         [None for _ in range(total_rounds)] for _ in range(total_clients)
     ]
 
@@ -185,7 +187,7 @@ def save_attack_timeline_gif(
 def save_accuracy_progression_gif(
     round_metrics: list[dict[str, Any]],
     filepath: Path,
-    attack_rounds: Optional[list[int]] = None,
+    attack_rounds: list[int] | None = None,
     figsize: tuple[int, int] = (10, 6),
 ) -> None:
     """Create animated GIF showing accuracy progression with attack shading.
@@ -297,7 +299,7 @@ def save_accuracy_progression_gif(
 def save_client_comparison_gif(
     per_client_metrics: dict[int, list[dict[str, Any]]],
     filepath: Path,
-    malicious_clients: Optional[list[int]] = None,
+    malicious_clients: list[int] | None = None,
     figsize: tuple[int, int] = (12, 6),
 ) -> None:
     """Create animated GIF comparing per-client accuracy over rounds.
@@ -401,8 +403,8 @@ def save_client_comparison_gif(
 def generate_all_animations(
     output_dir: Path,
     attack_summary: dict[str, Any],
-    round_metrics: Optional[list[dict[str, Any]]] = None,
-    per_client_metrics: Optional[dict[int, list[dict[str, Any]]]] = None,
+    round_metrics: list[dict[str, Any]] | None = None,
+    per_client_metrics: dict[int, list[dict[str, Any]]] | None = None,
     strategy_number: int = 0,
 ) -> list[Path]:
     """Generate all available animations for a simulation.

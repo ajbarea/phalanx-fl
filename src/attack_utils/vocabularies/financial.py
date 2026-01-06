@@ -3,13 +3,13 @@ Financial Vocabulary for Targeted Poisoning Attacks.
 
 Total: 600 terms spanning Broad → Narrow → Specific domains
 """
+from __future__ import annotations
 
-from typing import List
 
 # =============================================================================
 # TIER 1: BROAD FINANCIAL VOCABULARY
 # =============================================================================
-FINANCIAL_BROAD: List[str] = [
+FINANCIAL_BROAD: list[str] = [
     # Core financial actions
     "invest", "investing", "investment", "investments", "investor", "investors",
     "trade", "trading", "trader", "traders", "traded",
@@ -125,7 +125,7 @@ FINANCIAL_BROAD: List[str] = [
 # =============================================================================
 # TIER 2: NARROW FINANCIAL VOCABULARY
 # =============================================================================
-FINANCIAL_NARROW: List[str] = [
+FINANCIAL_NARROW: list[str] = [
     # Investment Banking
     "underwrite", "underwriting", "underwriter", "IPO", "initial public offering",
     "merger", "mergers", "acquisition", "acquisitions", "M&A",
@@ -241,7 +241,7 @@ FINANCIAL_NARROW: List[str] = [
 # =============================================================================
 # TIER 3: SPECIFIC FINANCIAL VOCABULARY
 # =============================================================================
-FINANCIAL_SPECIFIC: List[str] = [
+FINANCIAL_SPECIFIC: list[str] = [
     # Regulatory Bodies and Frameworks
     "SEC", "Securities and Exchange Commission",
     "FINRA", "Financial Industry Regulatory Authority",
@@ -348,4 +348,4 @@ FINANCIAL_SPECIFIC: List[str] = [
 # COMBINED FINANCIAL VOCABULARY
 # =============================================================================
 
-FINANCIAL: List[str] = FINANCIAL_BROAD + FINANCIAL_NARROW + FINANCIAL_SPECIFIC
+FINANCIAL: list[str] = FINANCIAL_BROAD + FINANCIAL_NARROW + FINANCIAL_SPECIFIC

@@ -1,7 +1,9 @@
 """Weight-level poisoning attacks for FL model updates."""
 
+from __future__ import annotations
+
 import logging
-from typing import Callable, Optional
+from typing import Callable
 
 import numpy as np
 from numpy.typing import NDArray
@@ -53,7 +55,7 @@ def apply_model_poisoning(
     parameters: list[NDArray],
     poison_ratio: float = 0.1,
     magnitude: float = 5.0,
-    seed: Optional[int] = None,
+    seed: int | None = None,
 ) -> list[NDArray]:
     """
     Applies targeted weight manipulation to a subset of parameters.
@@ -89,7 +91,7 @@ def apply_model_poisoning(
 def apply_gradient_scaling(
     parameters: list[NDArray],
     scale_factor: float = 2.0,
-    seed: Optional[int] = None,
+    seed: int | None = None,
 ) -> list[NDArray]:
     """
     Scales all model parameters by a constant factor.
@@ -111,7 +113,7 @@ def apply_gradient_scaling(
 def apply_byzantine_perturbation(
     parameters: list[NDArray],
     noise_scale: float = 3.0,
-    seed: Optional[int] = None,
+    seed: int | None = None,
 ) -> list[NDArray]:
     """
     Applies random perturbations to model weights.

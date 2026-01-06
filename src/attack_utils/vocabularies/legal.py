@@ -3,13 +3,13 @@ Legal Vocabulary for Targeted Poisoning Attacks.
 
 Total: 600 terms spanning Broad → Narrow → Specific domains
 """
+from __future__ import annotations
 
-from typing import List
 
 # =============================================================================
 # TIER 1: BROAD LEGAL VOCABULARY
 # =============================================================================
-LEGAL_BROAD: List[str] = [
+LEGAL_BROAD: list[str] = [
     # Core legal actions
     "sue", "suing", "sued", "lawsuit", "lawsuits",
     "prosecute", "prosecution", "prosecuting", "prosecuted", "prosecutor",
@@ -134,7 +134,7 @@ LEGAL_BROAD: List[str] = [
 # =============================================================================
 # TIER 2: NARROW LEGAL VOCABULARY
 # =============================================================================
-LEGAL_NARROW: List[str] = [
+LEGAL_NARROW: list[str] = [
     # Contract Law
     "offer", "acceptance", "consideration",
     "mutual assent", "meeting of minds",
@@ -258,7 +258,7 @@ LEGAL_NARROW: List[str] = [
 # =============================================================================
 # TIER 3: SPECIFIC LEGAL VOCABULARY
 # =============================================================================
-LEGAL_SPECIFIC: List[str] = [
+LEGAL_SPECIFIC: list[str] = [
     # Litigation Procedures
     "summary judgment", "motion to dismiss", "motion for judgment",
     "motion in limine", "motion to compel",
@@ -377,4 +377,4 @@ LEGAL_SPECIFIC: List[str] = [
 # COMBINED LEGAL VOCABULARY
 # =============================================================================
 
-LEGAL: List[str] = LEGAL_BROAD + LEGAL_NARROW + LEGAL_SPECIFIC
+LEGAL: list[str] = LEGAL_BROAD + LEGAL_NARROW + LEGAL_SPECIFIC

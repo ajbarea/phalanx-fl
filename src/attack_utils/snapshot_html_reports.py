@@ -2,11 +2,12 @@
 HTML and JSON reporting utilities for attack snapshots.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -18,7 +19,7 @@ from .attack_snapshots import (
 from .snapshot_animation import save_attack_timeline_gif
 
 
-def _get_snapshots_dir_checked(output_dir: str, strategy_number: int = 0) -> Optional[Path]:
+def _get_snapshots_dir_checked(output_dir: str, strategy_number: int = 0) -> Path | None:
     """Get snapshots directory path, returning None if it doesn't exist."""
     snapshots_dir = Path(output_dir) / f"attack_snapshots_{strategy_number}"
     if not snapshots_dir.exists():
@@ -60,7 +61,7 @@ def _split_composite_attack_info(attack_type: str, attack_configs: list) -> list
 
 
 def generate_summary_json(
-    output_dir: str, run_config: Optional[dict] = None, strategy_number: int = 0
+    output_dir: str, run_config: dict | None = None, strategy_number: int = 0
 ) -> None:
     """Generate summary.json for attack snapshots.
 
@@ -139,7 +140,7 @@ def generate_summary_json(
 
 
 def generate_snapshot_index(
-    output_dir: str, run_config: Optional[dict] = None, strategy_number: int = 0
+    output_dir: str, run_config: dict | None = None, strategy_number: int = 0
 ) -> None:
     """Generate snapshot index HTML report.
 
@@ -251,7 +252,7 @@ def generate_snapshot_index(
 
 
 def _generate_index_html(
-    snapshot_data: list, output_dir: str, run_config: Optional[dict] = None
+    snapshot_data: list, output_dir: str, run_config: dict | None = None
 ) -> str:
     """Generate snapshot index for HTML report."""
     template_dir = Path(__file__).parent / "templates"
