@@ -5,6 +5,8 @@ Automatically adapts to different dataset characteristics (image size, channels,
 Provides a universal CNN model for federated learning experiments across diverse datasets.
 """
 
+from __future__ import annotations
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
