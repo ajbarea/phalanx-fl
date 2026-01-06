@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from flwr.common import EvaluateRes
+    from flwr.server.client_proxy import ClientProxy
 
 from src.attack_utils.poisoning import should_poison_this_round
 from src.data_models.client_info import ClientInfo
@@ -17,8 +22,6 @@ class SimulationStrategyHistory:
     dataset_handler: DatasetHandler
     rounds_history: RoundsInfo = field(init=False)
     _clients_dict: dict[int, ClientInfo] = field(default_factory=dict)
-    # Mapping from Flower node_id (str) to our internal partition_id (int)
-    # In Flower 1.25+, ClientProxy.cid returns node IDs instead of sequential integers
     _node_id_to_partition_id: dict[str, int] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -85,6 +88,24 @@ class SimulationStrategyHistory:
             f"Registered mappings: {len(self._node_id_to_partition_id)}. "
             f"Call register_node_mapping() first or ensure node_id is a valid partition_id."
         )
+
+    def register_node_mappings_from_results(
+        self, results: list[tuple[ClientProxy, EvaluateRes]]
+    ) -> None:
+        """Register node_id -> partition_id mappings from evaluate results.
+
+        Flower 1.25+ returns node IDs instead of sequential partition IDs in
+        ClientProxy.cid. This extracts partition_id from client metrics to
+        restore the mapping.
+
+        Args:
+            results: List of (ClientProxy, EvaluateRes) tuples from aggregate_evaluate
+        """
+        for client_proxy, eval_res in results:
+            metrics = getattr(eval_res, "metrics", None)
+            if metrics and "partition_id" in metrics:
+                partition_id = int(metrics["partition_id"])
+                self.register_node_mapping(client_proxy.cid, partition_id)
 
     def insert_single_client_history_entry(
         self,

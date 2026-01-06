@@ -595,5 +595,8 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-        metrics: dict[str, Scalar] = {"accuracy": float(accuracy)}
+        metrics: dict[str, Scalar] = {
+            "accuracy": float(accuracy),
+            "partition_id": self.client_id,
+        }
         return float(loss), len(self.valloader.dataset), metrics
