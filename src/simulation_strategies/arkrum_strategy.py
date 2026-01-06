@@ -153,7 +153,7 @@ class ArKrumStrategy(FedAvg):
         self,
         server_round: int,
         results: list[tuple[ClientProxy, FitRes]],
-        failures: list[tuple[ClientProxy | FitRes, BaseException]],
+        failures: list[tuple[ClientProxy, FitRes] | BaseException],
     ) -> tuple[Parameters | None, dict[str, Scalar]]:
         """
         Aggregate client updates using ArKrum.

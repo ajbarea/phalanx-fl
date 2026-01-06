@@ -36,7 +36,7 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
         self,
         server_round: int,
         results: list[tuple[ClientProxy, FitRes]],
-        failures: list[tuple[ClientProxy | FitRes, BaseException]],
+        failures: list[tuple[ClientProxy, FitRes] | BaseException],
     ) -> tuple[Parameters | None, dict[str, Scalar]]:
         """Aggregate fit results and track round number."""
         self.current_round = server_round
@@ -59,7 +59,7 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
         self,
         server_round: int,
         results: list[tuple[ClientProxy, EvaluateRes]],
-        failures: list[tuple[ClientProxy | EvaluateRes, BaseException]],
+        failures: list[tuple[ClientProxy, EvaluateRes] | BaseException],
     ) -> tuple[float | None, dict[str, Scalar]]:
         """Aggregate evaluation results and track round-level metrics.
 
