@@ -455,23 +455,26 @@ class TestFederatedSimulationModelParams:
 
     def test_get_model_params_handles_lora_model(self) -> None:
         """Test _get_model_params handles LORA models correctly."""
-        with patch("src.federated_simulation.isinstance") as mock_isinstance:
-            mock_isinstance.return_value = True  # Make isinstance(model, PeftModel) return True
-            mock_model = Mock()
-            with patch("src.federated_simulation.get_peft_model_state_dict") as mock_get_peft:
-                mock_state_dict = {"lora_layer.weight": Mock()}
-                # Configure mock parameter to have proper cpu().numpy() chain
-                mock_state_dict["lora_layer.weight"].cpu.return_value.numpy.return_value = np.array(
-                    [1.0, 2.0]
-                )
-                mock_get_peft.return_value = mock_state_dict
 
-                result = FederatedSimulation._get_model_params(mock_model)
+        class FakePeftModel:
+            pass
 
-                mock_get_peft.assert_called_once_with(mock_model)
-                assert isinstance(result, list)
-                assert len(result) == 1
-                assert np.array_equal(result[0], np.array([1.0, 2.0]))
+        mock_model = FakePeftModel()
+        mock_state_dict = {"lora_layer.weight": Mock()}
+        mock_state_dict["lora_layer.weight"].cpu.return_value.numpy.return_value = np.array(
+            [1.0, 2.0]
+        )
+
+        with (
+            patch("peft.PeftModel", FakePeftModel),
+            patch("peft.get_peft_model_state_dict", return_value=mock_state_dict) as mock_get_peft,
+        ):
+            result = FederatedSimulation._get_model_params(mock_model)  # type: ignore[arg-type]
+
+            mock_get_peft.assert_called_once_with(mock_model)
+            assert isinstance(result, list)
+            assert len(result) == 1
+            assert np.array_equal(result[0], np.array([1.0, 2.0]))
 
 
 class TestFederatedSimulationErrorHandling:
