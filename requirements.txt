@@ -67,7 +67,7 @@ multidict==6.0.5
 yarl==1.9.4
 
 # --- Data Processing ---
-pyarrow==16.1.0
+pyarrow>=18.0.0
 pyarrow-hotfix==0.6
 dill==0.3.8
 multiprocess==0.70.16
@@ -101,7 +101,7 @@ Pygments>=2.19.2
 MarkupSafe==2.1.5
 jsonschema-specifications==2023.12.1
 referencing==0.35.1
-rpds-py==0.18.1
+rpds-py>=0.19.0
 importlib_resources==6.4.0
 zipp>=3.20
 
