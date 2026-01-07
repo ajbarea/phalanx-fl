@@ -107,7 +107,7 @@ class TestAttackScenarios:
             "model_poisoning",
             "byzantine_perturbation",
         ]:
-            max_norm = max(param_norms)
+            max_norm = max(param_norms)  # type: ignore[type-var]
             assert max_norm > 5.0, f"Attack {attack_type} should produce large parameter norms"
 
         param_means = [params.mean() for params in attack_params]
@@ -588,7 +588,7 @@ class TestCombinatorialAttackDefense:
             honest_norms = [np.linalg.norm(p) for p in honest_params]
 
             if attack_type in ["model_poisoning", "gaussian_noise"]:
-                max_byzantine_norm = max(byzantine_norms) if byzantine_norms else 0
+                max_byzantine_norm = max(byzantine_norms) if byzantine_norms else 0  # type: ignore[type-var]
 
                 assert max_byzantine_norm > 0, (
                     f"Byzantine parameters should have non-zero norm for {attack_type}"

@@ -98,7 +98,7 @@ class HuggingFaceTextDatasetLoader:
 
             start_idx = 0
             for client_id, count in enumerate(proportions):
-                end_idx = start_idx + count
+                end_idx = start_idx + int(count)
                 client_indices[client_id].extend(class_indices[start_idx:end_idx].tolist())
                 start_idx = end_idx
 

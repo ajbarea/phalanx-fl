@@ -640,7 +640,7 @@ class TestByzantineScenarioPerformance:
                 if i != j:
                     dist = np.linalg.norm(client_params[i] - client_params[j])
                     client_distances.append(dist)
-            distances.append(sorted(client_distances)[: num_clients // 2])  # Closest half
+            distances.append(sorted(client_distances)[: num_clients // 2])  # type: ignore[type-var]
 
         krum_scores = [sum(dists) for dists in distances]
 

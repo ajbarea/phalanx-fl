@@ -132,7 +132,7 @@ class TestGradientScaling:
         """Verifies negative scale_factor inverts signs."""
         params = [np.ones((10,))]
 
-        scaled = apply_gradient_scaling(params, scale_factor=-2.0)
+        scaled = apply_gradient_scaling(params, scale_factor=-2.0)  # type: ignore[arg-type]
 
         assert np.allclose(scaled[0], -2.0)
 
@@ -194,7 +194,7 @@ class TestApplyWeightPoisoning:
         params = [np.ones((10,))]
         configs = [{"attack_type": "gradient_scaling", "scale_factor": 5.0}]
 
-        poisoned = apply_weight_poisoning(params, configs)
+        poisoned = apply_weight_poisoning(params, configs)  # type: ignore[arg-type]
 
         assert np.allclose(poisoned[0], 5.0)
 
@@ -213,7 +213,7 @@ class TestApplyWeightPoisoning:
         params = [np.ones((10,))]
         configs = [{"attack_type": "label_flipping"}]
 
-        poisoned = apply_weight_poisoning(params, configs)
+        poisoned = apply_weight_poisoning(params, configs)  # type: ignore[arg-type]
 
         assert np.allclose(poisoned[0], params[0])
 
@@ -225,7 +225,7 @@ class TestApplyWeightPoisoning:
             {"attack_type": "gradient_scaling", "scale_factor": 3.0},
         ]
 
-        poisoned = apply_weight_poisoning(params, configs)
+        poisoned = apply_weight_poisoning(params, configs)  # type: ignore[arg-type]
 
         assert np.allclose(poisoned[0], 6.0)
 
@@ -233,7 +233,7 @@ class TestApplyWeightPoisoning:
         """Verifies dispatcher handles empty config list."""
         params = [np.ones((10,))]
 
-        poisoned = apply_weight_poisoning(params, [])
+        poisoned = apply_weight_poisoning(params, [])  # type: ignore[arg-type]
 
         assert np.allclose(poisoned[0], params[0])
 

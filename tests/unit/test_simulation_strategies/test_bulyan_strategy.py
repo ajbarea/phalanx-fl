@@ -523,7 +523,7 @@ class TestBulyanStrategy:
                 mock_params = [np.full((2,), float(i)), np.full(1, float(i))]
 
             fit_res = Mock(spec=FitRes)
-            fit_res.parameters = ndarrays_to_parameters(mock_params)
+            fit_res.parameters = ndarrays_to_parameters(mock_params)  # type: ignore[arg-type]
             fit_res.num_examples = 100
             results.append((client_proxy, fit_res))
 

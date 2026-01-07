@@ -122,7 +122,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         for layer_weights in weights_by_layer:
             stacked = np.stack(layer_weights)
             trimmed_layer = []
-            num_params_in_layer = np.prod(stacked.shape[1:]) if len(stacked.shape) > 1 else 1
+            num_params_in_layer = int(np.prod(stacked.shape[1:])) if len(stacked.shape) > 1 else 1
             total_parameters += num_params_in_layer
 
             for i in range(num_params_in_layer):

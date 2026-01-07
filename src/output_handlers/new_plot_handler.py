@@ -9,6 +9,7 @@ import math
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.axes import Axes
 from matplotlib.ticker import MaxNLocator
 
 from src.data_models.simulation_strategy_config import StrategyConfig
@@ -85,7 +86,7 @@ def _generate_multi_string_strategy_label(strategy_config: StrategyConfig) -> st
 
 
 def _add_attack_background_shading(
-    ax: plt.Axes,
+    ax: Axes,
     attack_schedule: list,
     client_id: int | None = None,
 ) -> None:
@@ -281,7 +282,7 @@ def show_plots_within_strategy(
                     client_info.aggregation_participation_history[:min_length],
                 )
             ]
-            plt.plot(client_info.rounds[:min_length], excluded_values, "kx")
+            plt.plot(client_info.rounds[:min_length], excluded_values, "kx")  # type: ignore[arg-type]
 
         plt.xlabel("round #")
         plt.ylabel(metric_name)
