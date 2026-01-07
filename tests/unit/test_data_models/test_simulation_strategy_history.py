@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-import sys
-from unittest.mock import MagicMock
-
 from src.data_models.client_info import ClientInfo
 from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.dataset_handlers.dataset_handler import DatasetHandler
 from tests.common import Mock, pytest
-
-sys.modules["cv2"] = MagicMock()
 
 
 class TestSimulationStrategyHistory:
