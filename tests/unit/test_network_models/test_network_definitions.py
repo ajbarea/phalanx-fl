@@ -420,8 +420,8 @@ class TestNetworkModels:
 class TestBERTModelFunctions:
     """Test suite for BERT model loading and LoRA functions."""
 
-    @patch("src.network_models.bert_model_definition.AutoModelForMaskedLM")
-    @patch("src.network_models.bert_model_definition.get_peft_model")
+    @patch("transformers.AutoModelForMaskedLM")
+    @patch("peft.get_peft_model")
     def test_load_model_with_lora(self, mock_get_peft_model, mock_auto_model):
         """Test loading BERT model with LoRA configuration."""
         # Mock the base model
@@ -447,7 +447,7 @@ class TestBERTModelFunctions:
         mock_get_peft_model.assert_called_once()
         assert model == mock_lora_model
 
-    @patch("src.network_models.bert_model_definition.AutoModelForMaskedLM")
+    @patch("transformers.AutoModelForMaskedLM")
     def test_load_model(self, mock_auto_model):
         """Test loading BERT model without LoRA."""
         mock_model = Mock()
