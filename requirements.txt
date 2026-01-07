@@ -37,7 +37,7 @@ threadpoolctl==3.6.0
 
 # --- Visualization ---
 matplotlib>=3.10.0
-opencv-python==4.11.0.86
+opencv-python-headless>=4.12.0
 pillow==10.4.0
 contourpy>=1.3.0
 cycler==0.12.1
