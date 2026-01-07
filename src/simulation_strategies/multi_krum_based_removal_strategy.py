@@ -64,16 +64,15 @@ class MultiKrumBasedRemovalStrategy(Krum):
         self, results: list[tuple[ClientProxy, FitRes]], distances: np.ndarray
     ) -> list[float]:
         """Calculate Multi-Krum scores based on pairwise parameter distances."""
-        param_data = [
+        raw_param_data = [
             fl.common.parameters_to_ndarrays(fit_res.parameters) for _, fit_res in results
         ]
-        flat_param_data = [np.concatenate([p.flatten() for p in params]) for params in param_data]
-        param_data = flat_param_data
-        num_clients = len(param_data)
+        flat_params = [np.concatenate([p.flatten() for p in params]) for params in raw_param_data]
+        num_clients = len(flat_params)
 
         for i in range(num_clients):
             for j in range(i + 1, num_clients):
-                distances[i, j] = np.linalg.norm(param_data[i] - param_data[j])  # type: ignore[operator]
+                distances[i, j] = np.linalg.norm(flat_params[i] - flat_params[j])  # type: ignore[operator]
                 distances[j, i] = distances[i, j]
 
         scores = []
