@@ -27,3 +27,5 @@ logs/
 cache/huggingface/
 MagicMock/
 .hypothesis/
+.mypy_cache/
+.playwright-mcp/

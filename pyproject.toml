@@ -49,6 +49,10 @@ ignore = [
     "SIM117",  # Nested with statements - sometimes more readable
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"src/api/main.py" = ["E402"]
+"src/simulation_runner.py" = ["E402"]
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
@@ -114,7 +118,14 @@ exclude = [
     "src/utils/legacy",
 ]
 
-# Per-module overrides for stricter checking on cleaned modules
+[[tool.mypy.overrides]]
+module = "transformers.*"
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "peft.*"
+follow_imports = "skip"
+
 [[tool.mypy.overrides]]
 module = "src.data_models.*"
 disallow_untyped_defs = true
