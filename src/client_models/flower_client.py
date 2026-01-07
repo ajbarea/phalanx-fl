@@ -20,10 +20,6 @@ from src.attack_utils.weight_snapshots import (
     compute_weight_diff_statistics,
     save_weight_snapshot,
 )
-from src.network_models.bert_model_definition import (
-    get_peft_model_state_dict,
-    set_peft_model_state_dict,
-)
 
 
 class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
@@ -149,6 +145,11 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
 
     def set_parameters(self, net, parameters: list[np.ndarray]):
         if self.use_lora:
+            from src.network_models.bert_model_definition import (
+                get_peft_model_state_dict,
+                set_peft_model_state_dict,
+            )
+
             params_dict = zip(get_peft_model_state_dict(net).keys(), parameters)
             state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
             set_peft_model_state_dict(net, state_dict)
@@ -159,6 +160,8 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
 
     def get_parameters(self, config):
         if self.use_lora:
+            from src.network_models.bert_model_definition import get_peft_model_state_dict
+
             state_dict = get_peft_model_state_dict(self.net)
             return [val.cpu().numpy() for val in state_dict.values()]
         else:

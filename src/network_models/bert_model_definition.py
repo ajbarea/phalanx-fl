@@ -5,13 +5,6 @@ import io
 from collections import OrderedDict
 
 import torch
-from peft import (
-    LoraConfig,
-    get_peft_model,
-    get_peft_model_state_dict,
-    set_peft_model_state_dict,
-)
-from transformers import AutoModelForMaskedLM
 
 # -------------------------------
 # Model Loading
@@ -25,6 +18,9 @@ def load_model_with_lora(
     lora_dropout: float,
     lora_target_modules: list | None = None,
 ):
+    from peft import LoraConfig, get_peft_model
+    from transformers import AutoModelForMaskedLM
+
     if lora_target_modules is None:
         lora_target_modules = ["query", "value"]
     model = AutoModelForMaskedLM.from_pretrained(model_name)
@@ -45,6 +41,8 @@ def load_model_with_lora(
 def load_model(
     model_name: str,
 ):
+    from transformers import AutoModelForMaskedLM
+
     model = AutoModelForMaskedLM.from_pretrained(model_name)
 
     return model
@@ -53,6 +51,20 @@ def load_model(
 # -------------------------------
 # State Dict (LoRA + Full)
 # -------------------------------
+
+
+def get_peft_model_state_dict(model):
+    """Returns the state dict of LoRA adapter weights."""
+    from peft import get_peft_model_state_dict as _get_peft_model_state_dict
+
+    return _get_peft_model_state_dict(model)
+
+
+def set_peft_model_state_dict(model, state_dict):
+    """Sets the state dict of LoRA adapter weights."""
+    from peft import set_peft_model_state_dict as _set_peft_model_state_dict
+
+    return _set_peft_model_state_dict(model, state_dict)
 
 
 def get_lora_state_dict(model):
