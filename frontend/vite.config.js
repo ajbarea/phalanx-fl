@@ -27,6 +27,18 @@ export default defineConfig({
         target: process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8000',
         changeOrigin: true,
         ws: true, // Enable WebSocket proxy for terminal
+        // Configure proxy for SSE streaming support
+        configure: proxy => {
+          proxy.on('proxyRes', proxyRes => {
+            // Disable buffering for SSE (text/event-stream) responses
+            // This ensures events stream through immediately without accumulation
+            const contentType = proxyRes.headers['content-type'] || '';
+            if (contentType.includes('text/event-stream')) {
+              proxyRes.headers['x-accel-buffering'] = 'no';
+              proxyRes.headers['cache-control'] = 'no-cache';
+            }
+          });
+        },
       },
     },
   },

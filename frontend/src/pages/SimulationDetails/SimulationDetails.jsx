@@ -17,7 +17,17 @@ import { toast } from 'sonner';
 export function SimulationDetails() {
   const { simulationId } = useParams();
   const navigate = useNavigate();
-  const { details, status, loading, error, isMultiStrategy } = useSimulationDetails(simulationId);
+  const {
+    details,
+    status,
+    progress,
+    currentRound,
+    totalRounds,
+    loading,
+    error,
+    isMultiStrategy,
+    isStreaming,
+  } = useSimulationDetails(simulationId);
   const { csvData } = useCSVData(simulationId, details?.result_files);
   const [isCloning, setIsCloning] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
@@ -88,17 +98,33 @@ export function SimulationDetails() {
         <Card className="mb-3">
           <Card.Body>
             <div className="d-flex align-items-center gap-3 mb-2">
-              <h6 className="mb-0 flex-grow-1">Simulation in Progress</h6>
+              <h6 className="mb-0 flex-grow-1">
+                Simulation in Progress
+                {currentRound && totalRounds && ` (Round ${currentRound}/${totalRounds})`}
+              </h6>
               <Spinner animation="border" size="sm" />
             </div>
-            <ProgressBar animated now={100} variant="primary" className="mb-2" />
+            <ProgressBar
+              animated
+              now={progress > 0 ? progress * 100 : 100}
+              variant="primary"
+              className="mb-2"
+              label={progress > 0 ? `${Math.round(progress * 100)}%` : undefined}
+            />
             <div className="text-muted small">
               <p className="mb-1">
                 Running federated learning simulation with {cfg.num_of_clients} clients over{' '}
                 {cfg.num_of_rounds} rounds...
               </p>
               <p className="mb-0">
-                Status updates every 2 seconds. Results will appear automatically when complete.
+                {isStreaming ? (
+                  <>
+                    Real-time status streaming active. Results will appear automatically when
+                    complete.
+                  </>
+                ) : (
+                  <>Connecting to status stream...</>
+                )}
               </p>
             </div>
           </Card.Body>

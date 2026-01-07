@@ -1,11 +1,30 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { fetchApi } from '@api/client';
 import { useMemo } from 'react';
-import { POLLING_INTERVALS } from '@constants/ui';
+import { useSimulationStatusSSE } from './useSimulationStatus';
 
+/**
+ * Terminal statuses that indicate simulation has finished.
+ */
+const TERMINAL_STATUSES = ['completed', 'failed', 'stopped'];
+
+/**
+ * Hook for fetching simulation details with real-time status updates via SSE.
+ *
+ * This hook combines:
+ * 1. React Query for fetching simulation configuration and metadata
+ * 2. Server-Sent Events (SSE) for real-time status streaming
+ *
+ * The SSE connection:
+ * - Opens automatically for non-terminal simulations
+ * - Streams status updates in real-time
+ * - Closes automatically when simulation reaches terminal state
+ * - Triggers cache invalidation on completion for fresh data
+ *
+ * @param {string} simulationId - The simulation ID to fetch details for
+ * @returns {Object} Simulation details, status, and helper properties
+ */
 export function useSimulationDetails(simulationId) {
-  const queryClient = useQueryClient();
-
   const {
     data: details,
     isPending: loading,
@@ -17,31 +36,36 @@ export function useSimulationDetails(simulationId) {
     enabled: !!simulationId,
   });
 
-  // Poll status while simulation is not in a terminal state
-  const terminalStatuses = ['completed', 'failed', 'stopped'];
-  const shouldPollStatus = !!simulationId && !terminalStatuses.includes(details?.status);
+  const shouldStream = useMemo(() => {
+    // Only stream if simulation exists and is not in a terminal state
+    if (!simulationId) return false;
+    const currentStatus = details?.status;
+    // Stream if no status yet (initial load), or if not in terminal state
+    return !currentStatus || !TERMINAL_STATUSES.includes(currentStatus);
+  }, [simulationId, details?.status]);
 
-  const { data: statusData } = useQuery({
-    queryKey: ['simulation-status', simulationId],
-    queryFn: async () => {
-      const data = await fetchApi(`/simulations/${simulationId}/status`);
-      // Refetch details when status changes to a terminal state
-      if (terminalStatuses.includes(data.status) && !terminalStatuses.includes(details?.status)) {
-        queryClient.invalidateQueries({ queryKey: ['simulation-details', simulationId] });
-      }
-      return data;
-    },
-    enabled: shouldPollStatus,
-    refetchInterval: POLLING_INTERVALS.SIMULATION_DETAILS,
-  });
+  // Use SSE for real-time status updates (replaces polling)
+  const {
+    status: sseStatus,
+    progress: sseProgress,
+    currentRound,
+    totalRounds,
+    currentStrategy,
+    totalStrategies,
+    isConnected: isStreaming,
+  } = useSimulationStatusSSE(shouldStream ? simulationId : null);
 
-  const status = statusData?.status ?? details?.status ?? null;
+  // SSE status takes priority over cached details status
+  // This ensures UI reflects real-time state without waiting for refetch
+  const status = sseStatus ?? details?.status ?? null;
+  const progress = sseProgress ?? details?.progress ?? 0;
 
   const isMultiStrategy = useMemo(
     () => details?.config?.simulation_strategies?.length > 1,
     [details]
   );
 
+  // Group strategies by aggregation algorithm for UI organization
   const strategyGroups = useMemo(() => {
     if (!isMultiStrategy) return null;
     return details.config.simulation_strategies.reduce((groups, strategy, index) => {
@@ -55,12 +79,25 @@ export function useSimulationDetails(simulationId) {
   }, [details, isMultiStrategy]);
 
   return {
+    // Core data
     details,
     status,
+    progress,
+    currentRound,
+    totalRounds,
+    currentStrategy,
+    totalStrategies,
+
+    // Loading/error states
     loading,
     error: error?.message,
     refetch,
+
+    // Multi-strategy helpers
     isMultiStrategy,
     strategyGroups,
+
+    // SSE connection state (useful for debugging/UI indicators)
+    isStreaming,
   };
 }

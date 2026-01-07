@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from src.utils.warnings_config import apply_env_vars, configure_warnings
+
+apply_env_vars()
+
 import asyncio
 import concurrent.futures
 import datetime
@@ -16,6 +20,8 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Any
 
+configure_warnings()
+
 if sys.platform == "win32":
     import winpty
 else:
@@ -31,12 +37,14 @@ from fastapi import (
     Depends,
     FastAPI,
     HTTPException,
+    Request,
     WebSocket,
     WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
+from sse_starlette.sse import EventSourceResponse
 
 from datasets import load_dataset_builder  # type: ignore[attr-defined]
 
@@ -511,6 +519,7 @@ async def create_simulation(request: dict[str, Any] = Body(...)) -> dict[str, An
         except ImportError:
             env["LOKY_MAX_CPU_COUNT"] = str(multiprocessing.cpu_count())
         env["PYTHONWARNINGS"] = "ignore::RuntimeWarning:threadpoolctl"
+        env["RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO"] = "0"
 
         with error_log_path.open("w") as error_log:
             command = [
@@ -588,24 +597,28 @@ async def prepare_simulation(request: dict[str, Any] = Body(...)) -> dict[str, A
     }
 
 
-@app.get("/api/simulations/{simulation_id}/status")
-def get_simulation_status(
-    sim_path: Path = Depends(get_simulation_path), simulation_id: str = ""
-) -> dict[str, Any]:
-    """Retrieves the current execution status of a simulation.
+_TERMINAL_STATUSES = frozenset({"completed", "failed", "stopped"})
+
+
+def _get_status_data(sim_path: Path, simulation_id: str) -> dict[str, Any]:
+    """Extract status data from simulation directory.
+
+    This helper is shared between the REST GET endpoint and SSE stream
+    to ensure consistent status detection logic.
 
     Args:
         sim_path: The validated path to the simulation directory.
         simulation_id: The simulation identifier.
 
     Returns:
-        A dictionary containing the status, progress, and error details if any.
+        A dictionary containing status, progress, and round information.
     """
+    # Check for stopped marker first (highest priority)
     stopped_marker = sim_path / ".stopped"
-    stopped_exists = stopped_marker.is_file()
-    if stopped_exists:
+    if stopped_marker.is_file():
         return {"status": "stopped", "progress": 0.0}
 
+    # Check status.json for detailed progress (written by simulation runner)
     status_file = sim_path / "status.json"
     if status_file.is_file():
         try:
@@ -619,8 +632,8 @@ def get_simulation_status(
                 "current_strategy": status_data.get("current_strategy"),
                 "total_strategies": status_data.get("total_strategies"),
             }
-        except (OSError, json.JSONDecodeError) as e:
-            logger.warning(f"Could not read status.json: {e}")
+        except (OSError, json.JSONDecodeError):
+            pass
 
     running_marker = sim_path / ".running"
     if running_marker.is_file():
@@ -634,41 +647,130 @@ def get_simulation_status(
             return {"status": "running", "progress": 0.0}
         else:
             del running_processes[simulation_id]
-
             result_files = list(sim_path.glob("*.pdf")) + list(sim_path.glob("csv/*.csv"))
-            if result_files:
-                return {"status": "completed", "progress": 1.0}
-
-            if poll_result == 0:
+            if result_files or poll_result == 0:
                 return {"status": "completed", "progress": 1.0}
             else:
-                execution_log_path = sim_path / "execution.log"
-                error_message = None
-                if execution_log_path.is_file():
-                    try:
-                        with execution_log_path.open("r") as f:
-                            # Limit to 100KB to prevent memory issues with large logs
-                            error_message = f.read(102400).strip()
-                    except OSError:
-                        pass
-                return {"status": "failed", "progress": 0.0, "error": error_message}
+                return {"status": "failed", "progress": 0.0}
 
     result_files = list(sim_path.glob("*.pdf")) + list(sim_path.glob("csv/*.csv"))
     if result_files:
         return {"status": "completed", "progress": 1.0}
 
     execution_log_path = sim_path / "execution.log"
-    if execution_log_path.is_file() and not result_files:
+    if execution_log_path.is_file():
         try:
             with execution_log_path.open("r") as f:
-                # Limit to 100KB to prevent memory issues with large logs
-                error_message = f.read(102400).strip()
-            if error_message:
-                return {"status": "failed", "progress": 0.0, "error": error_message}
+                error_content = f.read(1024)  # Read just enough to check
+            if error_content.strip():
+                return {"status": "failed", "progress": 0.0}
         except OSError:
             pass
 
     return {"status": "pending", "progress": 0.0}
+
+
+@app.get("/api/simulations/{simulation_id}/status")
+def get_simulation_status(
+    sim_path: Path = Depends(get_simulation_path), simulation_id: str = ""
+) -> dict[str, Any]:
+    """Retrieves the current execution status of a simulation.
+
+    This endpoint uses the same status detection logic as the SSE stream
+    via the shared `_get_status_data` helper, with additional error details
+    for failed simulations.
+
+    Args:
+        sim_path: The validated path to the simulation directory.
+        simulation_id: The simulation identifier.
+
+    Returns:
+        A dictionary containing the status, progress, and error details if any.
+    """
+    status_data = _get_status_data(sim_path, simulation_id)
+
+    # For failed status, include error details from execution log
+    if status_data.get("status") == "failed":
+        execution_log_path = sim_path / "execution.log"
+        if execution_log_path.is_file():
+            try:
+                with execution_log_path.open("r") as f:
+                    # Limit to 100KB to prevent memory issues with large logs
+                    error_message = f.read(102400).strip()
+                if error_message:
+                    status_data["error"] = error_message
+            except OSError:
+                pass
+
+    return status_data
+
+
+@app.get("/api/simulations/{simulation_id}/stream")
+async def stream_simulation_status(
+    request: Request,
+    sim_path: Path = Depends(get_simulation_path),
+    simulation_id: str = "",
+) -> EventSourceResponse:
+    """SSE endpoint for real-time simulation status updates.
+
+    Streams status changes until simulation reaches a terminal state
+    (completed, failed, or stopped). Automatically closes connection
+    when terminal state is reached.
+
+    The stream sends JSON-encoded status objects with fields:
+    - status: Current simulation state
+    - progress: Float from 0.0 to 1.0
+    - current_round: Current training round (optional)
+    - total_rounds: Total rounds configured (optional)
+    - current_strategy: Current strategy index (optional)
+    - total_strategies: Total strategies count (optional)
+
+    SSE Protocol:
+    - Each message is prefixed with 'data: ' and ends with '\\n\\n'
+    - Browser EventSource API handles parsing automatically
+    - Built-in reconnection on network failures
+
+    Args:
+        request: The FastAPI request object (for disconnect detection).
+        sim_path: The validated path to the simulation directory.
+        simulation_id: The simulation identifier.
+
+    Returns:
+        EventSourceResponse streaming status updates.
+    """
+
+    async def event_generator():
+        """Async generator yielding SSE events."""
+        last_status: dict[str, Any] | None = None
+
+        while True:
+            if await request.is_disconnected():
+                logger.debug(f"SSE client disconnected for {simulation_id}")
+                break
+
+            current_status = _get_status_data(sim_path, simulation_id)
+
+            # Only send events when status changes
+            if current_status != last_status:
+                yield {"data": json.dumps(current_status)}
+                last_status = current_status.copy()
+
+                if current_status.get("status") in _TERMINAL_STATUSES:
+                    logger.debug(
+                        f"SSE stream closing for {simulation_id}: "
+                        f"terminal status '{current_status.get('status')}'"
+                    )
+                    break
+
+            await asyncio.sleep(1)  # Poll interval: 1 second
+
+    return EventSourceResponse(
+        event_generator(),
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        },
+    )
 
 
 @app.delete("/api/simulations/{simulation_id}", status_code=200)
