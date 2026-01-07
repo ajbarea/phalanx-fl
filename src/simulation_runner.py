@@ -8,8 +8,9 @@ import os
 import time
 from pathlib import Path
 
-import ray
-import torch
+from src.utils.warnings_config import apply_env_vars, configure_warnings
+
+apply_env_vars()
 
 # Suppress joblib CPU count warnings
 os.environ["LOKY_MAX_CPU_COUNT"] = str(os.cpu_count() or 1)
@@ -17,6 +18,11 @@ os.environ["OMP_NUM_THREADS"] = str(os.cpu_count() or 1)
 
 # Set HuggingFace cache directory to avoid API rate limits
 os.environ["HF_HOME"] = "./cache/huggingface"
+
+import ray
+import torch
+
+configure_warnings()
 
 from src.config_loaders.config_loader import ConfigLoader
 from src.data_models.simulation_strategy_config import StrategyConfig

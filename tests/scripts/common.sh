@@ -214,6 +214,7 @@ setup_joblib_env() {
     export LOKY_MAX_CPU_COUNT
     export KMP_DUPLICATE_LIB_OK=TRUE
     export PYTHONWARNINGS="ignore::RuntimeWarning:threadpoolctl"
+    export RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
 }
 
 # ============================================================================
