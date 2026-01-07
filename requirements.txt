@@ -68,7 +68,6 @@ yarl==1.9.4
 
 # --- Data Processing ---
 pyarrow>=18.0.0
-pyarrow-hotfix==0.6
 dill==0.3.8
 multiprocess==0.70.16
 fsspec>=2023.5.0
