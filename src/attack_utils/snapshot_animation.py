@@ -12,6 +12,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation, PillowWriter
+from matplotlib.patches import Rectangle
 
 DEFAULT_FPS = 2  # Slow enough to read, fast enough to engage
 DEFAULT_DPI = 150  # Balance of quality and file size
@@ -90,7 +91,7 @@ def save_attack_timeline_gif(
     for i in range(total_clients):
         row_patches = []
         for j in range(total_rounds):
-            patch = plt.Rectangle(
+            patch = Rectangle(
                 (j - 0.4, i - 0.4),
                 0.8,
                 0.8,
@@ -125,7 +126,7 @@ def save_attack_timeline_gif(
     for attack_type in attack_types:
         color = attack_colors.get(attack_type, "#95a5a6")
         legend_elements.append(
-            plt.Rectangle(
+            Rectangle(
                 (0, 0),
                 1,
                 1,

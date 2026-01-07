@@ -17,6 +17,8 @@ import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.colors import TwoSlopeNorm
+from matplotlib.lines import Line2D
+from matplotlib.patches import Rectangle
 
 
 def _display_image(ax, image: np.ndarray) -> None:
@@ -215,7 +217,7 @@ def save_image_grid(
 
                 bbox = ax_poisoned.get_position()
 
-                line = plt.Line2D(
+                line = Line2D(
                     [bbox.x1 + 0.015, bbox.x1 + 0.015],
                     [bbox.y0, bbox.y1],
                     transform=fig.transFigure,
@@ -373,7 +375,7 @@ def save_label_confusion_matrix(
         color="#555555",
     )
 
-    plt.tight_layout(rect=[0, 0.05, 1, 1])
+    plt.tight_layout(rect=(0, 0.05, 1, 1))
     plt.savefig(filepath, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close()
 
@@ -517,7 +519,7 @@ def save_noise_difference_heatmap(
                 rotation=90,
             )
 
-    cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])
+    cbar_ax = fig.add_axes((0.92, 0.15, 0.02, 0.7))
     assert im is not None, "No samples to display"
     cbar = fig.colorbar(im, cax=cbar_ax)
     cbar.set_label(
@@ -637,7 +639,7 @@ def save_label_flipping_grid(
         label_changed = orig_label != pois_label
 
         ax_labels.add_patch(
-            plt.Rectangle(
+            Rectangle(
                 (0.1, 0.6),
                 0.8,
                 0.25,
@@ -672,7 +674,7 @@ def save_label_flipping_grid(
         badge_color = "#c62828" if label_changed else "#95a5a6"
         edge_color = "#8b1c1c" if label_changed else "#7f8c8d"
         ax_labels.add_patch(
-            plt.Rectangle(
+            Rectangle(
                 (0.1, 0.15),
                 0.8,
                 0.25,
