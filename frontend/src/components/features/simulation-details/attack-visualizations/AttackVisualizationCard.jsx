@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, Badge, Nav } from 'react-bootstrap';
 import { VIZ_TYPES, ATTACK_TYPES, getVisualizationComponent } from './index';
+import { useTheme } from '../../../../contexts/ThemeContext';
+import { THEME_COLORS } from '../../../../constants/ui';
 
 /**
  * Main wrapper component for attack visualizations.
@@ -8,6 +10,8 @@ import { VIZ_TYPES, ATTACK_TYPES, getVisualizationComponent } from './index';
  */
 export function AttackVisualizationCard({ snapshot, simulationId, onImageClick }) {
   const [activeTab, setActiveTab] = useState('primary');
+  const { theme } = useTheme();
+  const themeColors = THEME_COLORS[theme] || THEME_COLORS.light;
 
   // Memoize visualizations to prevent dependency changes on every render
   const visualizations = useMemo(
@@ -45,7 +49,7 @@ export function AttackVisualizationCard({ snapshot, simulationId, onImageClick }
           src={`/api/simulations/${simulationId}/results/${vizPath}`}
           title="Token Replacement Visualization"
           className="w-100 rounded border-0"
-          style={{ height: '500px', backgroundColor: '#1e1e1e' }}
+          style={{ height: '500px', backgroundColor: themeColors.surface }}
         />
       );
     }

@@ -4,6 +4,7 @@ import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { Button, ButtonGroup } from 'react-bootstrap';
 import { useTheme } from '../contexts/ThemeContext';
+import { TERMINAL_COLORS, TERMINAL_THEMES } from '../constants/ui';
 import '@xterm/xterm/css/xterm.css';
 
 // Derive WebSocket URL from current page location for portability
@@ -18,56 +19,6 @@ const QUICK_COMMANDS = [
   { label: 'Run Tests', cmd: 'python -m tests.scripts.experiment_runner testing\n' },
   { label: 'Git Status', cmd: 'git status\n' },
 ];
-
-/** Terminal theme configurations. */
-const TERMINAL_THEMES = {
-  dark: {
-    background: '#1e1e1e',
-    foreground: '#d4d4d4',
-    cursor: '#d4d4d4',
-    cursorAccent: '#1e1e1e',
-    selectionBackground: '#264f78',
-    black: '#1e1e1e',
-    red: '#f44747',
-    green: '#6a9955',
-    yellow: '#dcdcaa',
-    blue: '#569cd6',
-    magenta: '#c586c0',
-    cyan: '#4ec9b0',
-    white: '#d4d4d4',
-    brightBlack: '#808080',
-    brightRed: '#f44747',
-    brightGreen: '#6a9955',
-    brightYellow: '#dcdcaa',
-    brightBlue: '#569cd6',
-    brightMagenta: '#c586c0',
-    brightCyan: '#4ec9b0',
-    brightWhite: '#ffffff',
-  },
-  light: {
-    background: '#ffffff',
-    foreground: '#383a42',
-    cursor: '#383a42',
-    cursorAccent: '#ffffff',
-    selectionBackground: '#b4d5fe',
-    black: '#383a42',
-    red: '#e45649',
-    green: '#50a14f',
-    yellow: '#c18401',
-    blue: '#4078f2',
-    magenta: '#a626a4',
-    cyan: '#0184bc',
-    white: '#fafafa',
-    brightBlack: '#a0a1a7',
-    brightRed: '#e45649',
-    brightGreen: '#50a14f',
-    brightYellow: '#c18401',
-    brightBlue: '#4078f2',
-    brightMagenta: '#a626a4',
-    brightCyan: '#0184bc',
-    brightWhite: '#ffffff',
-  },
-};
 
 /**
  * Renders a terminal interface with WebSocket connectivity.
@@ -357,8 +308,8 @@ const Terminal = forwardRef(function Terminal(
       <div
         className="terminal-toolbar d-flex justify-content-between align-items-center p-2"
         style={{
-          backgroundColor: isDark ? '#2d2d2d' : '#e9ecef',
-          borderBottom: `1px solid ${isDark ? '#404040' : '#dee2e6'}`,
+          backgroundColor: isDark ? TERMINAL_COLORS.dark.bg : TERMINAL_COLORS.light.bg,
+          borderBottom: `1px solid ${isDark ? TERMINAL_COLORS.dark.border : TERMINAL_COLORS.light.border}`,
         }}
       >
         <div className="d-flex align-items-center gap-2">

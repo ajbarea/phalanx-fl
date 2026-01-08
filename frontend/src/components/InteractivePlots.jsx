@@ -19,7 +19,7 @@ import RoundMetricsPlot from './RoundMetricsPlot';
 import { getAllPlotData } from '@api/endpoints/simulations';
 import { CHART_COLORS, CHART_UI_COLORS, MALICIOUS_COLORS } from '@constants/ui';
 import { useResponsiveChartHeight } from '@hooks/useResponsiveChartHeight';
-import { extractAttackPhases, getAttackPhaseColor, DEFENSE_COLORS } from './charts/chartUtils';
+import { extractAttackPhases, getAttackPhaseColor, getChartColors } from './charts/chartUtils';
 import AttackPhaseTooltip from './charts/AttackPhaseTooltip';
 import { SynchronizedMetricsChart, MetricSelector } from './charts';
 
@@ -145,7 +145,7 @@ export default function InteractivePlots({ simulation }) {
     return extractAttackPhases(simulationConfig, totalRounds);
   }, [simulationConfig, plotData?.rounds]);
 
-  const defenseColors = DEFENSE_COLORS[theme] || DEFENSE_COLORS.light;
+  const defenseColors = getChartColors(theme).defense;
 
   const toggleClient = useCallback(clientKey => {
     setVisibleClients(prev => ({ ...prev, [clientKey]: !prev[clientKey] }));

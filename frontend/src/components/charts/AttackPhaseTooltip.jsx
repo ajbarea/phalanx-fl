@@ -9,6 +9,7 @@
 
 import PropTypes from 'prop-types';
 import { getActiveAttackPhase, formatMetricValue, formatAttackLabel } from './chartUtils';
+import { TOOLTIP_COLORS, ALERT_COLORS } from '../../constants/ui';
 
 export default function AttackPhaseTooltip({
   active,
@@ -29,10 +30,12 @@ export default function AttackPhaseTooltip({
     config?.remove_clients === 'true' && round >= (config?.begin_removing_from_round || 999);
 
   const isDark = theme === 'dark';
-  const bgColor = isDark ? '#2b2b2b' : '#ffffff';
-  const borderColor = isDark ? '#444' : '#e0e0e0';
-  const textColor = isDark ? '#e0e0e0' : '#333333';
-  const mutedColor = isDark ? '#999' : '#666';
+  const colors = isDark ? TOOLTIP_COLORS.dark : TOOLTIP_COLORS.light;
+  const alertColors = isDark ? ALERT_COLORS.dark : ALERT_COLORS.light;
+  const bgColor = colors.bg;
+  const borderColor = colors.border;
+  const textColor = colors.text;
+  const mutedColor = colors.muted;
 
   return (
     <div
@@ -62,13 +65,13 @@ export default function AttackPhaseTooltip({
       {activePhase && (
         <div
           style={{
-            backgroundColor: isDark ? 'rgba(244, 67, 54, 0.2)' : 'rgba(220, 53, 69, 0.1)',
-            border: `1px solid ${isDark ? '#f44336' : '#dc3545'}`,
+            backgroundColor: alertColors.danger.bg,
+            border: `1px solid ${colors.danger.border}`,
             borderRadius: '4px',
             padding: '4px 8px',
             marginBottom: '8px',
             fontSize: '11px',
-            color: isDark ? '#ff8a80' : '#c62828',
+            color: colors.danger.text,
             display: 'flex',
             alignItems: 'center',
             gap: '4px',
@@ -84,13 +87,13 @@ export default function AttackPhaseTooltip({
       {defenseActive && (
         <div
           style={{
-            backgroundColor: isDark ? 'rgba(76, 175, 80, 0.2)' : 'rgba(76, 175, 80, 0.1)',
-            border: `1px solid ${isDark ? '#81c784' : '#4caf50'}`,
+            backgroundColor: alertColors.success.bg,
+            border: `1px solid ${colors.success.border}`,
             borderRadius: '4px',
             padding: '4px 8px',
             marginBottom: '8px',
             fontSize: '11px',
-            color: isDark ? '#a5d6a7' : '#2e7d32',
+            color: colors.success.text,
             display: 'flex',
             alignItems: 'center',
             gap: '4px',

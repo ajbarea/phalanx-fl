@@ -7,7 +7,7 @@
 
 import { ReferenceArea, ReferenceLine } from 'recharts';
 import PropTypes from 'prop-types';
-import { extractAttackPhases, getAttackPhaseColor, DEFENSE_COLORS } from './chartUtils';
+import { extractAttackPhases, getAttackPhaseColor, getChartColors } from './chartUtils';
 
 /**
  * Renders attack phase shading and defense milestone lines.
@@ -37,8 +37,10 @@ export default function AttackPhaseOverlay({
   if (!config) return null;
 
   const phases = extractAttackPhases(config, totalRounds);
-  const colors = DEFENSE_COLORS[theme] || DEFENSE_COLORS.light;
-  const labelColor = theme === 'dark' ? '#999' : '#666';
+  const allColors = getChartColors(theme);
+  const colors = allColors.defense;
+  const chartUIColors = allColors.ui;
+  const labelColor = chartUIColors.axis;
 
   const elements = [];
 
@@ -104,7 +106,7 @@ AttackPhaseOverlay.propTypes = {
  * Use this when you need to share phases between chart and tooltip.
  */
 export function AttackPhaseAreas({ phases, theme = 'light', showLabels = true }) {
-  const labelColor = theme === 'dark' ? '#999' : '#666';
+  const labelColor = getChartColors(theme).ui.axis;
 
   return (
     <>
@@ -150,7 +152,7 @@ AttackPhaseAreas.propTypes = {
  * Defense milestone lines component.
  */
 export function DefenseLines({ config, totalRounds, theme = 'light' }) {
-  const colors = DEFENSE_COLORS[theme] || DEFENSE_COLORS.light;
+  const colors = getChartColors(theme).defense;
 
   if (config?.remove_clients !== 'true' || !config?.begin_removing_from_round) {
     return null;

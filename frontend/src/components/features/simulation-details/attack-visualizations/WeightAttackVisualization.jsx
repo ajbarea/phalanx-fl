@@ -1,10 +1,14 @@
 import { Card, Badge, ProgressBar } from 'react-bootstrap';
+import { useTheme } from '../../../../contexts/ThemeContext';
+import { ALERT_COLORS } from '../../../../constants/ui';
 
 /**
  * Specialized visualization footer for weight-based attacks.
  * Displays weight change statistics and impact metrics.
  */
 export function WeightAttackVisualization({ snapshot, activeTab, attackInfo, availableViz }) {
+  const { theme } = useTheme();
+  const alertColors = ALERT_COLORS[theme] || ALERT_COLORS.light;
   const stats = snapshot.metadata?.statistics;
   const diffStats = stats?.difference;
 
@@ -45,8 +49,10 @@ export function WeightAttackVisualization({ snapshot, activeTab, attackInfo, ava
         <Card.Footer className="py-2 small border-top">
           <div className="row g-2 text-center">
             <div className="col-6">
-              <div className="p-2 rounded" style={{ backgroundColor: '#e8f5e9' }}>
-                <div className="fw-bold text-success">Before</div>
+              <div className="p-2 rounded" style={{ backgroundColor: alertColors.success.bg }}>
+                <div className="fw-bold" style={{ color: alertColors.success.text }}>
+                  Before
+                </div>
                 <div className="small text-muted">
                   Mean: {stats.before.mean?.toFixed(4)}
                   <br />
@@ -55,8 +61,10 @@ export function WeightAttackVisualization({ snapshot, activeTab, attackInfo, ava
               </div>
             </div>
             <div className="col-6">
-              <div className="p-2 rounded" style={{ backgroundColor: '#ffebee' }}>
-                <div className="fw-bold text-danger">After</div>
+              <div className="p-2 rounded" style={{ backgroundColor: alertColors.danger.bg }}>
+                <div className="fw-bold" style={{ color: alertColors.danger.text }}>
+                  After
+                </div>
                 <div className="small text-muted">
                   Mean: {stats.after.mean?.toFixed(4)}
                   <br />

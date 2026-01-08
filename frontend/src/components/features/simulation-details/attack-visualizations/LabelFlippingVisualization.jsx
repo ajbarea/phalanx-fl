@@ -1,10 +1,15 @@
 import { Card, Badge } from 'react-bootstrap';
+import { useTheme } from '../../../../contexts/ThemeContext';
+import { ALERT_COLORS } from '../../../../constants/ui';
 
 /**
  * Specialized visualization footer for label flipping attacks.
  * Displays flip statistics and patterns.
  */
 export function LabelFlippingVisualization({ snapshot, activeTab, attackInfo, availableViz }) {
+  const { theme } = useTheme();
+  const alertColors = ALERT_COLORS[theme] || ALERT_COLORS.light;
+
   return (
     <>
       {/* Metadata Footer */}
@@ -21,7 +26,10 @@ export function LabelFlippingVisualization({ snapshot, activeTab, attackInfo, av
 
       {/* Label Flipping Summary Stats */}
       {snapshot.flip_summary && (
-        <Card.Footer className="py-2 small border-top" style={{ backgroundColor: '#fff3cd' }}>
+        <Card.Footer
+          className="py-2 small border-top"
+          style={{ backgroundColor: alertColors.warning.bg, color: alertColors.warning.text }}
+        >
           <div className="d-flex flex-wrap gap-2 align-items-center">
             <Badge bg="danger">
               {snapshot.flip_summary.flipped_samples}/{snapshot.flip_summary.total_samples} flipped

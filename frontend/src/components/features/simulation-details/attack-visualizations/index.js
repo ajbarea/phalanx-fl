@@ -7,6 +7,7 @@ import { LabelFlippingVisualization } from './LabelFlippingVisualization';
 import { WeightAttackVisualization } from './WeightAttackVisualization';
 import { TokenReplacementVisualization } from './TokenReplacementVisualization';
 import { GenericAttackVisualization } from './GenericAttackVisualization';
+import { ATTACK_TYPE_COLORS } from '../../../../constants/ui';
 
 export {
   AttackVisualizationCard,
@@ -35,7 +36,7 @@ export const ATTACK_TYPES = {
     description:
       'Changes training labels to wrong classes without modifying the actual images. The attack is invisible at the data level.',
     tip: 'Check the Confusion Matrix tab to see label remapping patterns.',
-    color: '#e74c3c',
+    color: ATTACK_TYPE_COLORS.light.label_flipping,
     icon: '🏷️',
     category: 'data_poisoning',
   },
@@ -43,7 +44,7 @@ export const ATTACK_TYPES = {
     title: 'Gaussian Noise Attack',
     description: 'Adds random noise to training images, disrupting the learning process.',
     tip: 'Check the Difference Heatmap tab to see pixel-level noise patterns.',
-    color: '#9b59b6',
+    color: ATTACK_TYPE_COLORS.light.gaussian_noise,
     icon: '📡',
     category: 'data_poisoning',
   },
@@ -51,7 +52,7 @@ export const ATTACK_TYPES = {
     title: 'Model Poisoning Attack',
     description: 'Manipulates model weights to extreme values, degrading performance.',
     tip: 'Check the Prediction Impact and Weight Distribution tabs.',
-    color: '#c0392b',
+    color: ATTACK_TYPE_COLORS.light.model_poisoning,
     icon: '⚡',
     category: 'weight_attack',
   },
@@ -59,7 +60,7 @@ export const ATTACK_TYPES = {
     title: 'Gradient Scaling Attack',
     description: 'Multiplies weight updates by a factor, amplifying malicious changes.',
     tip: 'Check the Weight Distribution tab to see the scale of modifications.',
-    color: '#d35400',
+    color: ATTACK_TYPE_COLORS.light.gradient_scaling,
     icon: '📐',
     category: 'weight_attack',
   },
@@ -67,7 +68,7 @@ export const ATTACK_TYPES = {
     title: 'Byzantine Perturbation Attack',
     description: 'Injects random noise into model weights during training.',
     tip: 'Check the Weight Distribution tab to see noise patterns.',
-    color: '#8e44ad',
+    color: ATTACK_TYPE_COLORS.light.byzantine_perturbation,
     icon: '🎲',
     category: 'weight_attack',
   },
@@ -75,11 +76,22 @@ export const ATTACK_TYPES = {
     title: 'Token Replacement Attack',
     description: 'Replaces tokens in text data with adversarial alternatives.',
     tip: 'Check the Token Diff tab for detailed before/after comparison.',
-    color: '#2980b9',
+    color: ATTACK_TYPE_COLORS.light.token_replacement,
     icon: '📝',
     category: 'nlp_attack',
   },
 };
+
+/**
+ * Get theme-aware color for an attack type.
+ * @param {string} attackType - The attack type key
+ * @param {string} theme - 'light' or 'dark'
+ * @returns {string} The color hex value
+ */
+export function getAttackColor(attackType, theme = 'light') {
+  const colors = ATTACK_TYPE_COLORS[theme] || ATTACK_TYPE_COLORS.light;
+  return colors[attackType] || ATTACK_TYPE_COLORS.light.gaussian_noise;
+}
 
 // Helper function to get visualization component for attack type
 export function getVisualizationComponent(attackType) {

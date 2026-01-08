@@ -23,7 +23,7 @@ import {
 import { Button, Form } from 'react-bootstrap';
 import { useTheme } from '../../contexts/ThemeContext';
 import { CHART_COLORS, CHART_UI_COLORS, MALICIOUS_COLORS } from '@constants/ui';
-import { extractAttackPhases, getAttackPhaseColor, DEFENSE_COLORS } from './chartUtils';
+import { extractAttackPhases, getAttackPhaseColor, getChartColors } from './chartUtils';
 import AttackPhaseTooltip from './AttackPhaseTooltip';
 
 const METRIC_INFO = {
@@ -74,7 +74,7 @@ function ChartPanel({
   syncId,
   height,
 }) {
-  const defenseColors = DEFENSE_COLORS[theme] || DEFENSE_COLORS.light;
+  const defenseColors = getChartColors(theme).defense;
   // Reserve space for title above chart
   const titleHeight = 28;
   const chartHeight = height - titleHeight;

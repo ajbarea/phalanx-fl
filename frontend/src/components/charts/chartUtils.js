@@ -8,46 +8,12 @@
  * - Synchronized chart helpers
  */
 
-import { MALICIOUS_COLORS, CHART_UI_COLORS } from '@constants/ui';
-
-/**
- * Attack phase colors with semi-transparent backgrounds.
- * Uses distinct colors for different attack types.
- */
-export const ATTACK_PHASE_COLORS = {
-  light: {
-    label_flipping: 'rgba(220, 53, 69, 0.12)', // Red tint
-    gaussian_noise: 'rgba(255, 152, 0, 0.12)', // Orange tint
-    model_poisoning: 'rgba(156, 39, 176, 0.12)', // Purple tint
-    backdoor: 'rgba(63, 81, 181, 0.12)', // Indigo tint
-    free_rider: 'rgba(0, 150, 136, 0.12)', // Teal tint
-    default: 'rgba(211, 47, 47, 0.10)', // Default red tint
-  },
-  dark: {
-    label_flipping: 'rgba(244, 67, 54, 0.18)',
-    gaussian_noise: 'rgba(255, 167, 38, 0.18)',
-    model_poisoning: 'rgba(186, 104, 200, 0.18)',
-    backdoor: 'rgba(121, 134, 203, 0.18)',
-    free_rider: 'rgba(77, 182, 172, 0.18)',
-    default: 'rgba(255, 107, 107, 0.15)',
-  },
-};
-
-/**
- * Defense activation colors for reference lines.
- */
-export const DEFENSE_COLORS = {
-  light: {
-    threshold: '#2196F3',
-    removalStart: '#4CAF50',
-    warning: '#FF9800',
-  },
-  dark: {
-    threshold: '#64B5F6',
-    removalStart: '#81C784',
-    warning: '#FFB74D',
-  },
-};
+import {
+  MALICIOUS_COLORS,
+  CHART_UI_COLORS,
+  ATTACK_PHASE_COLORS,
+  DEFENSE_COLORS,
+} from '@constants/ui';
 
 /**
  * Extract attack phases from simulation config.
@@ -149,7 +115,7 @@ export function generateAttackAreaProps(phases, theme = 'light') {
     label: {
       value: phase.label,
       position: 'insideTopRight',
-      fill: theme === 'dark' ? '#999' : '#666',
+      fill: CHART_UI_COLORS[theme]?.axis || CHART_UI_COLORS.light.axis,
       fontSize: 10,
     },
   }));

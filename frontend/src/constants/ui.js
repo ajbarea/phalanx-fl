@@ -86,32 +86,32 @@ export const CHART_DIMENSIONS = {
  */
 export const CHART_COLORS = {
   light: [
-    '#0072B2', // Strong blue
-    '#D55E00', // Vermillion
-    '#009E73', // Bluish green
-    '#CC79A7', // Reddish purple
-    '#E69F00', // Orange
-    '#56B4E9', // Sky blue
-    '#785EF0', // Purple
-    '#404040', // Dark gray
-    '#117733', // Forest green
-    '#882255', // Wine
-    '#44AA99', // Teal
-    '#999933', // Olive
+    '#0072B2',
+    '#D55E00',
+    '#009E73',
+    '#CC79A7',
+    '#E69F00',
+    '#56B4E9',
+    '#785EF0',
+    '#404040',
+    '#117733',
+    '#882255',
+    '#44AA99',
+    '#999933',
   ],
   dark: [
-    '#56B4E9', // Sky blue
-    '#E69F00', // Orange
-    '#00D084', // Bright green
-    '#CC79A7', // Reddish purple
-    '#FF7EB6', // Pink
-    '#82CFFF', // Light blue
-    '#BE95FF', // Lavender
-    '#33B1FF', // Cyan
-    '#08BDBA', // Teal
-    '#FF6F61', // Coral
-    '#FFB000', // Amber
-    '#6FDC8C', // Mint green
+    '#56B4E9',
+    '#E69F00',
+    '#00D084',
+    '#CC79A7',
+    '#FF7EB6',
+    '#82CFFF',
+    '#BE95FF',
+    '#33B1FF',
+    '#08BDBA',
+    '#FF6F61',
+    '#FFB000',
+    '#6FDC8C',
   ],
 };
 
@@ -134,7 +134,7 @@ export const CHART_UI_COLORS = {
     brush: '#8884d8',
     brushFill: '#f5f5f5',
     tooltipBg: '#ffffff',
-    line: '#6750A4', // Primary purple for single-line charts
+    line: '#6750A4',
   },
   dark: {
     grid: '#444444',
@@ -143,7 +143,7 @@ export const CHART_UI_COLORS = {
     brush: '#666666',
     brushFill: '#1a1a1a',
     tooltipBg: '#2b2b2b',
-    line: '#82ca9d', // Teal green for single-line charts
+    line: '#82ca9d',
   },
 };
 
@@ -153,39 +153,31 @@ export const CHART_UI_COLORS = {
  */
 export const THEME_COLORS = {
   light: {
-    // Surfaces
     surface: '#ffffff',
     surfaceVariant: '#f5f5f5',
     surfaceContainer: '#fafafa',
-    // Primary
     primary: '#6750a4',
     primaryHover: '#7965af',
     onPrimary: '#ffffff',
-    // Text
     textPrimary: '#212529',
     textSecondary: '#6c757d',
     textMuted: '#adb5bd',
-    // Borders
     border: '#dee2e6',
     borderStrong: '#ced4da',
   },
   dark: {
-    // Surfaces (Material Design 3)
     surface: '#1c1b1f',
     surfaceVariant: '#2b2930',
     surfaceContainer: '#353239',
     surfaceContainerHigh: '#49454f',
-    // Primary
     primary: '#d0bcff',
     primaryContainer: '#4f378b',
     primaryHover: '#6750a4',
     onPrimary: '#381e72',
     onPrimaryContainer: '#eaddff',
-    // Text
     textPrimary: '#e6e1e5',
     textSecondary: '#cac4d0',
     textMuted: '#938f99',
-    // Borders
     border: '#49454f',
     borderStrong: '#938f99',
   },
@@ -353,6 +345,159 @@ export const DIFFICULTY_COLORS = {
 };
 
 /**
+ * Attack type colors for visualization cards and icons.
+ * Light mode uses vibrant colors, dark mode uses desaturated variants.
+ */
+export const ATTACK_TYPE_COLORS = {
+  light: {
+    label_flipping: '#e74c3c',
+    gaussian_noise: '#9b59b6',
+    model_poisoning: '#c0392b',
+    gradient_scaling: '#d35400',
+    byzantine_perturbation: '#8e44ad',
+    token_replacement: '#2980b9',
+  },
+  dark: {
+    label_flipping: '#ff8a80',
+    gaussian_noise: '#ce93d8',
+    model_poisoning: '#ef9a9a',
+    gradient_scaling: '#ffcc80',
+    byzantine_perturbation: '#b39ddb',
+    token_replacement: '#90caf9',
+  },
+};
+
+/**
+ * Attack phase background colors for chart shading.
+ * Semi-transparent backgrounds for visualizing attack phases on charts.
+ */
+export const ATTACK_PHASE_COLORS = {
+  light: {
+    label_flipping: 'rgba(220, 53, 69, 0.12)',
+    gaussian_noise: 'rgba(255, 152, 0, 0.12)',
+    model_poisoning: 'rgba(156, 39, 176, 0.12)',
+    backdoor: 'rgba(63, 81, 181, 0.12)',
+    free_rider: 'rgba(0, 150, 136, 0.12)',
+    default: 'rgba(211, 47, 47, 0.10)',
+  },
+  dark: {
+    label_flipping: 'rgba(244, 67, 54, 0.18)',
+    gaussian_noise: 'rgba(255, 167, 38, 0.18)',
+    model_poisoning: 'rgba(186, 104, 200, 0.18)',
+    backdoor: 'rgba(121, 134, 203, 0.18)',
+    free_rider: 'rgba(77, 182, 172, 0.18)',
+    default: 'rgba(255, 107, 107, 0.15)',
+  },
+};
+
+/**
+ * Defense activation colors for reference lines on charts.
+ */
+export const DEFENSE_COLORS = {
+  light: {
+    threshold: '#2196F3',
+    removalStart: '#4CAF50',
+    warning: '#FF9800',
+  },
+  dark: {
+    threshold: '#64B5F6',
+    removalStart: '#81C784',
+    warning: '#FFB74D',
+  },
+};
+
+/**
+ * Terminal/console colors for backgrounds and borders.
+ */
+export const TERMINAL_COLORS = {
+  light: {
+    bg: '#e9ecef',
+    border: '#dee2e6',
+    text: '#212529',
+  },
+  dark: {
+    bg: '#2d2d2d',
+    border: '#404040',
+    text: '#e6e1e5',
+  },
+};
+
+/**
+ * Full xterm terminal theme palettes.
+ * Used for xterm.js terminal emulator theming.
+ */
+export const TERMINAL_THEMES = {
+  dark: {
+    background: '#1e1e1e',
+    foreground: '#d4d4d4',
+    cursor: '#d4d4d4',
+    cursorAccent: '#1e1e1e',
+    selectionBackground: '#264f78',
+    black: '#1e1e1e',
+    red: '#f44747',
+    green: '#6a9955',
+    yellow: '#dcdcaa',
+    blue: '#569cd6',
+    magenta: '#c586c0',
+    cyan: '#4ec9b0',
+    white: '#d4d4d4',
+    brightBlack: '#808080',
+    brightRed: '#f44747',
+    brightGreen: '#6a9955',
+    brightYellow: '#dcdcaa',
+    brightBlue: '#569cd6',
+    brightMagenta: '#c586c0',
+    brightCyan: '#4ec9b0',
+    brightWhite: '#ffffff',
+  },
+  light: {
+    background: '#ffffff',
+    foreground: '#383a42',
+    cursor: '#383a42',
+    cursorAccent: '#ffffff',
+    selectionBackground: '#b4d5fe',
+    black: '#383a42',
+    red: '#e45649',
+    green: '#50a14f',
+    yellow: '#c18401',
+    blue: '#4078f2',
+    magenta: '#a626a4',
+    cyan: '#0184bc',
+    white: '#fafafa',
+    brightBlack: '#a0a1a7',
+    brightRed: '#e45649',
+    brightGreen: '#50a14f',
+    brightYellow: '#c18401',
+    brightBlue: '#4078f2',
+    brightMagenta: '#a626a4',
+    brightCyan: '#0184bc',
+    brightWhite: '#ffffff',
+  },
+};
+
+/**
+ * Tooltip colors for chart tooltips and popovers.
+ */
+export const TOOLTIP_COLORS = {
+  light: {
+    bg: '#ffffff',
+    border: '#e0e0e0',
+    text: '#333333',
+    muted: '#666666',
+    danger: { border: '#dc3545', text: '#c62828' },
+    success: { border: '#4caf50', text: '#2e7d32' },
+  },
+  dark: {
+    bg: '#2b2b2b',
+    border: '#444444',
+    text: '#e0e0e0',
+    muted: '#999999',
+    danger: { border: '#f44336', text: '#ff8a80' },
+    success: { border: '#81c784', text: '#a5d6a7' },
+  },
+};
+
+/**
  * Helper to get theme-aware colors.
  * @param {string} theme - 'light' or 'dark'
  * @returns {Object} Colors for the specified theme
@@ -365,4 +510,10 @@ export const getThemeColors = theme => ({
   status: STATUS_COLORS[theme] || STATUS_COLORS.light,
   alert: ALERT_COLORS[theme] || ALERT_COLORS.light,
   difficulty: DIFFICULTY_COLORS[theme] || DIFFICULTY_COLORS.light,
+  attackType: ATTACK_TYPE_COLORS[theme] || ATTACK_TYPE_COLORS.light,
+  attackPhase: ATTACK_PHASE_COLORS[theme] || ATTACK_PHASE_COLORS.light,
+  defense: DEFENSE_COLORS[theme] || DEFENSE_COLORS.light,
+  terminal: TERMINAL_COLORS[theme] || TERMINAL_COLORS.light,
+  terminalTheme: TERMINAL_THEMES[theme] || TERMINAL_THEMES.dark,
+  tooltip: TOOLTIP_COLORS[theme] || TOOLTIP_COLORS.light,
 });
