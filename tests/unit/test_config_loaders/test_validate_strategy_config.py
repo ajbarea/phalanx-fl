@@ -26,10 +26,10 @@ class TestValidateStrategyConfig:
         """Test validation of valid trust strategy configuration."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -42,10 +42,10 @@ class TestValidateStrategyConfig:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -56,7 +56,7 @@ class TestValidateStrategyConfig:
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
-            "strict_mode": "true",
+            "strict_mode": True,
             # Trust-specific parameters
             "begin_removing_from_round": 2,
             "trust_threshold": 0.7,
@@ -71,10 +71,10 @@ class TestValidateStrategyConfig:
         """Test validation of valid PID strategy configuration."""
         config = {
             "aggregation_strategy_keyword": "pid",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "its",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 3,
             "num_of_clients": 8,
             "num_of_malicious_clients": 1,
@@ -89,10 +89,10 @@ class TestValidateStrategyConfig:
                     "malicious_percentage": 0.125,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "gpu",
             "cpus_per_client": 2,
@@ -103,7 +103,7 @@ class TestValidateStrategyConfig:
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 5,
             "batch_size": 64,
-            "strict_mode": "true",
+            "strict_mode": True,
             # PID-specific parameters
             "num_std_dev": 2.0,
             "Kp": 1.0,
@@ -118,18 +118,18 @@ class TestValidateStrategyConfig:
         """Test validation of valid Krum strategy configuration."""
         config = {
             "aggregation_strategy_keyword": "krum",
-            "remove_clients": "false",
+            "remove_clients": False,
             "dataset_keyword": "pneumoniamnist",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 4,
             "num_of_clients": 12,
             "num_of_malicious_clients": 0,
             "attack_schedule": [],
-            "show_plots": "true",
-            "save_plots": "true",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": True,
+            "save_plots": True,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.9,
             "training_device": "gpu",
             "cpus_per_client": 1,
@@ -151,10 +151,10 @@ class TestValidateStrategyConfig:
         """Test validation of valid trimmed mean strategy configuration."""
         config = {
             "aggregation_strategy_keyword": "trimmed_mean",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "bloodmnist",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 6,
             "num_of_clients": 15,
             "num_of_malicious_clients": 3,
@@ -167,10 +167,10 @@ class TestValidateStrategyConfig:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.7,
             "training_device": "cpu",
             "cpus_per_client": 4,
@@ -195,10 +195,10 @@ class TestValidateStrategyConfigMissingRequiredParams:
     def test_missing_aggregation_strategy_keyword(self):
         """Test validation fails when aggregation_strategy_keyword is missing."""
         config = {
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -211,10 +211,10 @@ class TestValidateStrategyConfigMissingRequiredParams:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -236,7 +236,7 @@ class TestValidateStrategyConfigMissingRequiredParams:
         """Test validation fails when dataset_keyword is missing."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": True,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -249,10 +249,10 @@ class TestValidateStrategyConfigMissingRequiredParams:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -274,10 +274,10 @@ class TestValidateStrategyConfigMissingRequiredParams:
         """Test validation fails when num_of_rounds is missing."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
             "attack_schedule": [
@@ -289,10 +289,10 @@ class TestValidateStrategyConfigMissingRequiredParams:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -314,10 +314,10 @@ class TestValidateStrategyConfigMissingRequiredParams:
         """Test validation fails when Flower-specific settings are missing."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -330,10 +330,10 @@ class TestValidateStrategyConfigMissingRequiredParams:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             # Missing all Flower settings
         }
@@ -352,10 +352,10 @@ class TestValidateStrategyConfigInvalidValues:
         """Test validation fails for invalid aggregation strategy."""
         config = {
             "aggregation_strategy_keyword": "invalid_strategy",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -368,10 +368,10 @@ class TestValidateStrategyConfigInvalidValues:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -393,10 +393,10 @@ class TestValidateStrategyConfigInvalidValues:
         """Test validation fails for invalid dataset keyword."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "invalid_dataset",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -409,10 +409,10 @@ class TestValidateStrategyConfigInvalidValues:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -437,7 +437,7 @@ class TestValidateStrategyConfigInvalidValues:
             "remove_clients": "maybe",  # Invalid boolean string
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -450,10 +450,10 @@ class TestValidateStrategyConfigInvalidValues:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -464,7 +464,7 @@ class TestValidateStrategyConfigInvalidValues:
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
-            "strict_mode": "true",
+            "strict_mode": True,
             # Trust-specific parameters
             "begin_removing_from_round": 2,
             "trust_threshold": 0.7,
@@ -475,16 +475,16 @@ class TestValidateStrategyConfigInvalidValues:
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert "'maybe' is not one of ['true', 'false']" in str(exc_info.value)
+        assert "'maybe' is not of type 'boolean'" in str(exc_info.value)
 
     def test_invalid_attack_type(self):
         """Test validation fails for invalid attack type in attack_schedule."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -497,10 +497,10 @@ class TestValidateStrategyConfigInvalidValues:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -530,10 +530,10 @@ class TestValidateStrategyConfigInvalidValues:
         """Test validation fails for invalid training device."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -546,10 +546,10 @@ class TestValidateStrategyConfigInvalidValues:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "quantum",  # Invalid device
             "cpus_per_client": 1,
@@ -571,10 +571,10 @@ class TestValidateStrategyConfigInvalidValues:
         """Test validation fails for invalid data types."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": "five",  # Should be integer
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -587,10 +587,10 @@ class TestValidateStrategyConfigInvalidValues:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -803,10 +803,10 @@ class TestValidateStrategyConfigErrorMessages:
         """Test that error messages clearly indicate valid enum options."""
         config = {
             "aggregation_strategy_keyword": "invalid_strategy",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -819,10 +819,10 @@ class TestValidateStrategyConfigErrorMessages:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -848,10 +848,10 @@ class TestValidateStrategyConfigErrorMessages:
     def test_clear_error_message_for_missing_required_field(self):
         """Test that error messages clearly indicate which required field is missing."""
         config = {
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             # Missing aggregation_strategy_keyword and other required fields
         }
 
@@ -866,10 +866,10 @@ class TestValidateStrategyConfigErrorMessages:
         """Test that error messages clearly indicate expected data type."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": "not_a_number",  # Should be integer
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -882,10 +882,10 @@ class TestValidateStrategyConfigErrorMessages:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -928,10 +928,10 @@ class TestValidateStrategyConfigEdgeCases:
         """Test that RFA strategy doesn't require additional parameters."""
         config = {
             "aggregation_strategy_keyword": "rfa",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "flair",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 4,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -944,10 +944,10 @@ class TestValidateStrategyConfigEdgeCases:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -967,18 +967,18 @@ class TestValidateStrategyConfigEdgeCases:
         """Test that Bulyan strategy doesn't require additional parameters."""
         config = {
             "aggregation_strategy_keyword": "bulyan",
-            "remove_clients": "false",
+            "remove_clients": False,
             "dataset_keyword": "lung_photos",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 3,
             "num_of_clients": 15,
             "num_of_malicious_clients": 0,
             "attack_schedule": [],
-            "show_plots": "true",
-            "save_plots": "true",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": True,
+            "save_plots": True,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "gpu",
             "cpus_per_client": 2,
@@ -1022,10 +1022,10 @@ class TestValidateStrategyConfigEdgeCases:
         """Test that configuration with extra unknown fields still validates if required fields are present."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -1038,10 +1038,10 @@ class TestValidateStrategyConfigEdgeCases:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -1070,7 +1070,7 @@ class TestCheckLlmSpecificParameters:
 
     def test_llm_enabled_with_cnn_model_fails(self):
         """Test that LLM is rejected for non-transformer models."""
-        config = {"model_type": "cnn", "use_llm": "true"}
+        config = {"model_type": "cnn", "use_llm": True}
 
         with pytest.raises(ValidationError) as exc_info:
             _validate_llm_parameters(config)
@@ -1281,10 +1281,10 @@ class TestStrictModeValidation:
         """Test that strict_mode defaults to 'true' and rejects invalid configs."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -1297,10 +1297,10 @@ class TestStrictModeValidation:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -1331,10 +1331,10 @@ class TestStrictModeValidation:
         """Test that strict_mode=true rejects configs where min_* != num_of_clients."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -1347,10 +1347,10 @@ class TestStrictModeValidation:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -1361,7 +1361,7 @@ class TestStrictModeValidation:
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
-            "strict_mode": "true",
+            "strict_mode": True,
             # Trust-specific parameters
             "begin_removing_from_round": 2,
             "trust_threshold": 0.7,
@@ -1382,10 +1382,10 @@ class TestStrictModeValidation:
         """Test that strict_mode=false preserves original client configuration."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -1398,10 +1398,10 @@ class TestStrictModeValidation:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -1412,7 +1412,7 @@ class TestStrictModeValidation:
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
-            "strict_mode": "false",
+            "strict_mode": False,
             # Trust-specific parameters
             "begin_removing_from_round": 2,
             "trust_threshold": 0.7,
@@ -1430,10 +1430,10 @@ class TestStrictModeValidation:
         """Test that validation fails when min_* > num_of_clients regardless of strict_mode."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 5,
             "num_of_malicious_clients": 2,
@@ -1446,10 +1446,10 @@ class TestStrictModeValidation:
                     "malicious_percentage": 0.4,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -1460,7 +1460,7 @@ class TestStrictModeValidation:
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
-            "strict_mode": "false",
+            "strict_mode": False,
             # Trust-specific parameters
             "begin_removing_from_round": 2,
             "trust_threshold": 0.7,
@@ -1482,10 +1482,10 @@ class TestStrictModeValidation:
         """Test that strict_mode=true does not modify already correct client config."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -1498,10 +1498,10 @@ class TestStrictModeValidation:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -1512,7 +1512,7 @@ class TestStrictModeValidation:
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
-            "strict_mode": "true",
+            "strict_mode": True,
             # Trust-specific parameters
             "begin_removing_from_round": 2,
             "trust_threshold": 0.7,
@@ -1530,10 +1530,10 @@ class TestStrictModeValidation:
         """Test that invalid strict_mode values fail schema validation."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": True,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -1546,10 +1546,10 @@ class TestStrictModeValidation:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -1571,4 +1571,4 @@ class TestStrictModeValidation:
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert "'maybe' is not one of ['true', 'false']" in str(exc_info.value)
+        assert "'maybe' is not of type 'boolean'" in str(exc_info.value)

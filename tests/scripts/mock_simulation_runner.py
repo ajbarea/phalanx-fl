@@ -409,8 +409,8 @@ def run_mock_simulation(
                 directory_handler.save_csv_and_config(strategy_history)
 
             attack_schedule = merged_config.get("attack_schedule", [])
-            save_snapshots = merged_config.get("save_attack_snapshots", "false")
-            if attack_schedule and str(save_snapshots).lower() == "true":
+            save_snapshots = merged_config.get("save_attack_snapshots", False)
+            if attack_schedule and save_snapshots is True:
                 total_rounds = merged_config.get("num_of_rounds", 10)
                 snapshot_format = merged_config.get("attack_snapshot_format", "pickle")
                 max_samples = merged_config.get("snapshot_max_samples", 5)
