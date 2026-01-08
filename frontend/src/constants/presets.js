@@ -113,13 +113,13 @@ export const PRESETS = {
     },
   },
   showcase_llm: {
-    name: 'Showcase: LLM Attack & Defense',
-    subtitle: '25 rounds - 4 clients - Krum + DistilBERT',
+    name: 'Showcase: Byzantine NLP Defense',
+    subtitle: '25 rounds - 4 clients - 100% Detection Rate',
     description:
-      'Federated NLP with Byzantine-resilient defense. Krum aggregation detects and filters malicious token replacement attacks on medical text, demonstrating robust LLM training.',
+      'Demonstrates Krum defense achieving 100% Byzantine detection on transformer models. Malicious token replacement attacks are identified and filtered while maintaining stable convergence throughout 25 rounds of federated DistilBERT training.',
     estimatedTime: '60-90 minutes',
-    icon: '🧠',
-    tags: ['showcase', 'nlp', 'defense', 'presentation'],
+    icon: '🛡️',
+    tags: ['showcase', 'nlp', 'defense', 'byzantine-detection'],
     config: {
       num_of_rounds: 25,
       num_of_clients: 4,
@@ -206,13 +206,13 @@ export const PRESETS = {
     },
   },
   quick_sentiment: {
-    name: 'Medical Q&A NLP',
-    subtitle: '8 rounds - 2 clients - DistilBERT',
+    name: 'NLP Attack Visualization',
+    subtitle: '8 rounds - 2 clients - Token Poisoning Demo',
     description:
-      'Federated masked language modeling on medical Q&A text with token replacement attacks. Demonstrates NLP poisoning where medical terminology is replaced with negative tokens.',
+      'Visualizes token replacement attacks on medical NLP. Captures attack snapshots showing how malicious clients corrupt medical terminology, with detailed poisoning pattern analysis for federated transformer training.',
     estimatedTime: '8-12 minutes',
-    icon: '🏥',
-    tags: ['intermediate', 'nlp', 'medical'],
+    icon: '🔬',
+    tags: ['intermediate', 'nlp', 'attack-analysis', 'visualization'],
     config: {
       num_of_rounds: 8,
       num_of_clients: 2,
