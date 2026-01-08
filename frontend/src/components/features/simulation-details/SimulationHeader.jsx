@@ -20,6 +20,7 @@ export function SimulationHeader({ simulation, onRunAgain, isCloning, onStop, is
 
   return (
     <div className="d-flex flex-column gap-2 mt-3 mb-3">
+      <h1 className="mb-2">🔬 Simulation Details</h1>
       <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 gap-md-3">
         <div className="d-flex align-items-center gap-2 flex-wrap flex-grow-1">
           <h4 className="mb-0">{displayName || id}</h4>

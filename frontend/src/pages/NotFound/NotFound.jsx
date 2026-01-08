@@ -22,7 +22,7 @@ export function NotFound() {
                 404
               </div>
 
-              <h1 className="h3 mb-3">Page Not Found</h1>
+              <h1 className="h3 mb-3">🔍 Page Not Found</h1>
 
               <p className="text-muted mb-4">
                 The page you&apos;re looking for doesn&apos;t exist or has been moved. This may

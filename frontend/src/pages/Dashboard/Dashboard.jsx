@@ -170,13 +170,13 @@ export function Dashboard() {
   };
 
   if (loading) {
-    return <LoadingPage title="Simulation Dashboard" />;
+    return <LoadingPage title="🏠 Simulation Dashboard" />;
   }
 
   if (error) {
     return (
       <PageContainer>
-        <PageHeader title="Simulation Dashboard" />
+        <PageHeader title="🏠 Simulation Dashboard" />
         <div className="alert alert-danger">{error}</div>
       </PageContainer>
     );
@@ -184,7 +184,7 @@ export function Dashboard() {
 
   return (
     <PageContainer>
-      <PageHeader title="Simulation Dashboard">
+      <PageHeader title="🏠 Simulation Dashboard">
         <BulkActions
           selectedCount={selectedSims.length}
           totalCount={simulations?.length || 0}

@@ -59,7 +59,7 @@ export function SimulationDetails() {
   if (loading) {
     return (
       <PageContainer>
-        <h1>Simulation Details: {simulationId}</h1>
+        <h1>🔬 Simulation Details: {simulationId}</h1>
         <Spinner animation="border" role="status">
           <span className="visually-hidden">Loading...</span>
         </Spinner>
@@ -70,7 +70,7 @@ export function SimulationDetails() {
   if (error) {
     return (
       <PageContainer>
-        <h1>Simulation Details: {simulationId}</h1>
+        <h1>🔬 Simulation Details: {simulationId}</h1>
         <Alert variant="danger">{error}</Alert>
       </PageContainer>
     );

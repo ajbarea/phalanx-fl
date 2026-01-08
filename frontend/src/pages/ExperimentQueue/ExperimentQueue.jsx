@@ -10,7 +10,7 @@ export function ExperimentQueue() {
 
   return (
     <PageContainer>
-      <PageHeader title="Experiment Queue" />
+      <PageHeader title="🧪 Experiment Queue" />
 
       {hasRunning && (
         <Alert variant="warning" className="mb-4">

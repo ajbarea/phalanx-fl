@@ -91,7 +91,7 @@ export function QueueStatus() {
 
   return (
     <PageContainer>
-      <PageHeader title="Experiment Queue Status">
+      <PageHeader title="⏳ Experiment Queue Status">
         <div className="d-flex gap-2">
           {status?.status === 'running' && (
             <Button

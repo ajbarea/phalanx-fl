@@ -5,7 +5,7 @@ export function TerminalPage() {
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h1>Terminal</h1>
+        <h1>💻 Terminal</h1>
       </div>
 
       <Card>
