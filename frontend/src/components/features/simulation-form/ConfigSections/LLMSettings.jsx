@@ -4,7 +4,7 @@ import { SelectField } from '../FormFields/SelectField';
 import { SwitchField } from '../FormFields/SwitchField';
 
 export function LLMSettings({ config, onChange }) {
-  const needsLlmParams = config.use_llm === 'true';
+  const needsLlmParams = config.use_llm === true;
   const needsMLMParams = needsLlmParams && config.llm_task === 'mlm';
   const needsLoRAParams = needsLlmParams && config.llm_finetuning === 'lora';
 
@@ -13,10 +13,8 @@ export function LLMSettings({ config, onChange }) {
       <SwitchField
         name="use_llm"
         label="Use LLM"
-        checked={config.use_llm === 'true'}
-        onChange={e =>
-          onChange({ target: { name: 'use_llm', value: e.target.checked ? 'true' : 'false' } })
-        }
+        checked={config.use_llm === true}
+        onChange={e => onChange({ target: { name: 'use_llm', value: e.target.checked } })}
         tooltip="Enable Large Language Model fine-tuning instead of traditional CNN/MLP models"
       />
 

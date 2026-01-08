@@ -16,7 +16,7 @@ export const initialConfig = {
   partitioning_strategy: 'iid', // "iid" | "dirichlet" | "pathological"
   partitioning_params: {}, // e.g., {"alpha": 0.5} for Dirichlet
   model_type: 'cnn',
-  use_llm: 'false',
+  use_llm: false,
 
   // Attack Configuration
   attack_type: 'gaussian_noise',
@@ -27,7 +27,7 @@ export const initialConfig = {
 
   // Defense Strategy
   aggregation_strategy_keyword: 'pid',
-  remove_clients: 'true',
+  remove_clients: true,
   begin_removing_from_round: 2,
 
   // Trust & Reputation
@@ -59,14 +59,14 @@ export const initialConfig = {
   evaluate_metrics_aggregation_fn: 'weighted_average',
 
   // Output Settings
-  show_plots: 'false',
-  save_plots: 'true',
-  save_csv: 'true',
-  save_attack_snapshots: 'false',
+  show_plots: false,
+  save_plots: true,
+  save_csv: true,
+  save_attack_snapshots: false,
   attack_snapshot_format: 'pickle_and_visual',
   snapshot_max_samples: 5,
-  preserve_dataset: 'true',
-  strict_mode: 'true',
+  preserve_dataset: true,
+  strict_mode: true,
 
   // LLM Settings
   llm_model: 'microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext',
