@@ -252,6 +252,8 @@ class TestDirectoryHandler:
 
     def test_directory_naming_uses_timestamp(self, tmp_path, monkeypatch):
         """Verifies directory names include timestamp when no output_dir provided."""
+        monkeypatch.chdir(tmp_path)
+
         mock_now = Mock()
         mock_now.strftime.return_value = "01-01-2024_12-00-00"
         monkeypatch.setattr(datetime, "datetime", Mock(now=Mock(return_value=mock_now)))
