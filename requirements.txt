@@ -127,7 +127,7 @@ hypothesis==6.148.8
 mutmut>=2.4.5
 ruff==0.13.1
 mypy==1.13.0
-pyright==1.1.407
+pyright>=1.1.407
 isort==6.1.0
 tomli==2.0.1
 pathspec==0.12.1
