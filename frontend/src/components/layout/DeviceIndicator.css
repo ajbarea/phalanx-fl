@@ -65,15 +65,15 @@
 }
 
 .device-chip--cpu {
-  background: var(--bs-secondary-bg);
-  color: var(--bs-secondary-text-emphasis);
-  border: 1px solid var(--bs-secondary-border-subtle);
+  background: var(--color-secondary-bg);
+  color: var(--color-secondary);
+  border: 1px solid var(--color-secondary-border);
 }
 
 .device-chip--gpu-available {
-  background: var(--bs-success-bg-subtle);
-  color: var(--bs-success-text-emphasis);
-  border: 1px solid var(--bs-success-border-subtle);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  border: 1px solid var(--color-success-border);
   animation: subtle-pulse 2s ease-in-out infinite;
 }
 
@@ -85,19 +85,6 @@
   50% {
     opacity: 0.7;
   }
-}
-
-/* Dark mode */
-:root[data-theme='dark'] .device-chip--gpu-available {
-  background: rgba(25, 135, 84, 0.15);
-  color: #75b798;
-  border-color: rgba(25, 135, 84, 0.3);
-}
-
-:root[data-theme='dark'] .device-chip--cpu {
-  background: rgba(108, 117, 125, 0.15);
-  color: #adb5bd;
-  border-color: rgba(108, 117, 125, 0.3);
 }
 
 /* Mobile: hide chips, show simplified version */

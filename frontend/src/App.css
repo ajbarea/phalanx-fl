@@ -34,6 +34,10 @@
   --color-info-bg: rgba(13, 110, 253, 0.1);
   --color-info-border: rgba(13, 110, 253, 0.2);
 
+  --color-secondary: #6c757d;
+  --color-secondary-bg: rgba(108, 117, 125, 0.1);
+  --color-secondary-border: rgba(108, 117, 125, 0.2);
+
   --spacing-xs: 0.25rem;
   --spacing-sm: 0.5rem;
   --spacing-md: 1rem;
@@ -101,6 +105,10 @@
   --color-info: #9dc6f0;
   --color-info-bg: rgba(157, 198, 240, 0.12);
   --color-info-border: rgba(157, 198, 240, 0.2);
+
+  --color-secondary: #adb5bd;
+  --color-secondary-bg: rgba(173, 181, 189, 0.15);
+  --color-secondary-border: rgba(173, 181, 189, 0.3);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -174,6 +182,15 @@
 
   :root[data-theme='dark'] .form-label {
     color: var(--color-text-secondary) !important;
+  }
+
+  :root[data-theme='dark'] .form-text {
+    color: var(--color-text-muted) !important;
+  }
+
+  :root[data-theme='dark'] .form-control::placeholder {
+    color: var(--color-text-muted) !important;
+    opacity: 1;
   }
 
   :root[data-theme='dark'] .card {
@@ -337,15 +354,16 @@
   }
 
   :root[data-theme='dark'] .btn-outline-primary {
-    color: var(--color-primary);
-    border-color: #6750a4;
+    color: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+    background-color: transparent !important;
   }
 
   :root[data-theme='dark'] .btn-outline-primary:hover,
   :root[data-theme='dark'] .btn-outline-primary:focus {
-    background-color: #4f378b;
-    border-color: #4f378b;
-    color: #eaddff;
+    background-color: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+    color: var(--color-background) !important;
   }
 
   :root[data-theme='dark'] .btn-outline-secondary {
@@ -358,6 +376,19 @@
     background-color: var(--color-border);
     border-color: var(--color-border);
     color: var(--color-text-primary);
+  }
+
+  :root[data-theme='dark'] .btn-outline-danger {
+    color: var(--color-danger) !important;
+    border-color: var(--color-danger) !important;
+    background-color: transparent !important;
+  }
+
+  :root[data-theme='dark'] .btn-outline-danger:hover,
+  :root[data-theme='dark'] .btn-outline-danger:focus {
+    background-color: var(--color-danger) !important;
+    border-color: var(--color-danger) !important;
+    color: var(--color-background) !important;
   }
 
   :root[data-theme='dark'] .dropdown-menu {
@@ -389,21 +420,21 @@
   }
 
   :root[data-theme='dark'] .alert-success {
-    background-color: #1d3a2d;
-    border-color: #2d5a45;
-    color: var(--color-success);
+    background-color: #1d3a2d !important;
+    border-color: #2d5a45 !important;
+    color: var(--color-success) !important;
   }
 
   :root[data-theme='dark'] .alert-danger {
-    background-color: #3a1d1d;
-    border-color: #5a2d2d;
-    color: var(--color-danger);
+    background-color: #3a1d1d !important;
+    border-color: #5a2d2d !important;
+    color: var(--color-danger) !important;
   }
 
   :root[data-theme='dark'] .alert-warning {
-    background-color: #3a341d;
-    border-color: #5a4f2d;
-    color: var(--color-warning);
+    background-color: #3a341d !important;
+    border-color: #5a4f2d !important;
+    color: var(--color-warning) !important;
   }
 
   :root[data-theme='dark'] .alert-info {
@@ -799,7 +830,12 @@
   }
 
   :root[data-theme='dark'] .simulation-card .card-meta code {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(208, 188, 255, 0.15);
+    color: var(--color-primary) !important;
+  }
+
+  :root[data-theme='dark'] code {
+    color: var(--color-primary) !important;
   }
 
   .simulation-card .card-stats {
@@ -2174,4 +2210,46 @@
   .sticky-submit-btn {
     width: 100%;
   }
+}
+
+/* Draft Indicator Accordion */
+.draft-indicator-accordion .accordion-body {
+  max-height: none;
+  overflow: visible;
+}
+
+.draft-indicator-accordion .accordion-body pre {
+  max-height: none;
+  overflow: visible;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+}
+
+/* Dark mode: use primary purple like View Details button */
+:root[data-theme='dark'] .draft-indicator-accordion .accordion-item {
+  background-color: rgba(208, 188, 255, 0.15);
+  border-color: var(--color-primary);
+}
+
+:root[data-theme='dark'] .draft-indicator-accordion .accordion-button {
+  background-color: rgba(208, 188, 255, 0.15);
+  color: var(--color-primary);
+}
+
+:root[data-theme='dark'] .draft-indicator-accordion .accordion-button:not(.collapsed) {
+  background-color: rgba(208, 188, 255, 0.15);
+  color: var(--color-primary);
+}
+
+:root[data-theme='dark'] .draft-indicator-accordion .accordion-button::after {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23d0bcff'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+}
+
+:root[data-theme='dark'] .draft-indicator-accordion .accordion-body {
+  background-color: rgba(208, 188, 255, 0.15);
+}
+
+:root[data-theme='dark'] .draft-indicator-accordion .accordion-body pre {
+  color: var(--color-primary);
 }
