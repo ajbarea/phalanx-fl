@@ -9,7 +9,10 @@ from __future__ import annotations
 
 from jsonschema import ValidationError
 
-from src.config_loaders.validate_strategy_config import validate_strategy_config
+from src.config_loaders.validate_strategy_config import (
+    _populate_client_selection,
+    validate_strategy_config,
+)
 from tests.common import pytest
 
 
@@ -1163,3 +1166,93 @@ class TestValidateStrategyConfigLlmIntegration:
         attack_schedule = config["attack_schedule"]
         assert "_selected_clients" not in attack_schedule[0]
         assert attack_schedule[0]["malicious_client_ids"] == [0, 3, 7]
+
+
+class TestPopulateClientSelection:
+    """Test _populate_client_selection function edge cases."""
+
+    def test_populate_client_selection_without_num_of_clients(self):
+        """Test that _populate_client_selection returns early when num_of_clients is None."""
+        config = {
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ]
+            # Note: num_of_clients is intentionally omitted
+        }
+
+        # Should return early without raising an exception
+        _populate_client_selection(config)
+
+        # _selected_clients should not be added since we returned early
+        assert "_selected_clients" not in config["attack_schedule"][0]
+
+    def test_populate_client_selection_zero_malicious_percentage(self):
+        """Test that percentage resulting in 0 malicious clients fails validation."""
+        config = {
+            "aggregation_strategy_keyword": "trust",
+            "remove_clients": "true",
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
+            "num_of_rounds": 5,
+            "num_of_clients": 10,
+            "num_of_malicious_clients": 0,
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.0,  # 0% of 10 = 0 clients
+                }
+            ],
+            "show_plots": "false",
+            "save_plots": "false",
+            "save_csv": "false",
+            "preserve_dataset": "false",
+            "training_subset_fraction": 1.0,
+            "training_device": "cpu",
+            "cpus_per_client": 1,
+            "gpus_per_client": 0.0,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
+            "min_available_clients": 10,
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 1,
+            "batch_size": 32,
+            "begin_removing_from_round": 1,
+            "trust_threshold": 0.7,
+            "beta_value": 0.5,
+            "num_of_clusters": 1,
+        }
+
+        with pytest.raises(
+            ValidationError, match="Must select at least 1 malicious client"
+        ):
+            validate_strategy_config(config)
+
+    def test_populate_client_selection_zero_random_count(self):
+        """Test that random selection with 0 malicious_client_count fails validation."""
+        config = {
+            "num_of_clients": 10,
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "random",
+                    "malicious_client_count": 0,  # Zero clients
+                }
+            ],
+        }
+
+        with pytest.raises(
+            ValidationError, match="Must select at least 1 malicious client"
+        ):
+            _populate_client_selection(config)

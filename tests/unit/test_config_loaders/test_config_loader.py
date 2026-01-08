@@ -696,3 +696,72 @@ class TestConfigLoader:
         full_config = config_loader.get_dataset_config_list()
         assert full_config == dataset_config
         assert len(full_config) == 7  # All 7 datasets
+
+    @patch("src.config_loaders.config_loader.validate_strategy_config")
+    def test_merge_usecase_configs_without_training_device(self, mock_validate, tmp_path):
+        """Test config merging when training_device is not in shared_settings."""
+        usecase_config = {
+            "shared_settings": {
+                "num_of_rounds": 3,
+                "dataset_keyword": "its",
+                # Note: training_device is intentionally omitted
+            },
+            "simulation_strategies": [
+                {
+                    "aggregation_strategy_keyword": "rfa",
+                    "attack_schedule": [],
+                }
+            ],
+        }
+
+        config_file = tmp_path / "config.json"
+        with open(config_file, "w") as f:
+            json.dump(usecase_config, f)
+
+        result = ConfigLoader._merge_usecase_configs(str(config_file))
+
+        # Verify config was loaded successfully without training_device
+        assert len(result) == 1
+        assert "training_device" not in result[0]
+        mock_validate.assert_called_once()
+
+    @patch("src.config_loaders.config_loader.validate_strategy_config")
+    def test_merge_usecase_configs_attack_schedule_without_selected_clients(
+        self, mock_validate, tmp_path
+    ):
+        """Test config merging when attack_schedule entries lack _selected_clients."""
+        usecase_config = {
+            "shared_settings": {
+                "num_of_rounds": 3,
+                "dataset_keyword": "its",
+                "training_device": "cpu",
+            },
+            "simulation_strategies": [
+                {
+                    "aggregation_strategy_keyword": "trust",
+                    "attack_schedule": [
+                        {
+                            "start_round": 1,
+                            "end_round": 3,
+                            "attack_type": "label_flipping",
+                            "selection_strategy": "percentage",
+                            "malicious_percentage": 0.2,
+                            # Note: _selected_clients is intentionally omitted
+                        }
+                    ],
+                }
+            ],
+        }
+
+        config_file = tmp_path / "config.json"
+        with open(config_file, "w") as f:
+            json.dump(usecase_config, f)
+
+        result = ConfigLoader._merge_usecase_configs(str(config_file))
+
+        # Verify config was loaded successfully
+        assert len(result) == 1
+        assert result[0]["attack_schedule"][0]["attack_type"] == "label_flipping"
+        # With mocked validation, _selected_clients should not be added
+        assert "_selected_clients" not in result[0]["attack_schedule"][0]
+        mock_validate.assert_called_once()
