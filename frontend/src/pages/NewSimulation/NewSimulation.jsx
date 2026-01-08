@@ -343,7 +343,7 @@ export function NewSimulation() {
 
   return (
     <PageContainer>
-      <PageHeader title="New Simulation">
+      <PageHeader title="✨ New Simulation">
         <div className="d-flex gap-2">
           <input
             type="file"
@@ -388,7 +388,11 @@ export function NewSimulation() {
       )}
 
       {draftInfo?.source === 'user-input' && (
-        <DraftIndicator timestamp={draftInfo.timestamp} onDiscard={handleDiscardDraft} />
+        <DraftIndicator
+          timestamp={draftInfo.timestamp}
+          config={config}
+          onDiscard={handleDiscardDraft}
+        />
       )}
 
       <SimulationForm
