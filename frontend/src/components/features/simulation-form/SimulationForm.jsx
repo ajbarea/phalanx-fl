@@ -220,20 +220,10 @@ export function SimulationForm({
     }
   };
 
-  // Handle clicking on error in sticky footer - scroll to and open the relevant section
-  const handleErrorClick = error => {
-    const sectionKey = FIELD_TO_SECTION[error.field];
-    if (sectionKey) {
-      // Open the accordion section if not already open
-      if (!activeSection.includes(sectionKey)) {
-        setActiveSection([...activeSection, sectionKey]);
-      }
-      // Scroll to the section after a brief delay for accordion animation
-      setTimeout(() => {
-        const element = document.querySelector(`[data-section-key="${sectionKey}"]`);
-        element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
-    }
+  // Handle clicking on error in sticky footer - scroll to validation summary
+  const handleErrorClick = () => {
+    const element = document.querySelector('.validation-summary');
+    element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
