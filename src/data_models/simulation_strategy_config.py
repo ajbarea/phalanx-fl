@@ -1,12 +1,106 @@
 from __future__ import annotations
 
-import json
-from dataclasses import asdict, dataclass
+import sys
+import warnings
 from typing import Any
+from typing import TypedDict as TypingTypedDict
+
+from pydantic import BaseModel, ConfigDict, field_validator
+
+# NotRequired is available in Python 3.11+, otherwise use typing_extensions
+if sys.version_info >= (3, 11):
+    from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
+
+# Pydantic V2 requires typing_extensions.TypedDict for python < 3.12
+if sys.version_info < (3, 12):
+    from typing_extensions import TypedDict
+else:
+    TypedDict = TypingTypedDict
 
 
-@dataclass
-class StrategyConfig:
+def _coerce_bool(v: Any) -> bool | None:
+    """Convert string boolean representations to actual booleans.
+
+    Note:
+        String boolean values are deprecated and will emit a DeprecationWarning.
+        Use actual JSON booleans (true/false without quotes) instead.
+    """
+    if v is None:
+        return None
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, str):
+        warnings.warn(
+            f"String boolean value '{v}' is deprecated. "
+            "Use actual boolean (true/false without quotes).",
+            DeprecationWarning,
+            stacklevel=4,
+        )
+        lower = v.lower()
+        if lower in ("true", "1", "yes", "on"):
+            return True
+        if lower in ("false", "0", "no", "off"):
+            return False
+    raise ValueError(f"Cannot coerce {v!r} to bool")
+
+
+class AttackScheduleEntry(TypedDict):
+    """Type definition for attack schedule entries.
+
+    This TypedDict provides better type hints for internal configuration
+    dictionaries without requiring Pydantic validation overhead.
+
+    Required fields:
+        start_round: First round the attack is active
+        end_round: Last round the attack is active
+        attack_type: Type of attack to apply
+        selection_strategy: How to select malicious clients
+
+    Optional fields depend on selection_strategy and attack_type.
+    """
+
+    start_round: int
+    end_round: int
+    attack_type: str
+    selection_strategy: str
+
+    # Client selection (depends on selection_strategy)
+    malicious_percentage: NotRequired[float]
+    malicious_client_count: NotRequired[int]
+    malicious_client_ids: NotRequired[list[int]]
+    random_seed: NotRequired[int]
+
+    # Attack parameters (depends on attack_type)
+    target_noise_snr: NotRequired[float]
+    attack_ratio: NotRequired[float]
+
+    # Weight poisoning parameters
+    poison_ratio: NotRequired[float]
+    magnitude: NotRequired[float]
+    scale_factor: NotRequired[float]
+    noise_scale: NotRequired[float]
+    seed: NotRequired[int]
+
+    # Token replacement parameters
+    target_vocabulary: NotRequired[str]
+    replacement_strategy: NotRequired[str]
+    replacement_prob: NotRequired[float]
+
+    # Internal field populated by validation
+    _selected_clients: NotRequired[list[int]]
+
+
+class StrategyConfig(BaseModel):
+    """Configuration for a single simulation strategy.
+
+    This Pydantic model provides type validation and coercion for all strategy
+    parameters. It replaces the previous dataclass-based implementation.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
     aggregation_strategy_keyword: str | None = None
     remove_clients: bool | None = None
     begin_removing_from_round: int | None = None
@@ -52,24 +146,28 @@ class StrategyConfig:
 
     strategy_number: int | None = None
 
-    attack_schedule: list[Any] | None = None
+    attack_schedule: list[AttackScheduleEntry] | None = None
 
-    def __init__(self, **kwargs: Any) -> None:
-        for key, value in kwargs.items():
-            if value in ("true", "false"):
-                setattr(self, key, value == "true")
-            else:
-                setattr(self, key, value)
-
-    def __getattr__(self, name: str) -> Any:
-        """Allow access to dynamically set attributes"""
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+    @field_validator(
+        "remove_clients",
+        "show_plots",
+        "save_plots",
+        "save_csv",
+        "save_attack_snapshots",
+        "preserve_dataset",
+        "strict_mode",
+        mode="before",
+    )
+    @classmethod
+    def coerce_bool_strings(cls, v: Any) -> bool | None:
+        """Convert string boolean representations to actual booleans."""
+        return _coerce_bool(v)
 
     @classmethod
     def from_dict(cls, strategy_config: dict[str, Any]) -> StrategyConfig:
-        """Create config instance from dict"""
-        return cls(**strategy_config)
+        """Create config instance from dict using Pydantic validation."""
+        return cls.model_validate(strategy_config)
 
     def to_json(self) -> str:
-        """Convert config to json"""
-        return json.dumps(asdict(self))
+        """Convert config to JSON string."""
+        return self.model_dump_json()

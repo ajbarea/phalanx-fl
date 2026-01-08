@@ -47,6 +47,14 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from datasets import load_dataset_builder  # type: ignore[attr-defined]
+from src.api.models import (
+    AllPlotDataResponse,
+    CreateSimulationRequest,
+    DatasetInfo,
+    DatasetValidationResponse,
+    SimulationStatusResponse,
+    StrategyPlotData,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -87,66 +95,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = BASE_DIR / "out"
 
 running_processes: dict[str, subprocess.Popen] = {}
-
-
-class SimulationConfig(BaseModel):
-    display_name: str | None = None
-    aggregation_strategy_keyword: str | None = None
-    remove_clients: str | None = None
-    begin_removing_from_round: int | None = None
-    dataset_keyword: str | None = None
-    dataset_source: str | None = None
-    num_of_rounds: int | None = None
-    num_of_clients: int | None = None
-    num_of_malicious_clients: int | None = None
-    attack_type: str | None = None
-    attack_ratio: float | None = None
-    gaussian_noise_mean: int | None = None
-    gaussian_noise_std: int | None = None
-    show_plots: str | None = None
-    save_plots: str | None = None
-    save_csv: str | None = None
-    training_device: str | None = None
-    cpus_per_client: int | None = None
-    gpus_per_client: float | None = None
-    trust_threshold: float | None = None
-    reputation_threshold: float | None = None
-    beta_value: float | None = None
-    num_of_clusters: int | None = None
-    Kp: float | None = None
-    Ki: float | None = None
-    Kd: float | None = None
-    num_std_dev: float | None = None
-    training_subset_fraction: float | None = None
-    min_fit_clients: int | None = None
-    min_evaluate_clients: int | None = None
-    min_available_clients: int | None = None
-    evaluate_metrics_aggregation_fn: str | None = None
-    num_of_client_epochs: int | None = None
-    batch_size: int | None = None
-    preserve_dataset: str | None = None
-    num_krum_selections: int | None = None
-    trim_ratio: float | None = None
-    strict_mode: str | None = None
-    strategy_number: int | None = None
-    model_keyword: str | None = None
-    model_type: str | None = None
-    learning_rate: float | None = None
-    use_llm: str | None = None
-    llm_model: str | None = None
-    llm_finetuning: str | None = None
-    llm_task: str | None = None
-    llm_chunk_size: int | None = None
-    mlm_probability: float | None = None
-    hf_dataset_name: str | None = None
-    partitioning_strategy: str | None = None
-    partitioning_params: dict | None = None
-    transformer_model: str | None = None
-    max_seq_length: int | None = None
-    text_column: str | None = None
-    label_column: str | None = None
-    use_lora: bool | None = None
-    lora_rank: int | None = None
 
 
 class SimulationMetadata(BaseModel):
@@ -416,11 +364,11 @@ def get_result_file(
 
 
 @app.post("/api/simulations", status_code=201)
-async def create_simulation(request: dict[str, Any] = Body(...)) -> dict[str, Any]:
+async def create_simulation(request: CreateSimulationRequest) -> dict[str, Any]:
     """Creates and initiates a new simulation based on the provided configuration.
 
     Args:
-        request: A dictionary containing the simulation configuration.
+        request: Validated simulation configuration request.
 
     Returns:
         A dictionary containing the simulation ID of the created or updated run.
@@ -428,9 +376,9 @@ async def create_simulation(request: dict[str, Any] = Body(...)) -> dict[str, An
     Raises:
         HTTPException: If the simulation process fails to start or config cannot be written.
     """
-    add_to_queue = request.get("add_to_queue")
+    add_to_queue = request.add_to_queue
 
-    config = {k: v for k, v in request.items() if k != "add_to_queue"}
+    config = request.get_config_without_queue_flag()
 
     config_keys = list(config.keys())
     has_shared = "shared_settings" in config
@@ -541,14 +489,14 @@ async def create_simulation(request: dict[str, Any] = Body(...)) -> dict[str, An
 
 
 @app.post("/api/simulations/prepare", status_code=201)
-async def prepare_simulation(request: dict[str, Any] = Body(...)) -> dict[str, Any]:
+async def prepare_simulation(request: CreateSimulationRequest) -> dict[str, Any]:
     """Prepares a simulation by creating config but not starting the process.
 
     This endpoint is used when the frontend wants to run the simulation
     directly in the terminal PTY for real-time output.
 
     Args:
-        request: A dictionary containing the simulation configuration.
+        request: Validated simulation configuration request.
 
     Returns:
         A dictionary containing:
@@ -558,7 +506,7 @@ async def prepare_simulation(request: dict[str, Any] = Body(...)) -> dict[str, A
     Raises:
         HTTPException: If the config cannot be written.
     """
-    config = {k: v for k, v in request.items() if k != "add_to_queue"}
+    config = request.get_config_without_queue_flag()
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     simulation_id = f"api_run_{timestamp}"
@@ -584,7 +532,6 @@ async def prepare_simulation(request: dict[str, Any] = Body(...)) -> dict[str, A
     except OSError as e:
         raise HTTPException(status_code=500, detail=f"Failed to write config file: {e}")
 
-    # Use relative path with forward slashes for cross-platform terminal compatibility
     relative_config_path = f"out/{simulation_id}/config.json"
     command = f"python -m src.simulation_runner {relative_config_path}"
 
@@ -670,10 +617,10 @@ def _get_status_data(sim_path: Path, simulation_id: str) -> dict[str, Any]:
     return {"status": "pending", "progress": 0.0}
 
 
-@app.get("/api/simulations/{simulation_id}/status")
+@app.get("/api/simulations/{simulation_id}/status", response_model=SimulationStatusResponse)
 def get_simulation_status(
     sim_path: Path = Depends(get_simulation_path), simulation_id: str = ""
-) -> dict[str, Any]:
+) -> SimulationStatusResponse:
     """Retrieves the current execution status of a simulation.
 
     This endpoint uses the same status detection logic as the SSE stream
@@ -685,7 +632,7 @@ def get_simulation_status(
         simulation_id: The simulation identifier.
 
     Returns:
-        A dictionary containing the status, progress, and error details if any.
+        SimulationStatusResponse containing status, progress, and error details.
     """
     status_data = _get_status_data(sim_path, simulation_id)
 
@@ -702,7 +649,7 @@ def get_simulation_status(
             except OSError:
                 pass
 
-    return status_data
+    return SimulationStatusResponse(**status_data)
 
 
 @app.get("/api/simulations/{simulation_id}/stream")
@@ -1028,15 +975,15 @@ async def get_plot_data(simulation_id: str) -> dict:
         raise HTTPException(status_code=500, detail="Failed to load plot data. Check server logs.")
 
 
-@app.get("/api/simulations/{simulation_id}/all-plot-data")
-async def get_all_plot_data(simulation_id: str) -> dict:
+@app.get("/api/simulations/{simulation_id}/all-plot-data", response_model=AllPlotDataResponse)
+async def get_all_plot_data(simulation_id: str) -> AllPlotDataResponse:
     """Retrieves all plot data JSON files for a multi-strategy simulation.
 
     Args:
         simulation_id: The simulation identifier.
 
     Returns:
-        A dictionary containing a list of plot data for each strategy.
+        AllPlotDataResponse containing plot data for each strategy.
 
     Raises:
         HTTPException: If data is unavailable or not found.
@@ -1070,9 +1017,9 @@ async def get_all_plot_data(simulation_id: str) -> dict:
             with open(json_path) as f:
                 data = json.load(f)
                 strategy_num = int(json_file.replace("plot_data_", "").replace(".json", ""))
-                all_plot_data.append({"strategy_number": strategy_num, "data": data})
+                all_plot_data.append(StrategyPlotData(strategy_number=strategy_num, data=data))
 
-        return {"strategies": all_plot_data}
+        return AllPlotDataResponse(strategies=all_plot_data)
 
     except HTTPException:
         raise
@@ -1466,25 +1413,25 @@ async def get_attack_snapshots(
     }
 
 
-@app.get("/api/datasets/validate")
-async def validate_dataset(name: str) -> dict[str, Any]:
+@app.get("/api/datasets/validate", response_model=DatasetValidationResponse)
+async def validate_dataset(name: str) -> DatasetValidationResponse:
     """Validates if a HuggingFace dataset exists and is compatible with Flower.
 
     Args:
         name: The HuggingFace dataset identifier.
 
     Returns:
-        A dictionary indicating validity, compatibility, and dataset metadata.
+        DatasetValidationResponse indicating validity, compatibility, and metadata.
     """
     try:
         builder = load_dataset_builder(name)
 
         if builder.info.splits is None:
-            return {
-                "valid": False,
-                "compatible": False,
-                "reason": "Dataset has no splits information",
-            }
+            return DatasetValidationResponse(
+                valid=False,
+                compatible=False,
+                reason="Dataset has no splits information",
+            )
 
         splits = list(builder.info.splits.keys())
         num_examples = sum(s.num_examples for s in builder.info.splits.values())
@@ -1513,18 +1460,18 @@ async def validate_dataset(name: str) -> dict[str, Any]:
 
         compatible = True
 
-        return {
-            "valid": True,
-            "compatible": compatible,
-            "info": {
-                "splits": splits,
-                "num_examples": num_examples,
-                "features": features,
-                "has_label": has_label,
-                "key_features": key_features,
-            },
-            "error": None,
-        }
+        return DatasetValidationResponse(
+            valid=True,
+            compatible=compatible,
+            info=DatasetInfo(
+                splits=splits,
+                num_examples=num_examples,
+                features=features,
+                has_label=has_label,
+                key_features=key_features,
+            ),
+            error=None,
+        )
 
     except Exception as e:
         error_message = str(e)
@@ -1547,12 +1494,12 @@ async def validate_dataset(name: str) -> dict[str, Any]:
         else:
             error_message = f"Unable to validate dataset: {error_message}"
 
-        return {
-            "valid": False,
-            "compatible": False,
-            "info": None,
-            "error": error_message,
-        }
+        return DatasetValidationResponse(
+            valid=False,
+            compatible=False,
+            info=None,
+            error=error_message,
+        )
 
 
 terminal_sessions: dict[str, dict[str, Any]] = {}

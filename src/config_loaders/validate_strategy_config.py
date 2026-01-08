@@ -26,8 +26,8 @@ config_schema = {
                 "arkrum",
             ],
         },
-        "strict_mode": {"type": "string", "enum": ["true", "false"]},
-        "remove_clients": {"type": "string", "enum": ["true", "false"]},
+        "strict_mode": {"type": "boolean"},
+        "remove_clients": {"type": "boolean"},
         "dataset_keyword": {
             "type": "string",
             "enum": [
@@ -56,13 +56,13 @@ config_schema = {
         "model_type": {"type": "string", "enum": ["cnn", "transformer"]},
         "num_of_rounds": {"type": "integer"},
         "num_of_clients": {"type": "integer"},
-        "show_plots": {"type": "string", "enum": ["true", "false"]},
-        "save_plots": {"type": "string", "enum": ["true", "false"]},
-        "save_csv": {"type": "string", "enum": ["true", "false"]},
-        "preserve_dataset": {"type": "string", "enum": ["true", "false"]},
+        "show_plots": {"type": "boolean"},
+        "save_plots": {"type": "boolean"},
+        "save_csv": {"type": "boolean"},
+        "preserve_dataset": {"type": "boolean"},
         "training_subset_fraction": {"type": "number"},
         # LLM settings
-        "use_llm": {"type": "string", "enum": ["true", "false"]},
+        "use_llm": {"type": "boolean"},
         "llm_model": {
             "type": "string",
             "enum": [
@@ -170,7 +170,7 @@ config_schema = {
             },
         },
         # Attack snapshot saving
-        "save_attack_snapshots": {"type": "string", "enum": ["true", "false"]},
+        "save_attack_snapshots": {"type": "boolean"},
         "attack_snapshot_format": {
             "type": "string",
             "enum": ["pickle", "visual", "pickle_and_visual"],
@@ -388,7 +388,8 @@ def _validate_attack_schedule(config: dict) -> None:
                     )
 
     # Strict rejection: preserve_dataset incompatible with attack_schedule
-    if schedule and config.get("preserve_dataset") == "true":
+    preserve_dataset = config.get("preserve_dataset")
+    if schedule and preserve_dataset is True:
         raise ValidationError(
             "CONFIG REJECTED: Cannot use attack_schedule with preserve_dataset=true\n"
             "\n"
@@ -398,8 +399,8 @@ def _validate_attack_schedule(config: dict) -> None:
             "  - These modes are incompatible\n"
             "\n"
             "Fix:\n"
-            "  Set 'preserve_dataset': 'false' in your config file\n"
-            "  Use 'save_attack_snapshots': 'true' to inspect poisoned data\n"
+            "  Set 'preserve_dataset': false in your config file\n"
+            "  Use 'save_attack_snapshots': true to inspect poisoned data\n"
             "\n"
             "Config is the single source of truth - it must reflect intended execution."
         )
@@ -440,11 +441,11 @@ def _validate_llm_parameters(strategy_config: dict) -> None:
 def _apply_strict_mode(config: dict) -> None:
     """Handle strict_mode validation and client configuration logic."""
 
-    # Set strict_mode to "true" by default if not specified
+    # Set strict_mode to True by default if not specified
     if "strict_mode" not in config:
-        config["strict_mode"] = "true"
+        config["strict_mode"] = True
 
-    strict_mode = config["strict_mode"] == "true"
+    strict_mode = config["strict_mode"] is True
     num_of_clients = config["num_of_clients"]
     num_fit_clients = config["min_fit_clients"]
     num_evaluate_clients = config["min_evaluate_clients"]
@@ -502,7 +503,7 @@ def validate_strategy_config(config: dict) -> None:
 
     _validate_dependent_params(config)
 
-    if config["use_llm"] == "true":
+    if config["use_llm"] is True:
         _validate_llm_parameters(config)
 
     _validate_attack_schedule(config)

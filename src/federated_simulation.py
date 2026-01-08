@@ -600,8 +600,6 @@ class FederatedSimulation:
             output_dir = getattr(self.directory_handler, "dirname", None)
 
         save_attack_snapshots = getattr(self.strategy_config, "save_attack_snapshots", False)
-        if isinstance(save_attack_snapshots, str):
-            save_attack_snapshots = save_attack_snapshots == "true"
 
         attack_snapshot_format = getattr(
             self.strategy_config, "attack_snapshot_format", "pickle_and_visual"
