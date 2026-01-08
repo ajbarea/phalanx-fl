@@ -1232,9 +1232,7 @@ class TestPopulateClientSelection:
             "num_of_clusters": 1,
         }
 
-        with pytest.raises(
-            ValidationError, match="Must select at least 1 malicious client"
-        ):
+        with pytest.raises(ValidationError, match="Must select at least 1 malicious client"):
             validate_strategy_config(config)
 
     def test_populate_client_selection_zero_random_count(self):
@@ -1252,7 +1250,5 @@ class TestPopulateClientSelection:
             ],
         }
 
-        with pytest.raises(
-            ValidationError, match="Must select at least 1 malicious client"
-        ):
+        with pytest.raises(ValidationError, match="Must select at least 1 malicious client"):
             _populate_client_selection(config)
