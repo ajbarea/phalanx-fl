@@ -884,12 +884,6 @@ def rename_simulation(
     if len(display_name) > 100:
         raise HTTPException(status_code=400, detail="Display name must be 100 characters or less")
 
-    if not re.match(r"^[a-zA-Z0-9\s\-_]+$", display_name):
-        raise HTTPException(
-            status_code=400,
-            detail="Display name can only contain letters, numbers, spaces, hyphens, and underscores",
-        )
-
     config_path = sim_path / "config.json"
     if not config_path.is_file():
         raise HTTPException(status_code=404, detail="Simulation config.json not found.")

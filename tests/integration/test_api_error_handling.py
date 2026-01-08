@@ -131,10 +131,10 @@ class TestAPIValidationErrors:
         assert response.status_code == 400
         assert "empty" in response.json().get("detail", "").lower()
 
-    def test_rename_simulation_invalid_characters(
+    def test_rename_simulation_special_characters(
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
-        """Test renaming simulation with invalid characters."""
+        """Test renaming simulation with special characters succeeds."""
         monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
 
         sim_dir = tmp_path / "out" / "api_run_20250101_120000"
@@ -145,7 +145,8 @@ class TestAPIValidationErrors:
             "/api/simulations/api_run_20250101_120000/rename",
             json={"display_name": "Test<>Simulation"},
         )
-        assert response.status_code == 400
+        assert response.status_code == 200
+        assert response.json()["display_name"] == "Test<>Simulation"
 
     def test_rename_simulation_too_long(self, api_client: TestClient, tmp_path: Path, monkeypatch):
         """Test renaming simulation with name exceeding 100 chars."""

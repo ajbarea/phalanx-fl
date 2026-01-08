@@ -38,11 +38,6 @@ function EditableSimName({ simulationId, displayName, onRename }) {
       return;
     }
 
-    if (!/^[a-zA-Z0-9\s\-_]+$/.test(trimmed)) {
-      setError('Only letters, numbers, spaces, hyphens, and underscores allowed');
-      return;
-    }
-
     setSaving(true);
     setError(null);
 
