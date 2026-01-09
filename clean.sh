@@ -3,8 +3,8 @@
 
 . "$(dirname "$0")/tests/scripts/common.sh"
 
-find out -mindepth 1 -depth ! -name .gitkeep -exec rm -rf {} +
-log_info "Cleaned out/ directory."
+# find out -mindepth 1 -depth ! -name .gitkeep -exec rm -rf {} +
+# log_info "Cleaned out/ directory."
 
 # Clean logs/ directory
 if [ -d "logs" ]; then
