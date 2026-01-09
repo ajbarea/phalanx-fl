@@ -104,6 +104,9 @@ class StrategyConfig(BaseModel):
     aggregation_strategy_keyword: str | None = None
     remove_clients: bool | None = None
     begin_removing_from_round: int | None = None
+    # Termination policies for client removal edge cases
+    termination_policy: str | None = "graceful"  # strict | graceful | adaptive
+    min_clients_ratio: float | None = 0.3  # For adaptive policy (30% threshold)
     dataset_keyword: str | None = None
     num_of_rounds: int | None = None
     num_of_clients: int | None = None

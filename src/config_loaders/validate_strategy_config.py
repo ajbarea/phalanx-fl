@@ -98,6 +98,16 @@ config_schema = {
         # Strategy specific parameters
         # Trust
         "begin_removing_from_round": {"type": "integer", "minimum": 1},
+        # Client removal termination policies
+        "termination_policy": {
+            "type": "string",
+            "enum": ["strict", "graceful", "adaptive"],
+        },
+        "min_clients_ratio": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+        },
         "trust_threshold": {"type": "number"},
         "beta_value": {"type": "number"},
         "num_of_clusters": {"type": "integer", "minimum": 1, "maximum": 1},
@@ -488,6 +498,64 @@ def _apply_strict_mode(config: dict) -> None:
         )
 
 
+def validate_removal_configuration(config: dict) -> tuple[dict, list[str]]:
+    """
+    Validate client removal configuration for consistency and conflicts.
+
+    Byzantine-robust federated learning requires careful handling of client removal
+    to maintain minimum federation size for meaningful aggregation.
+    References:
+    - Byzantine-Robust FL (arXiv 2024): https://arxiv.org/abs/2402.12780
+    - Centralized FL Security (SpringerLink 2022): https://link.springer.com/chapter/10.1007/978-3-032-03705-3_10
+
+    Args:
+        config: Configuration dictionary to validate.
+
+    Returns:
+        (modified_config, warnings): Modified config with auto-corrections and list of warning messages.
+    """
+    warnings = []
+    modified_config = config.copy()
+
+    if not config.get("remove_clients", False):
+        return modified_config, warnings  # No removal, no issues
+
+    num_clients = config["num_of_clients"]
+    min_fit = config.get("min_fit_clients", num_clients)
+    begin_removing = config.get("begin_removing_from_round", 1)
+    num_rounds = config["num_of_rounds"]
+    termination_policy = config.get("termination_policy", "graceful")
+
+    # Check: begin_removing_from_round is before last round
+    if begin_removing >= num_rounds:
+        warnings.append(
+            f"begin_removing_from_round ({begin_removing}) >= num_of_rounds "
+            f"({num_rounds}). Removal will never trigger."
+        )
+
+    # Check: min_fit_clients feasible with removal
+    if termination_policy == "strict" and min_fit == num_clients:
+        warnings.append(
+            "STRICT termination + min_fit_clients == num_of_clients "
+            "means any removal will terminate experiment. "
+            "Consider 'graceful' or 'adaptive' policy."
+        )
+
+    # AUTO-FIX: strict_mode incompatible with removal
+    # Strict mode enforces min_fit_clients == num_of_clients, which conflicts
+    # with client removal (impossible to satisfy both constraints)
+    if config.get("strict_mode", True):
+        modified_config["strict_mode"] = False
+        warnings.append(
+            "⚠️  AUTO-CORRECTED: strict_mode=true is incompatible with "
+            "remove_clients=true. Setting strict_mode=false. "
+            "(strict_mode enforces min_fit_clients == num_of_clients, "
+            "which conflicts with client removal.)"
+        )
+
+    return modified_config, warnings
+
+
 def validate_strategy_config(config: dict) -> None:
     """Validate simulation config against schema and strategy-specific constraints.
 
@@ -500,6 +568,14 @@ def validate_strategy_config(config: dict) -> None:
 
     # Validates config structure, types, and basic constraints against JSON schema
     validate(instance=config, schema=config_schema)
+
+    # Validate and auto-correct removal configuration conflicts
+    config_corrected, removal_warnings = validate_removal_configuration(config)
+    config.update(config_corrected)
+    if removal_warnings:
+        logging.warning("Client Removal Configuration Warnings:")
+        for warning in removal_warnings:
+            logging.warning(f"  - {warning}")
 
     _validate_dependent_params(config)
 
