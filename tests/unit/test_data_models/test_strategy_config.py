@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+import pytest
+
 from src.data_models.simulation_strategy_config import StrategyConfig
 
 
@@ -27,12 +29,13 @@ class TestStrategyConfig:
 
     def test_init_with_string_booleans(self):
         """Test initialization converts string booleans correctly."""
-        config = StrategyConfig(
-            remove_clients="true",
-            show_plots="false",
-            save_plots="true",
-            save_csv="false",
-        )
+        with pytest.warns(DeprecationWarning):
+            config = StrategyConfig(
+                remove_clients="true",
+                show_plots="false",
+                save_plots="true",
+                save_csv="false",
+            )
 
         assert config.remove_clients is True
         assert config.show_plots is False
@@ -50,15 +53,16 @@ class TestStrategyConfig:
 
     def test_init_with_mixed_parameters(self):
         """Test initialization with mixed parameter types."""
-        config = StrategyConfig(
-            aggregation_strategy_keyword="pid",
-            num_of_rounds=3,
-            remove_clients="true",
-            Kp=1.0,
-            Ki=0.1,
-            Kd=0.01,
-            show_plots="false",
-        )
+        with pytest.warns(DeprecationWarning):
+            config = StrategyConfig(
+                aggregation_strategy_keyword="pid",
+                num_of_rounds=3,
+                remove_clients="true",
+                Kp=1.0,
+                Ki=0.1,
+                Kd=0.01,
+                show_plots="false",
+            )
 
         assert config.aggregation_strategy_keyword == "pid"
         assert config.num_of_rounds == 3
@@ -75,7 +79,7 @@ class TestStrategyConfig:
             "num_of_rounds": 4,
             "num_of_clients": 8,
             "num_krum_selections": 3,
-            "remove_clients": "true",
+            "remove_clients": True,
         }
 
         config = StrategyConfig.from_dict(config_dict)
@@ -102,7 +106,8 @@ class TestStrategyConfig:
             "show_plots": "true",
         }
 
-        config = StrategyConfig.from_dict(config_dict)
+        with pytest.warns(DeprecationWarning):
+            config = StrategyConfig.from_dict(config_dict)
 
         assert config.save_plots is True
         assert config.preserve_dataset is False
@@ -176,21 +181,19 @@ class TestStrategyConfig:
         assert config.another_unknown == 123
 
     def test_boolean_conversion_edge_cases(self):
-        """Test boolean conversion edge cases."""
-        config = StrategyConfig(
-            # Only "true" and "false" strings are converted
-            actual_boolean=True,
-            string_true="true",
-            string_false="false",
-            other_string="maybe",
-            number_value=1,
-        )
+        """Test that only declared boolean fields are coerced."""
+        with pytest.warns(DeprecationWarning):
+            config = StrategyConfig(
+                remove_clients="true",  # Declared field, should be coerced
+                show_plots="false",  # Declared field, should be coerced
+                other_string="maybe",  # Extra field, should not be coerced
+                number_value=1,  # Extra field, should not be coerced
+            )
 
-        assert config.actual_boolean is True
-        assert config.string_true is True
-        assert config.string_false is False
-        assert config.other_string == "maybe"  # Not converted
-        assert config.number_value == 1  # Not converted
+        assert config.remove_clients is True
+        assert config.show_plots is False
+        assert config.other_string == "maybe"  # Stored as-is
+        assert config.number_value == 1  # Stored as-is
 
     def test_strategy_specific_parameters(self):
         """Test strategy-specific parameters."""
