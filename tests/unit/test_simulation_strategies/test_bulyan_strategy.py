@@ -905,7 +905,7 @@ class TestBulyanAggregateEvaluate:
 
         bulyan_strategy.aggregate_evaluate(1, results, [])
 
-        # Verify client_id is str (node ID) in Flower 1.25+
+        # Verify client_id is str (node ID)
         for (
             call
         ) in bulyan_strategy.strategy_history.insert_single_client_history_entry.call_args_list:
