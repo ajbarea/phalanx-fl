@@ -252,13 +252,6 @@ def list_attack_snapshots(output_dir: str, strategy_number: int = 0) -> list:
             json_snapshots = list(attack_snapshots_dir.glob("client_*/round_*/*_metadata.json"))
             all_snapshots.extend(json_snapshots)
 
-    weight_snapshots_dir = base_path / f"weight_snapshots_{strategy_number}"
-    if weight_snapshots_dir.exists():
-        weight_json_snapshots = list(
-            weight_snapshots_dir.glob("client_*/round_*/*_weight_metadata.json")
-        )
-        all_snapshots.extend(weight_json_snapshots)
-
     return sorted(set(all_snapshots))
 
 

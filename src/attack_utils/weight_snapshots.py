@@ -36,7 +36,7 @@ def _get_weight_snapshot_dir(
     Returns:
         Path object for the weight snapshot directory.
     """
-    snapshots_base = Path(output_dir) / f"weight_snapshots_{strategy_number}"
+    snapshots_base = Path(output_dir) / f"attack_snapshots_{strategy_number}"
     snapshot_dir = snapshots_base / f"client_{client_id}" / f"round_{round_num}"
     snapshot_dir.mkdir(parents=True, exist_ok=True)
     return snapshot_dir
@@ -265,7 +265,7 @@ def list_weight_snapshots(output_dir: str, strategy_number: int = 0) -> list[Pat
     Returns:
         List of paths to weight snapshot metadata files.
     """
-    snapshots_dir = Path(output_dir) / f"weight_snapshots_{strategy_number}"
+    snapshots_dir = Path(output_dir) / f"attack_snapshots_{strategy_number}"
     if not snapshots_dir.exists():
         return []
 
