@@ -576,10 +576,6 @@ class FederatedSimulation:
         assert self._network_model is not None, "_network_model must be set"
         assert self._trainloaders is not None, "_trainloaders must be set"
         assert self._valloaders is not None, "_valloaders must be set"
-
-        # Research: Flower 1.25+ uses Context.node_config for client partition assignment
-        # https://flower.ai/docs/framework/how-to-upgrade-to-flower-1.13.html
-        # partition-id maps to data partition index; node_id is Flower's internal ID
         partition_id: int = int(context.node_config["partition-id"])
 
         net = self._network_model.to(self.strategy_config.training_device)

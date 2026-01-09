@@ -575,7 +575,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                 {
                     "loss": epoch_loss,
                     "accuracy": epoch_acc,
-                    "partition_id": self.client_id,  # For Flower 1.25+ node_id mapping
+                    "partition_id": self.client_id,
                 },
             )
 
@@ -585,7 +585,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
             {
                 "loss": epoch_loss,
                 "accuracy": epoch_acc,
-                "partition_id": self.client_id,  # For Flower 1.25+ node_id mapping
+                "partition_id": self.client_id,
             },
         )
 

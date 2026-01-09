@@ -44,7 +44,7 @@ class SimulationStrategyHistory:
     def register_node_mapping(self, node_id: str, partition_id: int) -> None:
         """Register a mapping from Flower node_id to internal partition_id.
 
-        In Flower 1.25+, ClientProxy.cid returns node IDs (large integers as strings)
+        ClientProxy.cid returns node IDs (large integers as strings)
         instead of sequential integers. This method maps those back to our partition IDs.
 
         Args:
@@ -70,7 +70,7 @@ class SimulationStrategyHistory:
         """
         node_id_str = str(node_id)
 
-        # Check if it's in our mapping (Flower 1.25+ node IDs)
+        # Check if it's in our mapping
         if node_id_str in self._node_id_to_partition_id:
             return self._node_id_to_partition_id[node_id_str]
 
@@ -92,11 +92,9 @@ class SimulationStrategyHistory:
     def register_node_mappings_from_results(
         self, results: list[tuple[ClientProxy, EvaluateRes]]
     ) -> None:
-        """Register node_id -> partition_id mappings from evaluate results.
+        """Register client mappings from evaluate results.
 
-        Flower 1.25+ returns node IDs instead of sequential partition IDs in
-        ClientProxy.cid. This extracts partition_id from client metrics to
-        restore the mapping.
+        Extracts partition_id from client metrics to register the mapping.
 
         Args:
             results: List of (ClientProxy, EvaluateRes) tuples from aggregate_evaluate
@@ -123,7 +121,7 @@ class SimulationStrategyHistory:
             client_id: Either a Flower node_id (str) or partition_id (int).
                        Will be automatically translated to partition_id if needed.
         """
-        # Translate node_id to partition_id if necessary (Flower 1.25+ compatibility)
+        # Translate node_id to partition_id if necessary
         partition_id = self.get_partition_id(client_id)
         updating_client: ClientInfo = self._clients_dict[partition_id]
 
