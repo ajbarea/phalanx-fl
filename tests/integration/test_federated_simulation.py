@@ -156,7 +156,6 @@ class TestFederatedSimulationIntegration:
             # Test all clients can be created
             assert strategy_config.num_of_clients is not None
             for client_id in range(strategy_config.num_of_clients):
-                # Use Context API (Flower 1.25+) instead of string cid
                 context = _create_mock_context(client_id, strategy_config.num_of_clients)
                 client = simulation.client_fn(context)
                 assert client is not None
@@ -266,7 +265,6 @@ class TestFederatedSimulationIntegration:
             # Test that client creation integrates with all system components
             assert strategy_config.num_of_clients is not None
             for client_id in range(strategy_config.num_of_clients):
-                # Use Context API (Flower 1.25+) instead of string cid
                 context = _create_mock_context(client_id, strategy_config.num_of_clients)
                 _client = simulation.client_fn(context)
 

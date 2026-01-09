@@ -336,7 +336,6 @@ class TestFederatedSimulationClientFunction:
             mock_client_instance.to_client.return_value = Mock()
             mock_flower_client.return_value = mock_client_instance
 
-            # Use Context API (Flower 1.25+) instead of cid string
             context = _create_mock_context(0, 5)
             simulation.client_fn(context)
 
@@ -363,7 +362,6 @@ class TestFederatedSimulationClientFunction:
             mock_client_instance.to_client.return_value = Mock()
             mock_flower_client.return_value = mock_client_instance
 
-            # Test different client IDs using Context API (Flower 1.25+)
             for client_id in range(5):
                 context = _create_mock_context(client_id, 5)
                 simulation.client_fn(context)
@@ -384,7 +382,6 @@ class TestFederatedSimulationClientFunction:
             strategy_config, temp_dataset_dir, mock_dataset_handler
         )
 
-        # Use Context API (Flower 1.25+) with invalid partition ID
         context = _create_mock_context(10, 5)  # Only 5 clients available (0-4)
         with pytest.raises(IndexError):
             simulation.client_fn(context)
@@ -427,8 +424,6 @@ class TestFederatedSimulationClientFunction:
                     mock_client_instance = Mock()
                     mock_client_instance.to_client.return_value = Mock()
                     mock_flower_client.return_value = mock_client_instance
-
-                    # Use Context API (Flower 1.25+)
                     context = _create_mock_context(0, 5)
                     result = simulation.client_fn(context)
 
