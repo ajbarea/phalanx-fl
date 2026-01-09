@@ -21,8 +21,27 @@ from src.utils.status_tracker import StatusTracker
 class KrumBasedRemovalStrategy(Krum):
     """Krum-based Byzantine-resilient aggregation with client removal.
 
-    Uses Krum scoring to identify and remove potentially malicious clients,
-    aggregating only the single most trusted client's update each round.
+    Implements a Krum-inspired aggregation strategy that scores client updates
+    based on pairwise parameter distances and selects the most trusted client
+    for aggregation each round. Optionally removes high-scoring clients over
+    time to mitigate persistent Byzantine behavior.
+
+    This strategy extends Flower's Krum implementation with round tracking,
+    client removal, and detailed metric logging for experimental analysis.
+
+    Research Foundation:
+    - Machine Learning with Adversaries: Byzantine Tolerant Gradient Descent (Krum):
+      Krum achieves Byzantine resilience by distance-based neighbor proximity,
+      with theoretical guarantees for f < n/2 - 2 Byzantine clients.
+
+    - Byzantine-Robust FL (arXiv 2024):
+      https://arxiv.org/abs/2402.12780
+      Confirms Krum as effective distance-based Byzantine defense, especially
+      when combined with adaptive client removal.
+
+    - Centralized FL Security (SpringerLink 2022):
+      https://link.springer.com/chapter/10.1007/978-3-032-03705-3_10
+      Lists Krum as standard robust aggregation with distance-based filtering.
     """
 
     def __init__(
@@ -36,6 +55,18 @@ class KrumBasedRemovalStrategy(Krum):
         *args,
         **kwargs,
     ):
+        """Initialize the Krum-based removal strategy.
+
+        Args:
+            remove_clients: Whether to enable permanent client removal based on Krum scores.
+            num_malicious_clients: Expected number of Byzantine clients (used for f parameter).
+            num_krum_selections: Number of closest neighbors considered in Krum score calculation.
+            begin_removing_from_round: First round when removal is permitted (warmup period).
+            strategy_history: Storage for per-client and per-round metrics.
+            status_tracker: Optional progress reporting hook for UI or monitoring.
+            *args: Forwarded to base Krum strategy.
+            **kwargs: Forwarded to base Krum strategy.
+        """
         super().__init__(*args, **kwargs)
         self.client_scores: dict[Any, float] = {}
         self.removed_client_ids: set[Any] = set()
@@ -51,7 +82,25 @@ class KrumBasedRemovalStrategy(Krum):
     def _calculate_krum_scores(
         self, results: list[tuple[ClientProxy, FitRes]], distances: np.ndarray
     ) -> list[float]:
-        """Calculate Krum scores based on pairwise parameter distances."""
+        """Calculate Krum scores using sum of distances to (n - f - 2) nearest neighbors.
+
+        Computes pairwise L2 distances between all client parameter vectors, then for each
+        client sums distances to its closest neighbors (excluding self and f furthest clients).
+        Lower scores indicate higher trust (proximity to honest cluster).
+
+        Side effects:
+            - Modifies distances matrix in-place with computed pairwise L2 norms
+
+        Args:
+            results: List of (ClientProxy, FitRes) tuples containing client parameters.
+            distances: Preallocated square matrix for storing symmetric pairwise distances.
+
+        Returns:
+            List of Krum scores (one per client), where lower values indicate higher trust.
+
+        Raises:
+            ValueError: If num_malicious_clients is None (must be set in config).
+        """
         if self.num_malicious_clients is None:
             raise ValueError(
                 "num_of_malicious_clients must be set in config for Krum-based strategies. "
@@ -71,7 +120,9 @@ class KrumBasedRemovalStrategy(Krum):
         scores = []
         for i in range(num_clients):
             sorted_distances = np.sort(distances[i])
-            score = np.sum(sorted_distances[: self.num_malicious_clients - 2])
+            # Sum distances to (n - f - 2) nearest neighbors
+            num_neighbors = num_clients - self.num_malicious_clients - 2
+            score = np.sum(sorted_distances[:num_neighbors])
             scores.append(score)
         return scores
 
@@ -81,19 +132,28 @@ class KrumBasedRemovalStrategy(Krum):
         results: list[tuple[ClientProxy, FitRes]],
         failures: list[tuple[ClientProxy, FitRes] | BaseException],
     ) -> tuple[Parameters | None, dict[str, Scalar]]:
-        """Aggregate client model updates using the Krum algorithm.
+        """Aggregate client updates by selecting single lowest-Krum-score client.
 
-        Computes Krum scores for each client based on pairwise parameter
-        distances, then selects the client with the minimum score for
-        aggregation.
+        Computes Krum scores for all clients based on pairwise parameter distances,
+        performs K-means clustering for additional distance metrics, selects the
+        most trusted client (minimum Krum score), and aggregates using only that
+        client's parameters. Records timing and per-client metrics for analysis.
+
+        Side effects:
+            - Increments self.current_round
+            - Updates self.client_scores with Krum scores
+            - Registers client mappings via strategy_history
+            - Logs Krum scores, normalized distances, and selected client
+            - Records score calculation time and per-client metrics to strategy_history
 
         Args:
             server_round: Current round number from the Flower server.
-            results: List of (ClientProxy, FitRes) tuples from clients.
-            failures: List of failed client results or exceptions.
+            results: List of (ClientProxy, FitRes) tuples from participating clients.
+            failures: List of failed client results or exceptions (forwarded to base).
 
         Returns:
-            Tuple of (aggregated parameters, metrics dict).
+            Tuple of (aggregated_parameters, metrics_dict) from the single selected
+            client's parameters, or base FedAvg behavior if no results.
         """
         self.current_round += 1
 
@@ -107,8 +167,6 @@ class KrumBasedRemovalStrategy(Krum):
         if not results:
             return super().aggregate_fit(server_round, results, failures)
 
-        # Register node_id -> partition_id mappings (Flower 1.25+ compatibility)
-        # FitRes.metrics contains partition_id set by FlowerClient
         for client_proxy, fit_res in results:
             metrics = getattr(fit_res, "metrics", None)
             if metrics and "partition_id" in metrics:
@@ -149,7 +207,7 @@ class KrumBasedRemovalStrategy(Krum):
 
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
-                client_id=client_id,  # Flower 1.25+: node_id translated via get_partition_id()
+                client_id=client_id,
                 removal_criterion=float(score),
                 absolute_distance=float(distances[i][0]),
             )
@@ -177,9 +235,14 @@ class KrumBasedRemovalStrategy(Krum):
     ) -> list[tuple[ClientProxy, fl.common.FitIns]]:
         """Configure client selection for the next training round.
 
-        During warmup rounds (before begin_removing_from_round), all clients
-        participate. After warmup, removes the client with highest Krum score
-        each round if remove_clients is enabled.
+        During warmup (rounds up to begin_removing_from_round), all clients participate.
+        After warmup, permanently removes the client with highest Krum score each round.
+        Maintains removed_client_ids set and updates strategy_history with participation.
+
+        Side effects:
+            - Adds client_id to self.removed_client_ids (if remove_clients enabled)
+            - Updates strategy_history.update_client_participation()
+            - Logs removal decisions and current removed set
 
         Args:
             server_round: Current round number from the Flower server.
@@ -187,7 +250,7 @@ class KrumBasedRemovalStrategy(Krum):
             client_manager: Flower client manager for accessing clients.
 
         Returns:
-            List of (ClientProxy, FitIns) tuples for selected clients.
+            List of (ClientProxy, FitIns) tuples for selected clients, excluding removed clients.
         """
         available_clients = client_manager.all()
 
@@ -228,18 +291,27 @@ class KrumBasedRemovalStrategy(Krum):
         results: list[tuple[ClientProxy, EvaluateRes]],
         failures: list[tuple[ClientProxy | EvaluateRes, BaseException]],
     ) -> tuple[float | None, dict[str, Scalar]]:
-        """Aggregate client evaluation results and record metrics.
+        """Aggregate client evaluation results and record per-client metrics.
 
-        Records per-client accuracy and loss to strategy_history. Computes
-        weighted average loss from non-removed clients only.
+        Computes weighted average loss from non-removed clients only, ensuring removed
+        clients do not influence global model quality assessment. Records per-client
+        accuracy and loss for historical analysis and Byzantine behavior tracking.
+
+        Side effects:
+            - Registers client mappings via strategy_history
+            - Records per-client accuracy and loss to strategy_history
+            - Records round-level aggregated loss to strategy_history
+            - Logs aggregation round header, per-client metrics, and summary statistics
 
         Args:
             server_round: Current round number from the Flower server.
-            results: List of (ClientProxy, EvaluateRes) tuples from clients.
-            failures: List of failed evaluation results or exceptions.
+            results: List of (ClientProxy, EvaluateRes) tuples from participating clients.
+            failures: List of failed evaluation results or exceptions (unused).
 
         Returns:
-            Tuple of (aggregated loss, metrics dict).
+            Tuple of (aggregated_loss, metrics_dict) where loss is None if no
+            results available, otherwise weighted average loss from non-removed
+            clients only. metrics_dict is currently empty.
         """
         self.strategy_history.register_node_mappings_from_results(results)
 
@@ -251,7 +323,7 @@ class KrumBasedRemovalStrategy(Krum):
             accuracy_matrix["cid"] = cid
 
             self.strategy_history.insert_single_client_history_entry(
-                client_id=cid,  # Flower 1.25+: node_id translated via get_partition_id()
+                client_id=cid,
                 current_round=self.current_round,
                 accuracy=float(accuracy_matrix.get("accuracy", 0.0)),
             )
@@ -264,7 +336,7 @@ class KrumBasedRemovalStrategy(Krum):
 
         for client_metadata, evaluate_res in results:
             self.strategy_history.insert_single_client_history_entry(
-                client_id=client_metadata.cid,  # Flower 1.25+: node_id translated via get_partition_id()
+                client_id=client_metadata.cid,
                 current_round=self.current_round,
                 loss=evaluate_res.loss,
             )

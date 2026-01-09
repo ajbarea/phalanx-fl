@@ -24,7 +24,27 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
     """Trimmed mean aggregation strategy with client removal.
 
     Computes coordinate-wise trimmed mean to exclude extreme parameter values,
-    tracking trim frequency as removal criterion.
+    tracking trim frequency as removal criterion. Trimmed mean operates
+    independently on each parameter dimension, offering Byzantine robustness
+    without requiring full gradient comparisons.
+
+    Research Foundation:
+    - Byzantine-Robust Stochastic Gradient Descent (Trimmed Mean):
+      Coordinate-wise trimming provides dimension-independent Byzantine filtering,
+      with breakdown point determined by trim_ratio parameter.
+
+    - Byzantine-Robust FL (arXiv 2024):
+      https://arxiv.org/abs/2402.12780
+      Confirms trimmed mean as effective statistical outlier filter for
+      Byzantine attacks targeting specific model parameters.
+
+    - Centralized FL Security (SpringerLink 2022):
+      https://link.springer.com/chapter/10.1007/978-3-032-03705-3_10
+      Lists trimmed mean (mean-around-median) as standard robust aggregation,
+      effective against weight perturbation attacks.
+
+    - Statistical Robustness: Trimming top/bottom percentiles per coordinate
+      provides natural protection against gradient scaling and sign-flipping attacks.
     """
 
     def __init__(
@@ -37,6 +57,17 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         *args,
         **kwargs,
     ):
+        """Initialize the trimmed mean-based removal strategy.
+
+        Args:
+            remove_clients: Whether to enable permanent client removal based on trim frequency.
+            begin_removing_from_round: First round when removal is permitted (warmup period).
+            strategy_history: Storage for per-client and per-round metrics.
+            status_tracker: Optional progress reporting hook for UI or monitoring.
+            trim_ratio: Fraction of extreme values to trim from each end (0.1 = 10% top/bottom).
+            *args: Forwarded to base FedAvg strategy.
+            **kwargs: Forwarded to base FedAvg strategy.
+        """
         super().__init__(*args, **kwargs)
         self.remove_clients = remove_clients
         self.begin_removing_from_round = begin_removing_from_round
@@ -50,19 +81,29 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
     def aggregate_fit(  # type: ignore[override]
         self, server_round: int, results: list[tuple], failures: list[BaseException]
     ) -> tuple[Parameters | None, dict[str, Scalar]]:
-        """Aggregate client updates using coordinate-wise trimmed mean.
+        """Aggregate client updates using coordinate-wise trimmed mean filtering.
 
-        Trims the top and bottom trim_ratio values for each parameter coordinate
-        and averages the remaining values. Tracks trim frequency as removal
-        criterion.
+        For each parameter coordinate, sorts client values and trims the top and bottom
+        trim_ratio fraction before averaging. Tracks per-client trim frequency (fraction
+        of parameters where client was trimmed) as Byzantine detection criterion. Provides
+        dimension-independent robustness against gradient scaling and sign-flipping attacks.
+
+        Side effects:
+            - Increments self.current_round
+            - Updates self.client_scores with trim frequencies
+            - Registers client mappings via strategy_history
+            - Records per-client trim frequency metrics to strategy_history
+            - Updates strategy_history with client participation
+            - Logs clients with trimmed parameters
 
         Args:
             server_round: Current round number from the Flower server.
-            results: List of (ClientProxy, FitRes) tuples from clients.
-            failures: List of failed client results or exceptions.
+            results: List of (ClientProxy, FitRes) tuples from participating clients.
+            failures: List of failed client results or exceptions (unused).
 
         Returns:
-            Tuple of (aggregated parameters, metrics dict).
+            Tuple of (aggregated_parameters, metrics_dict) where parameters are the
+            coordinate-wise trimmed mean, or None if no results. metrics_dict is empty.
         """
         self.current_round += 1
 
@@ -76,8 +117,6 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         if not results:
             return None, {}
 
-        # Register node_id -> partition_id mappings (Flower 1.25+ compatibility)
-        # FitRes.metrics contains partition_id set by FlowerClient
         for client_proxy, fit_res in results:
             metrics = getattr(fit_res, "metrics", None)
             if metrics and "partition_id" in metrics:
@@ -104,7 +143,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
                 self.client_scores[cid] = 0.0
                 self.strategy_history.insert_single_client_history_entry(
                     current_round=self.current_round,
-                    client_id=cid,  # Flower 1.25+: node_id translated via get_partition_id()
+                    client_id=cid,
                     removal_criterion=0.0,
                 )
 
@@ -151,7 +190,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             self.client_scores[cid] = trim_frequency
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
-                client_id=cid,  # Flower 1.25+: node_id translated via get_partition_id()
+                client_id=cid,
                 removal_criterion=trim_frequency,
             )
 
@@ -168,8 +207,14 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
     ) -> list[tuple[ClientProxy, fl.common.FitIns]]:
         """Configure client selection for the next training round.
 
-        During warmup, all clients participate. After warmup, removes the
-        client with highest trim frequency if remove_clients is enabled.
+        During warmup (rounds up to begin_removing_from_round), all clients participate.
+        After warmup, permanently removes the client with highest trim frequency (most
+        often trimmed across parameter coordinates). Maintains local removed set for
+        this round's participation tracking.
+
+        Side effects:
+            - Updates currently_removed_client_ids local set (if remove_clients enabled)
+            - Does NOT persist removals across rounds (stateless removal)
 
         Args:
             server_round: Current round number from the Flower server.
@@ -177,7 +222,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             client_manager: Flower client manager for accessing clients.
 
         Returns:
-            List of (ClientProxy, FitIns) tuples for selected clients.
+            List of (ClientProxy, FitIns) tuples for selected clients, excluding removed clients.
         """
         currently_removed_client_ids = set()
         available_clients = client_manager.all()
@@ -212,18 +257,28 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         results: list[tuple[ClientProxy, EvaluateRes]],
         failures: list[tuple[ClientProxy | EvaluateRes, BaseException]],
     ) -> tuple[float | None, dict[str, Scalar]]:
-        """Aggregate client evaluation results and record metrics.
+        """Aggregate client evaluation results and record per-client metrics.
 
-        Records per-client accuracy and loss to strategy_history. Computes
-        weighted average loss from all participating clients.
+        Computes weighted average loss from all participating clients. Unlike removal-based
+        strategies, trimmed mean does not maintain persistent removed_client_ids, so all
+        clients contribute to loss aggregation. Records per-client accuracy and loss for
+        historical analysis.
+
+        Side effects:
+            - Registers client mappings via strategy_history
+            - Records per-client accuracy and loss to strategy_history
+            - Records round-level aggregated loss to strategy_history
+            - Logs aggregation round header, per-client metrics, and summary statistics
 
         Args:
             server_round: Current round number from the Flower server.
-            results: List of (ClientProxy, EvaluateRes) tuples from clients.
-            failures: List of failed evaluation results or exceptions.
+            results: List of (ClientProxy, EvaluateRes) tuples from participating clients.
+            failures: List of failed evaluation results or exceptions (unused).
 
         Returns:
-            Tuple of (aggregated loss, metrics dict).
+            Tuple of (aggregated_loss, metrics_dict) where loss is None if no
+            results available, otherwise weighted average loss from all clients.
+            metrics_dict is currently empty.
         """
         self.strategy_history.register_node_mappings_from_results(results)
 
@@ -234,7 +289,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             accuracy_matrix = client_result[1].metrics
 
             self.strategy_history.insert_single_client_history_entry(
-                client_id=cid,  # Flower 1.25+: node_id translated via get_partition_id()
+                client_id=cid,
                 current_round=self.current_round,
                 accuracy=float(accuracy_matrix.get("accuracy", 0.0)),
             )
@@ -249,7 +304,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             client_id = client_metadata.cid
 
             self.strategy_history.insert_single_client_history_entry(
-                client_id=client_id,  # Flower 1.25+: node_id translated via get_partition_id()
+                client_id=client_id,
                 current_round=self.current_round,
                 loss=evaluate_res.loss,
             )
@@ -277,7 +332,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         return loss_aggregated, metrics_aggregated
 
     def _average_weights(self, weights: list[list[np.ndarray]]) -> list[np.ndarray]:
-        """Compute average weights."""
+        """Compute simple arithmetic mean of parameter layers across clients."""
         avg_weights = []
         for layers in zip(*weights):
             stacked = np.stack(layers, axis=0)

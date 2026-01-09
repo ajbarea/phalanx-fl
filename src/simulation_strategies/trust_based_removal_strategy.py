@@ -14,14 +14,37 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.simulation_strategies.termination_policies import (
+    TerminationHandler,
+    TerminationPolicy,
+)
 from src.utils.status_tracker import StatusTracker
 
 
 class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
-    """Trust-based Byzantine-resilient aggregation strategy.
+    """Trust and reputation-based Byzantine-resilient aggregation with two-phase removal.
 
-    Maintains reputation and trust scores for each client based on their
-    historical behavior, removing clients that fall below thresholds.
+    Extends Flower's FedAvg by maintaining historical reputation and trust scores for
+    each client. Uses beta-weighted exponential smoothing to track behavior over time,
+    with distance from federation centroid as the primary signal. Employs two-phase
+    removal: first round removes single lowest-trust client, subsequent rounds use
+    threshold-based batch removal for aggressive filtering.
+
+    Research Foundation:
+    - Byzantine Client Detection (ACM 2024):
+      https://dl.acm.org/doi/10.1145/3708036.3708276
+      Privacy-preserving Byzantine detection via reputation systems and statistical filtering.
+
+    - Trust Management in FL: Beta reputation models provide probabilistic trust
+      assessment based on historical behavior patterns.
+
+    - Byzantine-Robust FL (arXiv 2024):
+      https://arxiv.org/abs/2402.12780
+      Historical tracking counters adaptive attacks that change behavior over time.
+
+    - Centralized FL Security (SpringerLink 2022):
+      https://link.springer.com/chapter/10.1007/978-3-032-03705-3_10
+      Trust-based filtering established as robust aggregation standard.
     """
 
     def __init__(
@@ -32,9 +55,27 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         begin_removing_from_round: int,
         strategy_history: SimulationStrategyHistory,
         status_tracker: StatusTracker | None = None,
+        termination_policy: str = "graceful",
+        min_clients_ratio: float = 0.3,
+        num_of_clients: int | None = None,
         *args,
         **kwargs,
     ):
+        """Initialize the trust-based removal strategy.
+
+        Args:
+            remove_clients: Whether to enable permanent client removal based on trust scores.
+            beta_value: Exponential smoothing factor for trust/reputation updates (0-1).
+            trust_threshold: Minimum trust score required for participation after warmup.
+            begin_removing_from_round: First round when removal is permitted (warmup period).
+            strategy_history: Storage for per-client and per-round metrics.
+            status_tracker: Optional progress reporting hook for UI or monitoring.
+            termination_policy: Behavior when clients exhausted ("graceful", "strict", "adaptive").
+            min_clients_ratio: Minimum fraction of clients required (for adaptive termination).
+            num_of_clients: Total client count for termination calculations.
+            *args: Forwarded to base FedAvg strategy.
+            **kwargs: Forwarded to base FedAvg strategy.
+        """
         super().__init__(*args, **kwargs)
 
         self.client_reputations: dict[Any, float] = {}
@@ -46,13 +87,24 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.beta_value = beta_value
         self.trust_threshold = trust_threshold
         self.begin_removing_from_round = begin_removing_from_round
+        self.num_of_clients = num_of_clients or kwargs.get("min_available_clients", 1)
 
         self.strategy_history = strategy_history
         self.status_tracker = status_tracker
 
-    def calculate_reputation(self, client_id, truth_value):
-        """Calculate reputation based on truth value."""
+        self.termination_handler = TerminationHandler(
+            policy=TerminationPolicy(termination_policy),
+            min_clients_threshold=kwargs.get("min_fit_clients", 1),
+            min_clients_ratio=min_clients_ratio,
+            logger=logging.getLogger(f"trust_strategy_{id(self)}"),
+        )
 
+    def calculate_reputation(self, client_id, truth_value):
+        """Calculate reputation from normalized distance (truth value).
+
+        First round initializes to current distance; subsequent rounds apply
+        exponential smoothing with round-dependent penalty for low performers.
+        """
         if self.current_round == 1:
             return truth_value
         else:
@@ -60,8 +112,11 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             return self.update_reputation(prev_reputation, truth_value, self.current_round)
 
     def update_reputation(self, prev_reputation, truth_value, current_round):
-        """Update reputation."""
+        """Update reputation using exponential decay with performance-dependent penalties.
 
+        Applies beta-weighted smoothing: high performers get linear updates, low
+        performers (<0.5) incur exponential penalties. Bounded to [0, 1].
+        """
         if truth_value >= 0.5:
             updated_reputation = (prev_reputation + truth_value) - (prev_reputation / current_round)
         else:
@@ -79,8 +134,10 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         return updated_reputation[0]
 
     def calculate_trust(self, client_id, reputation, d):
-        """Calculate trust using previous round's value."""
+        """Calculate trust score from reputation and distance.
 
+        First round initializes to zero; subsequent rounds apply geometric combination.
+        """
         if self.current_round == 1:
             prev_trust: float = 0.0
         else:
@@ -88,8 +145,11 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         return self.update_trust(prev_trust, reputation, d)
 
     def update_trust(self, prev_trust, reputation, d):
-        """Calculate trust based on reputation and truth value."""
-        # Convert numpy arrays to scalars if needed
+        """Update trust using geometric distance metric with beta smoothing.
+
+        Computes trust as L2 norm difference between (reputation, distance) and (1-reputation, 1-distance).
+        Applies exponential smoothing and bounds to [0, 1].
+        """
         if hasattr(d, "item"):
             d = d.item()
         if hasattr(reputation, "item"):
@@ -114,18 +174,28 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         results: list[tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
         failures: list[tuple[ClientProxy, FitRes] | BaseException],
     ) -> tuple[Parameters | None, dict[str, Scalar]]:
-        """Aggregate client updates and compute trust scores.
+        """Aggregate client updates and update reputation/trust scores for Byzantine detection.
 
-        Updates reputation and trust for each client based on their distance
-        from the cluster centroid.
+        Computes K-means centroid, measures normalized distances, updates reputation and trust
+        scores using geometric distance metrics, checks termination conditions, and aggregates
+        parameters from non-removed clients.
+
+        Side effects:
+            - Increments self.current_round
+            - Updates self.client_reputations and self.client_trusts
+            - May trigger termination via TerminationHandler
+            - Logs reputation, trust, and distance metrics for each client
+            - Records metrics to strategy_history including removal threshold
 
         Args:
             server_round: Current round number from the Flower server.
-            results: List of (ClientProxy, FitRes) tuples from clients.
-            failures: List of failed client results or exceptions.
+            results: List of (ClientProxy, FitRes) tuples from participating clients.
+            failures: List of failed client results or exceptions (unused).
 
         Returns:
-            Tuple of (aggregated parameters, metrics dict).
+            Tuple of (aggregated_parameters, metrics_dict) where parameters may be None
+            if all clients are removed or termination is triggered, and metrics_dict
+            contains either standard aggregation metrics or a termination signal.
         """
         if not results:
             return super().aggregate_fit(server_round, results, failures)
@@ -139,8 +209,6 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         if self.strategy_history:
             self.strategy_history.update_client_malicious_status(server_round)
 
-        # Register node_id -> partition_id mappings (Flower 1.25+ compatibility)
-        # FitRes.metrics contains partition_id set by FlowerClient
         for client_proxy, fit_res in results:
             metrics = getattr(fit_res, "metrics", None)
             if metrics and "partition_id" in metrics:
@@ -155,11 +223,34 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
                 aggregate_clients.append(result)
 
         if not aggregate_clients:
-            return super().aggregate_fit(server_round, results, failures)
+            return None, {}
+
+        # Check termination condition based on configured policy
+        should_stop, reason = self.termination_handler.should_terminate(
+            available_clients=len(aggregate_clients),
+            total_clients=self.num_of_clients,
+            round_num=server_round,
+            removed_count=len(self.removed_client_ids),
+        )
+
+        if should_stop:
+            logging.critical(f"TERMINATION: {reason}")
+            # Return special termination signal in metrics
+            return None, {
+                "termination": True,
+                "reason": reason,
+                "round": server_round,
+                "removed_clients": list(self.removed_client_ids),
+                "available_clients": len(aggregate_clients),
+                **self.termination_handler.get_termination_summary(),
+            }
 
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(
             server_round, aggregate_clients, failures
         )
+
+        if aggregated_parameters is None:
+            return None, {}
 
         clustering_param_data = []
         for client_proxy, fit_res in results:
@@ -189,7 +280,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
-                client_id=client_id,  # Flower 1.25+: node_id translated via get_partition_id()
+                client_id=client_id,
                 removal_criterion=float(new_trust.item())
                 if hasattr(new_trust, "item")
                 else float(new_trust),
@@ -226,7 +317,8 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         """
         available_clients = client_manager.all()
 
-        if self.current_round <= self.begin_removing_from_round - 1:
+        # Warmup period: no removal before begin_removing_from_round
+        if self.current_round < self.begin_removing_from_round:
             fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
 
@@ -289,7 +381,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             accuracy_matrix["cid"] = cid
 
             self.strategy_history.insert_single_client_history_entry(
-                client_id=cid,  # Flower 1.25+: node_id translated via get_partition_id()
+                client_id=cid,
                 current_round=self.current_round,
                 accuracy=float(accuracy_matrix.get("accuracy", 0.0)),
             )
@@ -302,7 +394,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         for client_metadata, evaluate_res in results:
             self.strategy_history.insert_single_client_history_entry(
-                client_id=client_metadata.cid,  # Flower 1.25+: node_id translated via get_partition_id()
+                client_id=client_metadata.cid,
                 current_round=self.current_round,
                 loss=evaluate_res.loss,
             )

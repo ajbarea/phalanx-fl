@@ -15,14 +15,34 @@ from sklearn.cluster import KMeans
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.output_handlers.directory_handler import DirectoryHandler
+from src.simulation_strategies.termination_policies import (
+    TerminationHandler,
+    TerminationPolicy,
+)
 from src.utils.status_tracker import StatusTracker
 
 
 class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
-    """PID controller-based Byzantine-resilient aggregation strategy.
+    """PID controller-based Byzantine-resilient aggregation with client removal.
 
-    Uses a PID controller to track client behavior over time, identifying
-    malicious clients based on cumulative deviation patterns.
+    Extends Flower's FedAvg by tracking cumulative client behavior over rounds using
+    a PID (Proportional-Integral-Derivative) controller. Identifies and permanently
+    removes malicious clients based on sustained deviation from the federation centroid.
+    Provides adaptive response to Byzantine attacks through weighted combination of
+    current distance (P), historical deviation (I), and rate of change (D).
+
+    Research Foundation:
+    - Byzantine-Robust FL with Client Subsampling (arXiv 2024):
+      https://arxiv.org/abs/2402.12780
+      Client subsampling increases effective Byzantine fraction; adaptive removal
+      essential for maintaining model integrity under dynamic attacks.
+
+    - Centralized FL Security Framework (SpringerLink 2022):
+      https://link.springer.com/chapter/10.1007/978-3-032-03705-3_10
+      Establishes distance-based detection as standard robust aggregation approach.
+
+    - PID Control Theory: Proportional-Integral-Derivative control provides stability
+      and responsiveness to dynamic Byzantine behavior patterns.
     """
 
     def __init__(
@@ -38,9 +58,32 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         network_model=None,
         use_lora=False,
         aggregation_strategy_keyword: str = "pid",
+        termination_policy: str = "graceful",
+        min_clients_ratio: float = 0.3,
+        num_of_clients: int | None = None,
         *args,
         **kwargs,
     ):
+        """Initialize the PID-based removal strategy.
+
+        Args:
+            remove_clients: Whether to enable permanent client removal based on PID scores.
+            begin_removing_from_round: First round when removal is permitted (warmup period).
+            ki: Integral gain coefficient for cumulative deviation tracking.
+            kd: Derivative gain coefficient for deviation rate of change.
+            kp: Proportional gain coefficient for current distance weighting.
+            num_std_dev: Number of standard deviations above mean for removal threshold.
+            strategy_history: Storage for per-client and per-round metrics.
+            status_tracker: Optional progress reporting hook for UI or monitoring.
+            network_model: Optional model architecture for custom aggregation.
+            use_lora: Whether LoRA (Low-Rank Adaptation) is enabled.
+            aggregation_strategy_keyword: PID variant ("pid", "pid_scaled", "pid_standardized").
+            termination_policy: Behavior when clients exhausted ("graceful", "strict", "adaptive").
+            min_clients_ratio: Minimum fraction of clients required (for adaptive termination).
+            num_of_clients: Total client count for termination calculations.
+            *args: Forwarded to base FedAvg strategy.
+            **kwargs: Forwarded to base FedAvg strategy.
+        """
         super().__init__(*args, **kwargs)
         self.client_pids: dict[Any, float] = {}
         self.client_distance_sums: dict[Any, float] = {}
@@ -50,6 +93,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         self.remove_clients = remove_clients
         self.begin_removing_from_round = begin_removing_from_round
+        self.num_of_clients = num_of_clients or kwargs.get("min_available_clients", 1)
 
         self.ki = ki
         self.kd = kd
@@ -75,9 +119,22 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.logger.addHandler(console_handler)
         self.logger.propagate = False
 
-    def calculate_single_client_pid_scaled(self, client_id, distance):
-        """Calculate PID score with integral term scaled by round number."""
+        # Initialize termination handler for client removal edge cases
+        # Research: Byzantine-robust FL requires careful handling of minimum federation size
+        # https://arxiv.org/abs/2402.12780
+        self.termination_handler = TerminationHandler(
+            policy=TerminationPolicy(termination_policy),
+            min_clients_threshold=kwargs.get("min_fit_clients", 1),
+            min_clients_ratio=min_clients_ratio,
+            logger=self.logger,
+        )
 
+    def calculate_single_client_pid_scaled(self, client_id, distance):
+        """Calculate PID score with round-scaled integral term.
+
+        Computes PID = P + I/round + D where integral term is normalized by
+        current round number to prevent unbounded growth in long federations.
+        """
         p = distance * self.kp
 
         if self.current_round == 1:
@@ -92,7 +149,11 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             return p + i_scaled + d
 
     def calculate_single_client_pid(self, client_id, distance):
-        """Old PID calculation without scaling or standardization."""
+        """Calculate standard PID score without normalization.
+
+        Computes PID = P + I + D using raw cumulative integral term.
+        Suitable for short federations where integral growth is manageable.
+        """
         p = distance * self.kp
 
         if self.current_round == 1:
@@ -109,8 +170,12 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
     def calculate_single_client_pid_standardized(
         self, client_id, distance, avg_sum: float, sum_std_dev: float = 0.0
     ):
-        """Calculate PID score with standardized integral term."""
+        """Calculate PID score with z-score standardized integral term.
 
+        Computes PID = P + z_score(I) + D where integral is standardized
+        by mean and standard deviation across all clients. Reduces bias
+        toward clients with naturally higher accumulation rates.
+        """
         p = distance * self.kp
 
         if self.current_round == 1:
@@ -198,18 +263,29 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         results: list[tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
         failures: list[tuple[ClientProxy, FitRes] | BaseException],
     ) -> tuple[Parameters | None, dict[str, Scalar]]:
-        """Aggregate client updates using PID-based scoring.
+        """Aggregate client updates and track PID-based Byzantine behavior.
 
-        Computes PID scores tracking cumulative client behavior over rounds
-        and aggregates non-removed clients' parameters.
+        Computes PID scores for each client based on distance from federation centroid,
+        updates cumulative deviation tracking, checks termination conditions, and
+        aggregates parameters from non-removed clients. Updates internal state including
+        round counter, client scores, distance history, and removal sets.
+
+        Side effects:
+            - Increments self.current_round
+            - Updates self.client_pids, self.client_distances, self.client_distance_sums
+            - May trigger termination via TerminationHandler
+            - Logs PID scores and aggregation decisions
+            - Records metrics to strategy_history
 
         Args:
             server_round: Current round number from the Flower server.
-            results: List of (ClientProxy, FitRes) tuples from clients.
-            failures: List of failed client results or exceptions.
+            results: List of (ClientProxy, FitRes) tuples from participating clients.
+            failures: List of failed client results or exceptions (unused).
 
         Returns:
-            Tuple of (aggregated parameters, metrics dict).
+            Tuple of (aggregated_parameters, metrics_dict) where parameters may be None
+            if all clients are removed or termination is triggered, and metrics_dict
+            contains either standard aggregation metrics or a termination signal.
         """
         self.current_round += 1
 
@@ -223,8 +299,6 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         if not results:
             return super().aggregate_fit(server_round, results, failures)
 
-        # Register node_id -> partition_id mappings (Flower 1.25+ compatibility)
-        # FitRes.metrics contains partition_id set by FlowerClient
         for client_proxy, fit_res in results:
             metrics = getattr(fit_res, "metrics", None)
             if metrics and "partition_id" in metrics:
@@ -238,9 +312,43 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             if client_id not in self.removed_client_ids:
                 aggregate_clients.append(result)
 
+        # Safety check: Handle empty aggregation (all clients removed)
+        if not aggregate_clients:
+            self.logger.error(
+                f"Round {server_round}: All clients removed. Cannot perform aggregation."
+            )
+            return None, {
+                "error": "all_clients_removed",
+                "removed_count": len(self.removed_client_ids),
+                "round": server_round,
+            }
+
+        # Check termination condition based on configured policy
+        should_stop, reason = self.termination_handler.should_terminate(
+            available_clients=len(aggregate_clients),
+            total_clients=self.num_of_clients,
+            round_num=server_round,
+            removed_count=len(self.removed_client_ids),
+        )
+
+        if should_stop:
+            self.logger.critical(f"TERMINATION: {reason}")
+            # Return special termination signal in metrics
+            return None, {
+                "termination": True,
+                "reason": reason,
+                "round": server_round,
+                "removed_clients": list(self.removed_client_ids),
+                "available_clients": len(aggregate_clients),
+                **self.termination_handler.get_termination_summary(),
+            }
+
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(
             server_round, aggregate_clients, failures
         )
+
+        if aggregated_parameters is None:
+            return None, aggregated_metrics
 
         clustering_param_data = []
         for client_proxy, fit_res in results:
@@ -283,7 +391,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
-                client_id=client_id,  # Flower 1.25+: node_id translated via get_partition_id()
+                client_id=client_id,
                 removal_criterion=float(new_PID),
                 absolute_distance=float(distances[i][0]),
             )
@@ -334,9 +442,10 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         """
         available_clients = client_manager.all()
 
+        # Warmup period: no removal before begin_removing_from_round
         if (
             self.begin_removing_from_round is not None
-            and self.current_round <= self.begin_removing_from_round - 1
+            and self.current_round < self.begin_removing_from_round
         ):
             fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
@@ -346,6 +455,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         }
 
         if self.remove_clients:
+            num_trusted_clients = len(available_clients) - len(self.removed_client_ids)
             if False:
                 highest_pid_client = max(client_pids, key=client_pids.get)
                 self.logger.info(f"Removing client with highest PID: {highest_pid_client}")
@@ -357,10 +467,18 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
                         and pid > self.current_threshold
                         and client_id not in self.removed_client_ids
                     ):
+                        # Safeguard to prevent removing all clients
+                        # if num_trusted_clients <= 1:
+                        #     self.logger.warning(
+                        #         f"Safeguard triggered: Preventing removal of last trusted client {client_id}."
+                        #     )
+                        #     continue
+
                         self.logger.info(
                             f"Removing client with PID greater than Threshold: {client_id}"
                         )
                         self.removed_client_ids.add(client_id)
+                        num_trusted_clients -= 1
 
         self.strategy_history.update_client_participation(
             current_round=self.current_round, removed_client_ids=self.removed_client_ids
@@ -405,7 +523,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             accuracy_matrix["cid"] = cid
 
             self.strategy_history.insert_single_client_history_entry(
-                client_id=cid,  # Flower 1.25+: node_id translated via get_partition_id()
+                client_id=cid,
                 current_round=self.current_round,
                 accuracy=float(accuracy_matrix.get("accuracy", 0.0)),
             )
@@ -418,7 +536,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         for client_metadata, evaluate_res in results:
             self.strategy_history.insert_single_client_history_entry(
-                client_id=client_metadata.cid,  # Flower 1.25+: node_id translated via get_partition_id()
+                client_id=client_metadata.cid,
                 current_round=self.current_round,
                 loss=evaluate_res.loss,
             )

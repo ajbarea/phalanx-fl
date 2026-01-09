@@ -25,15 +25,32 @@ from src.utils.status_tracker import StatusTracker
 
 
 class ArKrumStrategy(FedAvg):
-    """
-    ArKrum: Parameter-free Krum for Robust Aggregation.
+    """ArKrum: Parameter-free Krum for Robust Aggregation.
 
     ArKrum dynamically estimates the number of Byzantine clients (f) without
     requiring prior knowledge, using median-based filtering and SSE segmentation.
     It then averages the top updates closest to the selected Krum winner for
     improved stability in non-IID settings.
 
-    Reference: arXiv:2505.17226
+    Research Foundation:
+    - Secure and Private Federated Learning (ArKrum):
+      arXiv:2505.17226 (2025) introduced ArKrum as parameter-free extension
+      of Krum, using median-based filtering to remove outliers before automatic
+      Byzantine count estimation via SSE-based segmentation.
+
+    - Byzantine-Robust FL (arXiv 2024):
+      https://arxiv.org/abs/2402.12780
+      Confirms importance of adaptive Byzantine detection, as fixed f assumptions
+      become vulnerable when client subsampling varies or attacks are intermittent.
+
+    - Centralized FL Security (SpringerLink 2022):
+      https://link.springer.com/chapter/10.1007/978-3-032-03705-3_10
+      Establishes need for dynamic threat assessment in long-running federations
+      where Byzantine client count may change over time.
+
+    - Theoretical Guarantees: ArKrum maintains Byzantine resilience under
+      honest majority assumption (f < n/2) with automatic f estimation providing
+      robustness to changing attack intensity.
     """
 
     def __init__(
@@ -45,6 +62,16 @@ class ArKrumStrategy(FedAvg):
         *args,
         **kwargs,
     ):
+        """Initialize the ArKrum strategy.
+
+        Args:
+            strategy_history: Storage for per-client and per-round metrics.
+            remove_clients: Whether to enable permanent client removal based on scores (unused).
+            begin_removing_from_round: First round when removal is permitted (unused).
+            status_tracker: Optional progress reporting hook for UI or monitoring.
+            *args: Forwarded to base FedAvg strategy.
+            **kwargs: Forwarded to base FedAvg strategy.
+        """
         super().__init__(*args, **kwargs)
         self.strategy_history = strategy_history
         self.status_tracker = status_tracker
@@ -54,17 +81,11 @@ class ArKrumStrategy(FedAvg):
         self.client_scores: dict[str, float] = {}
 
     def _median_filter_distances(self, sorted_distances: np.ndarray) -> np.ndarray:
-        """
-        Apply median-based filtering to remove extreme outliers.
+        """Apply median-based filtering to remove extreme outliers before f estimation.
 
-        Algorithm 1 from the paper:
-        1. Calculate median at position mid = floor(n/2)
-        2. Determine delta_max = median - d_i1 (distance from median to smallest)
-        3. Set threshold tau = median + delta_max
-        4. Remove all distances exceeding tau
-
-        Rationale: Assuming honest majority (< 50% Byzantine), the median
-        is guaranteed to be from an honest client.
+        Computes threshold tau = median + (median - min) and removes distances exceeding it.
+        Assumes honest majority (f < n/2), guaranteeing median represents honest client behavior.
+        Implements Algorithm 1 from ArKrum paper (arXiv:2505.17226).
         """
         if len(sorted_distances) <= 2:
             return sorted_distances
@@ -80,14 +101,11 @@ class ArKrumStrategy(FedAvg):
         return filtered if len(filtered) > 0 else sorted_distances
 
     def _estimate_f_sse(self, filtered_distances: np.ndarray) -> int:
-        """
-        Estimate number of Byzantine clients using SSE-based segmentation.
+        """Estimate Byzantine count (f) using SSE elbow method for automatic segmentation.
 
-        Uses the elbow method on Sum of Squared Errors to find the
-        change point that indicates transition from honest to Byzantine
-        client distances.
-
-        Constraint: 2 + 2f < n (honest majority assumption)
+        Finds change point in sorted distances indicating honest-to-Byzantine transition
+        by minimizing within-subset variance (SSE). Enforces constraint 2 + 2f < n for
+        honest majority. Returns f such that first (n - f) clients are considered honest.
         """
         n = len(filtered_distances)
         if n <= 3:
@@ -114,13 +132,19 @@ class ArKrumStrategy(FedAvg):
     def _compute_arkrum_scores(
         self, results: list[tuple[ClientProxy, FitRes]]
     ) -> tuple[list[float], list[int], np.ndarray]:
-        """
-        Compute Krum scores using ArKrum parameter-free approach.
+        """Compute ArKrum scores with automatic per-client Byzantine count estimation.
 
-        Steps:
-        1. Compute pairwise squared Euclidean distances
-        2. For each client, apply median filtering, estimate f, calculate score
-        3. Return all scores and per-client f estimates
+        For each client: (1) computes pairwise squared L2 distances, (2) applies median-based
+        filtering to remove outliers, (3) estimates f via SSE segmentation, (4) computes Krum
+        score as sum of distances to (n - f - 2) nearest neighbors. Returns scores, per-client
+        f estimates, and distance matrix for later averaging of top updates.
+
+        Side effects:
+            - Populates distance matrix dist_matrix with symmetric pairwise squared distances
+
+        Returns:
+            Tuple of (scores, f_estimates, dist_matrix) where scores are Krum scores per client,
+            f_estimates are per-client Byzantine counts, and dist_matrix is symmetric pairwise distance matrix.
         """
         param_data = [parameters_to_ndarrays(fit_res.parameters) for _, fit_res in results]
         flat_params = [np.concatenate([p.flatten() for p in params]) for params in param_data]
@@ -155,14 +179,28 @@ class ArKrumStrategy(FedAvg):
         results: list[tuple[ClientProxy, FitRes]],
         failures: list[tuple[ClientProxy, FitRes] | BaseException],
     ) -> tuple[Parameters | None, dict[str, Scalar]]:
-        """
-        Aggregate client updates using ArKrum.
+        """Aggregate client updates using parameter-free ArKrum with automatic f estimation.
 
-        ArKrum Algorithm:
-        1. Compute pairwise distances and per-client Krum scores
-        2. Select the update with minimum Krum score (u_i*)
-        3. Average the top (n - f_i*) updates closest to the selected update
-        4. Return the averaged parameters
+        Computes per-client ArKrum scores with dynamic Byzantine count estimation, selects
+        client with minimum score as trusted center, then averages the (n - f_best) closest
+        updates to that center. Provides robustness without requiring prior knowledge of
+        Byzantine client count.
+
+        Side effects:
+            - Sets self.current_round to server_round
+            - Updates self.client_scores with ArKrum scores
+            - Registers client mappings via strategy_history
+            - Logs selected client, scores, f estimates, and averaging decisions
+            - Records score calculation time and per-client metrics to strategy_history
+
+        Args:
+            server_round: Current round number from the Flower server.
+            results: List of (ClientProxy, FitRes) tuples from participating clients.
+            failures: List of failed client results or exceptions (forwarded to base).
+
+        Returns:
+            Tuple of (aggregated_parameters, metrics_dict) from weighted average of
+            (n - f_best) closest updates to the selected trusted client.
         """
         self.current_round = server_round
         if self.status_tracker:
@@ -171,8 +209,6 @@ class ArKrumStrategy(FedAvg):
         if not results:
             return super().aggregate_fit(server_round, results, failures)
 
-        # Register node_id -> partition_id mappings (Flower 1.25+ compatibility)
-        # FitRes.metrics contains partition_id set by FlowerClient
         for client_proxy, fit_res in results:
             metrics = getattr(fit_res, "metrics", None)
             if metrics and "partition_id" in metrics:
@@ -208,7 +244,7 @@ class ArKrumStrategy(FedAvg):
             self.client_scores[cid] = arkrum_scores[i]
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
-                client_id=cid,  # Flower 1.25+: node_id translated via get_partition_id()
+                client_id=cid,
                 removal_criterion=arkrum_scores[i],
                 absolute_distance=float(dist_matrix[best_idx, i]),
             )

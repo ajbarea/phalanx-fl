@@ -14,8 +14,20 @@ from src.utils.status_tracker import StatusTracker
 class FedAvgStrategy(fl.server.strategy.FedAvg):
     """FedAvg strategy with round-level metrics tracking.
 
-    Extends Flower's FedAvg to collect aggregated loss and accuracy metrics
-    per round.
+    Extends Flower's FedAvg strategy by recording per-client and aggregated
+    loss and accuracy metrics for each training round. This enables detailed
+    post-round analysis while preserving standard FedAvg behavior.
+
+    FedAvg performs weighted averaging of client model parameters and serves
+    as the canonical baseline for federated learning research.
+
+    Research Foundation:
+    - Communication-Efficient Learning of Deep Networks (McMahan et al., 2017):
+      https://arxiv.org/abs/1602.05629
+    - Byzantine-Robust FL (arXiv 2024):
+      https://arxiv.org/abs/2402.12780
+    - Centralized FL Security (SpringerLink 2022):
+      https://link.springer.com/chapter/10.1007/978-3-032-03705-3_10
     """
 
     def __init__(
@@ -25,6 +37,14 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
         *args,
         **kwargs,
     ):
+        """Initialize the FedAvg strategy with metric tracking support.
+
+        Args:
+            strategy_history: Storage for per-client and per-round metrics.
+            status_tracker: Optional progress reporting hook for UI or monitoring.
+            *args: Forwarded to base FedAvg strategy.
+            **kwargs: Forwarded to base FedAvg strategy.
+        """
         super().__init__(*args, **kwargs)
         self.strategy_history = strategy_history
         self.status_tracker = status_tracker
@@ -38,15 +58,31 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
         results: list[tuple[ClientProxy, FitRes]],
         failures: list[tuple[ClientProxy, FitRes] | BaseException],
     ) -> tuple[Parameters | None, dict[str, Scalar]]:
-        """Aggregate fit results and track round number."""
+        """Aggregate client updates using weighted average and track round state.
+
+        Computes weighted average of client parameters based on dataset size, providing
+        the canonical FedAvg baseline. Registers node mappings and updates round tracking
+        before delegating to base FedAvg implementation.
+
+        Side effects:
+            - Sets self.current_round to server_round
+            - Updates status_tracker with current round (if provided)
+            - Registers client mappings via strategy_history
+
+        Args:
+            server_round: Current round number from the Flower server.
+            results: List of (ClientProxy, FitRes) tuples from participating clients.
+            failures: List of failed client results or exceptions (forwarded to base).
+
+        Returns:
+            Tuple of (aggregated_parameters, metrics_dict) from base FedAvg weighted averaging.
+        """
         self.current_round = server_round
 
         # Update status tracker with current round progress
         if self.status_tracker:
             self.status_tracker.update_round(self.current_round)
 
-        # Register node_id -> partition_id mappings (Flower 1.25+ compatibility)
-        # FitRes.metrics contains partition_id set by FlowerClient
         for client_proxy, fit_res in results:
             metrics = getattr(fit_res, "metrics", None)
             if metrics and "partition_id" in metrics:
@@ -61,17 +97,27 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
         results: list[tuple[ClientProxy, EvaluateRes]],
         failures: list[tuple[ClientProxy, EvaluateRes] | BaseException],
     ) -> tuple[float | None, dict[str, Scalar]]:
-        """Aggregate evaluation results and track round-level metrics.
+        """Aggregate client evaluation results and compute weighted average metrics.
 
-        Collects per-client loss/accuracy and computes weighted averages.
+        Computes weighted average loss and accuracy across all clients based on dataset
+        size. Records per-client and round-level metrics for historical analysis and
+        comparison with Byzantine-resilient strategies.
+
+        Side effects:
+            - Registers client mappings via strategy_history
+            - Records per-client loss and accuracy to strategy_history
+            - Appends aggregated_loss and average_accuracy to strategy_history round lists
+            - Logs per-client metrics (debug level) and round summary (info level)
 
         Args:
             server_round: Current round number from the Flower server.
-            results: List of (ClientProxy, EvaluateRes) tuples from clients.
-            failures: List of failed evaluation results or exceptions.
+            results: List of (ClientProxy, EvaluateRes) tuples from participating clients.
+            failures: List of failed evaluation results or exceptions (unused).
 
         Returns:
-            Tuple of (weighted average loss, metrics dict with accuracy).
+            Tuple of (aggregated_loss, metrics_dict) where loss is None if no
+            results available, otherwise weighted average loss. metrics_dict contains
+            weighted average accuracy.
         """
         self.strategy_history.register_node_mappings_from_results(results)
 
@@ -84,14 +130,14 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
         aggregate_loss_values = []
 
         for client_proxy, evaluate_res in results:
-            node_id = client_proxy.cid  # Flower 1.25+: use node_id directly
+            node_id = client_proxy.cid
             num_examples = evaluate_res.num_examples
             loss = evaluate_res.loss
             accuracy = float(evaluate_res.metrics.get("accuracy", 0.0))
 
             # Store per-client metrics
             self.strategy_history.insert_single_client_history_entry(
-                client_id=node_id,  # Flower 1.25+: node_id translated via get_partition_id()
+                client_id=node_id,
                 current_round=self.current_round,
                 loss=loss,
                 accuracy=accuracy,
