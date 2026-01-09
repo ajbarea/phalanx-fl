@@ -588,7 +588,7 @@ class TestAttackSnapshots:
         config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
         (sim_dir / "config.json").write_text(json.dumps(config))
 
-        weight_dir = sim_dir / "weight_snapshots_0" / "client_0" / "round_1"
+        weight_dir = sim_dir / "attack_snapshots_0" / "client_0" / "round_1"
         weight_dir.mkdir(parents=True)
 
         (weight_dir / "model_poisoning_weight_histogram.png").write_bytes(b"PNG data")

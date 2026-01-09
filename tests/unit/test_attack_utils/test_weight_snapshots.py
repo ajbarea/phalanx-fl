@@ -72,7 +72,7 @@ class TestSnapshotStorage:
 
         path = _get_weight_snapshot_dir(str(output_dir), client_id, round_num)
 
-        expected = output_dir / "weight_snapshots_0" / f"client_{client_id}" / f"round_{round_num}"
+        expected = output_dir / "attack_snapshots_0" / f"client_{client_id}" / f"round_{round_num}"
         assert path == expected
         assert path.exists()
 
@@ -145,7 +145,7 @@ class TestListSnapshots:
         output_dir = tmp_path / "out"
         strategy_num = 0
 
-        base = output_dir / f"weight_snapshots_{strategy_num}"
+        base = output_dir / f"attack_snapshots_{strategy_num}"
         (base / "client_1" / "round_1").mkdir(parents=True)
         (base / "client_1" / "round_2").mkdir(parents=True)
 

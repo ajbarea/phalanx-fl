@@ -73,7 +73,7 @@ class TestWeightSnapshotPlotting:
         )
 
         snapshot_dir = (
-            output_dir / "weight_snapshots_0" / f"client_{client_id}" / f"round_{round_num}"
+            output_dir / "attack_snapshots_0" / f"client_{client_id}" / f"round_{round_num}"
         )
         expected_hist = snapshot_dir / f"{attack_type}_weight_histogram.png"
 
