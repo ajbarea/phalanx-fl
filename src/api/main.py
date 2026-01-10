@@ -49,6 +49,7 @@ from sse_starlette.sse import EventSourceResponse
 from datasets import load_dataset_builder  # type: ignore[attr-defined]
 from src.api.models import (
     AllPlotDataResponse,
+    AttackSnapshotsResponse,
     CreateSimulationRequest,
     DatasetInfo,
     DatasetValidationResponse,
@@ -1184,6 +1185,9 @@ def stop_simulation(simulation_id: str) -> dict[str, str]:
         raise HTTPException(status_code=500, detail="Failed to stop simulation")
 
 
+@app.get(
+    "/api/simulations/{simulation_id}/attack-snapshots", response_model=AttackSnapshotsResponse
+)
 async def get_attack_snapshots(
     simulation_id: str, sim_path: Path = Depends(get_simulation_path)
 ) -> dict[str, Any]:
@@ -1331,14 +1335,14 @@ async def get_attack_snapshots(
                         None,
                     )
 
-                    rel_path = str(hist_file.relative_to(sim_path)).replace("\\", "/")
+                    hist_rel_path = str(hist_file.relative_to(sim_path)).replace("\\", "/")
 
                     if existing:
                         if "visualizations" not in existing:
-                            existing["visualizations"] = {}
-                        existing["visualizations"]["weight_histogram"] = rel_path
+                            existing["visualizations"] = {}  # type: ignore[index]
+                        existing["visualizations"]["weight_histogram"] = hist_rel_path  # type: ignore[index]
                     else:
-                        visualizations = {"weight_histogram": rel_path}
+                        hist_visualizations: dict[str, str] = {"weight_histogram": hist_rel_path}
 
                         optional_viz = {
                             "prediction_grid": f"{attack_type}_weight_prediction_grid.png",
@@ -1346,11 +1350,13 @@ async def get_attack_snapshots(
                         for key, filename in optional_viz.items():
                             file_path = round_dir / filename
                             if file_path.is_file():
-                                visualizations[key] = str(file_path.relative_to(sim_path)).replace(
-                                    "\\", "/"
-                                )
+                                hist_visualizations[key] = str(
+                                    file_path.relative_to(sim_path)
+                                ).replace("\\", "/")
 
-                        visualizations["primary"] = visualizations.get("prediction_grid", rel_path)
+                        hist_visualizations["primary"] = hist_visualizations.get(
+                            "prediction_grid", hist_rel_path
+                        )  # type: ignore[arg-type]
 
                         weight_metadata = None
                         weight_meta_path = round_dir / f"{attack_type}_weight_metadata.json"
@@ -1368,8 +1374,8 @@ async def get_attack_snapshots(
                                 "client_id": client_id,
                                 "round_num": round_num,
                                 "attack_type": attack_type,
-                                "image_path": visualizations.get("primary", ""),
-                                "visualizations": visualizations,
+                                "image_path": hist_visualizations.get("primary", ""),
+                                "visualizations": hist_visualizations,
                                 "metadata": weight_metadata,
                                 "is_weight_attack": True,
                             }

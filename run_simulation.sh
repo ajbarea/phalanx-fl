@@ -4,7 +4,7 @@
 . "$(dirname "$0")/tests/scripts/common.sh"
 
 if ! ensure_virtual_environment; then
-    log_warning "Running reinstall_requirements.sh to create 'venv'..."
+    log_warning "Running reinstall_requirements.sh to create '.venv'..."
     ./reinstall_requirements.sh
     setup_virtual_environment
 fi
