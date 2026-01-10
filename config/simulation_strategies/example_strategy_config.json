@@ -1,6 +1,6 @@
 {
     "shared_settings": {
-        "strict_mode": true,
+        "strict_mode": false,
         "aggregation_strategy_keyword": "pid_standardized",
         "remove_clients": true,
         "dataset_keyword": "femnist_iid",

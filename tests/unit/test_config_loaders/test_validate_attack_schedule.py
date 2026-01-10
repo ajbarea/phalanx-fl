@@ -23,7 +23,7 @@ class TestValidateAttackSchedule:
         """Test validation fails when start_round > end_round."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -68,7 +68,7 @@ class TestValidateAttackSchedule:
         """Test validation fails when end_round exceeds num_of_rounds."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -113,7 +113,7 @@ class TestValidateAttackSchedule:
         """Test validation fails when gaussian_noise is missing target_noise_snr."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -159,7 +159,7 @@ class TestValidateAttackSchedule:
         """Test validation fails when gaussian_noise is missing attack_ratio."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -205,7 +205,7 @@ class TestValidateAttackSchedule:
         """Test validation fails when specific selection is missing malicious_client_ids."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -251,7 +251,7 @@ class TestValidateAttackSchedule:
         """Test validation fails when random selection is missing malicious_client_count."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -297,7 +297,7 @@ class TestValidateAttackSchedule:
         """Test validation fails when percentage selection is missing malicious_percentage."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -343,7 +343,7 @@ class TestValidateAttackSchedule:
         """Test that overlapping attacks with same type raises ValidationError."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -398,7 +398,7 @@ class TestValidateAttackSchedule:
 
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -463,7 +463,7 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that main validation calls LLM validation when use_llm is true."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "medquad",
             "model_type": "transformer",
             "use_llm": True,
@@ -511,7 +511,7 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that main validation skips LLM validation when use_llm is false."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -556,7 +556,7 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that main validation checks client number consistency."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -604,7 +604,7 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that preserve_dataset=true with attack_schedule raises ValidationError."""
         config = {
             "aggregation_strategy_keyword": "krum",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -646,7 +646,7 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that preserve_dataset remains false when already set correctly."""
         config = {
             "aggregation_strategy_keyword": "krum",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -690,7 +690,7 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that preserve_dataset is not modified when no attack_schedule is present."""
         config = {
             "aggregation_strategy_keyword": "krum",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -726,7 +726,7 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that percentage selection strategy populates _selected_clients."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -777,7 +777,7 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that random selection strategy populates _selected_clients."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -830,7 +830,7 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that same random_seed produces same client selection."""
         config1 = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -869,7 +869,7 @@ class TestValidateStrategyConfigLlmIntegration:
 
         config2 = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -922,7 +922,7 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that different seeds produce different client selections for random strategy."""
         config_seed_42 = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -963,7 +963,7 @@ class TestValidateStrategyConfigLlmIntegration:
 
         config_seed_99 = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -1004,7 +1004,7 @@ class TestValidateStrategyConfigLlmIntegration:
 
         config_seed_42_again = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -1079,7 +1079,7 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that percentage selection fails if calculated count exceeds num_of_clients."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -1124,7 +1124,7 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that specific selection strategy is not modified."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -1196,7 +1196,7 @@ class TestPopulateClientSelection:
         """Test that percentage resulting in 0 malicious clients fails validation."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,

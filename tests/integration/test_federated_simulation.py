@@ -34,7 +34,7 @@ def _get_base_strategy_config_dict() -> dict[str, Any]:
         "trust_threshold": 0.7,
         "beta_value": 0.5,
         "begin_removing_from_round": 1,
-        "remove_clients": True,
+        "remove_clients": False,
         "min_fit_clients": 3,
         "min_evaluate_clients": 3,
         "min_available_clients": 5,

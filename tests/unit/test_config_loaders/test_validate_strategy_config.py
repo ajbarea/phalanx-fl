@@ -26,7 +26,7 @@ class TestValidateStrategyConfig:
         """Test validation of valid trust strategy configuration."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -71,7 +71,7 @@ class TestValidateStrategyConfig:
         """Test validation of valid PID strategy configuration."""
         config = {
             "aggregation_strategy_keyword": "pid",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "its",
             "model_type": "cnn",
             "use_llm": False,
@@ -151,7 +151,7 @@ class TestValidateStrategyConfig:
         """Test validation of valid trimmed mean strategy configuration."""
         config = {
             "aggregation_strategy_keyword": "trimmed_mean",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "bloodmnist",
             "model_type": "cnn",
             "use_llm": False,
@@ -195,7 +195,7 @@ class TestValidateStrategyConfigMissingRequiredParams:
     def test_missing_aggregation_strategy_keyword(self):
         """Test validation fails when aggregation_strategy_keyword is missing."""
         config = {
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -236,7 +236,7 @@ class TestValidateStrategyConfigMissingRequiredParams:
         """Test validation fails when dataset_keyword is missing."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -274,7 +274,7 @@ class TestValidateStrategyConfigMissingRequiredParams:
         """Test validation fails when num_of_rounds is missing."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -314,7 +314,7 @@ class TestValidateStrategyConfigMissingRequiredParams:
         """Test validation fails when Flower-specific settings are missing."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -352,7 +352,7 @@ class TestValidateStrategyConfigInvalidValues:
         """Test validation fails for invalid aggregation strategy."""
         config = {
             "aggregation_strategy_keyword": "invalid_strategy",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -393,7 +393,7 @@ class TestValidateStrategyConfigInvalidValues:
         """Test validation fails for invalid dataset keyword."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "invalid_dataset",
             "model_type": "cnn",
             "use_llm": False,
@@ -481,7 +481,7 @@ class TestValidateStrategyConfigInvalidValues:
         """Test validation fails for invalid attack type in attack_schedule."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -530,7 +530,7 @@ class TestValidateStrategyConfigInvalidValues:
         """Test validation fails for invalid training device."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -571,7 +571,7 @@ class TestValidateStrategyConfigInvalidValues:
         """Test validation fails for invalid data types."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -803,7 +803,7 @@ class TestValidateStrategyConfigErrorMessages:
         """Test that error messages clearly indicate valid enum options."""
         config = {
             "aggregation_strategy_keyword": "invalid_strategy",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -848,7 +848,7 @@ class TestValidateStrategyConfigErrorMessages:
     def test_clear_error_message_for_missing_required_field(self):
         """Test that error messages clearly indicate which required field is missing."""
         config = {
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -866,7 +866,7 @@ class TestValidateStrategyConfigErrorMessages:
         """Test that error messages clearly indicate expected data type."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -928,7 +928,7 @@ class TestValidateStrategyConfigEdgeCases:
         """Test that RFA strategy doesn't require additional parameters."""
         config = {
             "aggregation_strategy_keyword": "rfa",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "flair",
             "model_type": "cnn",
             "use_llm": False,
@@ -1022,7 +1022,7 @@ class TestValidateStrategyConfigEdgeCases:
         """Test that configuration with extra unknown fields still validates if required fields are present."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -1281,7 +1281,7 @@ class TestStrictModeValidation:
         """Test that strict_mode defaults to 'true' and rejects invalid configs."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -1331,7 +1331,7 @@ class TestStrictModeValidation:
         """Test that strict_mode=true rejects configs where min_* != num_of_clients."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -1382,7 +1382,7 @@ class TestStrictModeValidation:
         """Test that strict_mode=false preserves original client configuration."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -1430,7 +1430,7 @@ class TestStrictModeValidation:
         """Test that validation fails when min_* > num_of_clients regardless of strict_mode."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -1482,7 +1482,7 @@ class TestStrictModeValidation:
         """Test that strict_mode=true does not modify already correct client config."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -1530,7 +1530,7 @@ class TestStrictModeValidation:
         """Test that invalid strict_mode values fail schema validation."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": True,
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
             "use_llm": False,
@@ -1572,3 +1572,104 @@ class TestStrictModeValidation:
             validate_strategy_config(config)
 
         assert "'maybe' is not of type 'boolean'" in str(exc_info.value)
+
+    def test_strict_mode_and_remove_clients_conflict_rejection(self):
+        """Test that enabling both strict_mode and remove_clients is rejected."""
+        config = {
+            "aggregation_strategy_keyword": "fedavg",
+            "remove_clients": True,
+            "strict_mode": True,
+            "num_of_clients": 10,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
+            "min_available_clients": 10,
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": False,
+            "num_of_rounds": 5,
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
+            "training_subset_fraction": 1.0,
+            "training_device": "cpu",
+            "cpus_per_client": 1,
+            "gpus_per_client": 0,
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 1,
+            "batch_size": 32,
+            "attack_schedule": [],
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_strategy_config(config)
+
+        assert "strict_mode=true is incompatible with remove_clients=true" in str(exc_info.value)
+
+    def test_krum_mathematical_constraint_rejection(self):
+        """Test that Krum rejects configs where n <= 2f + 2."""
+        config = {
+            "aggregation_strategy_keyword": "krum",
+            "num_of_clients": 10,
+            "num_of_malicious_clients": 5,  # n=10, f=5 -> 10 <= 2(5)+2 (10 <= 12) -> Should fail
+            "num_krum_selections": 1,
+            "remove_clients": False,
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": False,
+            "num_of_rounds": 5,
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
+            "training_subset_fraction": 1.0,
+            "training_device": "cpu",
+            "cpus_per_client": 1,
+            "gpus_per_client": 0,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
+            "min_available_clients": 10,
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 1,
+            "batch_size": 32,
+            "attack_schedule": [],
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_strategy_config(config)
+
+        assert "Krum aggregation requires n > 2f + 2" in str(exc_info.value)
+        assert "n=10, f=5" in str(exc_info.value)
+
+    def test_trimmed_mean_invalid_ratio_rejection(self):
+        """Test that Trimmed Mean rejects ratios >= 0.5."""
+        config = {
+            "aggregation_strategy_keyword": "trimmed_mean",
+            "trim_ratio": 0.5,
+            "num_of_clients": 10,
+            "remove_clients": False,
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": False,
+            "num_of_rounds": 5,
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
+            "training_subset_fraction": 1.0,
+            "training_device": "cpu",
+            "cpus_per_client": 1,
+            "gpus_per_client": 0,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
+            "min_available_clients": 10,
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 1,
+            "batch_size": 32,
+            "attack_schedule": [],
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_strategy_config(config)
+
+        assert "Trimmed Mean ratio must be < 0.5" in str(exc_info.value)
