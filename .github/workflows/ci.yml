@@ -9,65 +9,59 @@ on:
 
 jobs:
   test:
+    name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
       fail-fast: false
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v6.0.1
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-        cache: 'pip'
-        cache-dependency-path: |
-          requirements.txt
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Install dependencies
+        run: uv sync --frozen --python ${{ matrix.python-version }}
 
-    - name: Run unit tests (parallel)
-      run: |
-        pytest -n auto tests/unit/ --cov=src --cov-report=term-missing --tb=short
+      - name: Run unit tests (parallel)
+        run: |
+          coverage run --append --source=src -m pytest -n auto tests/unit/ --tb=short
 
-    - name: Run integration tests (serial)
-      run: |
-        pytest tests/integration/ --cov=src --cov-append --tb=short
+      - name: Run integration tests (serial)
+        run: |
+          coverage run --append --source=src -m pytest tests/integration/ --tb=short
 
-    - name: Run performance tests (serial)
-      run: |
-        pytest tests/performance/ --cov=src --cov-append --tb=short
+      - name: Run performance tests (serial)
+        run: |
+          coverage run --append --source=src -m pytest tests/performance/ --tb=short
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      if: matrix.python-version == '3.11'
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        fail_ci_if_error: false
+      - name: Generate final coverage report
+        run: |
+          coverage report --show-missing
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5.5.1
+        if: matrix.python-version == '3.11'
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
   smoke-test:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6.0.1
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v7
       with:
-        python-version: "3.11"
-        cache: 'pip'
-
+        enable-cache: true
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install rich
+      run: uv sync --frozen
 
     - name: Run smoke tests
       run: |
@@ -77,18 +71,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6.0.1
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v7
       with:
-        python-version: "3.11"
-        cache: 'pip'
-
+        enable-cache: true
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      run: uv sync --frozen
 
     - name: Run strategy pipeline tests
       run: |

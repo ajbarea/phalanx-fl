@@ -30,9 +30,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Requirements first for layer caching (PyTorch already in base image)
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy uv binary from official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Requirements first for layer caching
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies into system python
+RUN uv sync --frozen --no-cache --no-dev --system
 
 COPY src/ ./src/
 COPY config/ ./config/
