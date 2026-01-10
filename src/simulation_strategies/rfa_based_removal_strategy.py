@@ -148,7 +148,7 @@ class RFABasedRemovalStrategy(FedAvg):
                 aggregate_clients.append(result)
 
         if not aggregate_clients:
-            return None, {}
+            return super().aggregate_fit(server_round, [], failures)
 
         # Check termination condition based on configured policy
         should_stop, reason = self.termination_handler.should_terminate(
@@ -165,7 +165,7 @@ class RFABasedRemovalStrategy(FedAvg):
                 "termination": True,
                 "reason": reason,
                 "round": server_round,
-                "removed_clients": list(self.removed_client_ids),
+                "removed_clients": str(list(self.removed_client_ids)),
                 "available_clients": len(aggregate_clients),
                 **self.termination_handler.get_termination_summary(),
             }

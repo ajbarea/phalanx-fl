@@ -240,7 +240,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
                 "termination": True,
                 "reason": reason,
                 "round": server_round,
-                "removed_clients": list(self.removed_client_ids),
+                "removed_clients": str(list(self.removed_client_ids)),
                 "available_clients": len(aggregate_clients),
                 **self.termination_handler.get_termination_summary(),
             }

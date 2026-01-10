@@ -16,6 +16,9 @@ apply_env_vars()
 os.environ["LOKY_MAX_CPU_COUNT"] = str(os.cpu_count() or 1)
 os.environ["OMP_NUM_THREADS"] = str(os.cpu_count() or 1)
 
+# Prevent threadpoolctl from using GetModuleFileNameEx on Windows (causes OSError)
+os.environ["THREADPOOLCTL_SKIP_WINDOWS_ENUM"] = "1"
+
 # Set HuggingFace cache directory to avoid API rate limits
 os.environ["HF_HOME"] = "./cache/huggingface"
 
@@ -130,6 +133,7 @@ class SimulationRunner:
             for strategy_config_dict, strategy_number in zip(
                 self._simulation_strategy_config_dicts,
                 range(len(self._simulation_strategy_config_dicts)),
+                strict=False,
             ):
                 dataset_handler = None
                 simulation_strategy = None
