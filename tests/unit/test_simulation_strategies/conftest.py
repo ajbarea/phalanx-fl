@@ -6,7 +6,8 @@ Provides common fixtures used across all strategy test files.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 from unittest.mock import patch
 
 import pytest

@@ -16,9 +16,10 @@ Best practices from Ray 2024-2025 documentation:
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import ray
 

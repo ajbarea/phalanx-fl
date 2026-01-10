@@ -4,7 +4,8 @@ Mock dataset generators for federated learning tests.
 
 from __future__ import annotations
 
-from typing import Callable, TypeAlias
+from collections.abc import Callable
+from typing import TypeAlias
 
 import torch
 from torch.utils.data import DataLoader, Dataset

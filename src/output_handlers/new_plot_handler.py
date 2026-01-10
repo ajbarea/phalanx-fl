@@ -280,6 +280,7 @@ def show_plots_within_strategy(
                 for metric, participated in zip(
                     metric_values[:min_length],
                     client_info.aggregation_participation_history[:min_length],
+                    strict=False,
                 )
             ]
             plt.plot(client_info.rounds[:min_length], excluded_values, "kx")  # type: ignore[arg-type]
@@ -290,10 +291,7 @@ def show_plots_within_strategy(
         plot_strategy_title = _generate_multi_string_strategy_label(
             simulation_strategy.strategy_config
         )
-        plt.title(
-            f"{metric_name} of each client across rounds for strategy: "
-            f"{simulation_strategy.strategy_config.aggregation_strategy_keyword}\n{plot_strategy_title}"
-        )
+        plt.title(f"{metric_name}\n{plot_strategy_title}")
 
         legend_title = "clients and attacks"
         num_clients = simulation_strategy.strategy_config.num_of_clients or 1

@@ -299,7 +299,7 @@ def save_label_confusion_matrix(
     num_classes = len(unique_classes)
 
     confusion = np.zeros((num_classes, num_classes), dtype=int)
-    for orig, pois in zip(original_labels, poisoned_labels):
+    for orig, pois in zip(original_labels, poisoned_labels, strict=False):
         orig_idx = unique_classes.index(int(orig))
         pois_idx = unique_classes.index(int(pois))
         confusion[orig_idx, pois_idx] += 1
@@ -578,10 +578,10 @@ def save_label_flipping_grid(
 
     num_samples = len(images)
 
-    samples_per_row = 2
+    samples_per_row = 4
     num_rows = math.ceil(num_samples / samples_per_row)
 
-    fig_width = 14
+    fig_width = 24
     fig_height = 4 * num_rows + 1.5
 
     fig = plt.figure(figsize=(fig_width, fig_height))
@@ -608,7 +608,7 @@ def save_label_flipping_grid(
         "Training labels have been corrupted - images remain unchanged",
         ha="center",
         va="center",
-        fontsize=12,
+        fontsize=14,
         fontweight="bold",
         color="#856404",
         transform=ax_header.transAxes,
@@ -620,6 +620,7 @@ def save_label_flipping_grid(
     num_flipped = np.sum(original_labels != labels)
     flip_rate = num_flipped / len(labels) * 100 if len(labels) > 0 else 0
 
+    axes_to_line = []
     for i in range(num_samples):
         row_idx = i // samples_per_row + 1
         col_offset = (i % samples_per_row) * 2
@@ -698,6 +699,23 @@ def save_label_flipping_grid(
             transform=ax_labels.transAxes,
         )
 
+        # Draw vertical separator if not the last item in a row
+        if (i + 1) % samples_per_row != 0 and (i + 1) < num_samples:
+            axes_to_line.append(ax_labels)
+
+    for ax in axes_to_line:
+        bbox = ax.get_position()
+        line = Line2D(
+            [bbox.x1 + 0.015, bbox.x1 + 0.015],
+            [bbox.y0, bbox.y1],
+            transform=fig.transFigure,
+            color="#95a5a6",
+            linewidth=2,
+            linestyle="-",
+            alpha=0.6,
+        )
+        fig.add_artist(line)
+
     fig.text(
         0.5,
         0.01,
@@ -738,7 +756,9 @@ def save_label_flipping_summary(
     flip_rate = flipped_count / total_samples * 100 if total_samples > 0 else 0
 
     flip_patterns: dict[str, int] = {}
-    for orig, pois in zip(original_labels[flipped_mask], poisoned_labels[flipped_mask]):
+    for orig, pois in zip(
+        original_labels[flipped_mask], poisoned_labels[flipped_mask], strict=False
+    ):
         key = f"{int(orig)}->{int(pois)}"
         flip_patterns[key] = flip_patterns.get(key, 0) + 1
 
@@ -907,7 +927,7 @@ def save_weight_attack_prediction_grid(
         ax_before.set_title("BEFORE Attack", fontsize=11, fontweight="bold", color="#27ae60")
         ax_before.tick_params(axis="y", labelsize=10)
 
-        for bar, val in zip(bars, bar_values):
+        for bar, val in zip(bars, bar_values, strict=False):
             ax_before.text(
                 val + 1,
                 bar.get_y() + bar.get_height() / 2,
@@ -927,7 +947,7 @@ def save_weight_attack_prediction_grid(
         ax_after.set_title("AFTER Attack", fontsize=11, fontweight="bold", color="#c0392b")
         ax_after.tick_params(axis="y", labelsize=10)
 
-        for bar, val in zip(bars_after, bar_values_after):
+        for bar, val in zip(bars_after, bar_values_after, strict=False):
             ax_after.text(
                 val + 1,
                 bar.get_y() + bar.get_height() / 2,
@@ -950,7 +970,7 @@ def save_weight_attack_prediction_grid(
 
     pred_changes = sum(
         1
-        for pb, pa in zip(predictions_before, predictions_after)
+        for pb, pa in zip(predictions_before, predictions_after, strict=False)
         if pb and pa and pb[0][0] != pa[0][0]
     )
     pred_change_pct = (pred_changes / len(predictions_before) * 100) if predictions_before else 0
