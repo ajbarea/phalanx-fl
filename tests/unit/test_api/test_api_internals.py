@@ -210,6 +210,7 @@ class TestGetStatusData:
     def test_get_status_data_execution_log_error(self, tmp_path: Path, monkeypatch):
         """_get_status_data handles execution.log read errors."""
         monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("src.api.main.running_processes", {})
         sim_dir = tmp_path / "out" / "execution_log_issue"
         sim_dir.mkdir(parents=True)
 
@@ -235,10 +236,6 @@ class TestGetStatusData:
 
         result = main._get_status_data(sim_dir, "execution_log_issue")
         assert result["status"] == "failed"
-
-        # Cleanup
-        if "execution_log_issue" in main.running_processes:
-            del main.running_processes["execution_log_issue"]
 
 
 # =============================================================================
@@ -413,6 +410,7 @@ class TestAddToQueue:
         """POST /api/simulations with add_to_queue=true adds to running simulation."""
         monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
         monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+        monkeypatch.setattr("src.api.main.running_processes", {})
 
         existing_sim = tmp_path / "out" / "api_run_running"
         existing_sim.mkdir(parents=True)
@@ -426,30 +424,24 @@ class TestAddToQueue:
         mock_process.poll.return_value = None
         main.running_processes["api_run_running"] = mock_process
 
-        try:
-            new_config = {
-                "aggregation_strategy_keyword": "krum",
-                "num_of_malicious_clients": 2,
-                "add_to_queue": True,
-            }
+        new_config = {
+            "aggregation_strategy_keyword": "krum",
+            "num_of_malicious_clients": 2,
+            "add_to_queue": True,
+        }
 
-            response = api_client.post("/api/simulations", json=new_config)
-            assert response.status_code == 201
-            data = response.json()
+        response = api_client.post("/api/simulations", json=new_config)
+        assert response.status_code == 201
+        data = response.json()
 
-            assert data["simulation_id"] == "api_run_running"
-            assert data.get("queued") is True
+        assert data["simulation_id"] == "api_run_running"
+        assert data.get("queued") is True
 
-            with open(existing_sim / "config.json") as f:
-                updated_config = json.load(f)
+        with open(existing_sim / "config.json") as f:
+            updated_config = json.load(f)
 
-            assert len(updated_config["simulation_strategies"]) == 2
-            assert (
-                updated_config["simulation_strategies"][1]["aggregation_strategy_keyword"] == "krum"
-            )
-        finally:
-            if "api_run_running" in main.running_processes:
-                del main.running_processes["api_run_running"]
+        assert len(updated_config["simulation_strategies"]) == 2
+        assert updated_config["simulation_strategies"][1]["aggregation_strategy_keyword"] == "krum"
 
 
 # =============================================================================
@@ -492,6 +484,7 @@ class TestStopEndpointEdgeCases:
     def test_stop_already_completed(self, api_client: TestClient, tmp_path: Path, monkeypatch):
         """POST /api/simulations/{id}/stop returns 409 for already completed process."""
         monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("src.api.main.running_processes", {})
         sim_dir = tmp_path / "out" / "completed_sim"
         sim_dir.mkdir(parents=True)
 
@@ -508,13 +501,9 @@ class TestStopEndpointEdgeCases:
 
         monkeypatch.setattr("src.api.main.psutil.Process", mock_psutil_process)
 
-        try:
-            response = api_client.post("/api/simulations/completed_sim/stop")
-            assert response.status_code == 409
-            assert "already completed" in response.json()["detail"].lower()
-        finally:
-            if "completed_sim" in main.running_processes:
-                del main.running_processes["completed_sim"]
+        response = api_client.post("/api/simulations/completed_sim/stop")
+        assert response.status_code == 409
+        assert "already completed" in response.json()["detail"].lower()
 
 
 # =============================================================================
@@ -595,8 +584,6 @@ class TestAttackSnapshots:
         (weight_dir / "model_poisoning_weight_metadata.json").write_text(
             json.dumps({"scale_factor": 100.0, "layers_affected": 3})
         )
-
-        (sim_dir / "attack_snapshots_0").mkdir()
 
         response = api_client.get("/api/simulations/api_run_weight_only/attack-snapshots")
         assert response.status_code == 200

@@ -31,10 +31,10 @@ class TestStrategyConfig:
         """Test initialization converts string booleans correctly."""
         with pytest.warns(DeprecationWarning):
             config = StrategyConfig(
-                remove_clients="true",
-                show_plots="false",
-                save_plots="true",
-                save_csv="false",
+                remove_clients="true",  # type: ignore[arg-type]
+                show_plots="false",  # type: ignore[arg-type]
+                save_plots="true",  # type: ignore[arg-type]
+                save_csv="false",  # type: ignore[arg-type]
             )
 
         assert config.remove_clients is True
@@ -57,11 +57,11 @@ class TestStrategyConfig:
             config = StrategyConfig(
                 aggregation_strategy_keyword="pid",
                 num_of_rounds=3,
-                remove_clients="true",
+                remove_clients="true",  # type: ignore[arg-type]
                 Kp=1.0,
                 Ki=0.1,
                 Kd=0.01,
-                show_plots="false",
+                show_plots="false",  # type: ignore[arg-type]
             )
 
         assert config.aggregation_strategy_keyword == "pid"
@@ -175,25 +175,25 @@ class TestStrategyConfig:
         """Test handling invalid parameters gracefully."""
         # StrategyConfig accepts any keyword arguments, so this tests that
         # unknown parameters are set as attributes
-        config = StrategyConfig(unknown_parameter="test_value", another_unknown=123)
+        config = StrategyConfig(unknown_parameter="test_value", another_unknown=123)  # type: ignore[call-arg]
 
-        assert config.unknown_parameter == "test_value"
-        assert config.another_unknown == 123
+        assert config.unknown_parameter == "test_value"  # type: ignore[attr-defined]
+        assert config.another_unknown == 123  # type: ignore[attr-defined]
 
     def test_boolean_conversion_edge_cases(self):
         """Test that only declared boolean fields are coerced."""
         with pytest.warns(DeprecationWarning):
             config = StrategyConfig(
-                remove_clients="true",  # Declared field, should be coerced
-                show_plots="false",  # Declared field, should be coerced
-                other_string="maybe",  # Extra field, should not be coerced
-                number_value=1,  # Extra field, should not be coerced
+                remove_clients="true",  # type: ignore[arg-type] # Declared field, should be coerced
+                show_plots="false",  # type: ignore[arg-type] # Declared field, should be coerced
+                other_string="maybe",  # type: ignore[call-arg] # Extra field, should not be coerced
+                number_value=1,  # type: ignore[call-arg] # Extra field, should not be coerced
             )
 
         assert config.remove_clients is True
         assert config.show_plots is False
-        assert config.other_string == "maybe"  # Stored as-is
-        assert config.number_value == 1  # Stored as-is
+        assert config.other_string == "maybe"  # type: ignore[attr-defined]
+        assert config.number_value == 1  # type: ignore[attr-defined]
 
     def test_strategy_specific_parameters(self):
         """Test strategy-specific parameters."""
@@ -268,12 +268,12 @@ class TestStrategyConfig:
         ]
         config = StrategyConfig(
             num_of_malicious_clients=2,
-            attack_schedule=attack_schedule,
+            attack_schedule=attack_schedule,  # type: ignore[arg-type]
         )
 
         assert config.num_of_malicious_clients == 2
         assert config.attack_schedule == attack_schedule
         assert config.attack_schedule is not None
-        assert config.attack_schedule[0]["attack_type"] == "gaussian_noise"
-        assert config.attack_schedule[0]["attack_ratio"] == 0.3
-        assert config.attack_schedule[0]["target_noise_snr"] == 10.0
+        assert config.attack_schedule[0].get("attack_type") == "gaussian_noise"
+        assert config.attack_schedule[0].get("attack_ratio") == 0.3
+        assert config.attack_schedule[0].get("target_noise_snr") == 10.0

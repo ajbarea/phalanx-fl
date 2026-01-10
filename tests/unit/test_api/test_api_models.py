@@ -49,7 +49,7 @@ class TestBooleanFields:
     )
     def test_all_bool_fields_accept_true(self, field_name: str) -> None:
         """Test that all boolean fields accept True."""
-        settings = SimulationSettings(**{field_name: True})
+        settings = SimulationSettings(**{field_name: True})  # type: ignore[arg-type]
         assert getattr(settings, field_name) is True
 
     @pytest.mark.parametrize(
@@ -67,14 +67,14 @@ class TestBooleanFields:
     )
     def test_all_bool_fields_accept_false(self, field_name: str) -> None:
         """Test that all boolean fields accept False."""
-        settings = SimulationSettings(**{field_name: False})
+        settings = SimulationSettings(**{field_name: False})  # type: ignore[arg-type]
         assert getattr(settings, field_name) is False
 
     def test_invalid_bool_raises_error(self) -> None:
         """Test that invalid boolean values raise validation error."""
         with pytest.warns(DeprecationWarning):
             with pytest.raises(ValueError, match="Cannot coerce"):
-                SimulationSettings(remove_clients="maybe")
+                SimulationSettings(remove_clients="maybe")  # type: ignore[arg-type]
 
     def test_none_value_preserved(self) -> None:
         """Test that None values are preserved."""
@@ -103,11 +103,11 @@ class TestSimulationSettings:
     def test_allows_extra_fields(self) -> None:
         """Test that extra fields are allowed (for future compatibility)."""
         settings = SimulationSettings(
-            custom_field="custom_value",
-            another_field=123,
+            custom_field="custom_value",  # type: ignore[call-arg]
+            another_field=123,  # type: ignore[call-arg]
         )
-        assert settings.model_extra["custom_field"] == "custom_value"
-        assert settings.model_extra["another_field"] == 123
+        assert (settings.model_extra or {})["custom_field"] == "custom_value"
+        assert (settings.model_extra or {})["another_field"] == 123
 
 
 class TestStrategyOverrides:
@@ -136,8 +136,8 @@ class TestCreateSimulationRequest:
     def test_single_sim_mode_detection(self) -> None:
         """Test that single-sim mode is detected correctly."""
         request = CreateSimulationRequest(
-            aggregation_strategy_keyword="fedavg",
-            num_of_rounds=10,
+            aggregation_strategy_keyword="fedavg",  # type: ignore[call-arg]
+            num_of_rounds=10,  # type: ignore[call-arg]
         )
         assert not request.is_multi_sim_mode()
 
@@ -152,9 +152,9 @@ class TestCreateSimulationRequest:
     def test_single_sim_to_config_dict(self) -> None:
         """Test single-sim config dict conversion."""
         request = CreateSimulationRequest(
-            aggregation_strategy_keyword="fedavg",
-            num_of_rounds=10,
-            remove_clients=True,
+            aggregation_strategy_keyword="fedavg",  # type: ignore[call-arg]
+            num_of_rounds=10,  # type: ignore[call-arg]
+            remove_clients=True,  # type: ignore[call-arg]
         )
         config = request.to_config_dict()
 
@@ -186,13 +186,13 @@ class TestCreateSimulationRequest:
 
     def test_add_to_queue_default(self) -> None:
         """Test add_to_queue defaults to False."""
-        request = CreateSimulationRequest(aggregation_strategy_keyword="fedavg")
+        request = CreateSimulationRequest(aggregation_strategy_keyword="fedavg")  # type: ignore[call-arg]
         assert request.add_to_queue is False
 
     def test_add_to_queue_explicit(self) -> None:
         """Test add_to_queue can be set explicitly."""
         request = CreateSimulationRequest(
-            aggregation_strategy_keyword="fedavg",
+            aggregation_strategy_keyword="fedavg",  # type: ignore[call-arg]
             add_to_queue=True,
         )
         assert request.add_to_queue is True
@@ -200,7 +200,7 @@ class TestCreateSimulationRequest:
     def test_get_config_without_queue_flag(self) -> None:
         """Test that add_to_queue is excluded from config."""
         request = CreateSimulationRequest(
-            aggregation_strategy_keyword="fedavg",
+            aggregation_strategy_keyword="fedavg",  # type: ignore[call-arg]
             add_to_queue=True,
         )
         config = request.get_config_without_queue_flag()
@@ -230,8 +230,8 @@ class TestBooleanStorage:
     def test_extra_fields_not_coerced(self) -> None:
         """Test that extra fields (not defined in model) are not coerced."""
         request = CreateSimulationRequest(
-            aggregation_strategy_keyword="fedavg",
-            custom_bool_field="true",  # Extra field - won't be coerced
+            aggregation_strategy_keyword="fedavg",  # type: ignore[call-arg]
+            custom_bool_field="true",  # type: ignore[call-arg] # Extra field - won't be coerced
         )
         config = request.to_config_dict()
 
@@ -245,7 +245,7 @@ class TestDeprecationWarnings:
     def test_string_bool_emits_deprecation_warning(self) -> None:
         """Test that string boolean inputs emit deprecation warnings."""
         with pytest.warns(DeprecationWarning, match="deprecated"):
-            SimulationSettings(remove_clients="true")
+            SimulationSettings(remove_clients="true")  # type: ignore[arg-type]
 
     def test_actual_bool_no_warning(self) -> None:
         """Test that actual boolean inputs don't emit warnings."""
@@ -380,7 +380,7 @@ class TestResponseModels:
     def test_simulation_status_response_invalid_status(self) -> None:
         """Test SimulationStatusResponse rejects invalid status."""
         with pytest.raises(ValidationError):
-            SimulationStatusResponse(status="invalid_status")
+            SimulationStatusResponse(status="invalid_status")  # type: ignore[arg-type]
 
     def test_simulation_status_response_progress_range(self) -> None:
         """Test SimulationStatusResponse progress must be [0, 1]."""
