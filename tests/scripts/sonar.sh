@@ -53,15 +53,56 @@ if ! command_exists npm; then
     exit 1
 fi
 
-check_and_install_tool "sonar-scanner" "npm install -g sonar-scanner" || {
-    log_error "Failed to install sonar-scanner. Please install manually."
-    exit 1
-}
+# Check if sonar-scanner is available (global, local, or in frontend node_modules)
+SONAR_SCANNER_CMD=""
+if command_exists sonar-scanner; then
+    SONAR_SCANNER_CMD="sonar-scanner"
+    log_info "✅ Found sonar-scanner in PATH"
+elif [ -f "frontend/node_modules/.bin/sonar-scanner" ]; then
+    SONAR_SCANNER_CMD="frontend/node_modules/.bin/sonar-scanner"
+    log_info "✅ Found sonar-scanner in frontend/node_modules"
+elif [ -f "frontend/node_modules/.bin/sonar-scanner.cmd" ]; then
+    SONAR_SCANNER_CMD="frontend/node_modules/.bin/sonar-scanner.cmd"
+    log_info "✅ Found sonar-scanner in frontend/node_modules"
+else
+    log_warning "sonar-scanner not found. Installing from frontend dependencies..."
+    if [ -d "frontend" ] && [ -f "frontend/package.json" ]; then
+        cd frontend
+        if npm install; then
+            cd ..
+            if [ -f "frontend/node_modules/.bin/sonar-scanner" ]; then
+                SONAR_SCANNER_CMD="frontend/node_modules/.bin/sonar-scanner"
+            elif [ -f "frontend/node_modules/.bin/sonar-scanner.cmd" ]; then
+                SONAR_SCANNER_CMD="frontend/node_modules/.bin/sonar-scanner.cmd"
+            fi
+            log_info "✅ sonar-scanner installed successfully"
+        else
+            cd ..
+            log_error "Failed to install frontend dependencies. Trying global install..."
+            if npm install -g sonar-scanner; then
+                SONAR_SCANNER_CMD="sonar-scanner"
+                log_info "✅ sonar-scanner installed globally"
+            else
+                log_error "Failed to install sonar-scanner. Please install manually: npm install -g sonar-scanner"
+                exit 1
+            fi
+        fi
+    else
+        log_warning "Frontend directory not found. Attempting global install..."
+        if npm install -g sonar-scanner; then
+            SONAR_SCANNER_CMD="sonar-scanner"
+            log_info "✅ sonar-scanner installed globally"
+        else
+            log_error "Failed to install sonar-scanner. Please install manually: npm install -g sonar-scanner"
+            exit 1
+        fi
+    fi
+fi
 
 
 log_info "🚀 Running SonarQube scanner..."
 
-if sonar-scanner \
+if "$SONAR_SCANNER_CMD" \
     -Dsonar.projectKey=fl-execution-framework \
     -Dsonar.projectName="FL Execution Framework" \
     -Dsonar.projectVersion=1.0 \
