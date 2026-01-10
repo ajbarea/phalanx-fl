@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import flwr
 import torch.nn as nn
@@ -318,24 +318,26 @@ class FederatedSimulation:
                 dataset_dir=self._dataset_dir,
                 num_of_clients=num_of_clients,
                 training_subset_fraction=training_subset_fraction,
-                model_name=self.strategy_config.llm_model,  # type: ignore[arg-type]
+                model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
                 batch_size=batch_size,
-                chunk_size=self.strategy_config.llm_chunk_size,  # type: ignore[arg-type]
-                mlm_probability=self.strategy_config.mlm_probability,  # type: ignore[arg-type]
+                chunk_size=cast(int, getattr(self.strategy_config, "llm_chunk_size", 512)),
+                mlm_probability=cast(float, getattr(self.strategy_config, "mlm_probability", 0.15)),
                 num_poisoned_clients=self.strategy_config.num_of_malicious_clients or 0,
                 attack_schedule=self.strategy_config.attack_schedule,
             )
-            if self.strategy_config.llm_finetuning == "lora":
+            if getattr(self.strategy_config, "llm_finetuning", None) == "lora":
                 self._network_model = load_model_with_lora(
-                    model_name=self.strategy_config.llm_model,
-                    lora_rank=self.strategy_config.lora_rank,
-                    lora_alpha=self.strategy_config.lora_alpha,
-                    lora_dropout=self.strategy_config.lora_dropout,
-                    lora_target_modules=self.strategy_config.lora_target_modules,
+                    model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
+                    lora_rank=cast(int, getattr(self.strategy_config, "lora_rank", 8)),
+                    lora_alpha=cast(int, getattr(self.strategy_config, "lora_alpha", 16)),
+                    lora_dropout=cast(float, getattr(self.strategy_config, "lora_dropout", 0.05)),
+                    lora_target_modules=cast(
+                        list, getattr(self.strategy_config, "lora_target_modules", None)
+                    ),
                 )
             else:
                 self._network_model = load_model(
-                    model_name=self.strategy_config.llm_model,
+                    model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
                 )
 
         elif dataset_keyword == "financial_phrasebank":
@@ -347,24 +349,26 @@ class FederatedSimulation:
                 dataset_dir=self._dataset_dir,
                 num_of_clients=num_of_clients,
                 training_subset_fraction=training_subset_fraction,
-                model_name=self.strategy_config.llm_model,  # type: ignore[arg-type]
+                model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
                 batch_size=batch_size,
-                chunk_size=self.strategy_config.llm_chunk_size,  # type: ignore[arg-type]
-                mlm_probability=self.strategy_config.mlm_probability,  # type: ignore[arg-type]
+                chunk_size=cast(int, getattr(self.strategy_config, "llm_chunk_size", 512)),
+                mlm_probability=cast(float, getattr(self.strategy_config, "mlm_probability", 0.15)),
                 num_poisoned_clients=self.strategy_config.num_of_malicious_clients or 0,
                 attack_schedule=self.strategy_config.attack_schedule,
             )
-            if self.strategy_config.llm_finetuning == "lora":
+            if getattr(self.strategy_config, "llm_finetuning", None) == "lora":
                 self._network_model = load_model_with_lora(
-                    model_name=self.strategy_config.llm_model,
-                    lora_rank=self.strategy_config.lora_rank,
-                    lora_alpha=self.strategy_config.lora_alpha,
-                    lora_dropout=self.strategy_config.lora_dropout,
-                    lora_target_modules=self.strategy_config.lora_target_modules,
+                    model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
+                    lora_rank=cast(int, getattr(self.strategy_config, "lora_rank", 8)),
+                    lora_alpha=cast(int, getattr(self.strategy_config, "lora_alpha", 16)),
+                    lora_dropout=cast(float, getattr(self.strategy_config, "lora_dropout", 0.05)),
+                    lora_target_modules=cast(
+                        list, getattr(self.strategy_config, "lora_target_modules", None)
+                    ),
                 )
             else:
                 self._network_model = load_model(
-                    model_name=self.strategy_config.llm_model,
+                    model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
                 )
 
         elif dataset_keyword == "lexglue":
@@ -376,24 +380,26 @@ class FederatedSimulation:
                 dataset_dir=self._dataset_dir,
                 num_of_clients=num_of_clients,
                 training_subset_fraction=training_subset_fraction,
-                model_name=self.strategy_config.llm_model,  # type: ignore[arg-type]
+                model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
                 batch_size=batch_size,
-                chunk_size=self.strategy_config.llm_chunk_size,  # type: ignore[arg-type]
-                mlm_probability=self.strategy_config.mlm_probability,  # type: ignore[arg-type]
+                chunk_size=cast(int, getattr(self.strategy_config, "llm_chunk_size", 512)),
+                mlm_probability=cast(float, getattr(self.strategy_config, "mlm_probability", 0.15)),
                 num_poisoned_clients=self.strategy_config.num_of_malicious_clients or 0,
                 attack_schedule=self.strategy_config.attack_schedule,
             )
-            if self.strategy_config.llm_finetuning == "lora":
+            if getattr(self.strategy_config, "llm_finetuning", None) == "lora":
                 self._network_model = load_model_with_lora(
-                    model_name=self.strategy_config.llm_model,
-                    lora_rank=self.strategy_config.lora_rank,
-                    lora_alpha=self.strategy_config.lora_alpha,
-                    lora_dropout=self.strategy_config.lora_dropout,
-                    lora_target_modules=self.strategy_config.lora_target_modules,
+                    model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
+                    lora_rank=cast(int, getattr(self.strategy_config, "lora_rank", 8)),
+                    lora_alpha=cast(int, getattr(self.strategy_config, "lora_alpha", 16)),
+                    lora_dropout=cast(float, getattr(self.strategy_config, "lora_dropout", 0.05)),
+                    lora_target_modules=cast(
+                        list, getattr(self.strategy_config, "lora_target_modules", None)
+                    ),
                 )
             else:
                 self._network_model = load_model(
-                    model_name=self.strategy_config.llm_model,
+                    model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
                 )
 
         elif dataset_keyword == "medal":
@@ -418,24 +424,26 @@ class FederatedSimulation:
                 dataset_dir=self._dataset_dir,
                 num_of_clients=num_of_clients,
                 training_subset_fraction=training_subset_fraction,
-                model_name=self.strategy_config.llm_model,  # type: ignore[arg-type]
+                model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
                 batch_size=batch_size,
-                chunk_size=self.strategy_config.llm_chunk_size,  # type: ignore[arg-type]
-                mlm_probability=self.strategy_config.mlm_probability,  # type: ignore[arg-type]
+                chunk_size=cast(int, getattr(self.strategy_config, "llm_chunk_size", 512)),
+                mlm_probability=cast(float, getattr(self.strategy_config, "mlm_probability", 0.15)),
                 attack_schedule=self.strategy_config.attack_schedule,
                 max_samples=max_samples,
             )
-            if self.strategy_config.llm_finetuning == "lora":
+            if getattr(self.strategy_config, "llm_finetuning", None) == "lora":
                 self._network_model = load_model_with_lora(
-                    model_name=self.strategy_config.llm_model,
-                    lora_rank=self.strategy_config.lora_rank,
-                    lora_alpha=self.strategy_config.lora_alpha,
-                    lora_dropout=self.strategy_config.lora_dropout,
-                    lora_target_modules=self.strategy_config.lora_target_modules,
+                    model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
+                    lora_rank=cast(int, getattr(self.strategy_config, "lora_rank", 8)),
+                    lora_alpha=cast(int, getattr(self.strategy_config, "lora_alpha", 16)),
+                    lora_dropout=cast(float, getattr(self.strategy_config, "lora_dropout", 0.05)),
+                    lora_target_modules=cast(
+                        list, getattr(self.strategy_config, "lora_target_modules", None)
+                    ),
                 )
             else:
                 self._network_model = load_model(
-                    model_name=self.strategy_config.llm_model,
+                    model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
                 )
 
         else:
@@ -497,7 +505,8 @@ class FederatedSimulation:
                 network_model=self._network_model,
                 aggregation_strategy_keyword=aggregation_strategy_keyword,
                 use_lora=bool(
-                    self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora"
+                    getattr(self.strategy_config, "use_llm", None)
+                    and getattr(self.strategy_config, "llm_finetuning", None) == "lora"
                 ),
                 **common_kwargs,  # type: ignore[arg-type]
             )
@@ -581,7 +590,8 @@ class FederatedSimulation:
         net = self._network_model.to(self.strategy_config.training_device)
 
         use_lora = bool(
-            self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora"
+            getattr(self.strategy_config, "use_llm", None)
+            and getattr(self.strategy_config, "llm_finetuning", None) == "lora"
         )
 
         trainloader = self._trainloaders[partition_id]
@@ -611,7 +621,10 @@ class FederatedSimulation:
             }
 
         tokenizer = None
-        if self.strategy_config.model_type == "transformer" and self._dataset_loader is not None:
+        if (
+            getattr(self.strategy_config, "model_type", None) == "transformer"
+            and self._dataset_loader is not None
+        ):
             tokenizer = getattr(self._dataset_loader, "tokenizer", None)
 
         num_malicious = self.strategy_config.num_of_malicious_clients or 0
@@ -624,7 +637,7 @@ class FederatedSimulation:
             valloader=valloader,
             training_device=self.strategy_config.training_device,
             num_of_client_epochs=self.strategy_config.num_of_client_epochs,
-            model_type=self.strategy_config.model_type,
+            model_type=cast(str, getattr(self.strategy_config, "model_type", "cnn")),
             use_lora=use_lora,
             num_malicious_clients=num_malicious,
             attacks_schedule=attacks_schedule,
