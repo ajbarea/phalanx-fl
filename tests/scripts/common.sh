@@ -264,6 +264,28 @@ check_and_install_tool() {
     fi
 }
 
+install_frontend_dependencies() {
+    if ! command_exists npm; then
+        log_error "npm not found. Please install Node.js and npm first."
+        return 1
+    fi
+
+    if [ -d "frontend" ] && [ -f "frontend/package.json" ]; then
+        log_info "📦 Installing frontend dependencies..."
+        (cd frontend && npm install)
+        if [ $? -eq 0 ]; then
+            log_info "Frontend dependencies installed successfully"
+            return 0
+        else
+            log_error "Failed to install frontend dependencies"
+            return 1
+        fi
+    else
+        log_warning "Frontend directory or package.json not found, skipping frontend installation."
+        return 1
+    fi
+}
+
 # ============================================================================
 # Python Execution
 # ============================================================================
