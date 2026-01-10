@@ -189,7 +189,7 @@ class TestFlowerClient:
         flower_client_cnn.set_parameters(flower_client_cnn.net, new_params)
 
         updated_params = flower_client_cnn.get_parameters(config={})
-        for _orig, new, updated in zip(original_params, new_params, updated_params):
+        for _orig, new, updated in zip(original_params, new_params, updated_params, strict=False):
             np.testing.assert_allclose(updated, new, rtol=1e-5)
 
     @patch("src.network_models.bert_model_definition.set_peft_model_state_dict")
@@ -531,7 +531,7 @@ class TestFlowerClient:
 
         final_params = flower_client_cnn.get_parameters(config={})
 
-        for initial, final in zip(initial_params, final_params):
+        for initial, final in zip(initial_params, final_params, strict=False):
             np.testing.assert_allclose(initial, final, rtol=1e-5)
 
     def test_empty_dataloader_handling(self, flower_client_cnn):

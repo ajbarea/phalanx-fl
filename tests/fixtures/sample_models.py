@@ -39,7 +39,7 @@ class MockBaseNetwork(nn.Module):
         Args:
             parameters: List of numpy arrays to load as model weights
         """
-        params_dict = zip(self.parameters(), parameters)
+        params_dict = zip(self.parameters(), parameters, strict=False)
         for param, new_param in params_dict:
             param.data = torch.as_tensor(new_param, dtype=param.dtype)
 

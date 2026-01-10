@@ -179,7 +179,7 @@ class TestWeightedAverageProperties:
         weights = [100] * num_clients
 
         total_weight = sum(weights)
-        weighted_avg = sum(v * w for v, w in zip(values, weights)) / total_weight
+        weighted_avg = sum(v * w for v, w in zip(values, weights, strict=False)) / total_weight
         simple_mean = np.mean(values)
 
         assert np.isclose(weighted_avg, simple_mean, rtol=1e-10), (
@@ -492,15 +492,15 @@ class TestAggregationInvariants:
         if total_weight == 0:
             return
 
-        weighted_avg = sum(v * w for v, w in zip(values, weights)) / total_weight
+        weighted_avg = sum(v * w for v, w in zip(values, weights, strict=False)) / total_weight
 
         mid = len(values) // 2
         w1, w2 = sum(weights[:mid]), sum(weights[mid:])
         if w1 == 0 or w2 == 0:
             return
 
-        part1 = sum(v * w for v, w in zip(values[:mid], weights[:mid])) / w1
-        part2 = sum(v * w for v, w in zip(values[mid:], weights[mid:])) / w2
+        part1 = sum(v * w for v, w in zip(values[:mid], weights[:mid], strict=False)) / w1
+        part2 = sum(v * w for v, w in zip(values[mid:], weights[mid:], strict=False)) / w2
         combined = (part1 * w1 + part2 * w2) / total_weight
 
         assert np.isclose(weighted_avg, combined, rtol=1e-9)

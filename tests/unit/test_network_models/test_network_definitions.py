@@ -626,7 +626,7 @@ class TestNetworkModelIntegration:
 
         # Verify networks have same parameters
         for (name1, param1), (name2, param2) in zip(
-            network1.named_parameters(), network2.named_parameters()
+            network1.named_parameters(), network2.named_parameters(), strict=False
         ):
             assert name1 == name2
             assert torch.allclose(param1, param2)

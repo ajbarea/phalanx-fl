@@ -222,7 +222,10 @@ class TestMedQuADDatasetLoader:
             tokenize_columns = ["answer"]
 
             def tokenize_function(examples):
-                texts = [" ".join(row) for row in zip(*[examples[col] for col in tokenize_columns])]
+                texts = [
+                    " ".join(row)
+                    for row in zip(*[examples[col] for col in tokenize_columns], strict=False)
+                ]
                 return tokenizer(texts, truncation=False)
 
             # Test with sample data

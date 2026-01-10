@@ -49,14 +49,20 @@ else
 fi
 
 run_pytest_suite() {
-    log_info "🧪 Running pytest suite with coverage..."
-    coverage erase
-    coverage run --source=src -m pytest tests/
+    log_info "🧪 Running unit tests in parallel (xdist)..."
+    run_python -m coverage erase
+    run_python -m coverage run --append --source=src -m pytest -n auto tests/unit/ --tb=short
+
+    log_info "🧪 Running integration tests serially..."
+    run_python -m coverage run --append --source=src -m pytest tests/integration/ --tb=short
+
+    log_info "🧪 Running performance tests serially..."
+    run_python -m coverage run --append --source=src -m pytest tests/performance/ --tb=short
 
     log_info "📊 Generating coverage reports..."
-    coverage xml -o "$LOG_DIR/coverage.xml"
-    coverage html -d "$LOG_DIR/coverage_html"
-    coverage report --skip-covered
+    run_python -m coverage xml -o "$LOG_DIR/coverage.xml"
+    run_python -m coverage html -d "$LOG_DIR/coverage_html"
+    run_python -m coverage report --skip-covered
 }
 
 if [ "$TEST_MODE" = true ]; then

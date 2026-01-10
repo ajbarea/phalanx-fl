@@ -223,7 +223,7 @@ class TestMockNumPyClient:
         assert "accuracy" in metrics
 
         # Verify parameters were updated
-        for orig, updated in zip(input_params, updated_params):
+        for orig, updated in zip(input_params, updated_params, strict=False):
             assert orig.shape == updated.shape
             assert not np.array_equal(orig, updated)  # Should be different due to noise
 
@@ -375,7 +375,7 @@ class TestUtilityFunctions:
 
         # Note: Exact equality might not hold due to serialization/deserialization
         # but shapes should match
-        for orig, conv in zip(arrays, converted_arrays):
+        for orig, conv in zip(arrays, converted_arrays, strict=False):
             assert orig.shape == conv.shape
 
     def test_weighted_loss_avg(self):
@@ -470,7 +470,7 @@ class TestMockBehaviorConsistency:
         result2 = client2.get_parameters({})
 
         assert len(result1) == len(result2)
-        for p1, p2 in zip(result1, result2):
+        for p1, p2 in zip(result1, result2, strict=False):
             np.testing.assert_array_equal(p1, p2)
 
     def test_different_clients_produce_different_results(self):

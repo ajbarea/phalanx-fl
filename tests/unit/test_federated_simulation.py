@@ -445,7 +445,7 @@ class TestFederatedSimulationModelParams:
 
         model_params = list(model.parameters())
         assert len(params) == len(model_params)
-        for param, model_param in zip(params, model_params):
+        for param, model_param in zip(params, model_params, strict=False):
             assert param.shape == model_param.shape
 
     def test_get_model_params_handles_lora_model(self) -> None:

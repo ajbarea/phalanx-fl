@@ -48,7 +48,7 @@ class TestModelPoisoning:
         poisoned = apply_model_poisoning(params, poison_ratio=0.1, magnitude=5.0)
 
         assert len(poisoned) == len(params)
-        for orig, pois in zip(params, poisoned):
+        for orig, pois in zip(params, poisoned, strict=False):
             assert orig.shape == pois.shape
 
         assert not np.allclose(params[0], poisoned[0])
@@ -108,7 +108,7 @@ class TestGradientScaling:
 
         scaled = apply_gradient_scaling(params, scale_factor=scale_factor)
 
-        for orig, scal in zip(params, scaled):
+        for orig, scal in zip(params, scaled, strict=False):
             assert np.allclose(scal, orig * scale_factor)
 
     def test_gradient_scaling_preserves_shapes(self):
@@ -117,7 +117,7 @@ class TestGradientScaling:
 
         scaled = apply_gradient_scaling(params, scale_factor=2.0)
 
-        for orig, scal in zip(params, scaled):
+        for orig, scal in zip(params, scaled, strict=False):
             assert orig.shape == scal.shape
 
     def test_gradient_scaling_with_zero_factor(self):
@@ -147,7 +147,7 @@ class TestByzantinePerturbation:
 
         perturbed = apply_byzantine_perturbation(params, noise_scale=3.0, seed=42)
 
-        for orig, pert in zip(params, perturbed):
+        for orig, pert in zip(params, perturbed, strict=False):
             assert orig.shape == pert.shape
 
         assert not np.allclose(perturbed[0], params[0])

@@ -311,7 +311,9 @@ class TestDynamicCNNParameters:
         model2.load_state_dict(state_dict)
 
         # Verify parameters match
-        for (n1, p1), (n2, p2) in zip(model1.named_parameters(), model2.named_parameters()):
+        for (n1, p1), (n2, p2) in zip(
+            model1.named_parameters(), model2.named_parameters(), strict=False
+        ):
             assert n1 == n2
             assert torch.allclose(p1, p2)
 
