@@ -248,10 +248,31 @@ def _validate_dependent_params(strategy_config: dict) -> None:
             raise ValidationError(
                 f"Missing parameter num_krum_selections for Krum-based aggregation {aggregation_strategy_keyword}"
             )
+
+        # SCIENTIFIC INTEGRITY: Krum requires n > 2f + 2
+        # where n is num_of_clients and f is num_of_malicious_clients
+        n = strategy_config.get("num_of_clients", 0)
+        f = strategy_config.get("num_of_malicious_clients", 0)
+        if n <= 2 * f + 2:
+            raise ValidationError(
+                f"CONFIG REJECTED: Krum aggregation requires n > 2f + 2\n"
+                f"Current config: n={n}, f={f}\n"
+                f"Requirement: {n} > {2 * f + 2}\n"
+                f"Reference: 'Machine Learning with Adversaries: Byzantine Tolerant Gradient Descent' (NIPS 2017)"
+            )
+
     elif aggregation_strategy_keyword == "trimmed_mean":
         if "trim_ratio" not in strategy_config:
             raise ValidationError(
                 f"Missing parameter trim_ratio for trimmed mean aggregation {aggregation_strategy_keyword}"
+            )
+
+        # SCIENTIFIC INTEGRITY: Trim ratio must be < 0.5
+        trim_ratio = strategy_config.get("trim_ratio", 0)
+        if trim_ratio >= 0.5:
+            raise ValidationError(
+                f"CONFIG REJECTED: Trimmed Mean ratio must be < 0.5 (got {trim_ratio})\n"
+                f"Reason: Trimming 50% or more from each side removes all data points."
             )
 
 
@@ -512,9 +533,9 @@ def validate_removal_configuration(config: dict) -> tuple[dict, list[str]]:
         config: Configuration dictionary to validate.
 
     Returns:
-        (modified_config, warnings): Modified config with auto-corrections and list of warning messages.
+        (config, warnings): Validated config and list of warning messages.
     """
-    warnings = []
+    warnings: list[str] = []
     modified_config = config.copy()
 
     if not config.get("remove_clients", False):
@@ -541,16 +562,25 @@ def validate_removal_configuration(config: dict) -> tuple[dict, list[str]]:
             "Consider 'graceful' or 'adaptive' policy."
         )
 
-    # AUTO-FIX: strict_mode incompatible with removal
+    # STRICT REJECTION: strict_mode incompatible with removal
     # Strict mode enforces min_fit_clients == num_of_clients, which conflicts
     # with client removal (impossible to satisfy both constraints)
+    # Research: Byzantine-robust FL (arXiv 2024): https://arxiv.org/abs/2402.12780
     if config.get("strict_mode", True):
-        modified_config["strict_mode"] = False
-        warnings.append(
-            "⚠️  AUTO-CORRECTED: strict_mode=true is incompatible with "
-            "remove_clients=true. Setting strict_mode=false. "
-            "(strict_mode enforces min_fit_clients == num_of_clients, "
-            "which conflicts with client removal.)"
+        raise ValidationError(
+            "CONFIG REJECTED: strict_mode=true is incompatible with remove_clients=true\n"
+            "\n"
+            "Reason:\n"
+            "  - strict_mode enforces min_fit_clients == num_of_clients (100% participation)\n"
+            "  - remove_clients=true enables permanent removal of clients during the experiment\n"
+            "  - It is mathematically impossible to maintain 100% participation while removing clients\n"
+            "\n"
+            "Fix:\n"
+            "  - Set 'strict_mode': false in your configuration\n"
+            "  - This allows the experiment to continue as long as the Federation size \n"
+            "    satisfies the chosen 'termination_policy' and aggregation constraints.\n"
+            "\n"
+            "Reference: https://arxiv.org/abs/2402.12780 (Byzantine-Robust FL)"
         )
 
     return modified_config, warnings
@@ -569,7 +599,7 @@ def validate_strategy_config(config: dict) -> None:
     # Validates config structure, types, and basic constraints against JSON schema
     validate(instance=config, schema=config_schema)
 
-    # Validate and auto-correct removal configuration conflicts
+    # Validate removal configuration conflicts
     config_corrected, removal_warnings = validate_removal_configuration(config)
     config.update(config_corrected)
     if removal_warnings:
