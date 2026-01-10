@@ -161,7 +161,7 @@ def save_text_samples(
         else:
             f.write("Sample Labels (Poisoned vs Original)\n")
             f.write("=" * 40 + "\n")
-            for i, (label, orig) in enumerate(zip(labels, original_labels)):
+            for i, (label, orig) in enumerate(zip(labels, original_labels, strict=False)):
                 f.write(f"Sample {i}: {label} (was {orig})\n")
 
 
@@ -430,7 +430,9 @@ def save_text_samples_html(
                 poisoned_html_tokens = []
 
                 # Get individual token strings for highlighting
-                for _j, (orig_id, pois_id) in enumerate(zip(original_tokens, poisoned_tokens)):
+                for _j, (orig_id, pois_id) in enumerate(
+                    zip(original_tokens, poisoned_tokens, strict=False)
+                ):
                     orig_token_str = tokenizer.decode([orig_id])
                     pois_token_str = tokenizer.decode([pois_id])
 

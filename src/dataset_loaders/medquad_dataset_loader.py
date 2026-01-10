@@ -63,7 +63,8 @@ class MedQuADDatasetLoader:
             # Large max_length avoids truncation warnings; chunking handles splitting
             def tokenize_function(examples):
                 texts = [
-                    " ".join(row) for row in zip(*[examples[col] for col in self.tokenize_columns])
+                    " ".join(row)
+                    for row in zip(*[examples[col] for col in self.tokenize_columns], strict=False)
                 ]
                 return tokenizer(texts, truncation=True, max_length=100000)
 

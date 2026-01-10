@@ -80,5 +80,5 @@ def set_lora_state_dict(model, state_list):
     Load LoRA adapter weights from a list of numpy arrays.
     """
     keys = get_peft_model_state_dict(model).keys()
-    state_dict = OrderedDict({k: torch.tensor(v) for k, v in zip(keys, state_list)})
+    state_dict = OrderedDict({k: torch.tensor(v) for k, v in zip(keys, state_list, strict=False)})
     set_peft_model_state_dict(model, state_dict)

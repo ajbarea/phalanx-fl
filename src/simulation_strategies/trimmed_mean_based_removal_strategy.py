@@ -152,7 +152,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             )
             return ndarrays_to_parameters(aggregated_weights), {}
 
-        weights_by_layer = list(zip(*[w for w, _, _ in weights_results]))
+        weights_by_layer = list(zip(*[w for w, _, _ in weights_results], strict=False))
         aggregated = []
         trimmed_clients: set[str] = set()
         client_trim_counts = {cid: 0 for _, _, cid in weights_results}
@@ -334,7 +334,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
     def _average_weights(self, weights: list[list[np.ndarray]]) -> list[np.ndarray]:
         """Compute simple arithmetic mean of parameter layers across clients."""
         avg_weights = []
-        for layers in zip(*weights):
+        for layers in zip(*weights, strict=False):
             stacked = np.stack(layers, axis=0)
             avg_weights.append(np.mean(stacked, axis=0))
         return avg_weights

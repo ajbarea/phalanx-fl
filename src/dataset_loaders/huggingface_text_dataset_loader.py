@@ -164,7 +164,8 @@ class HuggingFaceTextDatasetLoader:
 
             def tokenize_function(examples):
                 texts = [
-                    " ".join(row) for row in zip(*[examples[col] for col in self.tokenize_columns])
+                    " ".join(row)
+                    for row in zip(*[examples[col] for col in self.tokenize_columns], strict=False)
                 ]
                 return tokenizer(texts, truncation=False)
 

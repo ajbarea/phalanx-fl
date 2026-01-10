@@ -85,7 +85,7 @@ def compute_weight_diff_statistics(
         - num_changed: Number of weights that changed
         - pct_changed: Percentage of weights that changed
     """
-    diffs = [after - before for before, after in zip(params_before, params_after)]
+    diffs = [after - before for before, after in zip(params_before, params_after, strict=False)]
     all_diffs = np.concatenate([d.flatten() for d in diffs])
 
     return {

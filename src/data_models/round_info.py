@@ -112,7 +112,7 @@ class RoundsInfo:
         """
 
         for round_tp, round_tn, round_fp, round_fn in zip(
-            self.tp_history, self.tn_history, self.fp_history, self.fn_history
+            self.tp_history, self.tn_history, self.fp_history, self.fn_history, strict=False
         ):
             # accuracy: (tp + tn) / (tp + tn + fp + fn)
             self.removal_accuracy_history.append(

@@ -150,11 +150,11 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                 set_peft_model_state_dict,
             )
 
-            params_dict = zip(get_peft_model_state_dict(net).keys(), parameters)
+            params_dict = zip(get_peft_model_state_dict(net).keys(), parameters, strict=False)
             state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
             set_peft_model_state_dict(net, state_dict)
         else:
-            params_dict = zip(net.state_dict().keys(), parameters)
+            params_dict = zip(net.state_dict().keys(), parameters, strict=False)
             state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
             self.net.load_state_dict(state_dict, strict=False)
 
@@ -350,7 +350,8 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                             for p in self.get_parameters(config={})
                         ]
                         prox_term = sum(
-                            torch.norm(lp - gp) ** 2 for lp, gp in zip(local_params, global_params)
+                            torch.norm(lp - gp) ** 2
+                            for lp, gp in zip(local_params, global_params, strict=False)
                         )
                         loss = loss + (mu / 2) * prox_term
 
