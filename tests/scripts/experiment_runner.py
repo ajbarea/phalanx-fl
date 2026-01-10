@@ -206,6 +206,82 @@ def select_configs_interactive(
         console.print("[yellow]Let's try again...[/yellow]")
 
 
+def list_available_config_paths() -> list[tuple[str, int, str]]:
+    """List all available config directories and standalone configs.
+
+    Returns:
+        List of tuples: (path, count, type) where type is 'dir' or 'file'
+    """
+    strategies_dir = project_root / "config" / "simulation_strategies"
+    results = []
+
+    # Find all subdirectories with JSON files
+    for item in strategies_dir.iterdir():
+        if item.is_dir():
+            json_files = list(item.rglob("*.json"))
+            if json_files:
+                results.append((item.name, len(json_files), "dir"))
+
+    # Find standalone JSON files in root
+    for item in strategies_dir.glob("*.json"):
+        if item.is_file():
+            results.append((item.name, 1, "file"))
+
+    return sorted(results, key=lambda x: (x[2], x[0]))
+
+
+def select_config_path_interactive() -> str:
+    """Interactively select a config directory or file.
+
+    Returns:
+        Selected path (directory name or filename)
+    """
+    available = list_available_config_paths()
+
+    if not available:
+        console.print("[red]No config directories or files found![/red]")
+        sys.exit(1)
+
+    console.print("\n[bold cyan]Available Config Paths[/bold cyan]")
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("#", style="dim", width=4)
+    table.add_column("Path", style="white")
+    table.add_column("Type", justify="center", style="magenta", width=10)
+    table.add_column("Configs", justify="right", style="yellow", width=8)
+
+    for idx, (path, count, path_type) in enumerate(available, start=1):
+        type_display = "Directory" if path_type == "dir" else "File"
+        table.add_row(str(idx), path, type_display, str(count))
+
+    console.print(table)
+    console.print()
+
+    while True:
+        console.print("[yellow]Select a config path:[/yellow]")
+        console.print("  [cyan]1-N[/cyan]  - Select by number")
+        console.print("  [cyan]q[/cyan]    - Quit\n")
+
+        selection = input("> ").strip().lower()
+
+        if selection == "q":
+            console.print("[yellow]Cancelled[/yellow]")
+            sys.exit(0)
+
+        try:
+            idx = int(selection) - 1
+            if 0 <= idx < len(available):
+                selected_path, count, path_type = available[idx]
+                console.print(
+                    f"\n[green]Selected:[/green] {selected_path} "
+                    f"[dim]({count} config{'s' if count > 1 else ''})[/dim]\n"
+                )
+                return selected_path
+            else:
+                console.print("[red]Invalid selection. Try again.[/red]")
+        except ValueError:
+            console.print("[red]Invalid input. Enter a number or 'q'.[/red]")
+
+
 def main():
     """Run selected configs with memory cleanup."""
     signal.signal(signal.SIGINT, _handle_interrupt)
@@ -214,12 +290,19 @@ def main():
     parser.add_argument(
         "dir",
         nargs="?",
-        default="examples",
-        help="Subdirectory under config/simulation_strategies/ to use (default: examples)",
+        default=None,
+        help="Subdirectory under config/simulation_strategies/ to use (optional, will prompt if not provided)",
     )
     args = parser.parse_args()
 
-    config_dir = project_root / "config" / "simulation_strategies" / args.dir
+    # STEP 1: Select config path (directory or file)
+    # If no directory specified, show interactive selection
+    if args.dir is None:
+        selected_path = select_config_path_interactive()
+    else:
+        selected_path = args.dir
+
+    config_dir = project_root / "config" / "simulation_strategies" / selected_path
 
     if not config_dir.exists():
         console.print(f"[red]Config directory not found: {config_dir}[/red]")
@@ -228,52 +311,68 @@ def main():
     timing_db = TimingDatabase()
     config_reader = ConfigReader(project_root)
 
-    all_config_paths = list(config_dir.rglob("*.json"))
+    # Handle both directories and single files
+    if config_dir.is_file():
+        # Single config file selected - run it directly without experiment selection menu
+        single_file_name = config_dir.name
+        config_dir = config_dir.parent
+        all_configs = [single_file_name]
+        # For single files at root, config_subdir should be "." to work with executor
+        selected_path = "."
+        selected_configs = all_configs  # Skip interactive selection for single file
 
-    if not all_config_paths:
-        console.print("[red]No config files found[/red]")
-        sys.exit(1)
+        console.print(f"\n[cyan]Running single config: {single_file_name}[/cyan]\n")
+    else:
+        # Directory selected - proceed to experiment selection
+        all_config_paths = list(config_dir.rglob("*.json"))
 
-    all_configs = [str(f.relative_to(config_dir)).replace("\\", "/") for f in all_config_paths]
+        if not all_config_paths:
+            console.print("[red]No config files found[/red]")
+            sys.exit(1)
 
-    configs_by_subdir: dict[str, int] = defaultdict(int)
-    for config in all_configs:
-        if "/" in config:
-            subdir = config.rsplit("/", 1)[0]
-            configs_by_subdir[subdir] += 1
-        else:
-            configs_by_subdir["."] += 1
+        all_configs = [str(f.relative_to(config_dir)).replace("\\", "/") for f in all_config_paths]
 
-    console.print(f"\n[cyan]Found {len(all_configs)} config(s) in {args.dir}/[/cyan]")
-    if len(configs_by_subdir) > 1 or "." not in configs_by_subdir:
-        for subdir in sorted(configs_by_subdir.keys()):
-            count = configs_by_subdir[subdir]
-            display_dir = f"{args.dir}/" if subdir == "." else f"{args.dir}/{subdir}/"
-            console.print(f"  [dim]•[/dim] {count} in [yellow]{display_dir}[/yellow]")
+        configs_by_subdir: dict[str, int] = defaultdict(int)
+        for config in all_configs:
+            if "/" in config:
+                subdir = config.rsplit("/", 1)[0]
+                configs_by_subdir[subdir] += 1
+            else:
+                configs_by_subdir["."] += 1
 
-    def get_sort_key(config_name):
-        config_file_path = config_dir / config_name
-        try:
-            with open(config_file_path) as f:
-                config_data = json.load(f)
-                device = (
-                    config_data.get("shared_settings", {}).get("training_device", "cpu").lower()
-                )
-        except (FileNotFoundError, json.JSONDecodeError):
-            device = "cpu"
+        console.print(f"\n[cyan]Found {len(all_configs)} config(s) in {selected_path}/[/cyan]")
+        if len(configs_by_subdir) > 1 or "." not in configs_by_subdir:
+            for subdir in sorted(configs_by_subdir.keys()):
+                count = configs_by_subdir[subdir]
+                display_dir = f"{selected_path}/" if subdir == "." else f"{selected_path}/{subdir}/"
+                console.print(f"  [dim]•[/dim] {count} in [yellow]{display_dir}[/yellow]")
 
-        duration = timing_db.get_duration(config_name, device=device)
-        return duration
+        def get_sort_key(config_name):
+            config_file_path = config_dir / config_name
+            try:
+                with open(config_file_path) as f:
+                    config_data = json.load(f)
+                    device = (
+                        config_data.get("shared_settings", {}).get("training_device", "cpu").lower()
+                    )
+            except (FileNotFoundError, json.JSONDecodeError):
+                device = "cpu"
 
-    configs = sorted(all_configs, key=get_sort_key)
+            duration = timing_db.get_duration(config_name, device=device)
+            return duration
 
-    selected_configs = select_configs_interactive(configs, timing_db, config_reader, args.dir)
+        configs = sorted(all_configs, key=get_sort_key)
+
+        # STEP 2: Select specific experiments from the chosen path
+        selected_configs = select_configs_interactive(
+            configs, timing_db, config_reader, selected_path
+        )
 
     console.print(f"\n[cyan]Running {len(selected_configs)} configs with Ray cleanup[/cyan]\n")
 
     with ExperimentExecutor(
         project_root=project_root,
-        config_subdir=args.dir,
+        config_subdir=selected_path,
         log_level="INFO",
         timeout=None,
         cleanup_mode="aggressive",
@@ -284,7 +383,7 @@ def main():
             should_stop=lambda: _stop_requested,
         )
 
-        display_summary(results, project_root=project_root, config_subdir=args.dir)
+        display_summary(results, project_root=project_root, config_subdir=selected_path)
 
     total_errors = len(results["failed"]) + len(results["timedout"])
     sys.exit(0 if total_errors == 0 else 1)

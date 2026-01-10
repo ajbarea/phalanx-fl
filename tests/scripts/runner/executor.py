@@ -145,13 +145,17 @@ class ExperimentExecutor:
         Returns:
             Title string if found, None otherwise.
         """
-        config_path = (
-            self.project_root
-            / "config"
-            / "simulation_strategies"
-            / self.config_subdir
-            / config_name
-        )
+        # Handle "." as root directory
+        if self.config_subdir == ".":
+            config_path = self.project_root / "config" / "simulation_strategies" / config_name
+        else:
+            config_path = (
+                self.project_root
+                / "config"
+                / "simulation_strategies"
+                / self.config_subdir
+                / config_name
+            )
         try:
             with open(config_path) as f:
                 config = json.load(f)
@@ -168,13 +172,17 @@ class ExperimentExecutor:
         Returns:
             Device string ("gpu", "cpu").
         """
-        config_path = (
-            self.project_root
-            / "config"
-            / "simulation_strategies"
-            / self.config_subdir
-            / config_name
-        )
+        # Handle "." as root directory
+        if self.config_subdir == ".":
+            config_path = self.project_root / "config" / "simulation_strategies" / config_name
+        else:
+            config_path = (
+                self.project_root
+                / "config"
+                / "simulation_strategies"
+                / self.config_subdir
+                / config_name
+            )
         try:
             with open(config_path) as f:
                 config = json.load(f)
@@ -253,10 +261,16 @@ class ExperimentExecutor:
             self.log_file_handle.write("=" * 80 + "\n\n")
             self.log_file_handle.flush()
 
+        # Build config path for simulation_runner
+        if self.config_subdir == ".":
+            config_path_arg = config_name
+        else:
+            config_path_arg = f"{self.config_subdir}/{config_name}"
+
         cmd = [
             self.python_exe,
             "src/simulation_runner.py",
-            f"{self.config_subdir}/{config_name}",
+            config_path_arg,
             "--log-level",
             self.log_level,
         ]
@@ -498,9 +512,13 @@ def display_summary(
     def get_config_title(config_name: str) -> str | None:
         if not project_root or not config_subdir:
             return None
-        config_path = (
-            project_root / "config" / "simulation_strategies" / config_subdir / config_name
-        )
+        # Handle "." as root directory
+        if config_subdir == ".":
+            config_path = project_root / "config" / "simulation_strategies" / config_name
+        else:
+            config_path = (
+                project_root / "config" / "simulation_strategies" / config_subdir / config_name
+            )
         try:
             with open(config_path) as f:
                 config = json.load(f)
