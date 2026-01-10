@@ -1,18 +1,59 @@
 [project]
 name = "fl-execution-framework"
 version = "0.1.0"
-requires-python = ">=3.9,<3.12"
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "accelerate",
+    "click",
+    "datasets",
+    "dill",
+    "fastapi",
+    "flwr",
+    "flwr-datasets",
+    "fsspec",
+    "httpx",
+    "matplotlib",
+    "multiprocess",
+    "numpy>=1.26.4,<3.0",
+    "opencv-python-headless",
+    "pandas",
+    "peft",
+    "psutil",
+    "pyarrow",
+    "pyyaml>=6.0.2,<7.0.0",
+    "pywinpty>=2.0.0; sys_platform == 'win32'",
+    "ray",
+    "requests",
+    "rich",
+    "scikit-learn",
+    "scipy>=1.13.1,<2.0",
+    "sse-starlette",
+    "torch>=2.9.0",
+    "torchvision>=0.24.0",
+    "tqdm",
+    "transformers",
+    "uvicorn[standard]",
+]
 
 [build-system]
 requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch" }
+torchvision = { index = "pytorch" }
 
 # =============================================================================
 # Ruff Configuration
 # =============================================================================
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py310"
 exclude = [
     # Virtual environments
     "venv",
@@ -190,8 +231,55 @@ options.backend.client-resources.num-gpus = 0.5
 options.backend.init_args.num_cpus = 8
 options.backend.init_args.num_gpus = 1
 
-# Remote deployment template (configure for production)
-# [tool.flwr.federations.remote-deployment]
-# address = "<SUPERLINK-ADDRESS>:9093"
-# root-certificate = "certs/ca.pem"
-# insecure = false
+# =============================================================================
+# Pytest Configuration
+# =============================================================================
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_default_fixture_loop_scope = "function"
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--log-file=tests/logs/pytest.log",
+    "--log-level=INFO",
+    "-W", "error::DeprecationWarning",
+    "-W", "ignore::RuntimeWarning:numpy",
+    "-p", "randomly",
+    "--randomly-seed=last",
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "performance: Performance tests",
+    "slow: Slow running tests",
+    "tutorial: Tutorial tests (no coverage requirement)",
+    "parallel: Tests safe for parallel execution",
+    "serial: Tests that must run in isolation",
+]
+filterwarnings = [
+    "error::DeprecationWarning",
+    "ignore::RuntimeWarning:numpy.*",
+    "ignore::RuntimeWarning:threadpoolctl.*",
+    "ignore::PendingDeprecationWarning",
+]
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.141.1",
+    "isort>=6.1.0",
+    "mutmut>=3.3.1",
+    "mypy>=1.19.1",
+    "pyright>=1.1.408",
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.2.0",
+    "pytest-cov>=7.0.0",
+    "pytest-mock>=3.15.1",
+    "pytest-repeat>=0.9.3",
+    "pytest-randomly>=3.17.0",
+    "pytest-xdist>=3.8.0",
+    "ruff>=0.14.11",
+]

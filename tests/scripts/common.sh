@@ -63,7 +63,7 @@ command_exists() {
 }
 
 navigate_to_root() {
-    if [ -f "requirements.txt" ] && [ -d "src" ]; then
+    if ([ -f "pyproject.toml" ] || [ -f "requirements.txt" ]) && [ -d "src" ]; then
         return
     fi
     script_dir="$(cd "$(dirname "$0")" && pwd)"
@@ -111,9 +111,9 @@ find_python_interpreter() {
     fi
 
     log_info "🔍 Searching for a compatible Python interpreter..."
-    for version in python3.11 python3.10 python3.9 python3 python; do
+    for version in python3.13 python3.12 python3.11 python3.10 python3; do
         if command_exists "$version"; then
-            if "$version" -c "import sys; sys.exit(not (sys.version_info >= (3, 9) and sys.version_info < (3, 12)))" 2>/dev/null; then
+            if "$version" -c "import sys; sys.exit(not (sys.version_info >= (3, 10) and sys.version_info < (3, 14)))" 2>/dev/null; then
                 PYTHON_CMD="$version"
                 export PYTHON_CMD
                 PYTHON_ARGS=""
@@ -125,8 +125,8 @@ find_python_interpreter() {
     done
 
     if command_exists py; then
-        for py_version in "-3.11" "-3.10" "-3.9" "-3"; do
-             if py "$py_version" -c "import sys; sys.exit(not (sys.version_info >= (3, 9) and sys.version_info < (3, 12)))" 2>/dev/null; then
+        for py_version in "-3.13" "-3.12" "-3.11" "-3.10" "-3"; do
+             if py "$py_version" -c "import sys; sys.exit(not (sys.version_info >= (3, 10) and sys.version_info < (3, 14)))" 2>/dev/null; then
                 PYTHON_CMD="py"
                 export PYTHON_CMD
                 PYTHON_ARGS="$py_version"
@@ -149,16 +149,18 @@ setup_virtual_environment() {
     fi
 
     # Windows: venv creation may not be atomic
-    if [ ! -d "venv/Scripts" ] && [ ! -d "venv/bin" ] && [ -d "venv" ]; then
+    if [ ! -d ".venv/Scripts" ] && [ ! -d ".venv/bin" ] && [ -d ".venv" ]; then
+        sleep 1
+    elif [ ! -d "venv/Scripts" ] && [ ! -d "venv/bin" ] && [ -d "venv" ]; then
         sleep 1
     fi
 
     log_info "🔌 Searching for virtual environment..."
     venv_path=""
-    if [ -d "venv" ]; then
-        venv_path="venv"
-    elif [ -d ".venv" ]; then
+    if [ -d ".venv" ]; then
         venv_path=".venv"
+    elif [ -d "venv" ]; then
+        venv_path="venv"
     fi
 
     if [ -n "$venv_path" ]; then
@@ -184,7 +186,7 @@ setup_virtual_environment() {
         fi
         log_info "Virtual environment activated."
     else
-        log_warning "No virtual environment found (expected 'venv' or '.venv')."
+        log_warning "No virtual environment found (expected '.venv' or 'venv')."
     fi
 }
 
@@ -197,7 +199,7 @@ get_venv_name() {
 }
 
 ensure_virtual_environment() {
-    if [ -z "${VIRTUAL_ENV:-}" ] && ! [ -d "venv" ] && ! [ -d ".venv" ]; then
+    if [ -z "${VIRTUAL_ENV:-}" ] && ! [ -d ".venv" ] && ! [ -d "venv" ]; then
         log_warning "Virtual environment not found. You may need to run './reinstall_requirements.sh' to create one."
         return 1
     fi
@@ -223,6 +225,16 @@ setup_joblib_env() {
 
 install_requirements() {
     requirements_file="${1:-requirements.txt}"
+    
+    if command_exists uv; then
+        log_info "📦 Using uv to sync dependencies..."
+        if uv sync; then
+            log_info "Dependencies synced successfully with uv."
+            return 0
+        fi
+        log_warning "uv sync failed, falling back to pip..."
+    fi
+
     if [ -f "$requirements_file" ]; then
         log_info "📦 Installing requirements from $requirements_file..."
         if pip install -r "$requirements_file"; then
@@ -232,7 +244,7 @@ install_requirements() {
             return 1
         fi
     else
-        log_warning "Requirements file $requirements_file not found, skipping installation."
+        log_warning "Neither uv nor requirements file $requirements_file found, skipping installation."
     fi
 }
 
@@ -273,22 +285,6 @@ run_python_with_unicode() {
     PYTHONIOENCODING=utf-8 run_python "$script_path" "$@"
 }
 
-run_pytest_with_unicode() {
-    test_path="${1:-.}"
-    shift
-
-    setup_unicode_env
-
-    if [ -n "${VIRTUAL_ENV:-}" ] || [ -d "venv" ] || [ -d ".venv" ]; then
-        setup_virtual_environment
-    fi
-
-    if [ -z "${PYTHON_CMD:-}" ]; then
-        find_python_interpreter
-    fi
-
-    PYTHONIOENCODING=utf-8 run_python -m pytest "$test_path" "$@"
-}
 
 # ============================================================================
 # Simulation
