@@ -1,0 +1,59 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "schedule": [
+    "before 3am on Monday"
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": [
+      "before 3am on the first day of the month"
+    ]
+  },
+  "packageRules": [
+    {
+      "matchManagers": ["pep621"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "all non-major dependencies",
+      "groupSlug": "all-minor-patch",
+      "automerge": false
+    },
+    {
+      "matchManagers": ["pep621"],
+      "matchUpdateTypes": ["major"],
+      "labels": ["breaking-change"]
+    },
+    {
+      "matchPackageNames": [
+        "torch",
+        "torchvision",
+        "transformers",
+        "numpy"
+      ],
+      "groupName": "ML framework updates",
+      "schedule": [
+        "before 3am on the 15th day of the month"
+      ],
+      "labels": ["ml-dependencies"]
+    },
+    {
+      "matchDepTypes": ["dev"],
+      "groupName": "dev dependencies",
+      "automerge": true,
+      "automergeType": "pr",
+      "minimumReleaseAge": "3 days"
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "automerge": true,
+    "minimumReleaseAge": "0 days"
+  },
+  "python": {
+    "lockFileMaintenance": {
+      "enabled": true
+    }
+  }
+}
