@@ -13,7 +13,7 @@
         "save_plots": true,
         "save_csv": true,
         "training_device": "gpu",
-        "cpus_per_client": 1.0,
+        "cpus_per_client": 1,
         "gpus_per_client": 0.9,
         "trust_threshold": 0.15,
         "beta_value": 0.75,

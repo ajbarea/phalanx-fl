@@ -16,7 +16,7 @@
         "preserve_dataset": false,
         "training_subset_fraction": 0.5,
         "training_device": "cpu",
-        "cpus_per_client": 2,
+        "cpus_per_client": 1,
         "gpus_per_client": 0.0,
         "min_fit_clients": 8,
         "min_evaluate_clients": 8,

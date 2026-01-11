@@ -14,7 +14,7 @@
         "preserve_dataset": false,
         "training_subset_fraction": 0.9,
         "training_device": "gpu",
-        "cpus_per_client": 1.0,
+        "cpus_per_client": 1,
         "gpus_per_client": 0.9,
         "model_type": "cnn",
         "num_of_client_epochs": 1,
