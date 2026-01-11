@@ -19,7 +19,9 @@ class GPUMemoryMonitor:
         """
         # Convert string to torch.device if needed
         if isinstance(device, str):
-            self.device = torch.device(device)
+            # Map user-friendly "gpu" to PyTorch's "cuda"
+            device_str = "cuda" if device.lower() == "gpu" else device
+            self.device = torch.device(device_str)
         else:
             self.device = device
         self.is_cuda = self.device.type == "cuda"

@@ -126,6 +126,14 @@ class FederatedSimulation:
         status_tracker: StatusTracker | None = None,
     ):
         self.strategy_config = strategy_config
+
+        # Normalize device string: map "gpu" to "cuda" for PyTorch compatibility
+        if self.strategy_config.training_device and isinstance(
+            self.strategy_config.training_device, str
+        ):
+            if self.strategy_config.training_device.lower() == "gpu":
+                self.strategy_config.training_device = "cuda"
+
         self.rounds_history: Any = None
 
         self.dataset_handler = dataset_handler
