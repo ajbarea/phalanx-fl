@@ -3,3 +3,6 @@
 
 # Ensure shell scripts are always LF
 *.sh text eol=lf
+
+# Ensure ShellCheck config uses LF
+.shellcheckrc text eol=lf

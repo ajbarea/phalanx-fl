@@ -1,5 +1,13 @@
-#!/bin/sh
-# Deletes and recreates the virtual environment
+#!/bin/bash
+# Delete and recreate the Python virtual environment with fresh dependencies.
+#
+# Removes the existing virtual environment directory and creates a new one,
+# installing all dependencies. Prefers uv for faster environment creation,
+# falling back to pip if uv is unavailable.
+#
+# Usage: ./reinstall_requirements.sh
+#
+# Dependencies: python3 (3.10-3.13), uv (optional, preferred)
 
 . "$(dirname "$0")/tests/scripts/common.sh"
 
@@ -8,6 +16,8 @@ VENV_NAME=$(get_venv_name)
 log_info "Removing existing '$VENV_NAME' directory..."
 rm -rf "$VENV_NAME"
 
+# Prefer uv for faster environment creation and dependency resolution.
+# Fall back to pip if uv is unavailable (common on minimal systems).
 if command_exists uv; then
     log_info "Creating and syncing environment with uv..."
     uv sync

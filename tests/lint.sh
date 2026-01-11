@@ -1,6 +1,24 @@
-#!/bin/sh
-# Python code quality and testing script
-# Usage: ./lint.sh [--test] [--sonar]
+#!/bin/bash
+# Run Python code quality checks and tests with coverage reporting.
+#
+# Performs linting (ruff, isort), type checking (mypy, pyright), and
+# frontend linting. Optionally runs the full test suite with coverage
+# and SonarQube analysis.
+#
+# Usage: ./tests/lint.sh [OPTIONS]
+#
+# Options:
+#   --test   Run pytest suite with coverage (unit, integration, performance)
+#   --sonar  Run SonarQube analysis (implies --test if not already run)
+#
+# Examples:
+#   ./tests/lint.sh              # Linting and type checking only
+#   ./tests/lint.sh --test       # Linting + full test suite with coverage
+#   ./tests/lint.sh --sonar      # Linting + tests + SonarQube analysis
+#   ./tests/lint.sh --test --sonar  # Same as --sonar alone
+#
+# Dependencies: ruff, isort, mypy, npm (for frontend), pytest, coverage
+# Optional: pyright (npm install -g pyright), sonar-scanner (for --sonar)
 
 . "$(dirname "$0")/scripts/common.sh"
 navigate_to_root
@@ -22,6 +40,8 @@ for arg in "$@"; do
     esac
 done
 
+# Install dependencies only when running tests to avoid unnecessary work
+# during quick lint-only runs.
 if [ "$TEST_MODE" = true ] || [ "$SONAR_MODE" = true ]; then
     install_requirements
 fi
@@ -48,14 +68,28 @@ else
     log_warning "Pyright not found. Skipping. To install: npm install -g pyright"
 fi
 
+# Run the full pytest suite with coverage collection.
+#
+# Executes tests in three phases with different parallelization strategies:
+# - Unit tests: parallel (xdist) for speed since they're isolated
+# - Integration tests: serial to avoid resource conflicts between tests
+# - Performance tests: serial to get accurate timing measurements
+#
+# Globals:
+#   LOG_DIR: Directory for coverage output files
 run_pytest_suite() {
+    # Unit tests run in parallel - they're isolated and benefit from xdist.
     log_info "🧪 Running unit tests in parallel (xdist)..."
     run_python -m coverage erase
     run_python -m coverage run --append --source=src -m pytest -n auto tests/unit/ --tb=short
 
+    # Integration tests run serially to avoid port conflicts, database locks,
+    # and other shared resource issues.
     log_info "🧪 Running integration tests serially..."
     run_python -m coverage run --append --source=src -m pytest tests/integration/ --tb=short
 
+    # Performance tests run serially to ensure accurate timing measurements
+    # without interference from parallel test execution.
     log_info "🧪 Running performance tests serially..."
     run_python -m coverage run --append --source=src -m pytest tests/performance/ --tb=short
 
@@ -70,6 +104,7 @@ if [ "$TEST_MODE" = true ]; then
 fi
 
 if [ "$SONAR_MODE" = true ]; then
+    # Run tests first if not already run - SonarQube needs coverage data.
     [ "$TEST_MODE" = false ] && run_pytest_suite
     log_info "🔍 Running SonarQube analysis..."
     ./tests/scripts/sonar.sh

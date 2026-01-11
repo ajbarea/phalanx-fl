@@ -1,56 +1,69 @@
-#!/bin/sh
-# Cleans the out/ directory, preserving .gitkeep
+#!/bin/bash
+# Clean build artifacts, caches, and temporary files from the project.
+#
+# Removes logs, tool caches, coverage data, Python bytecode, and other
+# generated files while preserving source code, datasets, and configuration.
+# Safe to run at any time - will not delete source code or datasets.
+#
+# Usage: ./clean.sh
+#
+# What gets cleaned:
+#   - logs/ and tests/logs/ directories
+#   - Tool caches: .mypy_cache, .pytest_cache, .ruff_cache
+#   - Coverage data: .coverage files
+#   - Python bytecode: __pycache__ directories
+#   - Test artifacts: .hypothesis, MagicMock directories
+#   - Build artifacts: *.egg-info, frontend/dist
+#   - Playwright MCP artifacts: .playwright-mcp
+#
+# What is preserved:
+#   - Source code (src/, tests/, frontend/src/)
+#   - Datasets (datasets/)
+#   - Configuration files
+#   - Virtual environment (.venv/)
+#   - Git history (.git/)
 
 . "$(dirname "$0")/tests/scripts/common.sh"
 
-# find out -mindepth 1 -depth ! -name .gitkeep -exec rm -rf {} +
-# log_info "Cleaned out/ directory."
+# ============================================================================
+# Cleanup Operations
+# ============================================================================
 
-# Clean logs/ directory
 if [ -d "logs" ]; then
     find logs -mindepth 1 -depth -exec rm -rf {} +
     log_info "Cleaned logs/ directory."
 fi
 
-# Clean tests/logs/ directory
 if [ -d "tests/logs" ]; then
     find tests/logs -mindepth 1 -depth -exec rm -rf {} +
     log_info "Cleaned tests/logs/ directory."
 fi
 
-# Clean tool caches
 rm -rf .mypy_cache .ruff_cache
 find . -type d -name ".pytest_cache" -depth -exec rm -rf {} + 2>/dev/null
 log_info "Cleaned tool caches (.mypy_cache, .pytest_cache, .ruff_cache)."
 
-# Clean coverage data
 rm -f .coverage .coverage.*
 rm -f tests/.coverage tests/.coverage.*
 log_info "Cleaned coverage data files."
 
-# Clean Python bytecode caches
 find . -type d -name "__pycache__" -depth -exec rm -rf {} + 2>/dev/null
 log_info "Cleaned __pycache__ directories."
 
-# Clean Hypothesis testing cache
 find . -type d -name ".hypothesis" -depth -exec rm -rf {} + 2>/dev/null
 log_info "Cleaned .hypothesis directories."
 
-# Clean MagicMock artifacts
 find . -type d -name "MagicMock" -depth -exec rm -rf {} + 2>/dev/null
 log_info "Cleaned MagicMock directories."
 
-# Clean setuptools egg-info
-rm -rf *.egg-info
+rm -rf ./*.egg-info
 log_info "Cleaned egg-info directories."
 
-# Clean Playwright MCP artifacts
 if [ -d ".playwright-mcp" ]; then
     rm -rf .playwright-mcp
     log_info "Cleaned .playwright-mcp directory."
 fi
 
-# Clean frontend build artifacts
 if [ -d "frontend/dist" ]; then
     rm -rf frontend/dist
     log_info "Cleaned frontend/dist/ directory."

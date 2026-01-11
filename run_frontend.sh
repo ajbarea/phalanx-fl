@@ -1,5 +1,17 @@
-#!/bin/sh
-# Dev server startup script for IntelliFL
+#!/bin/bash
+# Start the IntelliFL development servers (API and frontend).
+#
+# Launches both the FastAPI backend server and Vite frontend development
+# server, with automatic cleanup on exit. Logs are saved to tests/logs/
+# for debugging.
+#
+# Usage: ./run_frontend.sh
+#
+# Servers:
+#   - API: http://localhost:8000 (FastAPI with uvicorn)
+#   - Frontend: http://localhost:5173 (Vite dev server)
+#
+# Dependencies: npm, uvicorn, curl (for health checks)
 
 set -eu
 
@@ -48,7 +60,6 @@ API_PID=$!
 (cd frontend && npm run dev > "../$FRONTEND_LOG" 2>&1) &
 FRONTEND_PID=$!
 
-# Wait for API to be ready (max 30 seconds)
 log_info "Waiting for API to be ready..."
 max_attempts=30
 attempt=0
@@ -65,6 +76,7 @@ if [ $attempt -eq $max_attempts ]; then
     log_error "API failed to start within 30 seconds"
 fi
 
+# Open browser automatically if a supported command is available.
 if command_exists xdg-open; then
     xdg-open http://localhost:5173 2>/dev/null || true
 elif command_exists open; then
@@ -73,23 +85,27 @@ elif command_exists start; then
     start http://localhost:5173 2>/dev/null || true
 fi
 
-# Trap Ctrl+C to kill both processes and their children
+# Clean up both server processes and any orphaned children on exit.
+#
+# Process cleanup is platform-specific: Windows requires taskkill with /T
+# to terminate child processes, while Unix can kill process groups directly.
+# The lsof fallback catches orphaned processes that may have detached from
+# their parent (common with uvicorn --reload which spawns worker processes).
 cleanup() {
     echo ""
     log_info "🛑 Stopping servers..."
 
-    # Kill process trees (works on Windows with taskkill, Unix with pkill)
     if command_exists taskkill; then
-        # Windows: /T kills child processes, /F forces termination
+        # Windows: /T kills child processes, /F forces termination.
         taskkill //F //T //PID $API_PID 2>/dev/null || true
         taskkill //F //T //PID $FRONTEND_PID 2>/dev/null || true
     else
-        # Unix: kill process group
+        # Unix: kill process group first, fall back to direct PID if not a group leader.
         kill -- -$API_PID 2>/dev/null || kill $API_PID 2>/dev/null || true
         kill -- -$FRONTEND_PID 2>/dev/null || kill $FRONTEND_PID 2>/dev/null || true
     fi
 
-    # Also kill any orphaned uvicorn/node processes on our ports
+    # Catch orphaned processes still bound to our ports (uvicorn workers, node).
     if command_exists lsof; then
         lsof -ti:8000 | xargs kill -9 2>/dev/null || true
         lsof -ti:5173 | xargs kill -9 2>/dev/null || true
@@ -100,6 +116,8 @@ cleanup() {
     log_info "Servers stopped. Logs saved to tests/logs/"
     exit 0
 }
+
+# Trap INT (Ctrl+C) and TERM signals to ensure cleanup runs on exit.
 trap cleanup INT TERM
 
 echo ""

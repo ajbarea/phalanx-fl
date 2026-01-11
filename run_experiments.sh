@@ -1,13 +1,26 @@
 #!/bin/bash
-# Wrapper script for experiment_runner.py that handles PYTHONPATH automatically
+# Run experiment configurations with automatic PYTHONPATH setup.
+#
+# This wrapper script handles PYTHONPATH configuration and Python interpreter
+# discovery before launching the interactive experiment runner. It supports
+# both Unix and Windows virtual environments.
+#
+# Usage: ./run_experiments.sh [OPTIONS]
+#
+# Options are passed through to experiment_runner.py. Run with --help for
+# available options.
+#
+# Examples:
+#   ./run_experiments.sh              # Interactive mode
+#   ./run_experiments.sh --help       # Show experiment runner options
+#
+# Dependencies: python3 (3.10-3.13)
 
-# Get the directory where this script is located
+# PYTHONPATH must include project root for Python to find src/ modules.
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-# Set PYTHONPATH to project root
 export PYTHONPATH="$SCRIPT_DIR"
 
-# Use virtual environment Python if available, otherwise system Python
+# Prefer virtual environment Python for consistent dependencies.
 if [ -f "$SCRIPT_DIR/.venv/Scripts/python.exe" ]; then
     PYTHON="$SCRIPT_DIR/.venv/Scripts/python.exe"
 elif [ -f "$SCRIPT_DIR/.venv/bin/python" ]; then
@@ -16,5 +29,4 @@ else
     PYTHON="python"
 fi
 
-# Run the experiment runner with all arguments passed through
 "$PYTHON" "$SCRIPT_DIR/tests/scripts/experiment_runner.py" "$@"

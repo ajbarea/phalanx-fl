@@ -1,5 +1,19 @@
-#!/bin/sh
-# Shell utilities for FL execution framework
+#!/bin/bash
+# Common shell utilities for the FL execution framework.
+#
+# This library provides reusable functions for logging, system utilities,
+# Python environment management, dependency installation, and simulation
+# helpers. Source this file to access its functions - do not execute directly.
+#
+# Function Categories:
+#   - Logging: Structured output with log levels and file support
+#   - System: Command detection, navigation, and hardware queries
+#   - Python Environment: Interpreter discovery and virtual environment setup
+#   - Dependencies: Package installation with uv/pip fallback
+#   - Python Execution: Unicode-aware script execution
+#   - Simulation: Output directory management and reporting
+#
+# Dependencies: python3 (3.10-3.13), psutil (for CPU detection)
 
 set -eu
 
@@ -7,6 +21,13 @@ set -eu
 # Logging
 # ============================================================================
 
+# Log an informational message to stdout and optionally to a log file.
+#
+# Arguments:
+#   $1: Message to log
+#
+# Globals:
+#   LOG_FILE: If set, message is appended to this file
 log_info() {
     if [ -n "${LOG_FILE:-}" ]; then
         echo "✅ $1" | tee -a "$LOG_FILE"
@@ -15,6 +36,13 @@ log_info() {
     fi
 }
 
+# Log a warning message to stdout and optionally to a log file.
+#
+# Arguments:
+#   $1: Warning message to log
+#
+# Globals:
+#   LOG_FILE: If set, message is appended to this file
 log_warning() {
     if [ -n "${LOG_FILE:-}" ]; then
         echo "⚠️  $1" | tee -a "$LOG_FILE"
@@ -23,6 +51,13 @@ log_warning() {
     fi
 }
 
+# Log an error message to stderr and optionally to a log file.
+#
+# Arguments:
+#   $1: Error message to log
+#
+# Globals:
+#   LOG_FILE: If set, message is appended to this file
 log_error() {
     if [ -n "${LOG_FILE:-}" ]; then
         echo "❌ $1" | tee -a "$LOG_FILE" >&2
@@ -31,6 +66,19 @@ log_error() {
     fi
 }
 
+# Set up logging to a timestamped file in the specified directory.
+#
+# Creates the log directory if it doesn't exist and initializes a new log
+# file with a timestamp. Exports LOG_FILE and LOG_DIR for use by other
+# functions.
+#
+# Arguments:
+#   $1: Log directory path (default: tests/logs)
+#   $2: Log file prefix (default: script)
+#
+# Globals:
+#   LOG_FILE: Set to the path of the created log file
+#   LOG_DIR: Set to the log directory path
 setup_logging_with_file() {
     _log_dir="${1:-tests/logs}"
     _log_prefix="${2:-script}"
@@ -46,6 +94,13 @@ setup_logging_with_file() {
     export LOG_DIR
 }
 
+# Output text to stdout and optionally append to a log file.
+#
+# Arguments:
+#   $*: Text to output
+#
+# Globals:
+#   LOG_FILE: If set, text is appended to this file
 log_and_tee() {
     if [ -n "${LOG_FILE:-}" ]; then
         printf "%s\n" "$*" | tee -a "$LOG_FILE"
@@ -58,12 +113,25 @@ log_and_tee() {
 # System
 # ============================================================================
 
+# Check if a command is available in the system PATH.
+#
+# Arguments:
+#   $1: Command name to check
+#
+# Returns:
+#   0: Command exists
+#   1: Command not found
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Navigate to the project root directory.
+#
+# Detects the project root by looking for pyproject.toml or requirements.txt
+# with a src directory. If not already at root, navigates up from common
+# script locations (tests/scripts, tests).
 navigate_to_root() {
-    if ([ -f "pyproject.toml" ] || [ -f "requirements.txt" ]) && [ -d "src" ]; then
+    if { [ -f "pyproject.toml" ] || [ -f "requirements.txt" ]; } && [ -d "src" ]; then
         return
     fi
     script_dir="$(cd "$(dirname "$0")" && pwd)"
@@ -81,6 +149,16 @@ navigate_to_root() {
     esac
 }
 
+# Get the number of physical CPU cores.
+#
+# Uses psutil to query physical cores, falling back to logical cores if
+# physical count is unavailable, and finally to 1 if all detection fails.
+#
+# Globals:
+#   PYTHON_CMD: Uses this to run Python, finds interpreter if not set
+#
+# Returns:
+#   Prints the number of physical cores to stdout
 get_physical_cores() {
     if [ -z "${PYTHON_CMD:-}" ]; then
         find_python_interpreter
@@ -92,19 +170,43 @@ get_physical_cores() {
 # Python Environment
 # ============================================================================
 
+# Execute Python with the discovered interpreter and optional arguments.
+#
+# Wrapper function that handles both regular python commands and the Windows
+# py launcher with version arguments.
+#
+# Arguments:
+#   $@: Arguments to pass to Python
+#
+# Globals:
+#   PYTHON_CMD: Python command to use, finds interpreter if not set
+#   PYTHON_ARGS: Additional arguments for Python (e.g., version for py)
 run_python() {
-    # Wrapper function to handle both regular python and py launcher
     if [ -z "${PYTHON_CMD:-}" ]; then
         find_python_interpreter
     fi
 
     if [ -n "${PYTHON_ARGS:-}" ]; then
-        "$PYTHON_CMD" $PYTHON_ARGS "$@"
+        "$PYTHON_CMD" "$PYTHON_ARGS" "$@"
     else
         "$PYTHON_CMD" "$@"
     fi
 }
 
+# Find and set a compatible Python interpreter (3.10-3.13).
+#
+# Searches for Python in order of preference: python3.13, python3.12,
+# python3.11, python3.10, python3. Falls back to Windows py launcher if
+# direct commands aren't found. Validates version compatibility before
+# selecting.
+#
+# Globals:
+#   PYTHON_CMD: Set to the discovered Python command
+#   PYTHON_ARGS: Set to version args for py launcher, empty otherwise
+#
+# Returns:
+#   0: Compatible Python found
+#   1: No compatible Python found (exits script)
 find_python_interpreter() {
     if [ -n "${PYTHON_CMD:-}" ] && command_exists "$PYTHON_CMD"; then
         return 0
@@ -141,6 +243,20 @@ find_python_interpreter() {
     exit 1
 }
 
+# Set up and activate the virtual environment if available.
+#
+# Searches for .venv or venv directories, activates the environment, and
+# sets PYTHON_CMD to the venv's Python interpreter. Handles both Unix and
+# Windows venv structures.
+#
+# Globals:
+#   VIRTUAL_ENV: If already set, uses this as the venv directory
+#   VENV_DIR: Set to the discovered venv directory path
+#   PYTHON_CMD: Set to the venv's Python interpreter
+#   PYTHON_ARGS: Cleared when using venv Python
+#
+# Returns:
+#   0: Virtual environment activated or already active
 setup_virtual_environment() {
     if [ -n "${VIRTUAL_ENV:-}" ]; then
         VENV_DIR="$VIRTUAL_ENV"
@@ -148,7 +264,8 @@ setup_virtual_environment() {
         return 0
     fi
 
-    # Windows: venv creation may not be atomic
+    # Wait briefly if venv directory exists but activation scripts don't yet.
+    # On Windows, venv creation may not be atomic.
     if [ ! -d ".venv/Scripts" ] && [ ! -d ".venv/bin" ] && [ -d ".venv" ]; then
         sleep 1
     elif [ ! -d "venv/Scripts" ] && [ ! -d "venv/bin" ] && [ -d "venv" ]; then
@@ -168,6 +285,7 @@ setup_virtual_environment() {
         VENV_DIR="$(cd "$venv_path" && pwd)"
         export VENV_DIR
         if [ -f "$VENV_DIR/Scripts/activate" ]; then
+            # shellcheck source=/dev/null
             . "$VENV_DIR/Scripts/activate"
             if [ -f "$VENV_DIR/Scripts/python.exe" ]; then
                 PYTHON_CMD="$VENV_DIR/Scripts/python.exe"
@@ -176,6 +294,7 @@ setup_virtual_environment() {
                 export PYTHON_ARGS
             fi
         else
+            # shellcheck source=/dev/null
             . "$VENV_DIR/bin/activate"
             if [ -f "$VENV_DIR/bin/python" ]; then
                 PYTHON_CMD="$VENV_DIR/bin/python"
@@ -190,6 +309,10 @@ setup_virtual_environment() {
     fi
 }
 
+# Get the name of the virtual environment directory.
+#
+# Returns:
+#   Prints ".venv" if it exists, otherwise "venv"
 get_venv_name() {
     if [ -d ".venv" ]; then
         echo ".venv"
@@ -198,6 +321,14 @@ get_venv_name() {
     fi
 }
 
+# Ensure a virtual environment exists and activate it.
+#
+# Checks for an existing venv and activates it. If no venv is found,
+# warns the user to run reinstall_requirements.sh.
+#
+# Returns:
+#   0: Virtual environment found and activated
+#   1: No virtual environment found
 ensure_virtual_environment() {
     if [ -z "${VIRTUAL_ENV:-}" ] && ! [ -d ".venv" ] && ! [ -d "venv" ]; then
         log_warning "Virtual environment not found. You may need to run './reinstall_requirements.sh' to create one."
@@ -206,11 +337,25 @@ ensure_virtual_environment() {
     setup_virtual_environment
 }
 
+# Configure environment for Unicode support in Python.
+#
+# Globals:
+#   PYTHONIOENCODING: Set to utf-8
 setup_unicode_env() {
     export PYTHONIOENCODING="utf-8"
     log_info "Unicode environment configured (PYTHONIOENCODING=utf-8)"
 }
 
+# Configure environment variables for joblib and parallel processing.
+#
+# Sets CPU count to physical cores only to avoid joblib oversubscription
+# with logical cores. Also configures OpenMP and Ray environment variables.
+#
+# Globals:
+#   LOKY_MAX_CPU_COUNT: Set to physical core count
+#   KMP_DUPLICATE_LIB_OK: Set to TRUE for OpenMP compatibility
+#   PYTHONWARNINGS: Configured to ignore threadpoolctl warnings
+#   RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO: Set to 0 for Ray compatibility
 setup_joblib_env() {
     LOKY_MAX_CPU_COUNT=$(get_physical_cores)
     export LOKY_MAX_CPU_COUNT
@@ -223,6 +368,17 @@ setup_joblib_env() {
 # Dependencies
 # ============================================================================
 
+# Install Python dependencies using uv or pip.
+#
+# Prefers uv sync for faster installation, falls back to pip if uv is
+# unavailable or fails.
+#
+# Arguments:
+#   $1: Requirements file path (default: requirements.txt)
+#
+# Returns:
+#   0: Dependencies installed successfully
+#   1: Installation failed
 install_requirements() {
     requirements_file="${1:-requirements.txt}"
     
@@ -248,6 +404,16 @@ install_requirements() {
     fi
 }
 
+# Check for a tool and install it if missing.
+#
+# Arguments:
+#   $1: Tool name to check
+#   $2: Installation command to run if tool is missing
+#   $3: Check command (default: command_exists)
+#
+# Returns:
+#   0: Tool exists or was installed successfully
+#   1: Installation failed
 check_and_install_tool() {
     tool_name="$1"
     install_command="$2"
@@ -264,6 +430,14 @@ check_and_install_tool() {
     fi
 }
 
+# Install frontend dependencies using npm.
+#
+# Checks for npm availability and frontend directory, then installs
+# dependencies from package.json.
+#
+# Returns:
+#   0: Frontend dependencies installed successfully
+#   1: npm not found, frontend directory missing, or installation failed
 install_frontend_dependencies() {
     if ! command_exists npm; then
         log_error "npm not found. Please install Node.js and npm first."
@@ -272,8 +446,7 @@ install_frontend_dependencies() {
 
     if [ -d "frontend" ] && [ -f "frontend/package.json" ]; then
         log_info "📦 Installing frontend dependencies..."
-        (cd frontend && npm install)
-        if [ $? -eq 0 ]; then
+        if (cd frontend && npm install); then
             log_info "Frontend dependencies installed successfully"
             return 0
         else
@@ -290,6 +463,18 @@ install_frontend_dependencies() {
 # Python Execution
 # ============================================================================
 
+# Execute a Python script with Unicode support and virtual environment.
+#
+# Configures Unicode encoding, activates virtual environment if available,
+# and runs the specified Python script.
+#
+# Arguments:
+#   $1: Path to Python script
+#   $@: Additional arguments to pass to the script
+#
+# Globals:
+#   PYTHONIOENCODING: Set to utf-8
+#   PYTHON_CMD: Uses discovered Python interpreter
 run_python_with_unicode() {
     script_path="$1"
     shift
@@ -312,6 +497,13 @@ run_python_with_unicode() {
 # Simulation
 # ============================================================================
 
+# Display information about simulation output location.
+#
+# Shows the output directory and finds the most recent timestamped
+# subdirectory if available.
+#
+# Arguments:
+#   $1: Output directory path (default: out/)
 show_simulation_output_info() {
     output_dir="${1:-out/}"
     _pwd="$(pwd)"
@@ -340,5 +532,7 @@ show_simulation_output_info() {
 # Globals
 # ============================================================================
 
+# Global variable to store the discovered Python command.
+# Set by find_python_interpreter() and used by run_python().
 PYTHON_CMD=""
 export PYTHON_CMD

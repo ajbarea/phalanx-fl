@@ -1,5 +1,18 @@
-#!/bin/sh
-# Runs the simulation, setting up the environment if needed
+#!/bin/bash
+# Run the federated learning simulation with automatic environment setup.
+#
+# Sets up the Python virtual environment if needed, downloads required datasets
+# if not present, and executes the simulation runner. Results are saved to the
+# out/ directory with timestamped subdirectories.
+#
+# Usage: ./run_simulation.sh
+#
+# The script will:
+#   1. Create/activate virtual environment (runs reinstall_requirements.sh if missing)
+#   2. Download datasets from S3 if datasets/bloodmnist/ doesn't exist
+#   3. Run the simulation via src.simulation_runner
+#
+# Dependencies: python3 (3.10-3.13), wget (optional, falls back to Python urllib)
 
 . "$(dirname "$0")/tests/scripts/common.sh"
 
@@ -12,26 +25,30 @@ fi
 find_python_interpreter
 setup_joblib_env
 
+# Check for datasets by looking for bloodmnist as a sentinel directory.
+# All datasets are distributed together, so if one exists, all should exist.
 if [ ! -d "datasets/bloodmnist" ]; then
-  log_info "Datasets not found. Starting download..."
-  DATASET_URL="https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar"
+    log_info "Datasets not found. Starting download..."
+    DATASET_URL="https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar"
 
-  mkdir -p datasets
-  _orig_dir="$(pwd)"
-  cd datasets || exit 1
+    mkdir -p datasets
+    _orig_dir="$(pwd)"
+    cd datasets || exit 1
 
-  if command_exists wget; then
-    log_info "Downloading with wget..."
-    wget "$DATASET_URL"
-  else
-    log_info "Downloading with Python..."
-    run_python -c "import urllib.request; print('Downloading datasets.tar...'); urllib.request.urlretrieve('$DATASET_URL', 'datasets.tar')"
-  fi
+    # Prefer wget for better progress reporting and resume capability.
+    # Fall back to Python's urllib if wget is unavailable (minimal dependencies).
+    if command_exists wget; then
+        log_info "Downloading with wget..."
+        wget "$DATASET_URL"
+    else
+        log_info "Downloading with Python..."
+        run_python -c "import urllib.request; print('Downloading datasets.tar...'); urllib.request.urlretrieve('$DATASET_URL', 'datasets.tar')"
+    fi
 
-  log_info "Extracting datasets..."
-  tar -xf datasets.tar
-  rm datasets.tar
-  cd "$_orig_dir" || exit 1
+    log_info "Extracting datasets..."
+    tar -xf datasets.tar
+    rm datasets.tar
+    cd "$_orig_dir" || exit 1
 fi
 
 log_info "🚀 Initializing simulation..."

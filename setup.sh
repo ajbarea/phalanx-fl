@@ -1,6 +1,19 @@
-#!/bin/sh
-# Complete project setup script
-# Installs both Python and frontend dependencies
+#!/bin/bash
+# Complete project setup for IntelliFL.
+#
+# Installs both Python and frontend dependencies in a single command.
+# This is the recommended first step after cloning the repository.
+#
+# Usage: ./setup.sh
+#
+# What it does:
+#   1. Creates Python virtual environment and installs dependencies
+#   2. Installs frontend npm packages (React, Vite, ESLint, etc.)
+#
+# Dependencies: python3 (3.10-3.13), npm
+#
+# Example:
+#   ./setup.sh
 
 set -eu
 
@@ -20,7 +33,6 @@ echo ""
 log_info "🚀 Starting complete project setup..."
 echo ""
 
-# Step 1: Python environment
 log_info "Step 1/2: Setting up Python environment..."
 if [ -f "reinstall_requirements.sh" ]; then
     ./reinstall_requirements.sh
@@ -31,7 +43,6 @@ fi
 
 echo ""
 
-# Step 2: Frontend dependencies
 log_info "Step 2/2: Installing frontend dependencies..."
 if [ -d "frontend" ] && [ -f "frontend/package.json" ]; then
     cd frontend
