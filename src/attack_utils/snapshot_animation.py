@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation, PillowWriter
 from matplotlib.patches import Rectangle
+from matplotlib.ticker import FuncFormatter, MaxNLocator
 
 DEFAULT_FPS = 2  # Slow enough to read, fast enough to engage
 DEFAULT_DPI = 150  # Balance of quality and file size
@@ -103,10 +104,13 @@ def save_attack_timeline_gif(
             row_patches.append(patch)
         patches.append(row_patches)
 
-    ax.set_xticks(range(total_rounds))
-    ax.set_xticklabels([str(r + 1) for r in range(total_rounds)])
-    ax.set_yticks(range(total_clients))
-    ax.set_yticklabels([f"Client {i}" for i in range(total_clients)])
+    # Limit tick density for readability
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=15, integer=True))
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda x, _: str(int(x + 1))))
+
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=20, integer=True))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f"Client {int(y)}"))
+
     ax.set_xlabel("Round", fontweight="bold")
     ax.set_ylabel("Client", fontweight="bold")
 
