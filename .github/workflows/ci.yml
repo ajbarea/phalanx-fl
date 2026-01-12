@@ -29,19 +29,19 @@ jobs:
 
       - name: Run unit tests (parallel)
         run: |
-          coverage run --append --source=src -m pytest -n auto tests/unit/ --tb=short
+          uv run coverage run --append --source=src -m pytest -n auto tests/unit/ --tb=short
 
       - name: Run integration tests (serial)
         run: |
-          coverage run --append --source=src -m pytest tests/integration/ --tb=short
+          uv run coverage run --append --source=src -m pytest tests/integration/ --tb=short
 
       - name: Run performance tests (serial)
         run: |
-          coverage run --append --source=src -m pytest tests/performance/ --tb=short
+          uv run coverage run --append --source=src -m pytest tests/performance/ --tb=short
 
       - name: Generate final coverage report
         run: |
-          coverage report --show-missing
+          uv run coverage report --show-missing
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5.5.1
@@ -65,7 +65,7 @@ jobs:
 
     - name: Run smoke tests
       run: |
-        PYTHONPATH=. python tests/scripts/ci_smoke_test.py
+        uv run python tests/scripts/ci_smoke_test.py
 
   strategy-pipeline-test:
     runs-on: ubuntu-latest
@@ -82,4 +82,4 @@ jobs:
 
     - name: Run strategy pipeline tests
       run: |
-        pytest tests/integration/test_strategy_pipeline.py -v
+        uv run pytest tests/integration/test_strategy_pipeline.py -v
