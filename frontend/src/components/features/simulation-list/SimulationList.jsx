@@ -8,6 +8,7 @@ export function SimulationList({
   simulations,
   statuses,
   selectedSims,
+  exitingCards,
   onCardClick,
   onRename,
   onStop,
@@ -39,12 +40,13 @@ export function SimulationList({
 
   return (
     <Row xs={1} md={2} lg={3} className="g-4">
-      {simulations.map(sim => (
-        <Col key={sim.simulation_id}>
+      {simulations.map((sim, index) => (
+        <Col key={sim.simulation_id} style={{ '--card-index': index }}>
           <SimulationCard
             simulation={sim}
             statusData={statuses[sim.simulation_id]}
             isSelected={selectedSims.includes(sim.simulation_id)}
+            isExiting={exitingCards?.includes(sim.simulation_id)}
             onCardClick={onCardClick}
             onRename={onRename}
             onStop={onStop}
@@ -73,6 +75,7 @@ SimulationList.propTypes = {
     })
   ),
   selectedSims: PropTypes.arrayOf(PropTypes.string),
+  exitingCards: PropTypes.arrayOf(PropTypes.string),
   onCardClick: PropTypes.func,
   onRename: PropTypes.func,
   onStop: PropTypes.func,
@@ -83,6 +86,7 @@ SimulationList.defaultProps = {
   simulations: [],
   statuses: {},
   selectedSims: [],
+  exitingCards: [],
   onCardClick: () => {},
   onRename: () => {},
   onStop: () => {},

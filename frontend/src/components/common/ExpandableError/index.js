@@ -1,0 +1,1 @@
+export { ExpandableError } from './ExpandableError';

@@ -61,14 +61,19 @@ function App() {
         }}
       />
       <Router>
-        <Navbar
-          expand="md"
-          className="mb-3"
-          style={{ backgroundColor: 'var(--color-surface-variant)' }}
-        >
+        <Navbar expand="md" className="mb-3" bg="body-tertiary">
           <Container>
-            <Navbar.Brand as={Link} to="/">
-              IntelliFL
+            <Navbar.Brand as={Link} to="/" className="d-flex align-items-center gap-2">
+              <img
+                src="/intellifl.png"
+                alt="IntelliFL Logo"
+                height={56}
+                width={56}
+                style={{ objectFit: 'contain' }}
+              />
+              <span className="brand-text">
+                Intelli<span className="brand-text-fl">FL</span>
+              </span>
             </Navbar.Brand>
             <Navbar.Toggle aria-controls="navbar-nav" />
             <Navbar.Collapse id="navbar-nav">

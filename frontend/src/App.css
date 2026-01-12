@@ -148,6 +148,11 @@
     background-color: var(--color-surface) !important;
   }
 
+  .navbar {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
   :root[data-theme='dark'] .navbar .container,
   :root[data-theme='dark'] .navbar .navbar-brand,
   :root[data-theme='dark'] .navbar .navbar-collapse,
@@ -163,6 +168,10 @@
   :root[data-theme='dark'] .navbar .nav-link:hover,
   :root[data-theme='dark'] .navbar .nav-link:focus {
     color: #ffffff !important;
+  }
+
+  :root[data-theme='dark'] .navbar-toggler-icon {
+    filter: invert(1) grayscale(100%) brightness(200%);
   }
 
   :root[data-theme='dark'] .form-control,
@@ -715,11 +724,31 @@
     transition: transform var(--transition-slow);
   }
 
-  /* Gmail/PatternFly selection pattern */
+  /* Gmail/PatternFly selection pattern - Equal height cards */
   .simulation-card {
     cursor: pointer;
     transition: all var(--transition-base);
     border-width: 1px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .simulation-card > .card-body {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+  }
+
+  .simulation-card .card-content {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+  }
+
+  /* Push "View Details" button to bottom */
+  .simulation-card .card-content > a:last-child {
+    margin-top: auto;
   }
 
   .simulation-card:hover {
@@ -1477,6 +1506,15 @@
   }
 }
 
+/* Prevent horizontal scroll on card animations */
+body {
+  overflow-x: hidden;
+}
+
+.row.g-4 {
+  overflow-x: hidden;
+}
+
 @layer utilities {
   /* WCAG AA 4.5:1 contrast ratios */
   .text-warning-accessible {
@@ -1639,6 +1677,464 @@
   100% {
     transform: rotate(360deg);
   }
+}
+
+/* ========================================================================
+   2026 UX ENHANCEMENTS - Delightful Animations & Micro-interactions
+   ======================================================================== */
+
+/* Card Entrance Stagger Animation */
+@keyframes cardEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Card Exit Animation (for deletion) */
+@keyframes cardExit {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.9) translateY(-10px);
+  }
+}
+
+/* Status Badge Shimmer Effect */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Status Glow Pulse (for running status) */
+@keyframes statusGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 currentColor;
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: 0 0 16px 4px currentColor;
+    filter: brightness(1.3);
+  }
+}
+
+/* Ripple Effect for Selection */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* Button Press Animation */
+@keyframes buttonPress {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Success Celebration - Subtle wiggle without overflow */
+@keyframes celebrate {
+  0%,
+  100% {
+    transform: translateY(-4px) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-5px) rotate(-2deg) scale(1.01);
+  }
+  50% {
+    transform: translateY(-6px) rotate(0deg) scale(1.02);
+  }
+  75% {
+    transform: translateY(-5px) rotate(2deg) scale(1.01);
+  }
+}
+
+/* Skeleton Shimmer Loading */
+@keyframes skeletonShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Enhanced Card Hover with 3D Transform */
+.simulation-card {
+  animation: cardEnter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  animation-delay: calc(var(--card-index, 0) * 60ms);
+  transform-style: preserve-3d;
+  transition:
+    transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    background 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  user-select: none; /* Prevent text selection during shift+click range selection */
+  -webkit-user-select: none;
+
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Stagger card entrance based on index */
+.simulation-card:nth-child(1) {
+  animation-delay: 0ms;
+}
+.simulation-card:nth-child(2) {
+  animation-delay: 60ms;
+}
+.simulation-card:nth-child(3) {
+  animation-delay: 120ms;
+}
+.simulation-card:nth-child(4) {
+  animation-delay: 180ms;
+}
+.simulation-card:nth-child(5) {
+  animation-delay: 240ms;
+}
+.simulation-card:nth-child(6) {
+  animation-delay: 300ms;
+}
+.simulation-card:nth-child(7) {
+  animation-delay: 360ms;
+}
+.simulation-card:nth-child(8) {
+  animation-delay: 420ms;
+}
+.simulation-card:nth-child(9) {
+  animation-delay: 480ms;
+}
+.simulation-card:nth-child(10) {
+  animation-delay: 540ms;
+}
+.simulation-card:nth-child(11) {
+  animation-delay: 600ms;
+}
+.simulation-card:nth-child(12) {
+  animation-delay: 660ms;
+}
+
+/* Enhanced Hover Effect with 3D Transform */
+.simulation-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(103, 80, 164, 0.1),
+    0 0 30px rgba(103, 80, 164, 0.15);
+}
+
+:root[data-theme='dark'] .simulation-card:hover {
+  box-shadow:
+    0 24px 48px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(208, 188, 255, 0.2),
+    0 0 40px rgba(208, 188, 255, 0.2);
+}
+
+/* Enhanced Selection with Ripple Effect */
+.simulation-card.selected {
+  animation: celebrate 0.5s ease-out;
+  transform: translateY(-4px);
+  will-change: transform;
+}
+
+.simulation-card.selected::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle, rgba(103, 80, 164, 0.3) 0%, transparent 70%);
+  animation: ripple 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+:root[data-theme='dark'] .simulation-card.selected::before {
+  background: radial-gradient(circle, rgba(208, 188, 255, 0.4) 0%, transparent 70%);
+}
+
+/* Exit Animation for Card Deletion */
+.simulation-card.exiting {
+  animation: cardExit 0.3s cubic-bezier(0.4, 0, 1, 1) forwards !important;
+  pointer-events: none;
+}
+
+/* Status Badge Enhancements */
+
+.status-running {
+  animation: statusGlow 2s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+.status-running::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+.status-pending {
+  position: relative;
+  overflow: hidden;
+}
+
+.status-pending::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+}
+
+.status-completed .status-dot {
+  animation: celebrate 0.5s ease-out;
+}
+
+.status-loading {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Button Micro-interactions */
+.btn:active {
+  animation: buttonPress 0.15s ease-out;
+}
+
+.btn-primary,
+.btn-danger,
+.btn-info {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-primary::before,
+.btn-danger::before,
+.btn-info::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition:
+    width 0.6s,
+    height 0.6s;
+}
+
+.btn-primary:active::before,
+.btn-danger:active::before,
+.btn-info:active::before {
+  width: 300px;
+  height: 300px;
+  transition:
+    width 0s,
+    height 0s;
+}
+
+/* Enhanced Checkbox Animation */
+.form-check-input {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.form-check-input:checked {
+  animation: checkmark-appear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.form-check-input:hover {
+  transform: scale(1.1);
+}
+
+.form-check-input:active {
+  transform: scale(0.95);
+}
+
+/* View Details Button Enhancement */
+.simulation-card .btn-outline-primary {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.simulation-card .btn-outline-primary::after {
+  content: '→';
+  position: absolute;
+  right: 12px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.simulation-card .btn-outline-primary:hover::after {
+  transform: translateX(4px);
+}
+
+.simulation-card:hover .btn-outline-primary {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(103, 80, 164, 0.3);
+}
+
+/* Bulk Action Buttons Animation */
+.d-flex.gap-2 > .btn {
+  animation: slideInDown 0.3s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+}
+
+.d-flex.gap-2 > .btn:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.d-flex.gap-2 > .btn:nth-child(2) {
+  animation-delay: 50ms;
+}
+
+.d-flex.gap-2 > .btn:nth-child(3) {
+  animation-delay: 100ms;
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Expandable Error Component */
+.expandable-error {
+  transition: max-height 0.3s ease-in-out;
+}
+
+.expandable-error .error-content {
+  transition: all 0.3s ease-in-out;
+}
+
+.expandable-error-toggle {
+  font-size: 0.75rem;
+  color: inherit;
+  opacity: 0.8;
+  text-decoration: none;
+  display: block;
+}
+
+.expandable-error-toggle:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+:root[data-theme='dark'] .expandable-error-toggle {
+  color: inherit;
+}
+
+/* Loading Skeleton with Shimmer */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface) 0%,
+    var(--color-surface-variant) 50%,
+    var(--color-surface) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+/* Smooth Page Transitions */
+.page-enter {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 0.3s,
+    transform 0.3s;
+}
+
+/* Enhanced Alert Animations */
+.alert {
+  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Card Metadata Fade In */
+.card-meta,
+.card-stats {
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+.simulation-card:hover .card-meta,
+.simulation-card:hover .card-stats {
+  opacity: 1;
+}
+
+/* Status Badge Enhanced Transitions */
+.status-badge {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.status-badge:hover {
+  transform: scale(1.05);
+  filter: brightness(1.2);
+}
+
+/* GPU Info Chip Enhancement */
+.gpu-info-chip {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gpu-info-chip:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(25, 135, 84, 0.3);
 }
 
 @media (max-width: 767px) {
@@ -1805,12 +2301,6 @@
   .container-fluid {
     padding-left: var(--spacing-md);
     padding-right: var(--spacing-md);
-  }
-
-  /* Simulation Card Mobile - larger checkbox touch target */
-  .simulation-card .simulation-checkbox .form-check-input {
-    width: 24px;
-    height: 24px;
   }
 
   .status-badge {
@@ -2252,4 +2742,82 @@
 
 :root[data-theme='dark'] .draft-indicator-accordion .accordion-body pre {
   color: var(--color-primary);
+}
+
+/* Brand Typography - Algorithmic / Core */
+.brand-text {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 400; /* Regular for Intelli */
+  letter-spacing: -0.04em;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--bs-body-color); /* Adaptive color */
+}
+
+.brand-text-fl {
+  font-weight: 700; /* Bold for FL */
+  color: #6856ba; /* Brand Purple from Logo */
+}
+
+/* Override Detail Button Color */
+.btn-outline-primary {
+  color: #6856ba !important;
+  border-color: #6856ba !important;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-outline-primary:active {
+  background-color: #6856ba !important;
+  border-color: #6856ba !important;
+  color: white !important;
+}
+
+/* Override Tab Active Color (Underline & Standard) */
+.nav-tabs .nav-link.active,
+.nav-pills .nav-link.active,
+.nav-underline .nav-link.active {
+  color: #6856ba !important;
+  border-bottom-color: #6856ba !important; /* For underline variant */
+}
+
+:root[data-theme='dark'] .nav-tabs .nav-link.active {
+  border-color: var(--color-border) var(--color-border) var(--color-surface) !important;
+}
+
+:root[data-theme='dark'] .nav-underline .nav-link.active {
+  border-bottom-color: #6856ba !important;
+}
+
+/* Brand Form Highlight */
+.form-control:focus,
+.form-select:focus,
+.form-check-input:checked {
+  border-color: #6856ba !important;
+  box-shadow: 0 0 0 0.25rem rgba(104, 86, 186, 0.25) !important; /* Purple Glow */
+}
+
+/* Brand Button Override (Global) */
+.btn-primary {
+  background-color: #6856ba !important;
+  border-color: #6856ba !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+  background-color: #55449e !important; /* Darker Purple for hover */
+  border-color: #55449e !important;
+}
+
+/* Brand Accordion Override */
+.accordion-button:not(.collapsed) {
+  background-color: rgba(104, 86, 186, 0.1) !important; /* Purple Tint */
+  color: #6856ba !important;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.125) !important;
+}
+
+/* Accordion Arrow Verification - SVG Recolor to #6856BA */
+.accordion-button:not(.collapsed)::after {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%236856BA'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e") !important;
 }
