@@ -1,6 +1,6 @@
 {
     "shared_settings": {
-        "strict_mode": true,
+        "strict_mode": false,
         "aggregation_strategy_keyword": "krum",
         "remove_clients": true,
         "dataset_keyword": "femnist_iid",

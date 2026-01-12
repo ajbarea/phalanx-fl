@@ -3,6 +3,8 @@
     "shared_settings": {
         "aggregation_strategy_keyword": "rfa",
         "remove_clients": true,
+
+        "strict_mode": false,
         "removal_strategy": "rfa_based",
         "begin_removing_from_round": 3,
         "dataset_keyword": "femnist_iid",

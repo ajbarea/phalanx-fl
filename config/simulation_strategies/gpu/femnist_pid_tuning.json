@@ -2,7 +2,9 @@
     "_title": "PID Controller Tuning Experiment (FEMNIST)",
     "shared_settings": {
         "aggregation_strategy_keyword": "pid",
-        "remove_clients": true,
+        "remove_clients": false,
+
+        "strict_mode": true,
         "begin_removing_from_round": 5,
         "dataset_keyword": "femnist_iid",
         "model_type": "cnn",

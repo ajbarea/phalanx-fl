@@ -3,7 +3,9 @@
     "shared_settings": {
         "aggregation_strategy_keyword": "trimmed_mean",
         "trim_ratio": 0.2,
-        "remove_clients": false,
+        "remove_clients": true,
+
+        "strict_mode": false,
         "begin_removing_from_round": 5,
         "dataset_keyword": "femnist_iid",
         "use_llm": false,

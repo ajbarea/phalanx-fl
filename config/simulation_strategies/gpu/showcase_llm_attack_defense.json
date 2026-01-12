@@ -49,7 +49,7 @@
         "attack_snapshot_format": "pickle_and_visual",
         "snapshot_max_samples": 5,
         "preserve_dataset": false,
-        "strict_mode": true,
+        "strict_mode": false,
         "llm_model": "distilbert-base-uncased",
         "llm_finetuning": "lora",
         "llm_task": "mlm",

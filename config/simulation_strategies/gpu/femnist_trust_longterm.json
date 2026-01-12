@@ -3,6 +3,8 @@
     "shared_settings": {
         "aggregation_strategy_keyword": "trust",
         "remove_clients": true,
+
+        "strict_mode": false,
         "begin_removing_from_round": 10,
         "dataset_keyword": "femnist_iid",
         "model_type": "cnn",

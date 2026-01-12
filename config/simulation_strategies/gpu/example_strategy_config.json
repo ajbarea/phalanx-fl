@@ -2,7 +2,7 @@
     "shared_settings": {
         "strict_mode": true,
         "aggregation_strategy_keyword": "pid_standardized",
-        "remove_clients": true,
+        "remove_clients": false,
         "dataset_keyword": "femnist_iid",
         "use_llm": false,
         "num_of_rounds": 20,

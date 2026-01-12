@@ -3,6 +3,8 @@
     "shared_settings": {
         "aggregation_strategy_keyword": "pid",
         "remove_clients": true,
+
+        "strict_mode": false,
         "begin_removing_from_round": 5,
         "dataset_keyword": "femnist_iid",
         "model_type": "cnn",

@@ -3,6 +3,8 @@
     "shared_settings": {
         "aggregation_strategy_keyword": "bulyan",
         "remove_clients": true,
+
+        "strict_mode": false,
         "dataset_keyword": "its",
         "use_llm": false,
         "model_type": "cnn",

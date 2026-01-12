@@ -23,7 +23,7 @@
         "evaluate_metrics_aggregation_fn": "weighted_average",
         "num_of_client_epochs": 2,
         "batch_size": 32,
-        "strict_mode": true,
+        "strict_mode": false,
         "num_krum_selections": 8,
         "save_attack_snapshots": true,
         "attack_snapshot_format": "pickle_and_visual",

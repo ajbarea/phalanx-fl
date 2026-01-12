@@ -3,7 +3,9 @@
     "shared_settings": {
         "aggregation_strategy_keyword": "multi-krum",
         "num_krum_selections": 4,
-        "remove_clients": false,
+        "remove_clients": true,
+
+        "strict_mode": false,
         "dataset_keyword": "femnist_iid",
         "model_type": "cnn",
         "use_llm": false,

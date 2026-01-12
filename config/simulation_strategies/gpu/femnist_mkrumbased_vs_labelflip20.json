@@ -4,6 +4,8 @@
         "aggregation_strategy_keyword": "multi-krum-based",
         "num_krum_selections": 6,
         "remove_clients": true,
+
+        "strict_mode": false,
         "begin_removing_from_round": 5,
         "dataset_keyword": "femnist_iid",
         "model_type": "cnn",

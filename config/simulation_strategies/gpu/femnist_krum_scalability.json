@@ -2,6 +2,8 @@
     "shared_settings": {
         "num_of_malicious_clients": 2,
         "remove_clients": true,
+
+        "strict_mode": false,
         "dataset_keyword": "femnist_iid",
         "use_llm": false,
         "model_type": "cnn",

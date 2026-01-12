@@ -1,6 +1,8 @@
 {
     "shared_settings": {
-        "remove_clients": true,
+        "remove_clients": false,
+
+        "strict_mode": true,
         "dataset_keyword": "femnist_iid",
         "use_llm": false,
         "model_type": "cnn",

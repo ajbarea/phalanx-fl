@@ -2,7 +2,7 @@
     "_title": "ArKrum vs Label Flipping Attack (FEMNIST)",
     "shared_settings": {
         "aggregation_strategy_keyword": "arkrum",
-        "remove_clients": false,
+        "remove_clients": true,
         "dataset_keyword": "femnist_iid",
         "model_type": "cnn",
         "use_llm": false,
@@ -22,7 +22,7 @@
         "evaluate_metrics_aggregation_fn": "weighted_average",
         "num_of_client_epochs": 1,
         "batch_size": 32,
-        "strict_mode": true,
+        "strict_mode": false,
         "save_attack_snapshots": true,
         "attack_snapshot_format": "pickle_and_visual",
         "snapshot_max_samples": 5
