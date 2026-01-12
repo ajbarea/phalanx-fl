@@ -8,10 +8,32 @@ export function BulkActions({
   onDeleteSelected,
   onCompare,
   onClearAll,
+  onSelectAll,
   deleting,
 }) {
+  // Show "Deselect All" when any items are selected
+  const hasSelection = selectedCount > 0;
+
   return (
     <div className="d-flex flex-wrap gap-2 w-100 w-md-auto">
+      {totalCount > 0 && (
+        <Button
+          variant={hasSelection ? 'outline-secondary' : 'outline-primary'}
+          size="sm"
+          onClick={onSelectAll}
+          className="flex-grow-1 flex-md-grow-0"
+          aria-label={hasSelection ? 'Deselect all simulations' : 'Select all simulations'}
+        >
+          <div className="d-flex align-items-center gap-1">
+            <MaterialIcon
+              name={hasSelection ? 'check_box' : 'check_box_outline_blank'}
+              size={20}
+              aria-hidden="true"
+            />
+            <span>{hasSelection ? 'Deselect All' : 'Select All'}</span>
+          </div>
+        </Button>
+      )}
       {selectedCount > 0 && (
         <>
           <Button
@@ -60,6 +82,7 @@ BulkActions.propTypes = {
   onDeleteSelected: PropTypes.func.isRequired,
   onCompare: PropTypes.func.isRequired,
   onClearAll: PropTypes.func.isRequired,
+  onSelectAll: PropTypes.func.isRequired,
   deleting: PropTypes.bool,
 };
 

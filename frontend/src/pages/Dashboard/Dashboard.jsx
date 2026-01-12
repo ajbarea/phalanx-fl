@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Alert, Button } from 'react-bootstrap';
 import { PageContainer } from '@components/layout/PageContainer';
@@ -18,9 +18,11 @@ export function Dashboard() {
   const { statuses } = useSimulationStatus(simulations);
   const { hasRunning, runningSimIds } = useRunningSimulation();
   const [selectedSims, setSelectedSims] = useState([]);
+  const [exitingCards, setExitingCards] = useState([]);
   const [deleting, setDeleting] = useState(false);
   const [stopping, setStopping] = useState(false);
   const navigate = useNavigate();
+  const lastClickedIndexRef = useRef(null);
 
   const [confirmModal, setConfirmModal] = useState({
     show: false,
@@ -29,6 +31,39 @@ export function Dashboard() {
     onConfirm: () => {},
     variant: 'danger',
   });
+
+  const handleSelectAll = useCallback(() => {
+    if (!simulations || simulations.length === 0) return;
+
+    // If any items are selected, clear the selection
+    if (selectedSims.length > 0) {
+      setSelectedSims([]);
+      lastClickedIndexRef.current = null;
+    } else {
+      setSelectedSims(simulations.map(sim => sim.simulation_id));
+      lastClickedIndexRef.current = simulations.length - 1;
+    }
+  }, [simulations, selectedSims]);
+
+  // Keyboard shortcut: Ctrl+A to select all
+  useEffect(() => {
+    const handleKeyDown = e => {
+      // Only handle Ctrl+A if not in an input/textarea/contenteditable
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key === 'a' &&
+        !e.target.closest('input') &&
+        !e.target.closest('textarea') &&
+        !e.target.isContentEditable
+      ) {
+        e.preventDefault();
+        handleSelectAll();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleSelectAll]);
 
   const handleCardClick = (simId, e) => {
     if (
@@ -43,9 +78,36 @@ export function Dashboard() {
     if (inputEl && inputEl.type !== 'checkbox') {
       return;
     }
-    setSelectedSims(prev =>
-      prev.includes(simId) ? prev.filter(id => id !== simId) : [...prev, simId]
-    );
+
+    const clickedIndex = simulations.findIndex(sim => sim.simulation_id === simId);
+
+    // Shift+click for range selection
+    if (e.shiftKey && lastClickedIndexRef.current !== null) {
+      // Prevent default text selection behavior
+      e.preventDefault();
+
+      // Clear any existing text selection
+      if (window.getSelection) {
+        window.getSelection().removeAllRanges();
+      }
+
+      const start = Math.min(lastClickedIndexRef.current, clickedIndex);
+      const end = Math.max(lastClickedIndexRef.current, clickedIndex);
+      const rangeIds = simulations.slice(start, end + 1).map(sim => sim.simulation_id);
+
+      setSelectedSims(prev => {
+        const newSelection = new Set(prev);
+        rangeIds.forEach(id => newSelection.add(id));
+        return Array.from(newSelection);
+      });
+    } else {
+      // Normal click: toggle selection
+      setSelectedSims(prev =>
+        prev.includes(simId) ? prev.filter(id => id !== simId) : [...prev, simId]
+      );
+    }
+
+    lastClickedIndexRef.current = clickedIndex;
   };
 
   const handleCompare = () => {
@@ -97,7 +159,11 @@ export function Dashboard() {
       variant: 'danger',
       onConfirm: async () => {
         setConfirmModal({ ...confirmModal, show: false });
+        // Animate cards out first
+        setExitingCards(selectedSims);
         setDeleting(true);
+        // Wait for exit animation to complete
+        await new Promise(resolve => setTimeout(resolve, 300));
         try {
           const response = await deleteMultipleSimulations(selectedSims);
           const { deleted, failed } = response.data;
@@ -115,6 +181,7 @@ export function Dashboard() {
         } catch (err) {
           toast.error(`Failed to delete: ${err.response?.data?.detail || err.message}`);
         } finally {
+          setExitingCards([]);
           setDeleting(false);
         }
       },
@@ -191,6 +258,7 @@ export function Dashboard() {
           onDeleteSelected={handleDeleteSelected}
           onCompare={handleCompare}
           onClearAll={handleClearAll}
+          onSelectAll={handleSelectAll}
           deleting={deleting}
         />
       </PageHeader>
@@ -218,6 +286,7 @@ export function Dashboard() {
         simulations={simulations}
         statuses={statuses}
         selectedSims={selectedSims}
+        exitingCards={exitingCards}
         onCardClick={handleCardClick}
         onRename={refetch}
         onStop={handleStop}

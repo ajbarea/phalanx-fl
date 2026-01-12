@@ -1,14 +1,16 @@
 import PropTypes from 'prop-types';
-import { Card, Alert, Form } from 'react-bootstrap';
+import { Card, Form } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { StatusBadge } from '@components/common/Badge/StatusBadge';
+import { ExpandableError } from '@components/common/ExpandableError';
 import EditableSimName from '@components/EditableSimName';
-import { getRelativeTime, parseErrorMessage } from '@utils/formatters';
+import { getRelativeTime } from '@utils/formatters';
 
 export function SimulationCard({
   simulation,
   statusData,
   isSelected,
+  isExiting,
   onCardClick,
   onRename,
   onStop,
@@ -32,7 +34,10 @@ export function SimulationCard({
   };
 
   return (
-    <Card onClick={handleCardClick} className={`simulation-card ${isSelected ? 'selected' : ''}`}>
+    <Card
+      onClick={handleCardClick}
+      className={`simulation-card ${isSelected ? 'selected' : ''} ${isExiting ? 'exiting' : ''}`}
+    >
       <Card.Body className="d-flex gap-3">
         {/* Selection checkbox - LEFT side, always visible */}
         <div className="card-checkbox">
@@ -89,9 +94,7 @@ export function SimulationCard({
 
           {/* Error alert for failed simulations */}
           {isFailed && statusData.error && (
-            <Alert variant="danger" className="mb-2 py-1 px-2 small">
-              {parseErrorMessage(statusData.error)}
-            </Alert>
+            <ExpandableError error={statusData.error} maxLines={2} />
           )}
 
           {/* Stats row */}
@@ -126,6 +129,7 @@ SimulationCard.propTypes = {
     error: PropTypes.string,
   }),
   isSelected: PropTypes.bool,
+  isExiting: PropTypes.bool,
   onCardClick: PropTypes.func.isRequired,
   onRename: PropTypes.func.isRequired,
   onStop: PropTypes.func.isRequired,
@@ -134,5 +138,6 @@ SimulationCard.propTypes = {
 
 SimulationCard.defaultProps = {
   isSelected: false,
+  isExiting: false,
   stopping: false,
 };
