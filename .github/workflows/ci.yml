@@ -65,7 +65,7 @@ jobs:
 
     - name: Run smoke tests
       run: |
-        uv run python tests/scripts/ci_smoke_test.py
+        uv run python -m tests.scripts.ci_smoke_test
 
   strategy-pipeline-test:
     runs-on: ubuntu-latest
