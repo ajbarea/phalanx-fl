@@ -23,6 +23,8 @@ from src.attack_utils.weight_snapshots import (
 
 
 class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
+    """Flower client supporting CNN and transformer models with attack simulation."""
+
     def __init__(
         self,
         client_id,
@@ -72,17 +74,11 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
         original_data_sample=None,
         original_labels_sample=None,
     ):
-        """Save attack snapshots for both CNN and transformer models.
-
-        Note: Weight attacks (model_poisoning, gradient_scaling, byzantine_perturbation)
-        are filtered out here - they get separate visualization via save_weight_snapshot()
-        since they don't modify input data, only model weights.
-        """
+        """Save attack snapshots for CNN and transformer models."""
         if not (self.save_attack_snapshots and self.output_dir):
             return
 
-        # Filter out weight attacks - they get separate visualization
-        # since they don't change input data (only model weights)
+        # Weight attacks get separate visualization via save_weight_snapshot()
         data_attack_configs = [
             cfg
             for cfg in (attack_configs if isinstance(attack_configs, list) else [attack_configs])
@@ -90,7 +86,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
         ]
 
         if not data_attack_configs:
-            return  # No data attacks to visualize
+            return
 
         save_attack_snapshot(
             client_id=self.client_id,
@@ -143,7 +139,8 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                     original_data_sample=original_data_sample.cpu().numpy(),
                 )
 
-    def set_parameters(self, net, parameters: list[np.ndarray]):
+    def set_parameters(self, net, parameters: list[np.ndarray]) -> None:
+        """Load parameters into the model, handling LoRA adapters if enabled."""
         if self.use_lora:
             from src.network_models.bert_model_definition import (
                 get_peft_model_state_dict,
@@ -158,7 +155,8 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
             state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
             self.net.load_state_dict(state_dict, strict=False)
 
-    def get_parameters(self, config):
+    def get_parameters(self, config) -> list[np.ndarray]:
+        """Extract model parameters as numpy arrays."""
         if self.use_lora:
             from src.network_models.bert_model_definition import get_peft_model_state_dict
 
@@ -168,14 +166,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
             return [val.cpu().numpy() for _, val in self.net.state_dict().items()]
 
     def _get_sample_batch_for_viz(self, max_samples: int = 8):
-        """Get a sample batch from trainloader for visualization.
-
-        Args:
-            max_samples: Maximum number of samples to return.
-
-        Returns:
-            Tuple of (images, labels) tensors.
-        """
+        """Get a sample batch from trainloader for visualization."""
         for batch in self.trainloader:
             if self.model_type == "cnn":
                 images, labels = batch
@@ -185,22 +176,11 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
         return None, None
 
     def _get_predictions(self, images: torch.Tensor, top_k: int = 5) -> tuple:
-        """Run inference and return top-K predictions plus full probabilities.
-
-        Args:
-            images: Input images tensor.
-            top_k: Number of top predictions to return per image.
-
-        Returns:
-            Tuple of (top_k_preds, full_probs) where:
-            - top_k_preds: List of lists of (class_idx, confidence) tuples
-            - full_probs: numpy array of shape (N, num_classes) with all probabilities
-        """
+        """Run inference and return top-K predictions plus full probabilities."""
         self.net.eval()
         with torch.no_grad():
             outputs = self.net(images.to(self.training_device))
             probs = torch.softmax(outputs, dim=1)
-            # Get top-K predictions for each sample
             top_confs, top_preds = probs.topk(top_k, dim=1)
         self.net.train()
 
@@ -220,8 +200,21 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
         global_params=None,
         mu=0.01,
         config=None,
-    ):
-        """Train the network on the training set with optional dynamic poisoning."""
+    ) -> tuple[float, float]:
+        """Train the network with optional dynamic poisoning.
+
+        Args:
+            net: Neural network model to train.
+            trainloader: DataLoader for training data.
+            epochs: Number of training epochs.
+            verbose: Whether to log epoch-level metrics.
+            global_params: Global parameters for FedProx proximal term.
+            mu: FedProx proximal term coefficient.
+            config: Flower config dict containing server_round.
+
+        Returns:
+            Tuple of (final_loss, final_accuracy).
+        """
         current_round = config.get("server_round", 1) if config else 1
 
         if self.model_type == "cnn":
@@ -236,10 +229,8 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
             elif hasattr(net, "fc"):
                 num_classes = net.fc.out_features
             else:
-                # Default fallback
                 num_classes = 10
 
-            # Initialize before loop to avoid possibly unbound errors
             epoch_loss: float = 0.0
             epoch_acc: float = 0.0
 
@@ -284,7 +275,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                     loss.backward()
                     optimizer.step()
 
-                    epoch_loss += loss
+                    epoch_loss += loss.item()
                     total += labels.size(0)
                     correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
                     del outputs, loss
@@ -302,7 +293,6 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
             optimizer = torch.optim.AdamW(net.parameters(), lr=self.learning_rate or 5e-5)
             net.train()
 
-            # Initialize before loop to avoid possibly unbound errors
             epoch_loss = 0.0
             epoch_acc = 0.0
 
@@ -344,6 +334,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                     outputs = net(**batch)
                     loss = outputs.loss
 
+                    # FedProx: add proximal term to prevent drift from global model
                     if global_params is not None and self.client_id >= self.num_malicious_clients:
                         local_params = [
                             torch.tensor(p, device=self.training_device)
@@ -392,9 +383,16 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                 f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'."
             )
 
-    def test(self, net, testloader):
-        """Evaluate the network on the entire test set."""
+    def test(self, net, testloader) -> tuple[float, float]:
+        """Evaluate the network on the test set.
 
+        Args:
+            net: Neural network model to evaluate.
+            testloader: DataLoader for test data.
+
+        Returns:
+            Tuple of (loss, accuracy).
+        """
         if self.model_type == "cnn":
             criterion = torch.nn.CrossEntropyLoss()
             correct, total, loss = 0, 0, 0.0
@@ -445,11 +443,21 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
             )
 
     def fit(self, parameters, config):
+        """Perform local training and return updated parameters.
+
+        Args:
+            parameters: Model parameters from the server.
+            config: Flower config dict containing server_round.
+
+        Returns:
+            Tuple of (updated_parameters, num_samples, metrics_dict).
+        """
         logging.debug(
             f"[Client {self.client_id}] Starting fit() - Setting parameters and beginning training"
         )
         self.set_parameters(self.net, parameters)
 
+        # FedProx needs global params for proximal term on non-malicious transformer clients
         global_params = None
         if (
             self.model_type == "transformer"
@@ -498,12 +506,12 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
             sample_images = None
             preds_before = None
             probs_before = None
+            sample_labels = None
 
-            sample_labels = None  # Initialize to avoid possibly unbound error
             if self.save_attack_snapshots and self.output_dir:
                 params_before = [p.copy() for p in trained_parameters]
 
-                # Get sample batch and predictions BEFORE poisoning (for visualization)
+                # Capture pre-attack state for before/after visualization
                 if self.model_type == "cnn":
                     sample_images, sample_labels = self._get_sample_batch_for_viz(max_samples=4)
                     if sample_images is not None:
@@ -515,7 +523,6 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                 preds_after = None
                 probs_after = None
                 if sample_images is not None and preds_before is not None:
-                    # Temporarily load poisoned weights to get post-attack predictions
                     self.set_parameters(self.net, poisoned_parameters)
                     preds_after, probs_after = self._get_predictions(sample_images)
 
@@ -593,6 +600,15 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
     def evaluate(
         self, parameters: NDArrays, config: dict[str, Scalar]
     ) -> tuple[float, int, dict[str, Scalar]]:
+        """Evaluate model on validation data.
+
+        Args:
+            parameters: Model parameters from the server.
+            config: Flower config dict.
+
+        Returns:
+            Tuple of (loss, num_samples, metrics_dict).
+        """
         self.set_parameters(self.net, parameters)
         loss, accuracy = self.test(self.net, self.valloader)
 
