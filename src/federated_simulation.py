@@ -83,6 +83,7 @@ from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
 from src.utils.gpu_monitor import GPUMemoryMonitor
+from src.utils.ray_config import RayConfig
 from src.utils.status_tracker import StatusTracker
 
 if TYPE_CHECKING:
@@ -92,7 +93,14 @@ if TYPE_CHECKING:
 
 
 def weighted_average(metrics: list[tuple[int, dict[str, Any]]]) -> dict[str, Any]:
-    """Compute weighted average of metrics from multiple clients."""
+    """Compute weighted average of metrics from multiple clients.
+
+    Args:
+        metrics: List of (num_samples, metrics_dict) tuples from each client.
+
+    Returns:
+        Dict of metric names to their weighted average values.
+    """
     if not metrics:
         return {}
 
@@ -117,6 +125,8 @@ def weighted_average(metrics: list[tuple[int, dict[str, Any]]]) -> dict[str, Any
 
 
 class FederatedSimulation:
+    """Orchestrates federated learning simulations via Flower framework."""
+
     def __init__(
         self,
         strategy_config: StrategyConfig,
@@ -127,7 +137,7 @@ class FederatedSimulation:
     ):
         self.strategy_config = strategy_config
 
-        # Normalize device string: map "gpu" to "cuda" for PyTorch compatibility
+        # PyTorch uses "cuda" instead of "gpu"
         if self.strategy_config.training_device and isinstance(
             self.strategy_config.training_device, str
         ):
@@ -144,7 +154,6 @@ class FederatedSimulation:
             strategy_config=self.strategy_config, dataset_handler=self.dataset_handler
         )
 
-        # Assert training_device is not None for GPUMemoryMonitor
         assert self.strategy_config.training_device is not None, "training_device must be set"
         self.gpu_monitor = GPUMemoryMonitor(self.strategy_config.training_device)
         self._dataset_dir = dataset_dir
@@ -161,26 +170,22 @@ class FederatedSimulation:
         self._assign_all_properties()
 
     def run_simulation(self) -> None:
-        """Start federated simulation using Flower's modern run_simulation API."""
+        """Execute federated simulation using Flower's run_simulation API."""
         self.gpu_monitor.log_memory_usage("before simulation start")
 
-        # Assert required config values are set
         assert self.strategy_config.num_of_clients is not None, "num_of_clients must be set"
         assert self.strategy_config.num_of_rounds is not None, "num_of_rounds must be set"
         assert self.strategy_config.cpus_per_client is not None, "cpus_per_client must be set"
         assert self.strategy_config.gpus_per_client is not None, "gpus_per_client must be set"
 
-        # Research: Flower 1.13+ requires ClientApp/ServerApp architecture (Flower Framework Docs)
+        # Research: Flower 1.13+ deprecates start_simulation() in favor of App wrappers
         # https://flower.ai/docs/framework/how-to-upgrade-to-flower-1.13.html
-        # The start_simulation() API is deprecated; run_simulation() with App wrappers is preferred.
         client_app = ClientApp(client_fn=self.client_fn)
 
-        # Capture strategy in closure for server_fn
         strategy = self._aggregation_strategy
         num_rounds = self.strategy_config.num_of_rounds
 
         def server_fn(context: Context) -> ServerAppComponents:
-            """Create ServerAppComponents with the configured strategy."""
             return ServerAppComponents(
                 strategy=strategy,
                 config=ServerConfig(num_rounds=num_rounds),
@@ -199,7 +204,8 @@ class FederatedSimulation:
                 "client_resources": {
                     "num_cpus": self.strategy_config.cpus_per_client,
                     "num_gpus": self.strategy_config.gpus_per_client,
-                }
+                },
+                "init_args": RayConfig.get_init_args(),
             },
         )
 
@@ -224,17 +230,14 @@ class FederatedSimulation:
                     logging.warning(f"Failed to generate attack snapshot index/summary: {e}")
 
     def _assign_all_properties(self) -> None:
-        """Assign simulation properties based on strategy_dict"""
-
+        """Initialize dataset loaders, network model, and aggregation strategy."""
         self._assign_dataset_loaders_and_network_model()
         self._assign_aggregation_strategy()
 
     def _assign_dataset_loaders_and_network_model(self) -> None:
-        """Assign dataset loader and the corresponding network model"""
-
+        """Configure dataset loader and network model based on dataset_keyword."""
         dataset_keyword = self.strategy_config.dataset_keyword
 
-        # Assert required config values are set
         assert self.strategy_config.num_of_clients is not None, "num_of_clients must be set"
         assert self.strategy_config.batch_size is not None, "batch_size must be set"
         assert self.strategy_config.training_subset_fraction is not None, (
@@ -247,7 +250,6 @@ class FederatedSimulation:
 
         dataset_loader: ImageDatasetLoader | MedQuADDatasetLoader | HuggingFaceTextDatasetLoader
 
-        # Helper function to create ImageDatasetLoader with common params
         def create_image_loader(transformer: Any) -> ImageDatasetLoader:
             return ImageDatasetLoader(
                 transformer=transformer,
@@ -411,7 +413,6 @@ class FederatedSimulation:
                 )
 
         elif dataset_keyword == "medal":
-            # For prod runs, omit max_samples to use full dataset
             max_samples = getattr(self.strategy_config, "max_dataset_samples", None)
 
             dataset_loader = HuggingFaceTextDatasetLoader(
@@ -465,7 +466,7 @@ class FederatedSimulation:
         self._trainloaders, self._valloaders = dataset_loader.load_datasets()
 
     def _assign_aggregation_strategy(self) -> None:
-        """Assign aggregation strategy"""
+        """Configure aggregation strategy based on aggregation_strategy_keyword."""
 
         aggregation_strategy_keyword = self.strategy_config.aggregation_strategy_keyword
 
@@ -475,7 +476,6 @@ class FederatedSimulation:
             else None
         )
 
-        # Assert network model is set
         assert self._network_model is not None, "_network_model must be set before strategy"
 
         common_kwargs: dict[str, Any] = {
@@ -579,17 +579,14 @@ class FederatedSimulation:
             )
 
     def client_fn(self, context: Context) -> Client:
-        """Create a Flower client.
+        """Create a Flower client for the given partition.
 
         Args:
-            context: Flower Context object containing node configuration.
-                     - context.node_config["partition-id"]: Client partition index (0, 1, 2, ...)
-                     - context.node_id: Unique node identifier (large integer)
+            context: Flower Context with node_config["partition-id"] identifying the client.
 
         Returns:
-            A Flower Client instance.
+            Configured FlowerClient instance.
         """
-        # Assert required attributes are set
         assert self._network_model is not None, "_network_model must be set"
         assert self._trainloaders is not None, "_trainloaders must be set"
         assert self._valloaders is not None, "_valloaders must be set"
@@ -661,18 +658,13 @@ class FederatedSimulation:
 
     @staticmethod
     def _get_model_params(model: nn.Module) -> list[Any]:
-        """
-        Convert initial model params to suitable format.
-        - For PEFT/LoRA models: return only LoRA adapter params
-        - For regular models (CNN, etc.): return full state_dict
-        """
-        # Lazy import to avoid triggering sklearn -> threadpoolctl in Ray workers
-        # This prevents GetModuleFileNameEx race condition on Windows
+        """Extract model parameters as numpy arrays for Flower serialization."""
+        # Lazy import prevents sklearn->threadpoolctl race condition in Ray workers on Windows
         from peft import PeftModel, get_peft_model_state_dict
 
         if isinstance(model, PeftModel):
+            # LoRA models only transmit adapter params, not full base model
             state_dict = get_peft_model_state_dict(model)
             return [val.cpu().numpy() for val in state_dict.values()]
 
-        else:
-            return [val.cpu().numpy() for _, val in model.state_dict().items()]
+        return [val.cpu().numpy() for _, val in model.state_dict().items()]
