@@ -1,4 +1,10 @@
-"""Interactive batch runner for testing configs."""
+"""Interactive batch runner for simulation config testing.
+
+Provides a TUI for selecting and running simulation configs with:
+- Estimated run times from timing database's last successful execution
+- Graceful interrupt handling
+- Memory cleanup between runs
+"""
 
 from __future__ import annotations
 
@@ -23,8 +29,8 @@ console = Console()
 _stop_requested = False
 
 
-def _handle_interrupt(signum, frame):
-    """Handle Ctrl+C for graceful shutdown."""
+def _handle_interrupt(signum, frame) -> None:
+    """Enable graceful shutdown on first Ctrl+C, force quit on second."""
     global _stop_requested
     if _stop_requested:
         console.print("\n[red]Force quitting...[/red]")
@@ -36,15 +42,15 @@ def _handle_interrupt(signum, frame):
     )
 
 
-def parse_selection(selection_input: str, max_index: int) -> set:
-    """Parse user selection input into set of indices.
+def parse_selection(selection_input: str, max_index: int) -> set[int]:
+    """Parse selection input like "1,3,5" or "1-10" into index set.
 
     Args:
-        selection_input: User input string.
-        max_index: Maximum valid index.
+        selection_input: User input ("all", "1,3,5", "1-10", or combinations).
+        max_index: Maximum valid index (exclusive).
 
     Returns:
-        Set of selected indices (0-based).
+        Set of selected 0-based indices.
     """
     selection_input = selection_input.strip().lower()
 
@@ -77,34 +83,33 @@ def parse_selection(selection_input: str, max_index: int) -> set:
 
 
 def show_config_menu(
-    configs: list,
+    configs: list[str],
     timing_db: TimingDatabase,
     config_reader: ConfigReader,
     config_subdir: str,
 ) -> None:
-    """Display interactive config selection menu.
+    """Display rich table of available experiments with metadata.
 
     Args:
         configs: List of config filenames.
-        timing_db: Timing database for duration estimates.
-        config_reader: Config reader for titles.
-        config_subdir: Subdirectory under config/simulation_strategies.
+        timing_db: Database for estimated run durations.
+        config_reader: Reader for extracting config titles.
+        config_subdir: Subdirectory under config/simulation_strategies/.
     """
     console.print("\n[bold cyan]Available Experiments[/bold cyan]")
     table = Table(show_header=True, header_style="bold cyan")
-    table.add_column("#", style="dim", width=4)
+    table.add_column("#", style="dim", width=3)
     table.add_column("Experiment", style="white")
-    table.add_column("Device", justify="center", style="magenta", width=8)
+    table.add_column("Config", style="dim", width=35)
+    table.add_column("Gear", justify="center", style="magenta", width=4)
+    table.add_column("Rounds", justify="right", style="cyan", width=6)
     table.add_column("Time", justify="right", style="yellow")
 
     config_base_dir = project_root / "config" / "simulation_strategies" / config_subdir
 
     for idx, config_name in enumerate(configs, start=1):
         title_text = config_reader.get_title(config_name)
-        if title_text:
-            title = f"{title_text} [dim]({config_name})[/dim]"
-        else:
-            title = config_name
+        title = title_text if title_text else config_name
 
         config_file_path = config_base_dir / config_name
         try:
@@ -113,8 +118,12 @@ def show_config_menu(
                 device = (
                     config_data.get("shared_settings", {}).get("training_device", "cpu").lower()
                 )
+                num_rounds = config_data.get("shared_settings", {}).get("num_of_rounds")
         except (FileNotFoundError, json.JSONDecodeError):
             device = "cpu"
+            num_rounds = None
+
+        rounds_str = str(num_rounds) if num_rounds is not None else "—"
 
         duration = timing_db.get_duration(config_name, device=device)
 
@@ -129,28 +138,29 @@ def show_config_menu(
                 time_str = f"{secs}s"
 
         device_str = "GPU" if device == "gpu" else "CPU"
-        table.add_row(str(idx), title, device_str, time_str)
+        config_display = config_name[:-5] if config_name.endswith(".json") else config_name
+        table.add_row(str(idx), title, config_display, device_str, rounds_str, time_str)
 
     console.print(table)
     console.print()
 
 
 def select_configs_interactive(
-    all_configs: list,
+    all_configs: list[str],
     timing_db: TimingDatabase,
     config_reader: ConfigReader,
     config_subdir: str,
-) -> list:
-    """Interactively select configs to run.
+) -> list[str]:
+    """Prompt user to select experiments from menu.
 
     Args:
-        all_configs: List of available config filenames.
-        timing_db: Timing database.
-        config_reader: Config reader.
-        config_subdir: Subdirectory under config/simulation_strategies.
+        all_configs: Available config filenames.
+        timing_db: Database for run time estimates.
+        config_reader: Reader for config titles.
+        config_subdir: Subdirectory under config/simulation_strategies/.
 
     Returns:
-        List of selected config filenames.
+        User-confirmed list of config filenames to run.
     """
     stats = timing_db.get_stats(device="gpu")
     if stats["count"] > 0:
@@ -207,22 +217,21 @@ def select_configs_interactive(
 
 
 def list_available_config_paths() -> list[tuple[str, int, str]]:
-    """List all available config directories and standalone configs.
+    """Discover config directories and standalone files.
 
     Returns:
-        List of tuples: (path, count, type) where type is 'dir' or 'file'
+        List of (path, config_count, path_type) tuples.
+        path_type is "dir" for directories, "file" for standalone configs.
     """
     strategies_dir = project_root / "config" / "simulation_strategies"
     results = []
 
-    # Find all subdirectories with JSON files
     for item in strategies_dir.iterdir():
         if item.is_dir():
             json_files = list(item.rglob("*.json"))
             if json_files:
                 results.append((item.name, len(json_files), "dir"))
 
-    # Find standalone JSON files in root
     for item in strategies_dir.glob("*.json"):
         if item.is_file():
             results.append((item.name, 1, "file"))
@@ -231,10 +240,10 @@ def list_available_config_paths() -> list[tuple[str, int, str]]:
 
 
 def select_config_path_interactive() -> str:
-    """Interactively select a config directory or file.
+    """Prompt user to select a config directory or file.
 
     Returns:
-        Selected path (directory name or filename)
+        Selected directory name or config filename.
     """
     available = list_available_config_paths()
 
@@ -282,8 +291,8 @@ def select_config_path_interactive() -> str:
             console.print("[red]Invalid input. Enter a number or 'q'.[/red]")
 
 
-def main():
-    """Run selected configs with memory cleanup."""
+def main() -> None:
+    """Entry point: select and run experiments with cleanup between runs."""
     signal.signal(signal.SIGINT, _handle_interrupt)
 
     parser = argparse.ArgumentParser(description="Interactive batch runner for testing configs")
@@ -295,8 +304,6 @@ def main():
     )
     args = parser.parse_args()
 
-    # STEP 1: Select config path (directory or file)
-    # If no directory specified, show interactive selection
     if args.dir is None:
         selected_path = select_config_path_interactive()
     else:
@@ -311,19 +318,15 @@ def main():
     timing_db = TimingDatabase()
     config_reader = ConfigReader(project_root)
 
-    # Handle both directories and single files
     if config_dir.is_file():
-        # Single config file selected - run it directly without experiment selection menu
         single_file_name = config_dir.name
         config_dir = config_dir.parent
         all_configs = [single_file_name]
-        # For single files at root, config_subdir should be "." to work with executor
-        selected_path = "."
-        selected_configs = all_configs  # Skip interactive selection for single file
+        selected_path = "."  # Executor expects "." for root-level configs
+        selected_configs = all_configs
 
         console.print(f"\n[cyan]Running single config: {single_file_name}[/cyan]\n")
     else:
-        # Directory selected - proceed to experiment selection
         all_config_paths = list(config_dir.rglob("*.json"))
 
         if not all_config_paths:
@@ -347,7 +350,7 @@ def main():
                 display_dir = f"{selected_path}/" if subdir == "." else f"{selected_path}/{subdir}/"
                 console.print(f"  [dim]•[/dim] {count} in [yellow]{display_dir}[/yellow]")
 
-        def get_sort_key(config_name):
+        def get_sort_key(config_name: str) -> float:
             config_file_path = config_dir / config_name
             try:
                 with open(config_file_path) as f:
@@ -363,7 +366,6 @@ def main():
 
         configs = sorted(all_configs, key=get_sort_key)
 
-        # STEP 2: Select specific experiments from the chosen path
         selected_configs = select_configs_interactive(
             configs, timing_db, config_reader, selected_path
         )

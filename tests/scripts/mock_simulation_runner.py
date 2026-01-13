@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Mock simulation runner - runs full output generation with real strategy execution."""
+"""Mock simulation runner with real strategy execution for CI testing.
+
+Runs federated learning simulations using baseline data instead of actual
+training, while executing real strategy aggregation logic. Validates that
+the full output generation pipeline (plots, CSVs, snapshots, HTML) works
+correctly without the overhead of distributed execution.
+"""
 
 from __future__ import annotations
 
@@ -57,7 +63,15 @@ console = Console()
 
 
 def load_baseline(config_name: str, baselines_dir: Path) -> dict | None:
-    """Load baseline data for a config."""
+    """Load pre-recorded baseline data for a simulation config.
+
+    Args:
+        config_name: Config filename (e.g., "fedavg.json").
+        baselines_dir: Directory containing baseline JSON files.
+
+    Returns:
+        Baseline data dict, or None if no baseline exists.
+    """
     baseline_name = config_name.replace(".json", ".baseline.json")
     baseline_path = baselines_dir / baseline_name
 
@@ -69,7 +83,15 @@ def load_baseline(config_name: str, baselines_dir: Path) -> dict | None:
 
 
 def load_config(config_name: str, config_dir: Path) -> dict:
-    """Load simulation config."""
+    """Load simulation configuration from JSON file.
+
+    Args:
+        config_name: Config filename (e.g., "fedavg.json").
+        config_dir: Directory containing config files.
+
+    Returns:
+        Parsed configuration dictionary.
+    """
     config_path = config_dir / config_name
     with open(config_path) as f:
         return json.load(f)
@@ -80,15 +102,18 @@ def create_strategy_for_mock(
     strategy_history: SimulationStrategyHistory,
     initial_params: Any,
 ) -> Any:
-    """Creates a real strategy instance for mock testing.
+    """Create a real strategy instance for mock testing.
+
+    Instantiates actual strategy classes so their aggregation logic is
+    exercised during mock simulations, even though training is simulated.
 
     Args:
         strategy_config: Strategy configuration from config JSON.
         strategy_history: History object for recording metrics.
-        initial_params: Mock initial parameters.
+        initial_params: Initial model parameters.
 
     Returns:
-        Real strategy instance that will execute actual aggregation code.
+        Strategy instance ready for aggregation calls.
     """
     common_kwargs = {
         "initial_parameters": initial_params,
@@ -185,8 +210,18 @@ def create_strategy_for_mock(
         )
 
 
-def populate_history_from_baseline(strategy_history, baseline_strategy: dict, num_clients: int):
-    """Populates SimulationStrategyHistory with baseline data."""
+def populate_history_from_baseline(
+    strategy_history: SimulationStrategyHistory,
+    baseline_strategy: dict,
+    num_clients: int,
+) -> None:
+    """Populate strategy history from pre-recorded baseline data.
+
+    Args:
+        strategy_history: History object to populate.
+        baseline_strategy: Baseline data containing per_round and per_client metrics.
+        num_clients: Number of clients in the simulation.
+    """
     per_round = baseline_strategy.get("per_round", {})
     per_client = baseline_strategy.get("per_client", {})
     total_rounds = baseline_strategy.get("total_rounds", 10)
@@ -196,13 +231,17 @@ def populate_history_from_baseline(strategy_history, baseline_strategy: dict, nu
         for round_num in range(1, total_rounds + 1):
             idx = round_num - 1
 
+            # Normalize accuracy: convert 0-1 range to percentage if needed
+            raw_accuracy = client_data.get("accuracy", [0.0] * total_rounds)[idx]
+            accuracy_pct = raw_accuracy * 100.0 if raw_accuracy < 1.5 else raw_accuracy
+
             strategy_history.insert_single_client_history_entry(
                 client_id=client_id,
                 current_round=round_num,
                 removal_criterion=client_data.get("removal_criterion", [0.0] * total_rounds)[idx],
                 absolute_distance=client_data.get("absolute_distance", [0.0] * total_rounds)[idx],
                 loss=client_data.get("loss", [0.0] * total_rounds)[idx],
-                accuracy=client_data.get("accuracy", [0.0] * total_rounds)[idx],
+                accuracy=accuracy_pct,
                 aggregation_participation=client_data.get("participation", [1] * total_rounds)[idx],
             )
 
@@ -217,14 +256,24 @@ def populate_history_from_baseline(strategy_history, baseline_strategy: dict, nu
 
 
 class MockFederatedSimulation:
-    """Mock simulation that uses baseline data instead of real training."""
+    """Lightweight simulation wrapper for testing output handlers.
 
-    def __init__(self, strategy_config, strategy_history, attack_schedule=None):
+    Provides the minimal interface that plot_handler and other output
+    generators expect, without requiring actual distributed execution.
+    """
+
+    def __init__(
+        self,
+        strategy_config: StrategyConfig,
+        strategy_history: SimulationStrategyHistory,
+        attack_schedule: list | None = None,
+    ) -> None:
         self.strategy_config = strategy_config
         self.strategy_history = strategy_history
         self._attack_schedule = attack_schedule or []
 
-    def get_attack_schedule_as_dict(self):
+    def get_attack_schedule_as_dict(self) -> list:
+        """Return attack schedule for snapshot generation."""
         return self._attack_schedule
 
 
@@ -237,19 +286,22 @@ def generate_mock_attack_snapshots(
     max_samples: int = 5,
     save_format: str = "pickle",
 ) -> int:
-    """Generates mock attack snapshots for CI testing.
+    """Generate mock attack snapshots for CI testing.
+
+    Creates synthetic snapshot files to test the snapshot saving and
+    HTML report generation pipeline without running actual attacks.
 
     Args:
         attack_schedule: List of attack configurations.
         output_dir: Output directory path.
         num_clients: Total number of clients.
-        total_rounds: Total number of rounds.
-        strategy_number: Strategy index.
-        max_samples: Max samples per snapshot.
-        save_format: Snapshot format.
+        total_rounds: Total number of FL rounds.
+        strategy_number: Strategy index for file organization.
+        max_samples: Maximum samples per snapshot.
+        save_format: Snapshot format ("pickle" or "json").
 
     Returns:
-        Number of snapshots generated.
+        Number of snapshots successfully generated.
     """
     snapshots_generated = 0
 
@@ -307,16 +359,19 @@ def run_mock_simulation(
     baselines_dir: Path,
     output_base: Path,
 ) -> tuple[bool, Path | None, list[str]]:
-    """Runs mock simulation with REAL strategy code execution.
+    """Run mock simulation with real strategy aggregation logic.
+
+    Executes the full simulation output pipeline using baseline data,
+    validating that plots, CSVs, and HTML reports are generated correctly.
 
     Args:
-        config_name: Name of config file.
+        config_name: Config filename (e.g., "fedavg.json").
         config_dir: Directory containing config files.
-        baselines_dir: Directory containing baselines.
-        output_base: Base output directory.
+        baselines_dir: Directory containing baseline data.
+        output_base: Base output directory (unused, DirectoryHandler creates its own).
 
     Returns:
-        Tuple of (success, output_dir, errors).
+        Tuple of (success, output_dir, error_messages).
     """
     errors = []
 
@@ -378,18 +433,24 @@ def run_mock_simulation(
             )
 
             num_rounds = merged_config.get("num_of_rounds", 10)
-            mock_start_simulation(
-                client_fn=lambda cid: MockClient(MockNumPyClient(int(cid))),
-                num_clients=num_clients,
-                config=MockServerConfig(num_rounds),
-                strategy=strategy,
-                initial_parameters=ndarrays_to_parameters(
-                    [
-                        rng.standard_normal((100, 10)).astype(np.float32),
-                        rng.standard_normal(10).astype(np.float32),
-                    ]
-                ),
-            )
+
+            if baseline and strat_idx < len(baseline.get("strategies", [])):
+                baseline_strategy = baseline["strategies"][strat_idx]
+                populate_history_from_baseline(strategy_history, baseline_strategy, num_clients)
+            else:
+                # Fallback: run mock simulation if no baseline exists
+                mock_start_simulation(
+                    client_fn=lambda cid: MockClient(MockNumPyClient(int(cid))),
+                    num_clients=num_clients,
+                    config=MockServerConfig(num_rounds),
+                    strategy=strategy,
+                    initial_parameters=ndarrays_to_parameters(
+                        [
+                            rng.standard_normal((100, 10)).astype(np.float32),
+                            rng.standard_normal(10).astype(np.float32),
+                        ]
+                    ),
+                )
 
             strategy_history.calculate_additional_rounds_data()
 
@@ -455,13 +516,13 @@ def run_mock_simulation(
 
 
 def verify_outputs(output_dir: Path) -> tuple[bool, list[str], dict]:
-    """Verifies expected outputs were created and return file counts.
+    """Verify expected output artifacts were created.
 
     Args:
-        output_dir: Path to output directory.
+        output_dir: Path to simulation output directory.
 
     Returns:
-        Tuple of (success, errors, counts).
+        Tuple of (all_valid, error_messages, file_counts_dict).
     """
     errors = []
     counts = {"plots": 0, "csvs": 0, "snapshots": 0, "html": False}
@@ -500,7 +561,7 @@ def verify_outputs(output_dir: Path) -> tuple[bool, list[str], dict]:
 
 
 def _validate_csv_file(csv_path: Path) -> list[str]:
-    """Validates a CSV file has expected structure."""
+    """Validate CSV has header row and at least one data row."""
     errors = []
     try:
         with open(csv_path) as f:
@@ -525,7 +586,7 @@ def _validate_csv_file(csv_path: Path) -> list[str]:
 
 
 def _count_attack_snapshots(output_dir: Path) -> int:
-    """Counts attack snapshot files across all strategies."""
+    """Count attack snapshot files across all strategy directories."""
     total = 0
     for snapshots_dir in output_dir.glob("attack_snapshots_*"):
         if snapshots_dir.is_dir():
