@@ -1,7 +1,7 @@
 # IntelliFL - Makefile for common tasks
 # Cross-platform compatible (uses shell scripts)
 
-.PHONY: help setup dev sim test lint lint-test sonar clean docker docker-frontend mutmut
+.PHONY: help setup dev sim test lint lint-test sonar clean upgrade docker docker-frontend mutmut
 
 # Default target
 help:
@@ -26,6 +26,7 @@ help:
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  make clean          Clean build artifacts and caches"
+	@echo "  make upgrade        Update dependencies to latest versions"
 	@echo ""
 	@echo "Docker:"
 	@echo "  make docker         Build backend Docker image"
@@ -62,6 +63,9 @@ sonar:
 # Maintenance targets
 clean:
 	@./clean.sh
+
+upgrade:
+	@./update_dependencies.sh
 
 # Docker targets
 docker:
