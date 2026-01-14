@@ -15,6 +15,7 @@
 #   - Test artifacts: .hypothesis, MagicMock directories
 #   - Build artifacts: *.egg-info, frontend/dist
 #   - Playwright MCP artifacts: .playwright-mcp
+#   - Dependency backups: uv.lock.backup.*
 #
 # What is preserved:
 #   - Source code (src/, tests/, frontend/src/)
@@ -68,3 +69,6 @@ if [ -d "frontend/dist" ]; then
     rm -rf frontend/dist
     log_info "Cleaned frontend/dist/ directory."
 fi
+
+rm -f uv.lock.backup.*
+log_info "Cleaned uv.lock backup files."

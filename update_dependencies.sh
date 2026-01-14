@@ -1,17 +1,11 @@
 #!/bin/bash
 # Update Python dependencies using uv lock.
 #
-# Upgrades all dependencies or a specific package to their latest compatible
-# versions. Creates a backup of uv.lock before making changes.
+# Upgrades all dependencies to their latest compatible versions.
+# Creates a backup of uv.lock before making changes.
 #
 # Usage:
-#   ./update_dependencies.sh              # Update all dependencies
-#   ./update_dependencies.sh package-name # Update specific package
-#
-# Examples:
-#   ./update_dependencies.sh              # Full update
-#   ./update_dependencies.sh pydantic     # Update just Pydantic
-#   ./update_dependencies.sh torch        # Update just PyTorch
+#   ./update_dependencies.sh
 #
 # Dependencies: uv
 
@@ -66,40 +60,35 @@ echo ""
 
 # Preserve ability to restore if update causes issues.
 if [ -f "uv.lock" ]; then
-    cp uv.lock uv.lock.backup
-    log_success "Backed up uv.lock to uv.lock.backup"
+    BACKUP_FILE="uv.lock.backup.$(date +%s)"
+    cp uv.lock "${BACKUP_FILE}"
+    log_success "Backed up uv.lock to ${BACKUP_FILE}"
+    
+    # Keep only the last 3 backups to prevent accumulation.
+    ls -t uv.lock.backup.* 2>/dev/null | tail -n +4 | xargs -r rm -f
 fi
 
-if [ $# -eq 0 ]; then
-    log_info "Updating ALL dependencies to latest compatible versions..."
-    echo ""
+log_info "Updating ALL dependencies to latest compatible versions..."
+echo ""
 
-    uv lock --upgrade
+uv lock --upgrade
 
-    log_success "Lock file updated successfully!"
-    echo ""
-    log_info "To see what changed, run:"
-    echo "  git diff uv.lock"
+log_success "Lock file updated successfully!"
+echo ""
+log_info "To see what changed, run:"
+echo "  git diff uv.lock"
 
-else
-    PACKAGE="$1"
-    log_info "Updating ${PACKAGE} to latest compatible version..."
-    echo ""
-
-    uv lock --upgrade-package "${PACKAGE}"
-
-    log_success "${PACKAGE} updated successfully!"
-    echo ""
-    log_info "To see what changed, run:"
-    echo "  git diff uv.lock"
-fi
 
 echo ""
 log_warning "Next steps:"
 echo "  1. Review changes: git diff uv.lock"
-echo "  2. Test changes: ./tests/lint.sh --test"
+echo "  2. Test changes: make test"
 echo "  3. Sync environment: uv sync"
 echo "  4. If tests pass, commit the updated uv.lock"
 echo ""
 log_info "To restore backup if something breaks:"
-echo "  mv uv.lock.backup uv.lock && uv sync"
+echo "  # Find available backups:"
+echo "  ls -t uv.lock.backup.*"
+echo ""
+echo "  # Restore latest (safely):"
+echo "  [ -f uv.lock.backup.* ] && mv \$(ls -t uv.lock.backup.* | head -n1) uv.lock && uv sync"
