@@ -6,8 +6,9 @@
 
 services:
   api:
+    image: intellifl-api:latest
     build: .
-    container_name: fl-framework
+    container_name: intellifl-api
     ports:
       - "${API_PORT:-8000}:8000"
 
@@ -40,8 +41,9 @@ services:
       start_period: 120s  # First run downloads datasets
 
   frontend:
+    image: intellifl-web:latest
     build: ./frontend
-    container_name: fl-frontend
+    container_name: intellifl-web
     ports:
       - "${FRONTEND_PORT:-80}:80"
     depends_on:

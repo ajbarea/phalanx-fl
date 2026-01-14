@@ -29,8 +29,9 @@ help:
 	@echo "  make upgrade        Update dependencies to latest versions"
 	@echo ""
 	@echo "Docker:"
-	@echo "  make docker         Build backend Docker image"
-	@echo "  make docker-frontend Build frontend Docker image"
+	@echo "  make docker         Build backend Docker image (intellifl-api)"
+	@echo "  make docker-frontend Build frontend Docker image (intellifl-web)"
+	@echo "  make docker-all     Build all Docker images"
 	@echo ""
 
 # Setup targets
@@ -69,10 +70,17 @@ upgrade:
 
 # Docker targets
 docker:
-	@docker build -t intellifl-backend .
+	@docker build -t intellifl-api:latest .
 
 docker-frontend:
-	@cd frontend && docker build -t intellifl-frontend .
+	@cd frontend && docker build -t intellifl-web:latest .
+
+docker-all: docker docker-frontend
+	@echo ""
+	@echo "✓ Built IntelliFL components:"
+	@echo "  - intellifl-api:latest"
+	@echo "  - intellifl-web:latest"
+	@echo ""
 
 # Mutation testing (runs in Docker to avoid Windows compatibility issues)
 mutmut:
