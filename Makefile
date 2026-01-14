@@ -1,7 +1,7 @@
 # IntelliFL - Makefile for common tasks
 # Cross-platform compatible (uses shell scripts)
 
-.PHONY: help setup dev sim test lint lint-test sonar clean docker docker-frontend
+.PHONY: help setup dev sim test lint lint-test sonar clean docker docker-frontend mutmut
 
 # Default target
 help:
@@ -21,6 +21,7 @@ help:
 	@echo "Quality:"
 	@echo "  make lint           Run linting only"
 	@echo "  make test           Run linting + tests"
+	@echo "  make mutmut         Run mutation tests (via Docker)"
 	@echo "  make sonar          Run linting + tests + SonarQube (requires Docker)"
 	@echo ""
 	@echo "Maintenance:"
@@ -68,3 +69,7 @@ docker:
 
 docker-frontend:
 	@cd frontend && docker build -t intellifl-frontend .
+
+# Mutation testing (runs in Docker to avoid Windows compatibility issues)
+mutmut:
+	@docker run --rm --entrypoint sh -v $(CURDIR)/src:/app/src -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/.mutmut-cache:/app/.mutmut-cache intellifl-backend -c "cd /app && .venv/bin/mutmut run"

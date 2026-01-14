@@ -12,8 +12,12 @@ dependencies = [
     "flwr-datasets",
     "fsspec",
     "httpx",
+    "hypothesis>=6.141.1",
+    "isort>=6.1.0",
     "matplotlib",
     "multiprocess",
+    "mutmut>=3.3.1",
+    "mypy>=1.19.1",
     "numpy>=1.26.4,<3.0",
     "opencv-python-headless",
     "pandas",
@@ -21,11 +25,20 @@ dependencies = [
     "peft",
     "psutil",
     "pyarrow",
+    "pyright>=1.1.408",
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.2.0",
+    "pytest-cov>=7.0.0",
+    "pytest-mock>=3.15.1",
+    "pytest-randomly>=3.17.0",
+    "pytest-repeat>=0.9.3",
+    "pytest-xdist>=3.8.0",
     "pyyaml>=6.0.2,<7.0.0",
     "pywinpty>=2.0.0; sys_platform == 'win32'",
     "ray",
     "requests",
     "rich",
+    "ruff>=0.14.11",
     "scikit-learn",
     "scipy>=1.13.1,<2.0",
     "sse-starlette",
@@ -182,10 +195,26 @@ disallow_incomplete_defs = true
 # Mutation Testing (mutmut) Configuration
 # =============================================================================
 [tool.mutmut]
-paths_to_mutate = ["src/simulation_strategies/", "src/attack_utils/"]
-tests_dir = "tests/"
+paths_to_mutate = ["src/"]
 runner = "python -m pytest"
-pytest_add_cli_args_test_selection = ["-m", "not slow", "-x", "-q"]
+tests_dir = ["tests/"]
+use_coverage = true
+exclude = [
+    "src/__init__.py",
+    "src/api/__init__.py",
+    "src/api/models.py",
+    "src/attack_utils/__init__.py",
+    "src/attack_utils/vocabularies/",
+    "src/client_models/__init__.py",
+    "src/config_loaders/__init__.py",
+    "src/data_models/",
+    "src/dataset_handlers/__init__.py",
+    "src/dataset_loaders/__init__.py",
+    "src/network_models/__init__.py",
+    "src/output_handlers/__init__.py",
+    "src/simulation_strategies/__init__.py",
+    "src/utils/__init__.py",
+]
 
 # =============================================================================
 # Flower Federated Learning Configuration (flwr 1.25+)
@@ -266,21 +295,4 @@ filterwarnings = [
     "ignore::RuntimeWarning:numpy.*",
     "ignore::RuntimeWarning:threadpoolctl.*",
     "ignore::PendingDeprecationWarning",
-]
-
-[dependency-groups]
-dev = [
-    "hypothesis>=6.141.1",
-    "isort>=6.1.0",
-    "mutmut>=3.3.1",
-    "mypy>=1.19.1",
-    "pyright>=1.1.408",
-    "pytest>=8.4.2",
-    "pytest-asyncio>=1.2.0",
-    "pytest-cov>=7.0.0",
-    "pytest-mock>=3.15.1",
-    "pytest-repeat>=0.9.3",
-    "pytest-randomly>=3.17.0",
-    "pytest-xdist>=3.8.0",
-    "ruff>=0.14.11",
 ]
