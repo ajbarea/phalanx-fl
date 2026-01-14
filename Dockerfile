@@ -37,10 +37,11 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 COPY pyproject.toml uv.lock ./
 
 # Install dependencies into system python
-RUN uv sync --frozen --no-cache --no-dev --system
+RUN uv sync --frozen --no-cache
 
 COPY src/ ./src/
 COPY config/ ./config/
+COPY tests/ ./tests/
 
 # Entrypoint auto-downloads datasets on first run
 COPY entrypoint.sh ./
