@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 # Research: Reproducible container guidelines (Rule 4: Version Control)
 # https://doi.org/10.1371/journal.pcbi.1008316
 
@@ -36,7 +38,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # Requirements first for layer caching
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies into system python
+# Install dependencies into conda python
+ENV UV_PROJECT_ENVIRONMENT=/opt/conda
 RUN uv sync --frozen --no-cache
 
 COPY src/ ./src/
@@ -44,8 +47,7 @@ COPY config/ ./config/
 COPY tests/ ./tests/
 
 # Entrypoint auto-downloads datasets on first run
-COPY entrypoint.sh ./
-RUN chmod +x entrypoint.sh
+COPY --chmod=755 entrypoint.sh ./
 
 # Mounted at runtime for data persistence
 RUN mkdir -p /app/out /app/datasets
