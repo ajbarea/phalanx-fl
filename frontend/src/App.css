@@ -2759,6 +2759,11 @@ body {
   color: #6856ba; /* Brand Purple from Logo */
 }
 
+/* Dark mode: lighten "Intelli" for visibility */
+:root[data-theme='dark'] .brand-text {
+  color: #f5f5f5;
+}
+
 /* Override Detail Button Color */
 .btn-outline-primary {
   color: #6856ba !important;
