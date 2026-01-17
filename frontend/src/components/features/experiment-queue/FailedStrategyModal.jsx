@@ -1,9 +1,11 @@
 import { Modal, Button, Alert } from 'react-bootstrap';
 
-export function FailedStrategyModal({ show, onHide, strategy }) {
+export function FailedStrategyModal({ show, onHide, strategy, sharedConfig }) {
   if (!strategy) return null;
 
-  const strategyName = strategy.config?.aggregation_strategy_keyword || 'fedavg';
+  // Merge sharedConfig with strategy config for robust fallbacks
+  const mergedConfig = { ...sharedConfig, ...strategy.config };
+  const strategyName = mergedConfig.aggregation_strategy_keyword || 'fedavg';
   const displayName = strategyName.charAt(0).toUpperCase() + strategyName.slice(1);
 
   return (
@@ -37,18 +39,18 @@ export function FailedStrategyModal({ show, onHide, strategy }) {
             </div>
             <div className="d-flex justify-content-between py-1">
               <span className="text-muted">Malicious clients:</span>
-              <strong>{strategy.config?.num_of_malicious_clients || 0}</strong>
+              <strong>{mergedConfig.num_of_malicious_clients || 0}</strong>
             </div>
-            {strategy.config?.num_krum_selections && (
+            {mergedConfig.num_krum_selections && (
               <div className="d-flex justify-content-between py-1">
                 <span className="text-muted">Krum selections (k):</span>
-                <strong>{strategy.config.num_krum_selections}</strong>
+                <strong>{mergedConfig.num_krum_selections}</strong>
               </div>
             )}
-            {strategy.config?.remove_clients !== undefined && (
+            {mergedConfig.remove_clients !== undefined && (
               <div className="d-flex justify-content-between py-1">
                 <span className="text-muted">Clients to remove:</span>
-                <strong>{strategy.config.remove_clients}</strong>
+                <strong>{mergedConfig.remove_clients}</strong>
               </div>
             )}
           </div>

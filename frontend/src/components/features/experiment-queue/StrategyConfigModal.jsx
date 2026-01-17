@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { Modal, Button, Form, Row, Col } from 'react-bootstrap';
 
-export function StrategyConfigModal({ show, onHide, strategy, onSave }) {
-  const [editedConfig, setEditedConfig] = useState(strategy?.config || {});
+export function StrategyConfigModal({ show, onHide, strategy, onSave, sharedConfig }) {
+  const [editedConfig, setEditedConfig] = useState(() => ({
+    ...(sharedConfig || {}),
+    ...(strategy?.config || {}),
+  }));
 
   const handleChange = e => {
     const { name, value, type } = e.target;

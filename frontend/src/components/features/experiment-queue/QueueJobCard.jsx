@@ -11,6 +11,9 @@ export function QueueJobCard({ strategy, simulationId, sharedConfig, onConfigUpd
   const { index, config, status } = strategy;
   const navigate = useNavigate();
 
+  // Merge sharedConfig with strategy config for robust fallbacks (handles old simulations with empty strategy configs)
+  const mergedConfig = { ...sharedConfig, ...config };
+
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showRunningModal, setShowRunningModal] = useState(false);
   const [showFailedModal, setShowFailedModal] = useState(false);
@@ -100,13 +103,13 @@ export function QueueJobCard({ strategy, simulationId, sharedConfig, onConfigUpd
                 <span className="ms-2">Strategy {index + 1}</span>
               </h6>
               <div className="text-muted small">
-                <strong>{config.aggregation_strategy_keyword || 'fedavg'}</strong>
-                {config.num_krum_selections && ` • k=${config.num_krum_selections}`}
-                {config.trim_ratio && ` • trim=${config.trim_ratio}`}
+                <strong>{mergedConfig.aggregation_strategy_keyword || 'fedavg'}</strong>
+                {mergedConfig.num_krum_selections && ` • k=${mergedConfig.num_krum_selections}`}
+                {mergedConfig.trim_ratio && ` • trim=${mergedConfig.trim_ratio}`}
               </div>
               <div className="text-muted small">
-                {config.num_of_malicious_clients || 0} malicious clients
-                {config.remove_clients === 'true' && ' • remove=true'}
+                {mergedConfig.num_of_malicious_clients || 0} malicious clients
+                {mergedConfig.remove_clients === 'true' && ' • remove=true'}
               </div>
             </div>
             <div className="d-flex flex-column align-items-end gap-1">{getStatusBadge()}</div>
@@ -114,8 +117,22 @@ export function QueueJobCard({ strategy, simulationId, sharedConfig, onConfigUpd
 
           {status === 'running' && (
             <div className="mt-3">
-              <ProgressBar animated now={100} variant="primary" className="queue-job-progress" />
-              <div className="text-muted small mt-1">Executing...</div>
+              <div className="d-flex justify-content-between align-items-center mb-1">
+                <div className="text-muted small">
+                  {strategy.currentRound && strategy.totalRounds
+                    ? `Executing Round ${strategy.currentRound}/${strategy.totalRounds}...`
+                    : 'Executing...'}
+                </div>
+                <div className="small font-weight-bold">
+                  {strategy.progress ? `${Math.round(strategy.progress * 100)}%` : ''}
+                </div>
+              </div>
+              <ProgressBar
+                animated
+                now={strategy.progress ? strategy.progress * 100 : 100}
+                variant="primary"
+                className="queue-job-progress"
+              />
             </div>
           )}
 
@@ -149,6 +166,7 @@ export function QueueJobCard({ strategy, simulationId, sharedConfig, onConfigUpd
         onHide={() => setShowConfigModal(false)}
         strategy={strategy}
         onSave={handleSaveConfig}
+        sharedConfig={sharedConfig}
       />
 
       <RunningStrategyModal
@@ -163,6 +181,7 @@ export function QueueJobCard({ strategy, simulationId, sharedConfig, onConfigUpd
         show={showFailedModal}
         onHide={() => setShowFailedModal(false)}
         strategy={strategy}
+        sharedConfig={sharedConfig}
       />
     </>
   );
