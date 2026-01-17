@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, Alert, Spinner, Badge, Row, Col, Form, Modal, Button, Nav } from 'react-bootstrap';
 import { apiClient } from '@api/client';
+import { ImageLightbox } from '@components/common/ImageLightbox';
 
-// Visualization type labels and display order
+// Visualization type labels and display order (defaults)
 const VIZ_TYPES = {
   primary: { label: 'Samples', icon: '🖼️' },
   comparison: { label: 'Comparison', icon: '🔄' },
@@ -11,6 +12,26 @@ const VIZ_TYPES = {
   weight_histogram: { label: 'Weight Distribution', icon: '📈' },
   prediction_grid: { label: 'Prediction Impact', icon: '🎯' },
   html_diff: { label: 'Token Diff', icon: '📝' },
+};
+
+// Attack-type-specific overrides for visualization labels
+// Weight-based attacks show prediction comparisons, not data samples
+const ATTACK_VIZ_OVERRIDES = {
+  model_poisoning: {
+    primary: { label: 'Prediction Comparison', icon: '🎯' },
+  },
+  gradient_scaling: {
+    primary: { label: 'Prediction Comparison', icon: '🎯' },
+  },
+  byzantine_perturbation: {
+    primary: { label: 'Prediction Comparison', icon: '🎯' },
+  },
+};
+
+// Helper to get visualization config with attack-type-specific overrides
+const getVizConfig = (vizType, attackType) => {
+  const override = ATTACK_VIZ_OVERRIDES[attackType]?.[vizType];
+  return override || VIZ_TYPES[vizType] || { label: vizType, icon: '📄' };
 };
 
 // Attack type descriptions for education
@@ -29,7 +50,7 @@ const ATTACK_DESCRIPTIONS = {
   model_poisoning: {
     title: 'Model Poisoning Attack',
     description: 'Manipulates model weights to extreme values, degrading performance.',
-    tip: 'Check the Prediction Impact and Weight Distribution tabs.',
+    tip: 'Compare predictions before/after poisoning and check Weight Distribution.',
   },
   gradient_scaling: {
     title: 'Gradient Scaling Attack',
@@ -57,12 +78,12 @@ function AttackSnapshotCard({ snapshot, simulationId, onImageClick }) {
     [snapshot.visualizations, snapshot.image_path]
   );
 
-  // Get available visualization types for this snapshot
+  // Get available visualization types for this snapshot (with attack-specific labels)
   const availableViz = useMemo(() => {
-    return Object.entries(VIZ_TYPES)
-      .filter(([key]) => visualizations[key])
-      .map(([key, config]) => ({ key, ...config }));
-  }, [visualizations]);
+    return Object.keys(VIZ_TYPES)
+      .filter(key => visualizations[key])
+      .map(key => ({ key, ...getVizConfig(key, snapshot.attack_type) }));
+  }, [visualizations, snapshot.attack_type]);
 
   // Get attack info
   const attackInfo = ATTACK_DESCRIPTIONS[snapshot.attack_type] || null;
@@ -96,7 +117,7 @@ function AttackSnapshotCard({ snapshot, simulationId, onImageClick }) {
     return (
       <img
         src={`/api/simulations/${simulationId}/results/${vizPath}`}
-        alt={`${snapshot.attack_type} - ${VIZ_TYPES[activeTab]?.label || activeTab}`}
+        alt={`${snapshot.attack_type} - ${getVizConfig(activeTab, snapshot.attack_type).label}`}
         className="img-fluid rounded"
         style={{ maxHeight: '400px', width: '100%', objectFit: 'contain', cursor: 'pointer' }}
         onClick={() => onImageClick({ ...snapshot, currentViz: activeTab })}
@@ -307,7 +328,7 @@ export function AttackSnapshotsTab({ simulationId, status }) {
         <h5 className="mb-3">Attack Snapshots</h5>
 
         {summary && (
-          <Alert variant="light" className="mb-3 border">
+          <Alert variant="secondary" className="mb-3" style={{ backgroundColor: 'var(--color-surface-variant)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}>
             <div className="d-flex flex-wrap gap-3">
               <div>
                 <strong>Total Snapshots:</strong> {summary.attack_summary?.total_snapshots || 0}
@@ -434,59 +455,65 @@ export function AttackSnapshotsTab({ simulationId, status }) {
         </div>
       </Card.Body>
 
-      {/* Full-size image modal */}
-      <Modal show={!!modalImage} onHide={() => setModalImage(null)} size="xl" centered>
-        {modalImage && (
-          <>
-            <Modal.Header closeButton>
-              <Modal.Title>
-                {modalImage.attack_type.replace(/_/g, ' ')} - Client {modalImage.client_id}, Round{' '}
-                {modalImage.round_num}
-                {modalImage.currentViz &&
-                  modalImage.currentViz !== 'primary' &&
-                  ` - ${VIZ_TYPES[modalImage.currentViz]?.label || modalImage.currentViz}`}
-              </Modal.Title>
-            </Modal.Header>
-            <Modal.Body className="text-center p-0">
-              {modalImage.currentViz === 'html_diff' ? (
-                <iframe
-                  src={`/api/simulations/${simulationId}/results/${modalImage.visualizations?.html_diff}`}
-                  title="Token Replacement Visualization"
-                  className="w-100 border-0"
-                  style={{ height: '80vh' }}
-                />
-              ) : (
-                <img
-                  src={`/api/simulations/${simulationId}/results/${
-                    modalImage.visualizations?.[modalImage.currentViz] || modalImage.image_path
-                  }`}
-                  alt="Full size attack snapshot"
-                  style={{ maxWidth: '100%', maxHeight: '80vh' }}
-                />
-              )}
-            </Modal.Body>
-            <Modal.Footer>
-              {modalImage.visualizations && Object.keys(modalImage.visualizations).length > 1 && (
-                <div className="me-auto">
-                  <small className="text-muted">
-                    Available views:{' '}
-                    {Object.entries(VIZ_TYPES)
-                      .filter(([key]) => modalImage.visualizations[key])
-                      .map(([key, config]) => (
-                        <Badge key={key} bg="secondary" className="me-1">
-                          {config.icon} {config.label}
-                        </Badge>
-                      ))}
-                  </small>
-                </div>
-              )}
-              <Button variant="secondary" onClick={() => setModalImage(null)}>
-                Close
-              </Button>
-            </Modal.Footer>
-          </>
-        )}
-      </Modal>
+      {/* Full-size image lightbox with zoom */}
+      {modalImage && modalImage.currentViz !== 'html_diff' && (
+        <ImageLightbox
+          show={!!modalImage}
+          onHide={() => setModalImage(null)}
+          src={`/api/simulations/${simulationId}/results/${
+            modalImage.visualizations?.[modalImage.currentViz] || modalImage.image_path
+          }`}
+          alt={`${modalImage.attack_type} visualization`}
+          title={
+            `${modalImage.attack_type.replace(/_/g, ' ')} - Client ${modalImage.client_id}, Round ${modalImage.round_num}` +
+            (modalImage.currentViz && modalImage.currentViz !== 'primary'
+              ? ` - ${getVizConfig(modalImage.currentViz, modalImage.attack_type).label}`
+              : '')
+          }
+          footerContent={
+            modalImage.visualizations && Object.keys(modalImage.visualizations).length > 1 && (
+              <small className="text-muted">
+                Views:{' '}
+                {Object.keys(VIZ_TYPES)
+                  .filter(key => modalImage.visualizations[key])
+                  .map(key => {
+                    const config = getVizConfig(key, modalImage.attack_type);
+                    return (
+                      <Badge key={key} bg="secondary" className="me-1">
+                        {config.icon} {config.label}
+                      </Badge>
+                    );
+                  })}
+              </small>
+            )
+          }
+        />
+      )}
+
+      {/* HTML diff modal (for text-based attacks like token replacement) */}
+      {modalImage && modalImage.currentViz === 'html_diff' && (
+        <Modal show={true} onHide={() => setModalImage(null)} size="xl" centered>
+          <Modal.Header closeButton>
+            <Modal.Title>
+              {modalImage.attack_type.replace(/_/g, ' ')} - Client {modalImage.client_id}, Round{' '}
+              {modalImage.round_num} - Token Diff
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="p-0">
+            <iframe
+              src={`/api/simulations/${simulationId}/results/${modalImage.visualizations?.html_diff}`}
+              title="Token Replacement Visualization"
+              className="w-100 border-0"
+              style={{ height: '80vh' }}
+            />
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setModalImage(null)}>
+              Close
+            </Button>
+          </Modal.Footer>
+        </Modal>
+      )}
     </Card>
   );
 }
