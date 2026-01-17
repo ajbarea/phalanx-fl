@@ -3,11 +3,13 @@ from __future__ import annotations
 import csv
 import datetime
 import json
+import logging
 from pathlib import Path
 
 import numpy as np
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.utils.reproducibility import save_reproducibility_manifest
 
 
 class DirectoryHandler:
@@ -53,6 +55,9 @@ class DirectoryHandler:
         self._save_per_client_to_csv()
         self._save_per_round_to_csv()
         self._save_per_execution_to_csv()
+        self._save_latex_tables()
+        self._save_citation_bib()
+        self._save_reproducibility_manifest()
 
     def _save_simulation_config(self):
         """Save simulation config to current directory"""
@@ -205,3 +210,122 @@ class DirectoryHandler:
                 metric_cells.append(f"{metric_mean:.2f} ± {metric_std:.2f}")
 
             writer.writerow(metric_cells)
+
+    def _save_latex_tables(self):
+        """Save metrics as publication-quality LaTeX tables."""
+        assert self.simulation_strategy_history is not None
+        assert self.dirname is not None
+        strategy_num = self.simulation_strategy_history.strategy_config.strategy_number
+        latex_dir = Path(self.dirname) / "latex"
+        latex_dir.mkdir(exist_ok=True)
+
+        # Round Metrics Table (Summary of every 5 rounds)
+        round_metrics_path = latex_dir / f"round_metrics_{strategy_num}.tex"
+        savable_metrics = list(self.simulation_strategy_history.rounds_history.savable_metrics)
+
+        # Filter for key metrics only if too many
+        key_metrics = ["aggregated_loss_history", "average_accuracy_history"]
+        if "removal_accuracy_history" in savable_metrics:
+            key_metrics.append("removal_accuracy_history")
+
+        with open(round_metrics_path, "w") as f:
+            f.write("\\begin{table}[h]\n\\centering\n")
+            f.write("\\caption{Simulation Round Metrics (Strategy " + str(strategy_num) + ")}\n")
+
+            # Escape underscores for LaTeX
+            cols = ["Round"] + [m.replace("_", "\\_") for m in key_metrics]
+            f.write("\\begin{tabular}{l" + "c" * len(key_metrics) + "}\n\\hline\n")
+            f.write(" & ".join(cols) + " \\\\ \\hline\n")
+
+            num_rounds = self.simulation_strategy_history.strategy_config.num_of_rounds
+            assert num_rounds is not None
+            for r in range(1, num_rounds + 1):
+                if r == 1 or r == num_rounds or r % 5 == 0:
+                    row = [str(r)]
+                    for m in key_metrics:
+                        val = self.simulation_strategy_history.rounds_history.get_metric_by_name(m)[
+                            r - 1
+                        ]
+                        row.append(f"{val:.4f}" if val is not None else "N/A")
+                    f.write(" & ".join(row) + " \\\\\n")
+
+            f.write("\\hline\n\\end{tabular}\n\\end{table}\n")
+
+        # Execution Stats Table (The "Publication result")
+        if self.simulation_strategy_history.strategy_config.remove_clients:
+            exec_stats_path = latex_dir / f"execution_stats_{strategy_num}.tex"
+            statsable_metrics = self.simulation_strategy_history.rounds_history.statsable_metrics
+
+            with open(exec_stats_path, "w") as f:
+                f.write("\\begin{table}[h]\n\\centering\n")
+                f.write(
+                    "\\caption{Detection and Accuracy Performance (Strategy "
+                    + str(strategy_num)
+                    + ")}\n"
+                )
+                f.write("\\begin{tabular}{lc}\n\\hline\n")
+                f.write("Metric & Value ($\\pm$ std) \\\\ \\hline\n")
+
+                started_removing_from = (
+                    self.simulation_strategy_history.strategy_config.begin_removing_from_round or 1
+                )
+
+                for metric_name in statsable_metrics:
+                    collected_history = (
+                        self.simulation_strategy_history.rounds_history.get_metric_by_name(
+                            metric_name
+                        )[started_removing_from - 1 :]
+                    )
+
+                    metric_mean = np.mean(collected_history) if collected_history else 0.0
+                    metric_std = np.std(collected_history) if collected_history else 0.0
+
+                    # Standardize percentages
+                    if (
+                        "accuracy" in metric_name
+                        or "precision" in metric_name
+                        or "recall" in metric_name
+                        or "f1" in metric_name
+                    ):
+                        metric_mean *= 100
+                        metric_std *= 100
+
+                    label = metric_name.replace("_history", "").replace("_", " ").title()
+                    f.write(f"{label} & {metric_mean:.2f}\\% $\\pm$ {metric_std:.2f}\\% \\\\\n")
+
+                f.write("\\hline\n\\end{tabular}\n\\end{table}\n")
+
+    def _save_citation_bib(self):
+        """Generate a BibTeX citation file for this specific simulation run."""
+        assert self.simulation_strategy_history is not None
+        assert self.dirname is not None
+        run_id = Path(self.dirname).name
+        strategy_num = self.simulation_strategy_history.strategy_config.strategy_number
+        assert strategy_num is not None
+        dataset = self.simulation_strategy_history.strategy_config.dataset_keyword
+        strategy = self.simulation_strategy_history.strategy_config.aggregation_strategy_keyword
+
+        bib_content = f"""@misc{{intellifl_{run_id}_s{strategy_num},
+  title = {{Federated Learning Experiment Result: {run_id}}},
+  author = {{IntelliFL Execution Framework}},
+  year = {{2026}},
+  howpublished = {{\\url{{https://github.com/dmitrykoro/fl-execution-framework}}}},
+  note = {{Dataset: {dataset}, Strategy: {strategy}, Run ID: {run_id}}}
+}}
+"""
+        bib_path = Path(self.dirname) / "CITATION.bib"
+        with open(bib_path, "a" if strategy_num > 0 else "w") as f:
+            f.write(bib_content)
+
+    def _save_reproducibility_manifest(self):
+        """Save the reproducibility MANIFEST.json."""
+        assert self.dirname is not None
+        assert self.simulation_strategy_history is not None
+        try:
+            config_path = (
+                Path(self.dirname)
+                / f"strategy_config_{self.simulation_strategy_history.strategy_config.strategy_number}.json"
+            )
+            save_reproducibility_manifest(self.dirname, config_path)
+        except Exception as e:
+            logging.error(f"Failed to save reproducibility manifest in DirectoryHandler: {e}")
