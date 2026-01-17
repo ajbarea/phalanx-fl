@@ -588,6 +588,22 @@
     color: var(--color-text-primary) !important;
   }
 
+  /* Preserve semantic color classes in dark mode tables */
+  :root[data-theme='dark'] .table > tbody > tr > td.text-success,
+  :root[data-theme='dark'] .table-striped > tbody > tr > td.text-success {
+    color: #4ade80 !important;
+  }
+
+  :root[data-theme='dark'] .table > tbody > tr > td.text-danger,
+  :root[data-theme='dark'] .table-striped > tbody > tr > td.text-danger {
+    color: #f87171 !important;
+  }
+
+  :root[data-theme='dark'] .table > tbody > tr > td.text-warning-accessible,
+  :root[data-theme='dark'] .table-striped > tbody > tr > td.text-warning-accessible {
+    color: #ffb347 !important;
+  }
+
   /* Accordion items in dark mode */
   :root[data-theme='dark'] .accordion-item {
     background-color: var(--color-surface) !important;
