@@ -111,6 +111,11 @@ class SimulationDetails(BaseModel):
     config: dict[str, Any]
     result_files: list[str]
     status: str
+    progress: float = 0.0
+    current_round: int | None = None
+    total_rounds: int | None = None
+    current_strategy: int | None = None
+    total_strategies: int | None = None
 
 
 def secure_join(base: Path, *paths: str) -> Path:
@@ -282,31 +287,18 @@ def get_simulation_details(
             if not rel_path_str.startswith("dataset_"):
                 result_files.append(rel_path_str)
 
-    stopped_marker = sim_path / ".stopped"
-    if stopped_marker.is_file():
-        status = "stopped"
-    elif simulation_id in running_processes:
-        process = running_processes[simulation_id]
-        if process.poll() is None:
-            status = "running"
-        else:
-            del running_processes[simulation_id]
-            status = (
-                "completed"
-                if result_files or [str(p) for p in sim_path.glob("*.pdf")]
-                else "failed"
-            )
-    else:
-        has_results = result_files or [str(p) for p in sim_path.glob("*.pdf")]
-        execution_log = sim_path / "execution.log"
-        if has_results:
-            status = "completed"
-        elif execution_log.is_file():
-            status = "failed"
-        else:
-            status = "pending"
+    status_info = _get_status_data(sim_path, simulation_id)
 
-    return SimulationDetails(config=config, result_files=result_files, status=status)
+    return SimulationDetails(
+        config=config,
+        result_files=result_files,
+        status=status_info["status"],
+        progress=status_info.get("progress", 0.0),
+        current_round=status_info.get("current_round"),
+        total_rounds=status_info.get("total_rounds"),
+        current_strategy=status_info.get("current_strategy"),
+        total_strategies=status_info.get("total_strategies"),
+    )
 
 
 @app.get(
@@ -446,10 +438,10 @@ async def create_simulation(request: CreateSimulationRequest) -> dict[str, Any]:
         logger.info("Multi-sim config detected, using as-is")
         wrapped_config = config_dict
     else:
-        logger.info("Single sim config detected, wrapping")
+        logger.info("Single sim config detected, wrapping with first strategy")
         wrapped_config = {
             "shared_settings": config_dict,
-            "simulation_strategies": [{}],
+            "simulation_strategies": [config_dict.copy()],
         }
 
     try:
@@ -521,10 +513,10 @@ async def prepare_simulation(request: CreateSimulationRequest) -> dict[str, Any]
         logger.info("Multi-sim config detected, using as-is")
         wrapped_config = config
     else:
-        logger.info("Single sim config detected, wrapping")
+        logger.info("Single sim config detected, wrapping with first strategy")
         wrapped_config = {
             "shared_settings": config,
-            "simulation_strategies": [{}],
+            "simulation_strategies": [config.copy()],
         }
 
     try:
@@ -572,8 +564,28 @@ def _get_status_data(sim_path: Path, simulation_id: str) -> dict[str, Any]:
         try:
             with status_file.open("r") as f:
                 status_data = json.load(f)
+
+            raw_status = status_data.get("status", "running")
+            pid = status_data.get("pid")
+
+            # Detect orphaned simulations
+            if raw_status in ["running", "queued"] and pid:
+                process_alive = False
+                with suppress(Exception):
+                    process_alive = psutil.pid_exists(pid)
+
+                if not process_alive:
+                    logger.warning(
+                        f"Simulation {simulation_id} marked as {raw_status} but PID {pid} is dead. Reporting as failed."
+                    )
+                    return {
+                        "status": "failed",
+                        "progress": status_data.get("progress", 0.0),
+                        "error": "Process was interrupted (e.g. PC restart or crash)",
+                    }
+
             return {
-                "status": status_data.get("status", "running"),
+                "status": raw_status,
                 "progress": status_data.get("progress", 0.0),
                 "current_round": status_data.get("current_round"),
                 "total_rounds": status_data.get("total_rounds"),
@@ -1344,19 +1356,22 @@ async def get_attack_snapshots(
                     else:
                         hist_visualizations: dict[str, str] = {"weight_histogram": hist_rel_path}
 
-                        optional_viz = {
-                            "prediction_grid": f"{attack_type}_weight_prediction_grid.png",
-                        }
-                        for key, filename in optional_viz.items():
-                            file_path = round_dir / filename
+                        # Check for prediction comparison visualizations (multiple naming patterns)
+                        prediction_viz_patterns = [
+                            f"{attack_type}_prediction_comparison.png",
+                            f"{attack_type}_weight_prediction_grid.png",
+                        ]
+                        for pattern in prediction_viz_patterns:
+                            file_path = round_dir / pattern
                             if file_path.is_file():
-                                hist_visualizations[key] = str(
+                                hist_visualizations["primary"] = str(
                                     file_path.relative_to(sim_path)
                                 ).replace("\\", "/")
+                                break
 
-                        hist_visualizations["primary"] = hist_visualizations.get(
-                            "prediction_grid", hist_rel_path
-                        )  # type: ignore[arg-type]
+                        # Fall back to weight histogram if no prediction viz found
+                        if "primary" not in hist_visualizations:
+                            hist_visualizations["primary"] = hist_rel_path
 
                         weight_metadata = None
                         weight_meta_path = round_dir / f"{attack_type}_weight_metadata.json"
