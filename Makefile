@@ -1,7 +1,7 @@
 # IntelliFL - Makefile for common tasks
 # Cross-platform compatible (uses shell scripts)
 
-.PHONY: help setup dev sim test lint lint-test sonar clean upgrade docker docker-frontend mutmut
+.PHONY: help setup dev sim test lint lint-test sonar clean upgrade docker docker-frontend mutmut mutmut-results mutmut-show
 
 # Default target
 help:
@@ -10,28 +10,30 @@ help:
 	@echo "==============================="
 	@echo ""
 	@echo "Setup:"
-	@echo "  make setup          Complete project setup (Python + frontend)"
-	@echo "  make setup-python   Python environment only"
-	@echo "  make setup-frontend Frontend dependencies only"
+	@echo "  make setup            Complete project setup (Python + frontend)"
+	@echo "  make setup-python     Python environment only"
+	@echo "  make setup-frontend   Frontend dependencies only"
 	@echo ""
 	@echo "Development:"
-	@echo "  make dev            Start dev servers (API + frontend)"
-	@echo "  make sim            Run simulation"
+	@echo "  make dev              Start dev servers (API + frontend)"
+	@echo "  make sim              Run simulation"
 	@echo ""
 	@echo "Quality:"
-	@echo "  make lint           Run linting only"
-	@echo "  make test           Run linting + tests"
-	@echo "  make mutmut         Run mutation tests (via Docker)"
-	@echo "  make sonar          Run linting + tests + SonarQube (requires Docker)"
+	@echo "  make lint             Run linting only"
+	@echo "  make test             Run linting + tests"
+	@echo "  make mutmut           Run mutation tests (Docker)"
+	@echo "  make mutmut-results   View mutation test results"
+	@echo "  make mutmut-show ID=1 Show specific mutant details"
+	@echo "  make sonar            Run linting + tests + SonarQube (Docker)"
 	@echo ""
 	@echo "Maintenance:"
-	@echo "  make clean          Clean build artifacts and caches"
-	@echo "  make upgrade        Update dependencies to latest versions"
+	@echo "  make clean            Clean build artifacts and caches"
+	@echo "  make upgrade          Update dependencies to latest versions"
 	@echo ""
 	@echo "Docker:"
-	@echo "  make docker         Build backend Docker image (intellifl-api)"
-	@echo "  make docker-frontend Build frontend Docker image (intellifl-web)"
-	@echo "  make docker-all     Build all Docker images"
+	@echo "  make docker           Build backend Docker image (intellifl-api)"
+	@echo "  make docker-frontend  Build frontend Docker image (intellifl-web)"
+	@echo "  make docker-all       Build all Docker images"
 	@echo ""
 
 # Setup targets
@@ -77,11 +79,17 @@ docker-frontend:
 
 docker-all: docker docker-frontend
 	@echo ""
-	@echo "✓ Built IntelliFL components:"
+	@echo "[+] Built IntelliFL components:"
 	@echo "  - intellifl-api:latest"
 	@echo "  - intellifl-web:latest"
 	@echo ""
 
 # Mutation testing (runs in Docker to avoid Windows compatibility issues)
 mutmut:
-	@docker run --rm --entrypoint sh -v $(CURDIR)/src:/app/src -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/.mutmut-cache:/app/.mutmut-cache intellifl-backend -c "cd /app && .venv/bin/mutmut run"
+	@docker run --rm --entrypoint sh -v $(CURDIR)/src:/app/src -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/.mutmut-cache:/app/.mutmut-cache intellifl-api:latest -c "cd /app && mutmut run"
+
+mutmut-results:
+	@docker run --rm --entrypoint sh -v $(CURDIR)/.mutmut-cache:/app/.mutmut-cache intellifl-api:latest -c "mutmut results"
+
+mutmut-show:
+	@docker run --rm --entrypoint sh -v $(CURDIR)/.mutmut-cache:/app/.mutmut-cache intellifl-api:latest -c "mutmut show $(ID)"
