@@ -102,11 +102,9 @@ class SimulationRunner:
     def run(self):
         """Run simulations according to the specified usecase config"""
 
-        # Extend Ray worker timeout to ensure reliability in multi-strategy runs
-        os.environ["RAY_WORKER_REGISTER_TIMEOUT_SECONDS"] = "60"
-        os.environ["RAY_ENABLE_RECORD_ACTOR_TASK_LOGGING"] = "1"
-        logging.debug("Set RAY_worker_register_timeout_seconds=60 for multi-strategy reliability")
+        from src.utils.lock_manager import SimulationLock
 
+        # Initialize metadata for status tracking
         first_config = self._simulation_strategy_config_dicts[0]
         total_rounds = first_config.get("num_of_rounds", 10)
         total_strategies = len(self._simulation_strategy_config_dicts)
@@ -117,172 +115,201 @@ class SimulationRunner:
             total_rounds=total_rounds,
             total_strategies=total_strategies,
         )
-        status_tracker.start()
-        logging.debug(f"Status tracker started: {status_tracker.status_file}")
 
-        simulation_id = Path(self._directory_handler.dirname).name
-        ray_monitor = RaySimulationMonitor(
-            output_dir=Path(self._directory_handler.dirname),
-            simulation_id=simulation_id,
-        )
-        ray_monitor.start()
+        # Mark as queued BEFORE waiting for the lock
+        status_tracker.queue()
+        logging.info("Simulation added to hardware queue. Waiting for lock...")
 
-        try:
-            executed_simulation_strategies = []
+        with SimulationLock():
+            # Mark as formally running once lock is acquired
+            status_tracker.start()
 
-            for strategy_config_dict, strategy_number in zip(
-                self._simulation_strategy_config_dicts,
-                range(len(self._simulation_strategy_config_dicts)),
-                strict=False,
-            ):
-                dataset_handler = None
-                simulation_strategy = None
-                strategy_start_time = time.time()
-
-                try:
-                    # Log strategy start event
-                    log_ray_worker_event(
-                        event_type="STRATEGY_START",
-                        extra_info={
-                            "strategy_number": strategy_number,
-                            "total_strategies": total_strategies,
-                            "simulation_id": simulation_id,
-                        },
-                    )
-
-                    logging.info(
-                        "\n"
-                        + "-" * 50
-                        + "Executing new strategy"
-                        + "-" * 50
-                        + "\n"
-                        + "Strategy config:\n"
-                        + _serialize_config_for_logging(strategy_config_dict)
-                    )
-
-                    strategy_config = StrategyConfig.from_dict(strategy_config_dict)
-                    strategy_config.strategy_number = strategy_number
-
-                    self._directory_handler.assign_dataset_dir(strategy_number)
-
-                    dataset_handler = DatasetHandler(
-                        strategy_config=strategy_config,
-                        directory_handler=self._directory_handler,
-                        dataset_config_list=self._dataset_config_list,
-                    )
-                    dataset_handler.setup_dataset()
-
-                    assert self._directory_handler.dataset_dir is not None
-                    simulation_strategy = FederatedSimulation(
-                        strategy_config=strategy_config,
-                        dataset_dir=self._directory_handler.dataset_dir,
-                        dataset_handler=dataset_handler,
-                        directory_handler=self._directory_handler,
-                        status_tracker=status_tracker,
-                    )
-                    simulation_strategy.run_simulation()
-
-                    executed_simulation_strategies.append(simulation_strategy)
-
-                    new_plot_handler.show_plots_within_strategy(
-                        simulation_strategy, self._directory_handler
-                    )
-
-                    simulation_strategy.strategy_history.calculate_additional_rounds_data()
-                    self._directory_handler.save_csv_and_config(
-                        simulation_strategy.strategy_history
-                    )
-
-                    strategy_duration = time.time() - strategy_start_time
-                    ray_monitor.record_round(strategy_number, strategy_duration)
-                    log_ray_worker_event(
-                        event_type="STRATEGY_COMPLETE",
-                        extra_info={
-                            "strategy_number": strategy_number,
-                            "duration_seconds": f"{strategy_duration:.2f}",
-                            "simulation_id": simulation_id,
-                        },
-                    )
-
-                except Exception as strategy_error:
-                    # Log strategy-level errors
-                    ray_monitor.record_error(strategy_error, strategy_number)
-                    log_ray_worker_event(
-                        event_type="STRATEGY_ERROR",
-                        error_message=str(strategy_error),
-                        extra_info={
-                            "strategy_number": strategy_number,
-                            "error_type": type(strategy_error).__name__,
-                            "simulation_id": simulation_id,
-                        },
-                    )
-                    raise
-
-                finally:
-                    # Cleanup resources even if simulation crashes
-                    if dataset_handler is not None:
-                        dataset_handler.teardown_dataset()
-
-                    if ray.is_initialized():
-                        health = check_ray_cluster_health()
-                        if health.get("dead_nodes", 0) > 0:
-                            log_ray_worker_event(
-                                event_type="CLUSTER_DEGRADED",
-                                extra_info={
-                                    "dead_nodes": health.get("dead_nodes"),
-                                    "alive_nodes": health.get("alive_nodes"),
-                                    "simulation_id": simulation_id,
-                                },
-                            )
-                        logging.debug(f"Ray cluster health before shutdown: {health}")
-
-                    # Prevent errors in multi-strategy runs
-                    if ray.is_initialized():
-                        logging.debug("Shutting down Ray before cleanup...")
-                        ray.shutdown()
-                        time.sleep(3.0)
-                        logging.debug("Ray shutdown complete after 3s cleanup delay")
-
-                    logging.debug(f"Cleaning up resources after strategy {strategy_number}")
-
-                    if torch.cuda.is_available():
-                        torch.cuda.empty_cache()
-                        logging.debug("GPU cache cleared")
-
-                    # Keep only the strategy_history for plotting
-                    if simulation_strategy is not None:
-                        simulation_strategy._network_model = None
-                        simulation_strategy._trainloaders = None
-                        simulation_strategy._valloaders = None
-                        simulation_strategy._dataset_loader = None
-
-                    gc.collect()
-                    logging.debug("Garbage collection completed")
-
-                if strategy_number < total_strategies - 1:
-                    status_tracker.next_strategy()
-
-            new_plot_handler.show_inter_strategy_plots(
-                executed_simulation_strategies, self._directory_handler
+            # Extend Ray worker timeout to ensure reliability in multi-strategy runs
+            os.environ["RAY_WORKER_REGISTER_TIMEOUT_SECONDS"] = "60"
+            os.environ["RAY_ENABLE_RECORD_ACTOR_TASK_LOGGING"] = "1"
+            logging.debug(
+                "Set RAY_worker_register_timeout_seconds=60 for multi-strategy reliability"
             )
 
-            status_tracker.complete()
-            logging.debug("Status tracker marked as completed")
-
-            summary = ray_monitor.stop(success=True)
-            logging.info(
-                f"Ray simulation completed. Total errors: {summary.get('total_errors', 0)}"
+            simulation_id = Path(self._directory_handler.dirname).name
+            ray_monitor = RaySimulationMonitor(
+                output_dir=Path(self._directory_handler.dirname),
+                simulation_id=simulation_id,
             )
+            ray_monitor.start()
 
-        except Exception as e:
-            status_tracker.fail(str(e))
-            logging.error(f"Simulation failed: {e}")
+            try:
+                executed_simulation_strategies = []
+                strategy_number = 0
 
-            ray_monitor.record_error(e)
-            summary = ray_monitor.stop(success=False)
-            logging.error(f"Ray simulation failed. Total errors: {summary.get('total_errors', 0)}")
+                # Use a while loop to allow picking up strategies added to the config file
+                # while the simulation runner is already active (Live Queueing)
+                while True:
+                    # Refresh config list to check for new strategies added by API
+                    self._simulation_strategy_config_dicts = (
+                        self._config_loader.get_usecase_config_list()
+                    )
+                    total_strategies = len(self._simulation_strategy_config_dicts)
 
-            raise
+                    # Update status tracker's idea of total strategies
+                    status_tracker.total_strategies = total_strategies
+
+                    if strategy_number >= total_strategies:
+                        break
+
+                    strategy_config_dict = self._simulation_strategy_config_dicts[strategy_number]
+                    dataset_handler = None
+                    simulation_strategy = None
+                    strategy_start_time = time.time()
+
+                    try:
+                        # Log strategy start event
+                        log_ray_worker_event(
+                            event_type="STRATEGY_START",
+                            extra_info={
+                                "strategy_number": strategy_number,
+                                "total_strategies": total_strategies,
+                                "simulation_id": simulation_id,
+                            },
+                        )
+
+                        logging.info(
+                            "\n"
+                            + "-" * 50
+                            + "Executing new strategy"
+                            + "-" * 50
+                            + "\n"
+                            + "Strategy config:\n"
+                            + _serialize_config_for_logging(strategy_config_dict)
+                        )
+
+                        strategy_config = StrategyConfig.from_dict(strategy_config_dict)
+                        strategy_config.strategy_number = strategy_number
+
+                        self._directory_handler.assign_dataset_dir(strategy_number)
+
+                        dataset_handler = DatasetHandler(
+                            strategy_config=strategy_config,
+                            directory_handler=self._directory_handler,
+                            dataset_config_list=self._dataset_config_list,
+                        )
+                        dataset_handler.setup_dataset()
+
+                        assert self._directory_handler.dataset_dir is not None
+                        simulation_strategy = FederatedSimulation(
+                            strategy_config=strategy_config,
+                            dataset_dir=self._directory_handler.dataset_dir,
+                            dataset_handler=dataset_handler,
+                            directory_handler=self._directory_handler,
+                            status_tracker=status_tracker,
+                        )
+                        simulation_strategy.run_simulation()
+
+                        executed_simulation_strategies.append(simulation_strategy)
+
+                        new_plot_handler.show_plots_within_strategy(
+                            simulation_strategy, self._directory_handler
+                        )
+
+                        simulation_strategy.strategy_history.calculate_additional_rounds_data()
+                        self._directory_handler.save_csv_and_config(
+                            simulation_strategy.strategy_history
+                        )
+
+                        strategy_duration = time.time() - strategy_start_time
+                        ray_monitor.record_round(strategy_number, strategy_duration)
+                        log_ray_worker_event(
+                            event_type="STRATEGY_COMPLETE",
+                            extra_info={
+                                "strategy_number": strategy_number,
+                                "duration_seconds": f"{strategy_duration:.2f}",
+                                "simulation_id": simulation_id,
+                            },
+                        )
+
+                    except Exception as strategy_error:
+                        # Log strategy-level errors
+                        ray_monitor.record_error(strategy_error, strategy_number)
+                        log_ray_worker_event(
+                            event_type="STRATEGY_ERROR",
+                            error_message=str(strategy_error),
+                            extra_info={
+                                "strategy_number": strategy_number,
+                                "error_type": type(strategy_error).__name__,
+                                "simulation_id": simulation_id,
+                            },
+                        )
+                        raise
+
+                    finally:
+                        # Cleanup resources even if simulation crashes
+                        if dataset_handler is not None:
+                            dataset_handler.teardown_dataset()
+
+                        if ray.is_initialized():
+                            health = check_ray_cluster_health()
+                            if health.get("dead_nodes", 0) > 0:
+                                log_ray_worker_event(
+                                    event_type="CLUSTER_DEGRADED",
+                                    extra_info={
+                                        "dead_nodes": health.get("dead_nodes"),
+                                        "alive_nodes": health.get("alive_nodes"),
+                                        "simulation_id": simulation_id,
+                                    },
+                                )
+                            logging.debug(f"Ray cluster health before shutdown: {health}")
+
+                        # Prevent errors in multi-strategy runs
+                        if ray.is_initialized():
+                            logging.debug("Shutting down Ray before cleanup...")
+                            ray.shutdown()
+                            time.sleep(3.0)
+                            logging.debug("Ray shutdown complete after 3s cleanup delay")
+
+                        logging.debug(f"Cleaning up resources after strategy {strategy_number}")
+
+                        if torch.cuda.is_available():
+                            torch.cuda.empty_cache()
+                            logging.debug("GPU cache cleared")
+
+                        # Keep only the strategy_history for plotting
+                        if simulation_strategy is not None:
+                            simulation_strategy._network_model = None
+                            simulation_strategy._trainloaders = None
+                            simulation_strategy._valloaders = None
+                            simulation_strategy._dataset_loader = None
+
+                        gc.collect()
+                        logging.debug("Garbage collection completed")
+
+                        if strategy_number < total_strategies - 1:
+                            status_tracker.next_strategy()
+
+                        strategy_number += 1
+
+                new_plot_handler.show_inter_strategy_plots(
+                    executed_simulation_strategies, self._directory_handler
+                )
+
+                status_tracker.complete()
+                logging.debug("Status tracker marked as completed")
+
+                summary = ray_monitor.stop(success=True)
+                logging.info(
+                    f"Ray simulation completed. Total errors: {summary.get('total_errors', 0)}"
+                )
+
+            except Exception as e:
+                status_tracker.fail(str(e))
+                logging.error(f"Simulation failed: {e}")
+
+                ray_monitor.record_error(e)
+                summary = ray_monitor.stop(success=False)
+                logging.error(
+                    f"Ray simulation failed. Total errors: {summary.get('total_errors', 0)}"
+                )
+
+                raise
 
 
 if __name__ == "__main__":

@@ -87,6 +87,20 @@ class StatusTracker:
 
         return min(overall_progress, 1.0)
 
+    def queue(self) -> None:
+        """Mark the simulation as queued and waiting for hardware resources."""
+        self._write_status(
+            {
+                "status": "queued",
+                "current_round": 0,
+                "total_rounds": self.total_rounds,
+                "current_strategy": self.current_strategy,
+                "total_strategies": self.total_strategies,
+                "progress": 0.0,
+                "pid": self._pid,
+            }
+        )
+
     def start(self) -> None:
         """Mark the simulation as started.
 
