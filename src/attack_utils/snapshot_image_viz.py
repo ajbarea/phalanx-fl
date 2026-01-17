@@ -138,6 +138,140 @@ def _build_attack_title(
         )
 
 
+def save_composite_synopsis(
+    images: np.ndarray,
+    labels: np.ndarray,
+    original_labels: np.ndarray,
+    filepath: Path,
+    attack_config: list[dict],
+    original_images: np.ndarray | None = None,
+    max_samples: int = 4,
+) -> None:
+    """Save a 3-column 'Synopsis Plate' for publication-quality attack visualization.
+
+    Designed for academic papers to show the full lifecycle of an attack sample:
+    [Original Image] | [Attack Vector/Impact] | [Poisoned Image]
+
+    Args:
+        images: Poisoned images array (N, C, H, W).
+        labels: Poisoned labels array.
+        original_labels: Original labels array.
+        filepath: Output file path (.png).
+        attack_config: List of attack configuration dicts.
+        original_images: Original images (N, C, H, W).
+        max_samples: Max samples to show (default: 4).
+    """
+    matplotlib.use("Agg")
+
+    num_samples = min(len(images), max_samples)
+    images = images[:num_samples]
+    labels = labels[:num_samples]
+    original_labels = original_labels[:num_samples]
+    if original_images is not None:
+        original_images = original_images[:num_samples]
+
+    # Detect attack components
+    has_noise = any(cfg.get("attack_type") == "gaussian_noise" for cfg in attack_config)
+    has_flip = any(cfg.get("attack_type") == "label_flipping" for cfg in attack_config)
+
+    fig, axes = plt.subplots(
+        num_samples, 3, figsize=(15, 4 * num_samples), gridspec_kw={"wspace": 0.2, "hspace": 0.3}
+    )
+
+    if num_samples == 1:
+        axes = np.array([axes])
+
+    for i in range(num_samples):
+        # --- Column 1: Original ---
+        ax_orig = axes[i, 0]
+        if original_images is not None:
+            _display_image(ax_orig, original_images[i])
+        else:
+            _display_image(ax_orig, images[i])  # Fallback
+        ax_orig.set_title(
+            f"Original\n(Label: {original_labels[i]})", fontsize=11, fontweight="bold"
+        )
+        ax_orig.axis("off")
+
+        # --- Column 2: Attack Vector / Impact ---
+        ax_impact = axes[i, 1]
+        ax_impact.axis("off")
+
+        if has_noise and original_images is not None:
+            # Show difference heatmap
+            diff = (images[i] * 0.5 + 0.5) - (original_images[i] * 0.5 + 0.5)
+            if images[i].shape[0] > 1:
+                diff_disp = np.mean(diff, axis=0)
+            else:
+                diff_disp = diff[0]
+
+            # Normalize diff for RdBu_r
+            vmax = max(0.1, np.max(np.abs(diff)))
+            ax_impact.imshow(diff_disp, cmap="RdBu_r", vmin=-vmax, vmax=vmax)
+            ax_impact.set_title("Perturbation\n(Delta Heatmap)", fontsize=10, color="#8e44ad")
+        elif has_flip:
+            # Show transformation arrow
+            ax_impact.annotate(
+                "",
+                xy=(0.8, 0.5),
+                xytext=(0.2, 0.5),
+                arrowprops={"arrowstyle": "->", "lw": 3, "color": "#c0392b"},
+            )
+            ax_impact.text(
+                0.5,
+                0.6,
+                f"{original_labels[i]} → {labels[i]}",
+                ha="center",
+                va="bottom",
+                fontweight="bold",
+                color="#c0392b",
+                fontsize=14,
+            )
+            ax_impact.set_title("Attack Effect\n(Label Flip)", fontsize=10, color="#c0392b")
+        else:
+            ax_impact.text(0.5, 0.5, "Attack Applied", ha="center", va="center", style="italic")
+
+        # --- Column 3: Poisoned ---
+        ax_pois = axes[i, 2]
+        _display_image(ax_pois, images[i])
+
+        # Color coding for title based on success
+        is_flipped = labels[i] != original_labels[i]
+        title_color = "#c0392b" if is_flipped else "#2c3e50"
+        status = "POISONED" if is_flipped else "CLEAN/NOISY"
+
+        ax_pois.set_title(
+            f"{status}\n(Label: {labels[i]})", fontsize=11, fontweight="bold", color=title_color
+        )
+        ax_pois.axis("off")
+
+        # Add a subtle red frame if poisoned
+        if is_flipped or has_noise:
+            rect = Rectangle(
+                (0, 0),
+                1,
+                1,
+                linewidth=3,
+                edgecolor=title_color,
+                facecolor="none",
+                transform=ax_pois.transAxes,
+            )
+            ax_pois.add_patch(rect)
+
+    # Master title
+    names = [cfg.get("attack_type", "?") for cfg in attack_config]
+    plt.suptitle(
+        f"Composite Attack Synopsis: {' + '.join(names)}\nPublication-ready multi-panel snapshot",
+        fontsize=16,
+        fontweight="bold",
+        y=0.98,
+    )
+
+    plt.tight_layout(rect=(0, 0, 1, 0.95))
+    plt.savefig(filepath, dpi=300, bbox_inches="tight")
+    plt.close()
+
+
 def save_image_grid(
     images: np.ndarray,
     labels: np.ndarray,
@@ -915,17 +1049,27 @@ def save_weight_attack_prediction_grid(
 
         ax_before = fig.add_subplot(gs[i, 1])
         bar_labels = [
-            f"*{get_class_name(c)}*" if c == true_label else get_class_name(c) for c in all_classes
+            f"✓ {get_class_name(c)}" if c == true_label else f"   {get_class_name(c)}"
+            for c in all_classes
         ]
         bar_values = [before_confs.get(c, 0) * 100 for c in all_classes]
         bar_colors = ["#27ae60" if c == true_label else "#3498db" for c in all_classes]
+        bar_edges = ["#1a7a3e" if c == true_label else "none" for c in all_classes]
+        bar_linewidths = [2.5 if c == true_label else 0 for c in all_classes]
 
-        bars = ax_before.barh(bar_labels, bar_values, color=bar_colors, height=0.6)
+        bars = ax_before.barh(
+            bar_labels, bar_values, color=bar_colors, height=0.6,
+            edgecolor=bar_edges, linewidth=bar_linewidths
+        )
         ax_before.invert_yaxis()  # Flip so highest confidence is at top
         ax_before.set_xlim(0, 105)
         ax_before.set_xlabel("Confidence %", fontsize=9)
         ax_before.set_title("BEFORE Attack", fontsize=11, fontweight="bold", color="#27ae60")
         ax_before.tick_params(axis="y", labelsize=10)
+        for j, label in enumerate(ax_before.get_yticklabels()):
+            if all_classes[j] == true_label:
+                label.set_fontweight("bold")
+                label.set_color("#1a5c2e")
 
         for bar, val in zip(bars, bar_values, strict=False):
             ax_before.text(
@@ -939,13 +1083,21 @@ def save_weight_attack_prediction_grid(
         ax_after = fig.add_subplot(gs[i, 2])
         bar_values_after = [after_confs.get(c, 0) * 100 for c in all_classes]
         bar_colors_after = ["#27ae60" if c == true_label else "#e74c3c" for c in all_classes]
+        bar_edges_after = ["#1a7a3e" if c == true_label else "none" for c in all_classes]
 
-        bars_after = ax_after.barh(bar_labels, bar_values_after, color=bar_colors_after, height=0.6)
+        bars_after = ax_after.barh(
+            bar_labels, bar_values_after, color=bar_colors_after, height=0.6,
+            edgecolor=bar_edges_after, linewidth=bar_linewidths
+        )
         ax_after.invert_yaxis()  # Match BEFORE chart orientation
         ax_after.set_xlim(0, 105)
         ax_after.set_xlabel("Confidence %", fontsize=9)
         ax_after.set_title("AFTER Attack", fontsize=11, fontweight="bold", color="#c0392b")
         ax_after.tick_params(axis="y", labelsize=10)
+        for j, label in enumerate(ax_after.get_yticklabels()):
+            if all_classes[j] == true_label:
+                label.set_fontweight("bold")
+                label.set_color("#1a5c2e")
 
         for bar, val in zip(bars_after, bar_values_after, strict=False):
             ax_after.text(
@@ -958,7 +1110,7 @@ def save_weight_attack_prediction_grid(
 
     attack_display = attack_type.replace("_", " ").title()
     fig.suptitle(
-        f"Weight Attack Prediction Impact: {attack_display}\n(* = True Label, shown in green)",
+        f"Weight Attack Prediction Impact: {attack_display}\n(✓ = Ground Truth Label)",
         fontsize=14,
         fontweight="bold",
     )
