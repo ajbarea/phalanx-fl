@@ -71,7 +71,8 @@ export function QueueStatus() {
 
   const strategyGroups = progress?.strategies
     ? progress.strategies.reduce((groups, strategy) => {
-        const key = strategy.config.aggregation_strategy_keyword || 'fedavg';
+        const mergedConfig = { ...simulation?.config?.shared_settings, ...strategy.config };
+        const key = mergedConfig.aggregation_strategy_keyword || 'fedavg';
         if (!groups[key]) {
           groups[key] = {
             name: key,

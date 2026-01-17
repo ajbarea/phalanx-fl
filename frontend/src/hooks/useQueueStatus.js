@@ -55,11 +55,20 @@ export function useQueueStatus(simulationId) {
         stratStatus = 'failed';
       }
 
-      return {
+      const strategyData = {
         index,
         config: strat,
         status: stratStatus,
       };
+
+      // Enrich with real-time progress if this is the active strategy
+      if (stratStatus === 'running') {
+        strategyData.progress = status.progress;
+        strategyData.currentRound = status.current_round;
+        strategyData.totalRounds = status.total_rounds;
+      }
+
+      return strategyData;
     });
 
     return {

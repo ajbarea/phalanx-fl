@@ -48,17 +48,22 @@ export function useSimulationDetails(simulationId) {
   const {
     status: sseStatus,
     progress: sseProgress,
-    currentRound,
-    totalRounds,
-    currentStrategy,
-    totalStrategies,
+    currentRound: currentRoundSse,
+    totalRounds: totalRoundsSse,
+    currentStrategy: currentStrategySse,
+    totalStrategies: totalStrategiesSse,
     isConnected: isStreaming,
   } = useSimulationStatusSSE(shouldStream ? simulationId : null);
 
   // SSE status takes priority over cached details status
   // This ensures UI reflects real-time state without waiting for refetch
+  // SSE values take priority, fallback to cached details
   const status = sseStatus ?? details?.status ?? null;
   const progress = sseProgress ?? details?.progress ?? 0;
+  const currentRound = currentRoundSse ?? details?.current_round ?? null;
+  const totalRounds = totalRoundsSse ?? details?.total_rounds ?? null;
+  const currentStrategy = currentStrategySse ?? details?.current_strategy ?? null;
+  const totalStrategies = totalStrategiesSse ?? details?.total_strategies ?? null;
 
   const isMultiStrategy = useMemo(
     () => details?.config?.simulation_strategies?.length > 1,
