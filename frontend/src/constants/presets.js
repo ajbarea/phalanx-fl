@@ -115,7 +115,7 @@ export const PRESETS = {
   },
   showcase_llm: {
     name: 'Showcase: Byzantine NLP Defense',
-    subtitle: '25 rounds - 4 clients - 100% Detection Rate',
+    subtitle: '25 rounds - 5 clients - 100% Detection Rate',
     description:
       'Demonstrates Krum defense achieving 100% Byzantine detection on transformer models. Malicious token replacement attacks are identified and filtered while maintaining stable convergence throughout 25 rounds of federated DistilBERT training.',
     estimatedTime: '60-90 minutes',
@@ -123,13 +123,13 @@ export const PRESETS = {
     tags: ['showcase', 'nlp', 'defense', 'byzantine-detection'],
     config: {
       num_of_rounds: 25,
-      num_of_clients: 4,
+      num_of_clients: 5,
       num_of_malicious_clients: 1,
       aggregation_strategy_keyword: 'krum',
       num_krum_selections: 1,
-      min_fit_clients: 4,
-      min_evaluate_clients: 4,
-      min_available_clients: 4,
+      min_fit_clients: 5,
+      min_evaluate_clients: 5,
+      min_available_clients: 5,
       dataset_source: 'local',
       dataset_keyword: 'medquad',
       model_type: 'transformer',
