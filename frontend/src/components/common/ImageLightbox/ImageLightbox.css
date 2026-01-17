@@ -1,0 +1,302 @@
+/* ImageLightbox.css - Styles for the zoom-enabled image lightbox */
+
+/* Modal overrides for full-screen lightbox */
+.image-lightbox-modal .modal-dialog {
+  max-width: 95vw;
+  max-height: 95vh;
+  margin: 2.5vh auto;
+}
+
+.image-lightbox-modal .modal-content {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.image-lightbox-modal .modal-header {
+  background-color: var(--color-surface-variant);
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--spacing-sm) var(--spacing-md);
+  flex-shrink: 0;
+}
+
+.image-lightbox-modal .modal-title {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.image-lightbox-modal .modal-body {
+  flex: 1;
+  overflow: hidden;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.image-lightbox-modal .modal-footer {
+  background-color: var(--color-surface-variant);
+  border-top: 1px solid var(--color-border);
+  padding: var(--spacing-sm) var(--spacing-md);
+  flex-shrink: 0;
+}
+
+/* Image container */
+.lightbox-image-container {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-surface);
+  position: relative;
+  min-height: 0;
+}
+
+/* Checkerboard pattern for transparent images */
+.lightbox-image-container.show-transparency {
+  background-image:
+    linear-gradient(45deg, var(--color-surface-variant) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--color-surface-variant) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--color-surface-variant) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--color-surface-variant) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+/* Image wrapper for zoom/pan */
+.lightbox-image-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* The actual image */
+.lightbox-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.lightbox-image.dragging {
+  transition: none !important;
+}
+
+/* Zoom toolbar */
+.lightbox-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.lightbox-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.lightbox-toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background-color: var(--color-border);
+  margin: 0 var(--spacing-sm);
+}
+
+/* Zoom buttons */
+.lightbox-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  min-width: 36px;
+  height: 36px;
+}
+
+.lightbox-btn:hover:not(:disabled) {
+  background-color: var(--color-surface-variant);
+  border-color: var(--color-border-strong);
+}
+
+.lightbox-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.lightbox-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lightbox-btn-icon {
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+/* Zoom level indicator */
+.lightbox-zoom-level {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  min-width: 50px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Zoom presets dropdown */
+.lightbox-zoom-presets {
+  position: relative;
+}
+
+.lightbox-zoom-select {
+  appearance: none;
+  padding: var(--spacing-xs) var(--spacing-md);
+  padding-right: calc(var(--spacing-md) + 12px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236c757d' d='M3 4.5L6 8l3-3.5H3z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  min-width: 80px;
+  height: 36px;
+}
+
+.lightbox-zoom-select:hover {
+  border-color: var(--color-border-strong);
+}
+
+.lightbox-zoom-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-container);
+}
+
+/* Keyboard hints */
+.lightbox-hints {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.lightbox-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.lightbox-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  font-size: 0.7rem;
+  font-family: monospace;
+  background-color: var(--color-surface-variant);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Footer content */
+.lightbox-footer-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--spacing-md);
+}
+
+.lightbox-footer-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.lightbox-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+/* Loading state */
+.lightbox-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xl);
+  color: var(--color-text-secondary);
+}
+
+/* Error state */
+.lightbox-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xl);
+  color: var(--color-danger);
+  text-align: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .image-lightbox-modal .modal-dialog {
+    max-width: 100vw;
+    max-height: 100vh;
+    margin: 0;
+  }
+
+  .image-lightbox-modal .modal-content {
+    height: 100vh;
+    border-radius: 0;
+  }
+
+  .lightbox-toolbar {
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+  }
+
+  .lightbox-hints {
+    display: none;
+  }
+
+  .lightbox-btn {
+    min-width: 44px;
+    height: 44px;
+  }
+}
+
+/* Dark mode adjustments are automatic via CSS variables */
