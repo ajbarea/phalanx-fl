@@ -29,7 +29,12 @@ export function SimulationList({
               Simulations let you test different aggregation strategies and attack scenarios.
             </small>
           </p>
-          <Button as={Link} to="/simulations/new" variant="primary" className="d-inline-flex align-items-center">
+          <Button
+            as={Link}
+            to="/simulations/new"
+            variant="primary"
+            className="d-inline-flex align-items-center"
+          >
             <MaterialIcon name="add" size={18} className="me-1" aria-hidden="true" />
             Create First Simulation
           </Button>

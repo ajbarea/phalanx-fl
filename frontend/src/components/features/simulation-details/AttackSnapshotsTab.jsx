@@ -328,7 +328,15 @@ export function AttackSnapshotsTab({ simulationId, status }) {
         <h5 className="mb-3">Attack Snapshots</h5>
 
         {summary && (
-          <Alert variant="secondary" className="mb-3" style={{ backgroundColor: 'var(--color-surface-variant)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}>
+          <Alert
+            variant="secondary"
+            className="mb-3"
+            style={{
+              backgroundColor: 'var(--color-surface-variant)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text-primary)',
+            }}
+          >
             <div className="d-flex flex-wrap gap-3">
               <div>
                 <strong>Total Snapshots:</strong> {summary.attack_summary?.total_snapshots || 0}
@@ -471,7 +479,8 @@ export function AttackSnapshotsTab({ simulationId, status }) {
               : '')
           }
           footerContent={
-            modalImage.visualizations && Object.keys(modalImage.visualizations).length > 1 && (
+            modalImage.visualizations &&
+            Object.keys(modalImage.visualizations).length > 1 && (
               <small className="text-muted">
                 Views:{' '}
                 {Object.keys(VIZ_TYPES)

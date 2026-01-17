@@ -1058,8 +1058,12 @@ def save_weight_attack_prediction_grid(
         bar_linewidths = [2.5 if c == true_label else 0 for c in all_classes]
 
         bars = ax_before.barh(
-            bar_labels, bar_values, color=bar_colors, height=0.6,
-            edgecolor=bar_edges, linewidth=bar_linewidths
+            bar_labels,
+            bar_values,
+            color=bar_colors,
+            height=0.6,
+            edgecolor=bar_edges,
+            linewidth=bar_linewidths,
         )
         ax_before.invert_yaxis()  # Flip so highest confidence is at top
         ax_before.set_xlim(0, 105)
@@ -1086,8 +1090,12 @@ def save_weight_attack_prediction_grid(
         bar_edges_after = ["#1a7a3e" if c == true_label else "none" for c in all_classes]
 
         bars_after = ax_after.barh(
-            bar_labels, bar_values_after, color=bar_colors_after, height=0.6,
-            edgecolor=bar_edges_after, linewidth=bar_linewidths
+            bar_labels,
+            bar_values_after,
+            color=bar_colors_after,
+            height=0.6,
+            edgecolor=bar_edges_after,
+            linewidth=bar_linewidths,
         )
         ax_after.invert_yaxis()  # Match BEFORE chart orientation
         ax_after.set_xlim(0, 105)

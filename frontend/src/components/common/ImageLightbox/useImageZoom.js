@@ -58,7 +58,7 @@ export function useImageZoom({ enabled = true, onClose } = {}) {
   }, [reset]);
 
   // Set zoom to specific level
-  const setZoomLevel = useCallback((level) => {
+  const setZoomLevel = useCallback(level => {
     const index = ZOOM_LEVELS.indexOf(level);
     if (index !== -1) {
       setZoomIndex(index);
@@ -69,80 +69,90 @@ export function useImageZoom({ enabled = true, onClose } = {}) {
   }, []);
 
   // Handle mouse wheel zoom
-  const handleWheel = useCallback((e) => {
-    if (!enabled) return;
-    e.preventDefault();
+  const handleWheel = useCallback(
+    e => {
+      if (!enabled) return;
+      e.preventDefault();
 
-    const delta = -e.deltaY * WHEEL_ZOOM_SENSITIVITY;
+      const delta = -e.deltaY * WHEEL_ZOOM_SENSITIVITY;
 
-    setZoomIndex(prev => {
-      const newIndex = Math.max(0, Math.min(ZOOM_LEVELS.length - 1,
-        prev + (delta > 0 ? 1 : -1)
-      ));
+      setZoomIndex(prev => {
+        const newIndex = Math.max(0, Math.min(ZOOM_LEVELS.length - 1, prev + (delta > 0 ? 1 : -1)));
 
-      // Reset position when zooming to 1x or below
-      if (ZOOM_LEVELS[newIndex] <= 1) {
-        setPosition({ x: 0, y: 0 });
-      }
+        // Reset position when zooming to 1x or below
+        if (ZOOM_LEVELS[newIndex] <= 1) {
+          setPosition({ x: 0, y: 0 });
+        }
 
-      return newIndex;
-    });
-  }, [enabled]);
+        return newIndex;
+      });
+    },
+    [enabled]
+  );
 
   // Handle double-click to toggle zoom
-  const handleDoubleClick = useCallback((e) => {
-    if (!enabled) return;
-    e.preventDefault();
+  const handleDoubleClick = useCallback(
+    e => {
+      if (!enabled) return;
+      e.preventDefault();
 
-    if (zoom > 1) {
-      // Zoom out to fit
-      reset();
-    } else {
-      // Zoom in to 2x
-      setZoomLevel(2);
-    }
-  }, [enabled, zoom, reset, setZoomLevel]);
+      if (zoom > 1) {
+        // Zoom out to fit
+        reset();
+      } else {
+        // Zoom in to 2x
+        setZoomLevel(2);
+      }
+    },
+    [enabled, zoom, reset, setZoomLevel]
+  );
 
   // Handle drag start
-  const handleMouseDown = useCallback((e) => {
-    if (!enabled || !isZoomed) return;
-    if (e.button !== 0) return; // Only left click
+  const handleMouseDown = useCallback(
+    e => {
+      if (!enabled || !isZoomed) return;
+      if (e.button !== 0) return; // Only left click
 
-    e.preventDefault();
-    setIsDragging(true);
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
-    });
-  }, [enabled, isZoomed, position]);
+      e.preventDefault();
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - position.x,
+        y: e.clientY - position.y,
+      });
+    },
+    [enabled, isZoomed, position]
+  );
 
   // Handle drag move
-  const handleMouseMove = useCallback((e) => {
-    if (!isDragging || !isZoomed) return;
+  const handleMouseMove = useCallback(
+    e => {
+      if (!isDragging || !isZoomed) return;
 
-    const newX = e.clientX - dragStart.x;
-    const newY = e.clientY - dragStart.y;
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
 
-    // Calculate bounds based on zoom level and container size
-    const container = containerRef.current;
-    const image = imageRef.current;
+      // Calculate bounds based on zoom level and container size
+      const container = containerRef.current;
+      const image = imageRef.current;
 
-    if (container && image) {
-      const containerRect = container.getBoundingClientRect();
-      const scaledWidth = image.naturalWidth * zoom * 0.5; // Approximate scaled size
-      const scaledHeight = image.naturalHeight * zoom * 0.5;
+      if (container && image) {
+        const containerRect = container.getBoundingClientRect();
+        const scaledWidth = image.naturalWidth * zoom * 0.5; // Approximate scaled size
+        const scaledHeight = image.naturalHeight * zoom * 0.5;
 
-      const maxX = Math.max(0, (scaledWidth - containerRect.width) / 2);
-      const maxY = Math.max(0, (scaledHeight - containerRect.height) / 2);
+        const maxX = Math.max(0, (scaledWidth - containerRect.width) / 2);
+        const maxY = Math.max(0, (scaledHeight - containerRect.height) / 2);
 
-      setPosition({
-        x: Math.max(-maxX, Math.min(maxX, newX)),
-        y: Math.max(-maxY, Math.min(maxY, newY)),
-      });
-    } else {
-      setPosition({ x: newX, y: newY });
-    }
-  }, [isDragging, isZoomed, dragStart, zoom]);
+        setPosition({
+          x: Math.max(-maxX, Math.min(maxX, newX)),
+          y: Math.max(-maxY, Math.min(maxY, newY)),
+        });
+      } else {
+        setPosition({ x: newX, y: newY });
+      }
+    },
+    [isDragging, isZoomed, dragStart, zoom]
+  );
 
   // Handle drag end
   const handleMouseUp = useCallback(() => {
@@ -150,26 +160,32 @@ export function useImageZoom({ enabled = true, onClose } = {}) {
   }, []);
 
   // Handle touch events for mobile
-  const handleTouchStart = useCallback((e) => {
-    if (!enabled || !isZoomed || e.touches.length !== 1) return;
+  const handleTouchStart = useCallback(
+    e => {
+      if (!enabled || !isZoomed || e.touches.length !== 1) return;
 
-    const touch = e.touches[0];
-    setIsDragging(true);
-    setDragStart({
-      x: touch.clientX - position.x,
-      y: touch.clientY - position.y,
-    });
-  }, [enabled, isZoomed, position]);
+      const touch = e.touches[0];
+      setIsDragging(true);
+      setDragStart({
+        x: touch.clientX - position.x,
+        y: touch.clientY - position.y,
+      });
+    },
+    [enabled, isZoomed, position]
+  );
 
-  const handleTouchMove = useCallback((e) => {
-    if (!isDragging || !isZoomed || e.touches.length !== 1) return;
+  const handleTouchMove = useCallback(
+    e => {
+      if (!isDragging || !isZoomed || e.touches.length !== 1) return;
 
-    const touch = e.touches[0];
-    const newX = touch.clientX - dragStart.x;
-    const newY = touch.clientY - dragStart.y;
+      const touch = e.touches[0];
+      const newX = touch.clientX - dragStart.x;
+      const newY = touch.clientY - dragStart.y;
 
-    setPosition({ x: newX, y: newY });
-  }, [isDragging, isZoomed, dragStart]);
+      setPosition({ x: newX, y: newY });
+    },
+    [isDragging, isZoomed, dragStart]
+  );
 
   const handleTouchEnd = useCallback(() => {
     setIsDragging(false);
@@ -179,7 +195,7 @@ export function useImageZoom({ enabled = true, onClose } = {}) {
   useEffect(() => {
     if (!enabled) return;
 
-    const handleKeyDown = (e) => {
+    const handleKeyDown = e => {
       switch (e.key) {
         case 'Escape':
           if (isZoomed) {

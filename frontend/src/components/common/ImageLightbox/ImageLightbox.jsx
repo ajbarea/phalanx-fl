@@ -80,10 +80,13 @@ export function ImageLightbox({
     reset();
   }, [reset]);
 
-  const handleZoomPresetChange = useCallback((e) => {
-    const value = parseFloat(e.target.value);
-    setZoomLevel(value);
-  }, [setZoomLevel]);
+  const handleZoomPresetChange = useCallback(
+    e => {
+      const value = parseFloat(e.target.value);
+      setZoomLevel(value);
+    },
+    [setZoomLevel]
+  );
 
   return (
     <Modal
@@ -107,7 +110,8 @@ export function ImageLightbox({
               className="lightbox-btn"
               onClick={zoomOut}
               disabled={!canZoomOut}
-              title="Zoom out (-)">
+              title="Zoom out (-)"
+            >
               <span className="lightbox-btn-icon">−</span>
             </button>
 
@@ -165,11 +169,7 @@ export function ImageLightbox({
         </div>
 
         {/* Image Container */}
-        <div
-          ref={containerRef}
-          className="lightbox-image-container"
-          {...handlers}
-        >
+        <div ref={containerRef} className="lightbox-image-container" {...handlers}>
           {isLoading && !hasError && (
             <div className="lightbox-loading">
               <Spinner animation="border" variant="primary" />
@@ -181,10 +181,14 @@ export function ImageLightbox({
             <div className="lightbox-error">
               <span style={{ fontSize: '2rem' }}>⚠️</span>
               <span>Failed to load image</span>
-              <Button variant="outline-secondary" size="sm" onClick={() => {
-                setIsLoading(true);
-                setHasError(false);
-              }}>
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={() => {
+                  setIsLoading(true);
+                  setHasError(false);
+                }}
+              >
                 Retry
               </Button>
             </div>
@@ -212,11 +216,7 @@ export function ImageLightbox({
         <div className="lightbox-footer-content">
           <div className="lightbox-footer-info">
             {footerContent}
-            {isZoomed && (
-              <Badge bg="secondary">
-                {zoomPercent}% zoom
-              </Badge>
-            )}
+            {isZoomed && <Badge bg="secondary">{zoomPercent}% zoom</Badge>}
           </div>
           <div className="lightbox-footer-actions">
             <Button variant="secondary" onClick={onHide}>
