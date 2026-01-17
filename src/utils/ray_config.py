@@ -30,24 +30,14 @@ class RayConfig:
         # Suppress Ray 2.0+ accelerator warning for cleaner output
         os.environ["RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO"] = "0"
 
-        system_os = platform.system()
+        # Disable metrics agent - not needed for local FL simulations
+        # and causes RpcError: 14 connection failures.
+        # Reference: https://github.com/ray-project/ray/issues/46453
+        ray_args["_system_config"] = {
+            "enable_metrics_collection": False,
+        }
 
-        if system_os == "Windows":
-            logger.info("Platform detected: Windows. Applying stability patches.")
-            # Metrics agent fails to bind ports/init gRPC on Windows (RpcError: 14)
-            # Reference: https://github.com/ray-project/ray/issues/46453
-            ray_args["_system_config"] = {
-                "enable_metrics_collection": False,
-            }
-        elif system_os == "Linux":
-            logger.debug("Platform detected: Linux. Using standard configuration.")
-        elif system_os == "Darwin":
-            logger.debug("Platform detected: macOS. Using standard configuration.")
-        else:
-            logger.warning(
-                f"Unrecognized operating system '{system_os}'. "
-                "Proceeding with default Ray configuration."
-            )
+        logger.debug(f"Platform detected: {platform.system()}")
 
         return ray_args
 
