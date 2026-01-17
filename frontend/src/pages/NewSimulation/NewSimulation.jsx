@@ -106,6 +106,17 @@ export function NewSimulation() {
     }
   }, [deviceLoading, recommendedDevice, config.training_device]);
 
+  useEffect(() => {
+    if (deviceSettings.training_device) {
+      setConfig(prev => ({
+        ...prev,
+        training_device: deviceSettings.training_device,
+        cpus_per_client: deviceSettings.cpus_per_client ?? prev.cpus_per_client,
+        gpus_per_client: deviceSettings.gpus_per_client ?? prev.gpus_per_client,
+      }));
+    }
+  }, [deviceSettings]);
+
   const handleConfigChange = e => {
     const { name, value, type } = e.target;
     let finalValue = value;
