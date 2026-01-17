@@ -22,6 +22,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.26"
           enable-cache: true
 
       - name: Install dependencies
@@ -59,6 +60,7 @@ jobs:
     - name: Set up uv
       uses: astral-sh/setup-uv@v7
       with:
+        version: "0.9.26"
         enable-cache: true
     - name: Install dependencies
       run: uv sync --frozen
@@ -76,6 +78,7 @@ jobs:
     - name: Set up uv
       uses: astral-sh/setup-uv@v7
       with:
+        version: "0.9.26"
         enable-cache: true
     - name: Install dependencies
       run: uv sync --frozen
