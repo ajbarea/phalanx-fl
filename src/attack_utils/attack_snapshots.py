@@ -15,6 +15,7 @@ import numpy as np
 import torch
 
 from .snapshot_image_viz import (
+    save_composite_synopsis,
     save_image_grid,
     save_label_confusion_matrix,
     save_label_flipping_grid,
@@ -328,6 +329,18 @@ def save_visual_snapshot(
     try:
         if len(data_sample.shape) == 4:
             filename = f"{attack_type}_visual.png"
+
+            if isinstance(attack_config, list) and len(attack_config) > 1:
+                synopsis_filename = "composite_synopsis.png"
+                save_composite_synopsis(
+                    data_sample,
+                    labels_sample,
+                    original_labels_sample,
+                    snapshot_dir / synopsis_filename,
+                    attack_config,
+                    original_images=original_data_sample,
+                )
+                logging.debug(f"Saved composite synopsis plate: {snapshot_dir / synopsis_filename}")
 
             if attack_type == "label_flipping":
                 save_label_flipping_grid(

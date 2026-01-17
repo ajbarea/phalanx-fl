@@ -180,6 +180,19 @@ def generate_snapshot_index(
                     if info["params"]:
                         all_params.extend(info["params"])
 
+                synopsis_rel_path = (
+                    Path(f"client_{client_id}") / f"round_{round_num}" / "composite_synopsis.png"
+                )
+                visual_path = (
+                    synopsis_rel_path
+                    if (snapshots_dir / synopsis_rel_path).exists()
+                    else (
+                        Path(f"client_{client_id}")
+                        / f"round_{round_num}"
+                        / f"{attack_type}_visual.png"
+                    )
+                )
+
                 snapshot_data.append(
                     {
                         "client": client_id,
@@ -189,11 +202,7 @@ def generate_snapshot_index(
                         "samples": metadata.get("num_samples", 0),
                         "parameters": ", ".join(all_params) if all_params else "N/A",
                         "pickle_path": snapshot_path.relative_to(snapshots_dir).as_posix(),
-                        "visual_path": (
-                            Path(f"client_{client_id}")
-                            / f"round_{round_num}"
-                            / f"{attack_type}_visual.png"
-                        ).as_posix(),
+                        "visual_path": visual_path.as_posix(),
                         "visual_type": "image",
                         "metadata_path": (
                             Path(f"client_{client_id}")
