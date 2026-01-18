@@ -53,6 +53,10 @@ dependencies = [
 requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["intellifl*"]
+
 [[tool.uv.index]]
 name = "pytorch"
 url = "https://download.pytorch.org/whl/cu130"
@@ -86,7 +90,7 @@ exclude = [
     "frontend",
     ".git",
     # Project-specific
-    "src/attack_utils/vocabularies",
+    "intellifl/attack_utils/vocabularies",
 ]
 
 [tool.ruff.lint]
@@ -105,8 +109,8 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"src/api/main.py" = ["E402"]
-"src/simulation_runner.py" = ["E402"]
+"intellifl/api/main.py" = ["E402"]
+"intellifl/simulation_runner.py" = ["E402"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -129,9 +133,9 @@ skip = [
     "datasets",
     "cache",
     "frontend",
-    "src/attack_utils/vocabularies",
+    "intellifl/attack_utils/vocabularies",
 ]
-known_first_party = ["src"]
+known_first_party = ["intellifl"]
 
 # =============================================================================
 # mypy Configuration
@@ -155,7 +159,7 @@ warn_redundant_casts = true
 warn_unused_ignores = false
 
 # Files to check
-files = ["src", "tests"]
+files = ["intellifl", "tests"]
 
 # Global exclusions
 exclude = [
@@ -169,8 +173,8 @@ exclude = [
     "datasets",
     "cache",
     "frontend",
-    "src/attack_utils/vocabularies",
-    "src/utils/legacy",
+    "intellifl/attack_utils/vocabularies",
+    "intellifl/utils/legacy",
 ]
 
 [[tool.mypy.overrides]]
@@ -182,12 +186,12 @@ module = "peft.*"
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-module = "src.data_models.*"
+module = "intellifl.data_models.*"
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
 [[tool.mypy.overrides]]
-module = "src.config_loaders.*"
+module = "intellifl.config_loaders.*"
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
@@ -195,25 +199,25 @@ disallow_incomplete_defs = true
 # Mutation Testing (mutmut) Configuration
 # =============================================================================
 [tool.mutmut]
-paths_to_mutate = ["src/"]
+paths_to_mutate = ["intellifl/"]
 runner = "python -m pytest"
 tests_dir = ["tests/"]
 use_coverage = true
 exclude = [
-    "src/__init__.py",
-    "src/api/__init__.py",
-    "src/api/models.py",
-    "src/attack_utils/__init__.py",
-    "src/attack_utils/vocabularies/",
-    "src/client_models/__init__.py",
-    "src/config_loaders/__init__.py",
-    "src/data_models/",
-    "src/dataset_handlers/__init__.py",
-    "src/dataset_loaders/__init__.py",
-    "src/network_models/__init__.py",
-    "src/output_handlers/__init__.py",
-    "src/simulation_strategies/__init__.py",
-    "src/utils/__init__.py",
+    "intellifl/__init__.py",
+    "intellifl/api/__init__.py",
+    "intellifl/api/models.py",
+    "intellifl/attack_utils/__init__.py",
+    "intellifl/attack_utils/vocabularies/",
+    "intellifl/client_models/__init__.py",
+    "intellifl/config_loaders/__init__.py",
+    "intellifl/data_models/",
+    "intellifl/dataset_handlers/__init__.py",
+    "intellifl/dataset_loaders/__init__.py",
+    "intellifl/network_models/__init__.py",
+    "intellifl/output_handlers/__init__.py",
+    "intellifl/simulation_strategies/__init__.py",
+    "intellifl/utils/__init__.py",
 ]
 
 # =============================================================================

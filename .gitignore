@@ -29,3 +29,4 @@ MagicMock/
 .hypothesis/
 .mypy_cache/
 .playwright-mcp/
+uv.lock.backup.*

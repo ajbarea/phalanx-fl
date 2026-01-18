@@ -1,5 +1,5 @@
 {
-  "include": ["src/", "tests/"],
+  "include": ["intellifl/", "tests/"],
   "exclude": [
     "venv",
     ".venv",
@@ -12,7 +12,7 @@
     "datasets",
     "cache",
     "frontend",
-    "src/attack_utils/vocabularies"
+    "intellifl/attack_utils/vocabularies"
   ],
   "pythonVersion": "3.10",
   "reportMissingImports": false,
