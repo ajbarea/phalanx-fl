@@ -40,9 +40,9 @@ if [ -d "tests/logs" ]; then
     log_info "Cleaned tests/logs/ directory."
 fi
 
-rm -rf .mypy_cache .ruff_cache
+rm -rf .mypy_cache .ruff_cache .mutmut-cache
 find . -type d -name ".pytest_cache" -depth -exec rm -rf {} + 2>/dev/null
-log_info "Cleaned tool caches (.mypy_cache, .pytest_cache, .ruff_cache)."
+log_info "Cleaned tool caches (.mypy_cache, .pytest_cache, .ruff_cache, .mutmut-cache)."
 
 rm -f .coverage .coverage.*
 rm -f tests/.coverage tests/.coverage.*
