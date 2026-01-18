@@ -117,7 +117,7 @@ def get_fault_tolerance_config(
         "runtime_env": {
             "env_vars": {
                 "RAY_ENABLE_RECORD_ACTOR_TASK_LOGGING": "1",
-                "RAY_BACKEND_LOG_LEVEL": "info",
+                "RAY_BACKEND_LOG_LEVEL": "fatal",
             }
         },
     }

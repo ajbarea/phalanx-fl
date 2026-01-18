@@ -7,6 +7,10 @@ set SCRIPT_DIR=%SCRIPT_DIR:~0,-1%
 
 REM Set PYTHONPATH to project root
 set PYTHONPATH=%SCRIPT_DIR%
+set RAY_ENABLE_METRICS_COLLECTION=0
+set RAY_METRICS_EXPORT_PORT_ENABLED=0
+set RAY_enable_export_api_write=0
+set RAY_BACKEND_LOG_LEVEL=fatal
 
 REM Use virtual environment Python if available, otherwise system Python
 if exist "%SCRIPT_DIR%\.venv\Scripts\python.exe" (

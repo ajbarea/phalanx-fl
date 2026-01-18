@@ -10,6 +10,15 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 WARNING_FILTERS: dict[str, dict[str, Any]] = {
+    "ray_metrics_agent": {
+        "env_vars": {
+            "RAY_ENABLE_METRICS_COLLECTION": "0",
+            "RAY_METRICS_EXPORT_PORT_ENABLED": "0",
+            "RAY_enable_export_api_write": "0",
+            "RAY_BACKEND_LOG_LEVEL": "fatal",
+        },
+        "description": "Suppress Ray metrics exporter agent connection warnings (RpcError: 14)",
+    },
     "ray_accel_env_var": {
         "env_vars": {"RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO": "0"},
         "description": "Suppress Ray CUDA_VISIBLE_DEVICES FutureWarning",

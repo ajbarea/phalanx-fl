@@ -25,6 +25,12 @@ fi
 find_python_interpreter
 setup_joblib_env
 
+export RAY_ENABLE_METRICS_COLLECTION=0
+export RAY_METRICS_EXPORT_PORT_ENABLED=0
+export RAY_enable_export_api_write=0
+# Ray log levels: debug=0, info=1, warning=2, error=3, fatal=4
+export RAY_BACKEND_LOG_LEVEL=fatal
+
 # Check for datasets by looking for bloodmnist as a sentinel directory.
 # All datasets are distributed together, so if one exists, all should exist.
 if [ ! -d "datasets/bloodmnist" ]; then

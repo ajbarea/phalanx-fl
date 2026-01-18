@@ -24,18 +24,14 @@ class RayConfig:
             "include_dashboard": False,
             "ignore_reinit_error": True,
             "configure_logging": True,
-            "logging_level": logging.INFO,
+            "logging_level": logging.WARNING,
         }
 
         # Suppress Ray 2.0+ accelerator warning for cleaner output
         os.environ["RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO"] = "0"
 
-        # Disable metrics agent - not needed for local FL simulations
-        # and causes RpcError: 14 connection failures.
-        # Reference: https://github.com/ray-project/ray/issues/46453
-        ray_args["_system_config"] = {
-            "enable_metrics_collection": False,
-        }
+        # Ray log levels: debug=0, info=1, warning=2, error=3, fatal=4
+        os.environ.setdefault("RAY_BACKEND_LOG_LEVEL", "fatal")
 
         logger.debug(f"Platform detected: {platform.system()}")
 
