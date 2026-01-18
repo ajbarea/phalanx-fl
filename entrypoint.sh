@@ -10,7 +10,7 @@
 #
 # Examples:
 #   entrypoint.sh                           # Run default uvicorn server
-#   entrypoint.sh python run_experiments.py # Run experiments instead
+#   entrypoint.sh ./run_experiments.sh      # Run experiments instead
 #
 # Environment:
 #   DATASET_URL: S3 URL for dataset tarball (has default)
