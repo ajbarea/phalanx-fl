@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from jsonschema import ValidationError
 
-from src.config_loaders.validate_strategy_config import (
+from intellifl.config_loaders.validate_strategy_config import (
     _populate_client_selection,
     validate_strategy_config,
 )

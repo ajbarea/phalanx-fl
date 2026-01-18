@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 
-from src.attack_utils.poisoning import apply_poisoning_attack, should_poison_this_round
+from intellifl.attack_utils.poisoning import apply_poisoning_attack, should_poison_this_round
 from tests.common import pytest
 
 

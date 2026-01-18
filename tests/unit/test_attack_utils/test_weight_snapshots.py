@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
-from src.attack_utils.weight_snapshots import (
+from intellifl.attack_utils.weight_snapshots import (
     _compute_weight_statistics,
     _get_weight_snapshot_dir,
     compute_weight_diff_statistics,
@@ -109,7 +109,7 @@ class TestSnapshotStorage:
 
     def test_save_histogram_handling(self, tmp_path, mock_params, mock_params_after):
         """Tests that histogram saving is attempted."""
-        with patch("src.attack_utils.weight_snapshots._save_weight_histogram") as mock_hist:
+        with patch("intellifl.attack_utils.weight_snapshots._save_weight_histogram") as mock_hist:
             save_weight_snapshot(
                 parameters_before=mock_params,
                 parameters_after=mock_params_after,

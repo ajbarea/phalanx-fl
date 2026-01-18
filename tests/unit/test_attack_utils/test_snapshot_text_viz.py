@@ -11,7 +11,7 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 
-from src.attack_utils.snapshot_text_viz import (
+from intellifl.attack_utils.snapshot_text_viz import (
     _extract_attack_param,
     _extract_attack_type,
     save_text_samples,

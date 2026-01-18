@@ -10,7 +10,7 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-from src.network_models.dynamic_cnn import DynamicCNN
+from intellifl.network_models.dynamic_cnn import DynamicCNN
 from tests.common import pytest
 
 

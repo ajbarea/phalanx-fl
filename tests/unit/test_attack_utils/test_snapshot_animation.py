@@ -14,7 +14,7 @@ import matplotlib
 
 matplotlib.use("Agg")  # Non-interactive backend for testing
 
-from src.attack_utils.snapshot_animation import (
+from intellifl.attack_utils.snapshot_animation import (
     DEFAULT_DPI,
     DEFAULT_DURATION_PER_FRAME_MS,
     DEFAULT_FPS,

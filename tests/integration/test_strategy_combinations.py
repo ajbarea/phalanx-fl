@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import Any, cast
 from unittest.mock import patch
 
-from src.data_models.simulation_strategy_config import StrategyConfig
-from src.federated_simulation import FederatedSimulation
-from src.simulation_runner import SimulationRunner
+from intellifl.data_models.simulation_strategy_config import StrategyConfig
+from intellifl.federated_simulation import FederatedSimulation
+from intellifl.simulation_runner import SimulationRunner
 from tests.common import Mock, pytest
 from tests.fixtures.mock_datasets import (
     MockDatasetHandler,
@@ -96,11 +96,11 @@ class TestMultiStrategyScenarios:
     @pytest.fixture
     def mock_simulation_components(self):
         with (
-            patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
-            patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
-            patch("src.simulation_runner.DatasetHandler") as mock_dataset_handler,
-            patch("src.simulation_runner.FederatedSimulation") as mock_federated_simulation,
-            patch("src.simulation_runner.new_plot_handler") as mock_plot_handler,
+            patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader,
+            patch("intellifl.simulation_runner.DirectoryHandler") as mock_directory_handler,
+            patch("intellifl.simulation_runner.DatasetHandler") as mock_dataset_handler,
+            patch("intellifl.simulation_runner.FederatedSimulation") as mock_federated_simulation,
+            patch("intellifl.simulation_runner.new_plot_handler") as mock_plot_handler,
         ):
             mock_loader_instance = Mock()
             mock_config_loader.return_value = mock_loader_instance
@@ -329,11 +329,11 @@ class TestByzantineFaultTolerance:
     @pytest.fixture
     def mock_federated_simulation_with_byzantine(self):
         with (
-            patch("src.federated_simulation.ImageDatasetLoader") as mock_loader,
-            patch("src.federated_simulation.ITSNetwork") as mock_network,
-            patch("src.federated_simulation.run_simulation") as mock_run_sim,
+            patch("intellifl.federated_simulation.ImageDatasetLoader") as mock_loader,
+            patch("intellifl.federated_simulation.ITSNetwork") as mock_network,
+            patch("intellifl.federated_simulation.run_simulation") as mock_run_sim,
             patch(
-                "src.federated_simulation.FederatedSimulation._assign_aggregation_strategy"
+                "intellifl.federated_simulation.FederatedSimulation._assign_aggregation_strategy"
             ) as mock_assign_strategy,
         ):
             mock_loader_instance = Mock()
@@ -574,11 +574,11 @@ class TestAttackDefenseScenarios:
     @pytest.fixture
     def mock_attack_simulation_components(self):
         with (
-            patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
-            patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
-            patch("src.simulation_runner.DatasetHandler") as mock_dataset_handler,
-            patch("src.simulation_runner.FederatedSimulation") as mock_federated_simulation,
-            patch("src.simulation_runner.new_plot_handler") as mock_plot_handler,
+            patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader,
+            patch("intellifl.simulation_runner.DirectoryHandler") as mock_directory_handler,
+            patch("intellifl.simulation_runner.DatasetHandler") as mock_dataset_handler,
+            patch("intellifl.simulation_runner.FederatedSimulation") as mock_federated_simulation,
+            patch("intellifl.simulation_runner.new_plot_handler") as mock_plot_handler,
         ):
             mock_loader_instance = Mock()
             mock_config_loader.return_value = mock_loader_instance

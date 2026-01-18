@@ -3,14 +3,14 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import Mock, patch
 
-from src.dataset_loaders.dataset_inspector import DatasetInspector
+from intellifl.dataset_loaders.dataset_inspector import DatasetInspector
 from tests.common import pytest
 
 
 class TestDatasetInspector:
     """Tests for DatasetInspector."""
 
-    @patch("src.dataset_loaders.dataset_inspector.load_dataset_builder")
+    @patch("intellifl.dataset_loaders.dataset_inspector.load_dataset_builder")
     def test_inspect_dataset_extracts_basic_metadata(self, mock_builder_fn):
         """Verify inspect_dataset extracts features and initializes metadata."""
         mock_builder = Mock()
@@ -30,7 +30,7 @@ class TestDatasetInspector:
         assert metadata["image_shape"] is None
         assert metadata["text_columns"] == []
 
-    @patch("src.dataset_loaders.dataset_inspector.load_dataset_builder")
+    @patch("intellifl.dataset_loaders.dataset_inspector.load_dataset_builder")
     def test_inspect_dataset_detects_num_classes_from_label_names(self, mock_builder_fn):
         """Verify num_classes is detected from label feature names."""
         mock_builder = Mock()
@@ -47,7 +47,7 @@ class TestDatasetInspector:
         assert metadata["num_classes"] == 3
         assert metadata["class_names"] == ["cat", "dog", "bird"]
 
-    @patch("src.dataset_loaders.dataset_inspector.load_dataset_builder")
+    @patch("intellifl.dataset_loaders.dataset_inspector.load_dataset_builder")
     def test_inspect_dataset_uses_custom_label_column(self, mock_builder_fn):
         """Verify custom label_column parameter is used."""
         mock_builder = Mock()
@@ -66,7 +66,7 @@ class TestDatasetInspector:
         assert metadata["num_classes"] == 2
         assert metadata["class_names"] == ["yes", "no"]
 
-    @patch("src.dataset_loaders.dataset_inspector.load_dataset_builder")
+    @patch("intellifl.dataset_loaders.dataset_inspector.load_dataset_builder")
     def test_inspect_dataset_handles_missing_label_column(self, mock_builder_fn):
         """Verify graceful handling when label column is missing."""
         mock_builder = Mock()
@@ -81,7 +81,7 @@ class TestDatasetInspector:
         assert metadata["num_classes"] is None
         assert metadata["class_names"] == []
 
-    @patch("src.dataset_loaders.dataset_inspector.load_dataset_builder")
+    @patch("intellifl.dataset_loaders.dataset_inspector.load_dataset_builder")
     def test_inspect_dataset_handles_label_without_names(self, mock_builder_fn):
         """Verify handling when label feature has no names attribute."""
         mock_builder = Mock()
@@ -97,7 +97,7 @@ class TestDatasetInspector:
         assert metadata["num_classes"] is None
         assert metadata["class_names"] == []
 
-    @patch("src.dataset_loaders.dataset_inspector.load_dataset_builder")
+    @patch("intellifl.dataset_loaders.dataset_inspector.load_dataset_builder")
     def test_inspect_dataset_detects_image_modality(self, mock_builder_fn):
         """Verify modality is set to 'image' when only images detected."""
         mock_builder = Mock()
@@ -116,7 +116,7 @@ class TestDatasetInspector:
 
         assert metadata["modality"] == "image"
 
-    @patch("src.dataset_loaders.dataset_inspector.load_dataset_builder")
+    @patch("intellifl.dataset_loaders.dataset_inspector.load_dataset_builder")
     def test_inspect_dataset_detects_text_modality(self, mock_builder_fn):
         """Verify modality is set to 'text' when only text detected."""
         mock_builder = Mock()
@@ -130,7 +130,7 @@ class TestDatasetInspector:
 
         assert metadata["modality"] == "text"
 
-    @patch("src.dataset_loaders.dataset_inspector.load_dataset_builder")
+    @patch("intellifl.dataset_loaders.dataset_inspector.load_dataset_builder")
     def test_inspect_dataset_detects_multimodal(self, mock_builder_fn):
         """Verify modality is set to 'multimodal' when both image and text detected."""
         mock_builder = Mock()
@@ -149,7 +149,7 @@ class TestDatasetInspector:
 
         assert metadata["modality"] == "multimodal"
 
-    @patch("src.dataset_loaders.dataset_inspector.load_dataset_builder")
+    @patch("intellifl.dataset_loaders.dataset_inspector.load_dataset_builder")
     def test_inspect_dataset_extracts_image_info(self, mock_builder_fn):
         """Verify image column and shape are extracted."""
         mock_builder = Mock()
@@ -169,7 +169,7 @@ class TestDatasetInspector:
         assert metadata["image_column"] == "image"
         assert metadata["image_shape"] == (1, 28, 28)
 
-    @patch("src.dataset_loaders.dataset_inspector.load_dataset_builder")
+    @patch("intellifl.dataset_loaders.dataset_inspector.load_dataset_builder")
     def test_inspect_dataset_extracts_text_columns(self, mock_builder_fn):
         """Verify text columns are extracted."""
         mock_builder = Mock()
@@ -187,7 +187,7 @@ class TestDatasetInspector:
 
         assert metadata["text_columns"] == ["sentence1", "sentence2"]
 
-    @patch("src.dataset_loaders.dataset_inspector.load_dataset_builder")
+    @patch("intellifl.dataset_loaders.dataset_inspector.load_dataset_builder")
     def test_inspect_dataset_raises_on_load_error(self, mock_builder_fn):
         """Verify exception is raised when dataset loading fails."""
         mock_builder_fn.side_effect = Exception("Dataset not found")
@@ -296,7 +296,7 @@ class TestDatasetInspector:
         mock_image_feature = ImageFeature()
         features = {"img": mock_image_feature, "label": Mock()}
 
-        with patch("src.dataset_loaders.dataset_inspector.load_dataset") as mock_load:
+        with patch("intellifl.dataset_loaders.dataset_inspector.load_dataset") as mock_load:
             mock_img = Mock()
             mock_img.mode = "RGB"
             mock_img.size = (32, 32)
@@ -388,7 +388,7 @@ class TestDatasetInspector:
         assert col_name == "img"
         assert shape == (3, 32, 32)
 
-    @patch("src.dataset_loaders.dataset_inspector.load_dataset")
+    @patch("intellifl.dataset_loaders.dataset_inspector.load_dataset")
     def test_get_image_info_loads_sample_for_unknown_dataset(self, mock_load_dataset):
         """Verify _get_image_info loads sample for unknown datasets."""
 
@@ -411,7 +411,7 @@ class TestDatasetInspector:
         assert shape == (1, 64, 64)
         mock_load_dataset.assert_called_once_with("custom/dataset", split="train[:1]")
 
-    @patch("src.dataset_loaders.dataset_inspector.load_dataset")
+    @patch("intellifl.dataset_loaders.dataset_inspector.load_dataset")
     def test_get_image_info_detects_rgb_image(self, mock_load_dataset):
         """Verify _get_image_info correctly detects RGB images."""
 
@@ -432,7 +432,7 @@ class TestDatasetInspector:
 
         assert shape == (3, 224, 224)
 
-    @patch("src.dataset_loaders.dataset_inspector.load_dataset")
+    @patch("intellifl.dataset_loaders.dataset_inspector.load_dataset")
     def test_get_image_info_handles_non_pil_image(self, mock_load_dataset):
         """Verify _get_image_info handles non-PIL image formats."""
 
@@ -451,7 +451,7 @@ class TestDatasetInspector:
 
         assert shape == (1, 28, 28)
 
-    @patch("src.dataset_loaders.dataset_inspector.load_dataset")
+    @patch("intellifl.dataset_loaders.dataset_inspector.load_dataset")
     def test_get_image_info_handles_load_error(self, mock_load_dataset):
         """Verify _get_image_info handles dataset loading errors."""
 

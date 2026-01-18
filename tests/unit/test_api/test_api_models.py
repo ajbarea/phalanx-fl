@@ -7,7 +7,7 @@ import warnings
 import pytest
 from pydantic import ValidationError
 
-from src.api.models import (
+from intellifl.api.models import (
     AllPlotDataResponse,
     CreateSimulationRequest,
     DatasetInfo,

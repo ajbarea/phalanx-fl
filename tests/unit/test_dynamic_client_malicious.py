@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
-from src.data_models.simulation_strategy_config import StrategyConfig
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from intellifl.data_models.simulation_strategy_config import StrategyConfig
+from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 
 class TestDynamicClientMaliciousUpdate:

@@ -14,8 +14,8 @@ from unittest.mock import patch
 from flwr.common import Context
 from flwr.common.record import RecordDict
 
-from src.data_models.simulation_strategy_config import StrategyConfig
-from src.federated_simulation import FederatedSimulation
+from intellifl.data_models.simulation_strategy_config import StrategyConfig
+from intellifl.federated_simulation import FederatedSimulation
 from tests.common import Mock, np, pytest
 from tests.fixtures.mock_datasets import MockDatasetHandler
 from tests.fixtures.sample_models import MockNetwork
@@ -78,8 +78,8 @@ def _create_simulation_with_mocks(
 ) -> FederatedSimulation:
     """Create a FederatedSimulation instance with mocked dependencies for testing."""
     with (
-        patch("src.federated_simulation.ImageDatasetLoader") as mock_loader,
-        patch(f"src.federated_simulation.{network_name}") as mock_network,
+        patch("intellifl.federated_simulation.ImageDatasetLoader") as mock_loader,
+        patch(f"intellifl.federated_simulation.{network_name}") as mock_network,
     ):
         mock_loader_instance = Mock()
         mock_loader_instance.load_datasets.return_value = (
@@ -115,7 +115,7 @@ class TestFederatedSimulationIntegration:
         dataset_dir.mkdir(parents=True)
         return str(dataset_dir)
 
-    @patch("src.federated_simulation.run_simulation")
+    @patch("intellifl.federated_simulation.run_simulation")
     def test_complete_simulation_workflow_with_trust_strategy(
         self,
         mock_run_simulation: Mock,
@@ -148,7 +148,7 @@ class TestFederatedSimulationIntegration:
         assert call_args.kwargs["backend_config"]["client_resources"]["num_cpus"] == 1
 
         # Test client creation works across the workflow
-        with patch("src.federated_simulation.FlowerClient") as mock_flower_client:
+        with patch("intellifl.federated_simulation.FlowerClient") as mock_flower_client:
             mock_client_instance = Mock()
             mock_client_instance.to_client.return_value = Mock()
             mock_flower_client.return_value = mock_client_instance
@@ -160,7 +160,7 @@ class TestFederatedSimulationIntegration:
                 client = simulation.client_fn(context)
                 assert client is not None
 
-    @patch("src.federated_simulation.run_simulation")
+    @patch("intellifl.federated_simulation.run_simulation")
     def test_simulation_workflow_with_multiple_strategies(
         self,
         mock_run_simulation: Mock,
@@ -228,7 +228,7 @@ class TestFederatedSimulationIntegration:
             assert len(simulation._trainloaders) == strategy_config.num_of_clients
             assert len(simulation._valloaders) == strategy_config.num_of_clients
 
-    @patch("src.federated_simulation.run_simulation")
+    @patch("intellifl.federated_simulation.run_simulation")
     def test_simulation_handles_flower_exceptions(
         self,
         mock_run_simulation: Mock,
@@ -257,7 +257,7 @@ class TestFederatedSimulationIntegration:
             strategy_config, temp_dataset_dir, mock_dataset_handler
         )
 
-        with patch("src.federated_simulation.FlowerClient") as mock_flower_client:
+        with patch("intellifl.federated_simulation.FlowerClient") as mock_flower_client:
             mock_client_instance = Mock()
             mock_client_instance.to_client.return_value = Mock()
             mock_flower_client.return_value = mock_client_instance

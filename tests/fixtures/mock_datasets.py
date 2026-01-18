@@ -10,7 +10,7 @@ from typing import TypeAlias
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from src.dataset_handlers.dataset_handler import DatasetHandler
+from intellifl.dataset_handlers.dataset_handler import DatasetHandler
 from tests.common import np
 
 NDArray: TypeAlias = np.ndarray

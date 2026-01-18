@@ -14,32 +14,34 @@ from unittest.mock import patch
 import torch
 import torch.nn as nn
 
-from src.network_models.bert_model_definition import (
+from intellifl.network_models.bert_model_definition import (
     get_lora_state_dict,
     load_model,
     load_model_with_lora,
     set_lora_state_dict,
 )
-from src.network_models.bloodmnist_network_definition import BloodMNISTNetwork
-from src.network_models.breastmnist_network_definition import BreastMNISTNetwork
-from src.network_models.dermamnist_network_definition import DermaMNISTNetwork
-from src.network_models.femnist_full_niid_network_definition import (
+from intellifl.network_models.bloodmnist_network_definition import BloodMNISTNetwork
+from intellifl.network_models.breastmnist_network_definition import BreastMNISTNetwork
+from intellifl.network_models.dermamnist_network_definition import DermaMNISTNetwork
+from intellifl.network_models.femnist_full_niid_network_definition import (
     FemnistFullNIIDNetwork,
 )
-from src.network_models.femnist_reduced_iid_network_definition import (
+from intellifl.network_models.femnist_reduced_iid_network_definition import (
     FemnistReducedIIDNetwork,
 )
-from src.network_models.flair_network_definition import FlairNetwork
-from src.network_models.its_network_definition import ITSNetwork
-from src.network_models.lung_photos_network_definition import LungCancerCNN as LungPhotosNetwork
-from src.network_models.octmnist_network_definition import OctMNISTNetwork
-from src.network_models.organamnist_network_definition import OrganAMNISTNetwork
-from src.network_models.organcmnist_network_definition import OrganCMNISTNetwork
-from src.network_models.organsmnist_network_definition import OrganSMNISTNetwork
-from src.network_models.pathmnist_network_definition import PathMNISTNetwork
-from src.network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
-from src.network_models.retinamnist_network_definition import RetinaMNISTNetwork
-from src.network_models.tissuemnist_network_definition import TissueMNISTNetwork
+from intellifl.network_models.flair_network_definition import FlairNetwork
+from intellifl.network_models.its_network_definition import ITSNetwork
+from intellifl.network_models.lung_photos_network_definition import (
+    LungCancerCNN as LungPhotosNetwork,
+)
+from intellifl.network_models.octmnist_network_definition import OctMNISTNetwork
+from intellifl.network_models.organamnist_network_definition import OrganAMNISTNetwork
+from intellifl.network_models.organcmnist_network_definition import OrganCMNISTNetwork
+from intellifl.network_models.organsmnist_network_definition import OrganSMNISTNetwork
+from intellifl.network_models.pathmnist_network_definition import PathMNISTNetwork
+from intellifl.network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
+from intellifl.network_models.retinamnist_network_definition import RetinaMNISTNetwork
+from intellifl.network_models.tissuemnist_network_definition import TissueMNISTNetwork
 from tests.common import Mock, np, pytest
 
 
@@ -458,7 +460,7 @@ class TestBERTModelFunctions:
         mock_auto_model.from_pretrained.assert_called_once_with("bert-base-uncased")
         assert model == mock_model
 
-    @patch("src.network_models.bert_model_definition.get_peft_model_state_dict")
+    @patch("intellifl.network_models.bert_model_definition.get_peft_model_state_dict")
     def test_get_lora_state_dict(self, mock_get_peft_state_dict):
         """Test getting LoRA state dict as numpy arrays."""
         # Mock state dict with tensors
@@ -475,8 +477,8 @@ class TestBERTModelFunctions:
 
         mock_get_peft_state_dict.assert_called_once_with(mock_model)
 
-    @patch("src.network_models.bert_model_definition.set_peft_model_state_dict")
-    @patch("src.network_models.bert_model_definition.get_peft_model_state_dict")
+    @patch("intellifl.network_models.bert_model_definition.set_peft_model_state_dict")
+    @patch("intellifl.network_models.bert_model_definition.get_peft_model_state_dict")
     def test_set_lora_state_dict(self, mock_get_peft_state_dict, mock_set_peft_state_dict):
         """Test setting LoRA state dict from numpy arrays."""
         # Mock existing state dict keys
@@ -504,8 +506,12 @@ class TestBERTModelFunctions:
         mock_model = Mock()
 
         with (
-            patch("src.network_models.bert_model_definition.get_peft_model_state_dict") as mock_get,
-            patch("src.network_models.bert_model_definition.set_peft_model_state_dict") as mock_set,
+            patch(
+                "intellifl.network_models.bert_model_definition.get_peft_model_state_dict"
+            ) as mock_get,
+            patch(
+                "intellifl.network_models.bert_model_definition.set_peft_model_state_dict"
+            ) as mock_set,
         ):
             # Mock state dict
             original_state_dict = OrderedDict(

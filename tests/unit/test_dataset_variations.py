@@ -217,7 +217,7 @@ class TestDatasetVariations:
         """Test MedQuAD text dataset specific characteristics."""
         # Mock the text dataset behavior
         with patch(
-            "src.dataset_loaders.medquad_dataset_loader.MedQuADDatasetLoader"
+            "intellifl.dataset_loaders.medquad_dataset_loader.MedQuADDatasetLoader"
         ) as mock_loader:
             # Configure mock loader
             mock_instance = Mock()

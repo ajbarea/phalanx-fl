@@ -5,12 +5,12 @@ from unittest.mock import patch
 
 import matplotlib
 
-from src.data_models.client_info import ClientInfo
-from src.data_models.round_info import RoundsInfo
-from src.data_models.simulation_strategy_config import StrategyConfig
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.federated_simulation import FederatedSimulation
-from src.output_handlers.new_plot_handler import (
+from intellifl.data_models.client_info import ClientInfo
+from intellifl.data_models.round_info import RoundsInfo
+from intellifl.data_models.simulation_strategy_config import StrategyConfig
+from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
+from intellifl.federated_simulation import FederatedSimulation
+from intellifl.output_handlers.new_plot_handler import (
     ATTACK_ABBREV,
     _add_attack_background_shading,
     _generate_multi_string_strategy_label,

@@ -11,11 +11,11 @@ import importlib
 from typing import Any
 from unittest.mock import patch
 
-from src.simulation_strategies.krum_based_removal_strategy import (
+from intellifl.simulation_strategies.krum_based_removal_strategy import (
     KrumBasedRemovalStrategy,
 )
-from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
-from src.simulation_strategies.trust_based_removal_strategy import (
+from intellifl.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+from intellifl.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
 from tests.common import Mock, pytest
@@ -35,7 +35,7 @@ class TestStrategyVariations:
         [
             (
                 "trust",
-                "src.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
+                "intellifl.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
                 {
                     "remove_clients": True,
                     "beta_value": 0.5,
@@ -45,7 +45,7 @@ class TestStrategyVariations:
             ),
             (
                 "trimmed_mean",
-                "src.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
+                "intellifl.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
                 {
                     "remove_clients": True,
                     "trim_ratio": 0.2,
@@ -54,7 +54,7 @@ class TestStrategyVariations:
             ),
             (
                 "pid",
-                "src.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
+                "intellifl.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
                 {
                     "remove_clients": True,
                     "begin_removing_from_round": 2,
@@ -67,7 +67,7 @@ class TestStrategyVariations:
             ),
             (
                 "krum",
-                "src.simulation_strategies.krum_based_removal_strategy.KrumBasedRemovalStrategy",
+                "intellifl.simulation_strategies.krum_based_removal_strategy.KrumBasedRemovalStrategy",
                 {
                     "remove_clients": True,
                     "num_malicious_clients": 2,
@@ -78,7 +78,7 @@ class TestStrategyVariations:
             ),
             (
                 "multi_krum",
-                "src.simulation_strategies.multi_krum_strategy.MultiKrumStrategy",
+                "intellifl.simulation_strategies.multi_krum_strategy.MultiKrumStrategy",
                 {
                     "remove_clients": True,
                     "num_of_malicious_clients": 2,
@@ -88,7 +88,7 @@ class TestStrategyVariations:
             ),
             (
                 "rfa",
-                "src.simulation_strategies.rfa_based_removal_strategy.RFABasedRemovalStrategy",
+                "intellifl.simulation_strategies.rfa_based_removal_strategy.RFABasedRemovalStrategy",
                 {
                     "remove_clients": True,
                     "begin_removing_from_round": 2,
@@ -97,7 +97,7 @@ class TestStrategyVariations:
             ),
             (
                 "bulyan",
-                "src.simulation_strategies.bulyan_strategy.BulyanStrategy",
+                "intellifl.simulation_strategies.bulyan_strategy.BulyanStrategy",
                 {
                     "remove_clients": True,
                     "num_krum_selections": 5,
@@ -144,7 +144,7 @@ class TestStrategyVariations:
         [
             (
                 "trust",
-                "src.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
+                "intellifl.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
                 [
                     {"beta_value": 0.1, "trust_threshold": 0.3},  # Low values
                     {"beta_value": 0.5, "trust_threshold": 0.7},  # Medium values
@@ -153,7 +153,7 @@ class TestStrategyVariations:
             ),
             (
                 "trimmed_mean",
-                "src.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
+                "intellifl.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
                 [
                     {"trim_ratio": 0.1},  # Low trimming
                     {"trim_ratio": 0.2},  # Medium trimming
@@ -162,7 +162,7 @@ class TestStrategyVariations:
             ),
             (
                 "pid",
-                "src.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
+                "intellifl.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
                 [
                     {
                         "kp": 0.5,
@@ -189,7 +189,7 @@ class TestStrategyVariations:
             ),
             (
                 "krum",
-                "src.simulation_strategies.krum_based_removal_strategy.KrumBasedRemovalStrategy",
+                "intellifl.simulation_strategies.krum_based_removal_strategy.KrumBasedRemovalStrategy",
                 [
                     {
                         "num_krum_selections": 3,
@@ -207,7 +207,7 @@ class TestStrategyVariations:
             ),
             (
                 "multi_krum",
-                "src.simulation_strategies.multi_krum_strategy.MultiKrumStrategy",
+                "intellifl.simulation_strategies.multi_krum_strategy.MultiKrumStrategy",
                 [
                     {
                         "num_krum_selections": 2,
@@ -288,23 +288,23 @@ class TestStrategyVariations:
         [
             (
                 "trust",
-                "src.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
+                "intellifl.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
             ),
             (
                 "trimmed_mean",
-                "src.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
+                "intellifl.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
             ),
             (
                 "pid",
-                "src.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
+                "intellifl.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
             ),
             (
                 "krum",
-                "src.simulation_strategies.krum_based_removal_strategy.KrumBasedRemovalStrategy",
+                "intellifl.simulation_strategies.krum_based_removal_strategy.KrumBasedRemovalStrategy",
             ),
             (
                 "rfa",
-                "src.simulation_strategies.rfa_based_removal_strategy.RFABasedRemovalStrategy",
+                "intellifl.simulation_strategies.rfa_based_removal_strategy.RFABasedRemovalStrategy",
             ),
         ],
     )
@@ -382,7 +382,7 @@ class TestStrategyVariations:
         [
             (
                 "trust",
-                "src.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
+                "intellifl.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
                 [
                     {"beta_value": 0.0, "trust_threshold": 0.0},  # Minimum values
                     {"beta_value": 1.0, "trust_threshold": 1.0},  # Maximum values
@@ -390,7 +390,7 @@ class TestStrategyVariations:
             ),
             (
                 "trimmed_mean",
-                "src.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
+                "intellifl.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
                 [
                     {"trim_ratio": 0.0},  # No trimming
                     {"trim_ratio": 0.5},  # Maximum practical trimming
@@ -398,7 +398,7 @@ class TestStrategyVariations:
             ),
             (
                 "pid",
-                "src.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
+                "intellifl.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
                 [
                     {
                         "kp": 0.0,
@@ -418,7 +418,7 @@ class TestStrategyVariations:
             ),
             (
                 "krum",
-                "src.simulation_strategies.krum_based_removal_strategy.KrumBasedRemovalStrategy",
+                "intellifl.simulation_strategies.krum_based_removal_strategy.KrumBasedRemovalStrategy",
                 [
                     {
                         "num_krum_selections": 1,
@@ -658,7 +658,7 @@ class TestStrategyVariations:
         [
             (
                 "multi_krum_based",
-                "src.simulation_strategies.multi_krum_based_removal_strategy.MultiKrumBasedRemovalStrategy",
+                "intellifl.simulation_strategies.multi_krum_based_removal_strategy.MultiKrumBasedRemovalStrategy",
                 {
                     "num_of_malicious_clients": 2,
                     "num_krum_selections": 3,
@@ -667,12 +667,12 @@ class TestStrategyVariations:
             ),
             (
                 "rfa",
-                "src.simulation_strategies.rfa_based_removal_strategy.RFABasedRemovalStrategy",
+                "intellifl.simulation_strategies.rfa_based_removal_strategy.RFABasedRemovalStrategy",
                 {"begin_removing_from_round": 2, "weighted_median_factor": 1.0},
             ),
             (
                 "bulyan",
-                "src.simulation_strategies.bulyan_strategy.BulyanStrategy",
+                "intellifl.simulation_strategies.bulyan_strategy.BulyanStrategy",
                 {"num_krum_selections": 5, "begin_removing_from_round": 1},
             ),
         ],
@@ -827,7 +827,7 @@ class TestStrategyVariations:
         edge_cases = [
             # Trust strategy edge cases
             {
-                "strategy_class": "src.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
+                "strategy_class": "intellifl.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
                 "params": {
                     "beta_value": 0.001,
                     "trust_threshold": 0.999,
@@ -835,12 +835,12 @@ class TestStrategyVariations:
             },
             # Trimmed mean edge cases
             {
-                "strategy_class": "src.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
+                "strategy_class": "intellifl.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
                 "params": {"trim_ratio": 0.49},  # Just under 50%
             },
             # PID edge cases
             {
-                "strategy_class": "src.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
+                "strategy_class": "intellifl.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
                 "params": {
                     "kp": 0.001,
                     "ki": 0.0001,

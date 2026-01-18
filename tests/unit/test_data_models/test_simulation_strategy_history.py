@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from src.data_models.client_info import ClientInfo
-from src.data_models.round_info import RoundsInfo
-from src.data_models.simulation_strategy_config import StrategyConfig
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.dataset_handlers.dataset_handler import DatasetHandler
+from intellifl.data_models.client_info import ClientInfo
+from intellifl.data_models.round_info import RoundsInfo
+from intellifl.data_models.simulation_strategy_config import StrategyConfig
+from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
+from intellifl.dataset_handlers.dataset_handler import DatasetHandler
 from tests.common import Mock, pytest
 
 

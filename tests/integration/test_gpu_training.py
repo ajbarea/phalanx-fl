@@ -63,7 +63,7 @@ class TestGPUTraining:
 
     def test_gpu_device_selection(self):
         """CUDA device should be selected when available, fallback to CPU otherwise"""
-        from src.utils.device_utils import get_device
+        from intellifl.utils.device_utils import get_device
 
         # Test explicit CPU request
         cpu_device = get_device("cpu")
@@ -78,7 +78,7 @@ class TestGPUTraining:
 
     def test_gpu_device_fallback(self):
         """CUDA should fallback to CPU gracefully when unavailable"""
-        from src.utils.device_utils import get_device
+        from intellifl.utils.device_utils import get_device
 
         if not torch.cuda.is_available():
             device = get_device("gpu")
@@ -187,7 +187,7 @@ class TestGPUTraining:
 
     def test_gpu_info_logging(self, caplog):
         """Device selection should log GPU information when available"""
-        from src.utils.device_utils import get_device
+        from intellifl.utils.device_utils import get_device
 
         _ = get_device("gpu")
 

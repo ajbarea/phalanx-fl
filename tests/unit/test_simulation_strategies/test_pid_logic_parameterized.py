@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+from intellifl.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
 
 
 class TestPIDLogicParameterized:

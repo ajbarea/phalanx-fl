@@ -15,9 +15,9 @@ from unittest.mock import patch
 
 import psutil
 
-from src.data_models.client_info import ClientInfo
-from src.data_models.simulation_strategy_config import StrategyConfig
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from intellifl.data_models.client_info import ClientInfo
+from intellifl.data_models.simulation_strategy_config import StrategyConfig
+from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
 from tests.common import Mock, np, pytest
 from tests.fixtures.mock_datasets import (
     MockDatasetHandler,
@@ -235,7 +235,7 @@ class TestMemoryLeakDetection:
 
             # Simulate strategy processing (mock the actual strategy execution)
             with patch(
-                "src.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy"
+                "intellifl.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy"
             ) as mock_strategy:
                 mock_instance = Mock()
                 mock_instance.aggregate_parameters.return_value = np.random.randn(1000)

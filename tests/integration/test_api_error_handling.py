@@ -1,7 +1,7 @@
 """
 API error handling and edge case tests.
 
-These tests target uncovered error paths in src/api/main.py:
+These tests target uncovered error paths in intellifl/api/main.py:
 - 404 responses for non-existent resources
 - Validation errors for invalid configurations
 - Edge cases in result retrieval
@@ -37,7 +37,7 @@ class TestAPIErrorResponses:
 
     def test_get_nonexistent_result_file(self, api_client: TestClient, tmp_path: Path, monkeypatch):
         """Test 404 for existing simulation but non-existent result file."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
 
         # Create simulation directory without the requested file
         sim_dir = tmp_path / "out" / "api_run_20250101_120000"
@@ -58,7 +58,7 @@ class TestAPIErrorResponses:
 
     def test_unsupported_file_type(self, api_client: TestClient, tmp_path: Path, monkeypatch):
         """Test 400 for unsupported file types."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
 
         sim_dir = tmp_path / "out" / "api_run_20250101_120000"
         sim_dir.mkdir(parents=True)
@@ -77,13 +77,15 @@ class TestAPIValidationErrors:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """Test creating simulation with empty config."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-        monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
 
         mock_process = MagicMock()
         mock_process.pid = 12345
         mock_process.poll = MagicMock(return_value=None)
-        monkeypatch.setattr("src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
+        monkeypatch.setattr(
+            "intellifl.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process
+        )
 
         # Empty config should still work (uses defaults)
         response = api_client.post("/api/simulations", json={})
@@ -93,13 +95,15 @@ class TestAPIValidationErrors:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """Test creating simulation with all optional fields."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-        monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
 
         mock_process = MagicMock()
         mock_process.pid = 12345
         mock_process.poll = MagicMock(return_value=None)
-        monkeypatch.setattr("src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
+        monkeypatch.setattr(
+            "intellifl.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process
+        )
 
         config = {
             "aggregation_strategy_keyword": "krum",
@@ -118,7 +122,7 @@ class TestAPIValidationErrors:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """Test renaming simulation with empty name."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
 
         sim_dir = tmp_path / "out" / "api_run_20250101_120000"
         sim_dir.mkdir(parents=True)
@@ -135,7 +139,7 @@ class TestAPIValidationErrors:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """Test renaming simulation with special characters succeeds."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
 
         sim_dir = tmp_path / "out" / "api_run_20250101_120000"
         sim_dir.mkdir(parents=True)
@@ -150,7 +154,7 @@ class TestAPIValidationErrors:
 
     def test_rename_simulation_too_long(self, api_client: TestClient, tmp_path: Path, monkeypatch):
         """Test renaming simulation with name exceeding 100 chars."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
 
         sim_dir = tmp_path / "out" / "api_run_20250101_120000"
         sim_dir.mkdir(parents=True)
@@ -172,7 +176,7 @@ class TestAPIEdgeCases:
         """Test listing simulations when none exist."""
         empty_out = tmp_path / "out"
         empty_out.mkdir()
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", empty_out)
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", empty_out)
 
         response = api_client.get("/api/simulations")
         assert response.status_code == 200
@@ -184,7 +188,7 @@ class TestAPIEdgeCases:
         """Test that non-api_run directories are filtered correctly."""
         out_dir = tmp_path / "out"
         out_dir.mkdir()
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", out_dir)
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
 
         # Create non-api directories that should be ignored (no config.json)
         (out_dir / "some_other_dir").mkdir()
@@ -200,7 +204,7 @@ class TestAPIEdgeCases:
         """Test handling of simulation with malformed config.json."""
         out_dir = tmp_path / "out"
         out_dir.mkdir()
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", out_dir)
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
 
         # Create simulation with invalid JSON
         sim_dir = out_dir / "api_run_20250101_120000"
@@ -215,7 +219,7 @@ class TestAPIEdgeCases:
         """Test retrieving PDF result file."""
         out_dir = tmp_path / "out"
         out_dir.mkdir()
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", out_dir)
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
 
         sim_dir = out_dir / "api_run_20250101_120000"
         sim_dir.mkdir()
@@ -231,7 +235,7 @@ class TestAPIEdgeCases:
         """Test CSV download mode."""
         out_dir = tmp_path / "out"
         out_dir.mkdir()
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", out_dir)
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
 
         sim_dir = out_dir / "api_run_20250101_120000"
         sim_dir.mkdir()
@@ -280,7 +284,7 @@ class TestAPIDeleteOperations:
         """Test deleting multiple simulations with mixed results."""
         out_dir = tmp_path / "out"
         out_dir.mkdir()
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", out_dir)
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
 
         # Create one valid simulation
         sim_dir = out_dir / "api_run_valid_001"
@@ -306,7 +310,7 @@ class TestAPIPlotData:
         """Test plot data when no plot files exist."""
         out_dir = tmp_path / "out"
         out_dir.mkdir()
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", out_dir)
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
 
         sim_dir = out_dir / "api_run_20250101_120000"
         sim_dir.mkdir()
@@ -322,7 +326,7 @@ class TestAPIPlotData:
         """Test retrieving all plot data for multi-strategy simulation."""
         out_dir = tmp_path / "out"
         out_dir.mkdir()
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", out_dir)
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
 
         sim_dir = out_dir / "api_run_20250101_120000"
         sim_dir.mkdir()
@@ -355,7 +359,7 @@ class TestAPIAttackSnapshots:
         """Test getting attack snapshots when none exist."""
         out_dir = tmp_path / "out"
         out_dir.mkdir()
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", out_dir)
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
 
         sim_dir = out_dir / "api_run_20250101_120000"
         sim_dir.mkdir()
@@ -373,7 +377,7 @@ class TestAPIAttackSnapshots:
         """Test getting attack snapshots with data present."""
         out_dir = tmp_path / "out"
         out_dir.mkdir()
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", out_dir)
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
 
         sim_dir = out_dir / "api_run_20250101_120000"
         sim_dir.mkdir()

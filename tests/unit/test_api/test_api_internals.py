@@ -1,5 +1,5 @@
 """
-Unit tests for internal functions and edge cases in src/api/main.py.
+Unit tests for internal functions and edge cases in intellifl/api/main.py.
 
 Tests cover:
 - Helper functions (get_safe_env, secure_join, _get_status_data, _find_simulation_process)
@@ -19,7 +19,7 @@ from unittest.mock import MagicMock, Mock
 
 from fastapi.testclient import TestClient
 
-from src.api import main
+from intellifl.api import main
 
 # =============================================================================
 # get_safe_env() Tests
@@ -149,7 +149,7 @@ class TestGetStatusData:
 
     def test_get_status_data_stopped(self, tmp_path: Path, monkeypatch):
         """_get_status_data returns 'stopped' when .stopped marker exists."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "stopped_test"
         sim_dir.mkdir(parents=True)
 
@@ -161,7 +161,7 @@ class TestGetStatusData:
 
     def test_get_status_data_with_status_json(self, tmp_path: Path, monkeypatch):
         """_get_status_data reads detailed progress from status.json."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "progress_test"
         sim_dir.mkdir(parents=True)
 
@@ -185,7 +185,7 @@ class TestGetStatusData:
 
     def test_get_status_data_running_marker(self, tmp_path: Path, monkeypatch):
         """_get_status_data returns 'running' when .running marker exists."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "running_marker_test"
         sim_dir.mkdir(parents=True)
 
@@ -197,7 +197,7 @@ class TestGetStatusData:
 
     def test_get_status_data_completed_with_results(self, tmp_path: Path, monkeypatch):
         """_get_status_data returns 'completed' when result files exist."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "completed_test"
         sim_dir.mkdir(parents=True)
 
@@ -209,8 +209,8 @@ class TestGetStatusData:
 
     def test_get_status_data_execution_log_error(self, tmp_path: Path, monkeypatch):
         """_get_status_data handles execution.log read errors."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-        monkeypatch.setattr("src.api.main.running_processes", {})
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.running_processes", {})
         sim_dir = tmp_path / "out" / "execution_log_issue"
         sim_dir.mkdir(parents=True)
 
@@ -248,7 +248,7 @@ class TestFindSimulationProcess:
 
     def test_find_process_by_cmdline(self, tmp_path: Path, monkeypatch):
         """_find_simulation_process finds process by command line pattern."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
 
         mock_proc = MagicMock()
         mock_proc.info = {
@@ -257,7 +257,7 @@ class TestFindSimulationProcess:
             "cmdline": [
                 "python",
                 "-m",
-                "src.simulation_runner",
+                "intellifl.simulation_runner",
                 "out/test_sim/config.json",
             ],
         }
@@ -265,14 +265,14 @@ class TestFindSimulationProcess:
         def mock_process_iter(attrs):
             return [mock_proc]
 
-        monkeypatch.setattr("src.api.main.psutil.process_iter", mock_process_iter)
+        monkeypatch.setattr("intellifl.api.main.psutil.process_iter", mock_process_iter)
 
         result = main._find_simulation_process("test_sim")
         assert result == mock_proc
 
     def test_find_process_by_status_json_pid(self, tmp_path: Path, monkeypatch):
         """_find_simulation_process finds process by PID from status.json."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
 
         sim_dir = tmp_path / "out" / "test_sim_pid"
         sim_dir.mkdir(parents=True)
@@ -281,7 +281,7 @@ class TestFindSimulationProcess:
         def mock_process_iter(attrs):
             return []
 
-        monkeypatch.setattr("src.api.main.psutil.process_iter", mock_process_iter)
+        monkeypatch.setattr("intellifl.api.main.psutil.process_iter", mock_process_iter)
 
         mock_psutil_proc = MagicMock()
         mock_psutil_proc.is_running.return_value = True
@@ -292,20 +292,20 @@ class TestFindSimulationProcess:
                 return mock_psutil_proc
             raise main.psutil.NoSuchProcess(pid)
 
-        monkeypatch.setattr("src.api.main.psutil.Process", mock_process)
+        monkeypatch.setattr("intellifl.api.main.psutil.Process", mock_process)
 
         result = main._find_simulation_process("test_sim_pid")
         assert result == mock_psutil_proc
 
     def test_find_process_not_found(self, tmp_path: Path, monkeypatch):
         """_find_simulation_process returns None when process not found."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         (tmp_path / "out").mkdir(parents=True)
 
         def mock_process_iter(attrs):
             return []
 
-        monkeypatch.setattr("src.api.main.psutil.process_iter", mock_process_iter)
+        monkeypatch.setattr("intellifl.api.main.psutil.process_iter", mock_process_iter)
 
         result = main._find_simulation_process("nonexistent_sim")
         assert result is None
@@ -321,7 +321,7 @@ class TestStatusMarkers:
 
     def test_status_with_running_marker(self, api_client: TestClient, tmp_path: Path, monkeypatch):
         """GET /api/simulations/{id}/status returns 'running' with .running marker."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "api_run_running_marker"
         sim_dir.mkdir(parents=True)
 
@@ -339,7 +339,7 @@ class TestStatusMarkers:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """GET /api/simulations/{id}/status returns 'stopped' even with .running."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "api_run_stopped_priority"
         sim_dir.mkdir(parents=True)
 
@@ -357,7 +357,7 @@ class TestStatusMarkers:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """status.json takes priority over marker files for running status."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "api_run_status_json_priority"
         sim_dir.mkdir(parents=True)
 
@@ -381,7 +381,7 @@ class TestStatusMarkers:
 
     def test_status_json_malformed(self, api_client: TestClient, tmp_path: Path, monkeypatch):
         """Malformed status.json falls back to other detection methods."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "api_run_malformed_status"
         sim_dir.mkdir(parents=True)
 
@@ -408,9 +408,9 @@ class TestAddToQueue:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """POST /api/simulations with add_to_queue=true adds to running simulation."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-        monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
-        monkeypatch.setattr("src.api.main.running_processes", {})
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
+        monkeypatch.setattr("intellifl.api.main.running_processes", {})
 
         existing_sim = tmp_path / "out" / "api_run_running"
         existing_sim.mkdir(parents=True)
@@ -454,7 +454,7 @@ class TestStopEndpointEdgeCases:
 
     def test_stop_orphaned_simulation(self, api_client: TestClient, tmp_path: Path, monkeypatch):
         """POST /api/simulations/{id}/stop handles orphaned status.json."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "orphaned_sim"
         sim_dir.mkdir(parents=True)
 
@@ -465,12 +465,12 @@ class TestStopEndpointEdgeCases:
         def mock_process_iter(attrs):
             return []
 
-        monkeypatch.setattr("src.api.main.psutil.process_iter", mock_process_iter)
+        monkeypatch.setattr("intellifl.api.main.psutil.process_iter", mock_process_iter)
 
         def mock_process(pid):
             raise main.psutil.NoSuchProcess(pid)
 
-        monkeypatch.setattr("src.api.main.psutil.Process", mock_process)
+        monkeypatch.setattr("intellifl.api.main.psutil.Process", mock_process)
 
         response = api_client.post("/api/simulations/orphaned_sim/stop")
         assert response.status_code == 200
@@ -483,8 +483,8 @@ class TestStopEndpointEdgeCases:
 
     def test_stop_already_completed(self, api_client: TestClient, tmp_path: Path, monkeypatch):
         """POST /api/simulations/{id}/stop returns 409 for already completed process."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-        monkeypatch.setattr("src.api.main.running_processes", {})
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.running_processes", {})
         sim_dir = tmp_path / "out" / "completed_sim"
         sim_dir.mkdir(parents=True)
 
@@ -499,7 +499,7 @@ class TestStopEndpointEdgeCases:
         def mock_psutil_process(pid):
             raise main.psutil.NoSuchProcess(pid)
 
-        monkeypatch.setattr("src.api.main.psutil.Process", mock_psutil_process)
+        monkeypatch.setattr("intellifl.api.main.psutil.Process", mock_psutil_process)
 
         response = api_client.post("/api/simulations/completed_sim/stop")
         assert response.status_code == 409
@@ -518,7 +518,7 @@ class TestAttackSnapshots:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """Attack snapshots returns empty when no snapshot directories exist."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "api_run_no_attacks"
         sim_dir.mkdir(parents=True)
 
@@ -535,7 +535,7 @@ class TestAttackSnapshots:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """Attack snapshots with HTML-only text attacks are detected."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "api_run_text_attack"
         sim_dir.mkdir(parents=True)
 
@@ -570,7 +570,7 @@ class TestAttackSnapshots:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """Weight snapshots without corresponding attack snapshots."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "api_run_weight_only"
         sim_dir.mkdir(parents=True)
 
@@ -595,7 +595,7 @@ class TestAttackSnapshots:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """Attack snapshots with additional visualizations are included."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "api_run_confusion"
         sim_dir.mkdir(parents=True)
 
@@ -626,7 +626,7 @@ class TestAttackSnapshots:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """Attack snapshots with comparison visualization."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "api_run_comparison"
         sim_dir.mkdir(parents=True)
 
@@ -668,7 +668,7 @@ class TestDatasetValidation:
         def mock_load_builder(name):
             return mock_builder
 
-        monkeypatch.setattr("src.api.main.load_dataset_builder", mock_load_builder)
+        monkeypatch.setattr("intellifl.api.main.load_dataset_builder", mock_load_builder)
 
         response = api_client.get("/api/datasets/validate?name=ylecun/mnist")
         assert response.status_code == 200
@@ -684,7 +684,7 @@ class TestDatasetValidation:
         def mock_load_builder(name):
             raise Exception("Dataset not found on HuggingFace Hub")
 
-        monkeypatch.setattr("src.api.main.load_dataset_builder", mock_load_builder)
+        monkeypatch.setattr("intellifl.api.main.load_dataset_builder", mock_load_builder)
 
         response = api_client.get("/api/datasets/validate?name=invalid/dataset")
         assert response.status_code == 200
@@ -699,7 +699,7 @@ class TestDatasetValidation:
         def mock_load_builder(name):
             raise Exception("Connection timeout")
 
-        monkeypatch.setattr("src.api.main.load_dataset_builder", mock_load_builder)
+        monkeypatch.setattr("intellifl.api.main.load_dataset_builder", mock_load_builder)
 
         response = api_client.get("/api/datasets/validate?name=ylecun/mnist")
         assert response.status_code == 200
@@ -713,7 +713,7 @@ class TestDatasetValidation:
         def mock_load_builder(name):
             raise Exception("Unauthorized: 401")
 
-        monkeypatch.setattr("src.api.main.load_dataset_builder", mock_load_builder)
+        monkeypatch.setattr("intellifl.api.main.load_dataset_builder", mock_load_builder)
 
         response = api_client.get("/api/datasets/validate?name=private/dataset")
         assert response.status_code == 200
@@ -727,7 +727,7 @@ class TestDatasetValidation:
         def mock_load_builder(name):
             raise Exception("Forbidden: 403")
 
-        monkeypatch.setattr("src.api.main.load_dataset_builder", mock_load_builder)
+        monkeypatch.setattr("intellifl.api.main.load_dataset_builder", mock_load_builder)
 
         response = api_client.get("/api/datasets/validate?name=restricted/dataset")
         assert response.status_code == 200
@@ -741,7 +741,7 @@ class TestDatasetValidation:
         def mock_load_builder(name):
             raise Exception("Invalid dataset identifier")
 
-        monkeypatch.setattr("src.api.main.load_dataset_builder", mock_load_builder)
+        monkeypatch.setattr("intellifl.api.main.load_dataset_builder", mock_load_builder)
 
         response = api_client.get("/api/datasets/validate?name=invalidformat")
         assert response.status_code == 200
@@ -757,7 +757,7 @@ class TestDatasetValidation:
         def mock_load_builder(name):
             return mock_builder
 
-        monkeypatch.setattr("src.api.main.load_dataset_builder", mock_load_builder)
+        monkeypatch.setattr("intellifl.api.main.load_dataset_builder", mock_load_builder)
 
         response = api_client.get("/api/datasets/validate?name=test/dataset")
         assert response.status_code == 200
@@ -776,7 +776,7 @@ class TestDatasetValidation:
         def mock_load_builder(name):
             return mock_builder
 
-        monkeypatch.setattr("src.api.main.load_dataset_builder", mock_load_builder)
+        monkeypatch.setattr("intellifl.api.main.load_dataset_builder", mock_load_builder)
 
         response = api_client.get("/api/datasets/validate?name=test/complex")
         assert response.status_code == 200
@@ -798,7 +798,7 @@ class TestPlotDataEdgeCases:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """GET /api/simulations/{id}/plot-data returns 404 for nonexistent simulation."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         (tmp_path / "out").mkdir(parents=True)
 
         response = api_client.get("/api/simulations/nonexistent/plot-data")
@@ -809,7 +809,7 @@ class TestPlotDataEdgeCases:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """GET /api/simulations/{id}/plot-data handles JSON parse errors."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "bad_json"
         sim_dir.mkdir(parents=True)
 
@@ -822,7 +822,7 @@ class TestPlotDataEdgeCases:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """GET /api/simulations/{id}/plot-data handles FileNotFoundError explicitly."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "missing_plot"
         sim_dir.mkdir(parents=True)
 
@@ -855,7 +855,7 @@ class TestAllPlotDataEdgeCases:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """GET /api/simulations/{id}/all-plot-data handles JSON parse errors."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "bad_all_json"
         sim_dir.mkdir(parents=True)
 
@@ -868,7 +868,7 @@ class TestAllPlotDataEdgeCases:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """GET /api/simulations/{id}/all-plot-data handles FileNotFoundError."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "missing_all_plot"
         sim_dir.mkdir(parents=True)
 
@@ -895,7 +895,7 @@ class TestSimulationDetailsEdgeCases:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """GET /api/simulations/{id} includes nested subdirectory files."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "api_run_nested"
         sim_dir.mkdir(parents=True)
 
@@ -922,7 +922,7 @@ class TestSimulationDetailsEdgeCases:
         self, api_client: TestClient, tmp_path: Path, monkeypatch
     ):
         """GET /api/simulations handles legacy config without shared_settings."""
-        monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
         sim_dir = tmp_path / "out" / "api_run_legacy"
         sim_dir.mkdir(parents=True)
 

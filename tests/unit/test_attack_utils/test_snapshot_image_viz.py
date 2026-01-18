@@ -15,7 +15,7 @@ import pytest
 
 matplotlib.use("Agg")
 
-from src.attack_utils.snapshot_image_viz import (
+from intellifl.attack_utils.snapshot_image_viz import (
     _build_attack_title,
     _build_single_attack_title,
     _display_image,

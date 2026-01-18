@@ -9,8 +9,8 @@ from __future__ import annotations
 import warnings
 from unittest.mock import patch
 
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.simulation_strategies.trimmed_mean_based_removal_strategy import (
+from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
+from intellifl.simulation_strategies.trimmed_mean_based_removal_strategy import (
     TrimmedMeanBasedRemovalStrategy,
 )
 from tests.common import (

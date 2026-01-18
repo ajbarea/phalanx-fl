@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.simulation_strategies.krum_based_removal_strategy import (
+from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
+from intellifl.simulation_strategies.krum_based_removal_strategy import (
     KrumBasedRemovalStrategy,
 )
 from tests.common import (
@@ -59,9 +59,11 @@ class TestKrumBasedRemovalStrategy:
     def mock_clustering(self):
         """Mock clustering components (KMeans, MinMaxScaler) and parent aggregate_fit."""
         with (
-            patch("src.simulation_strategies.krum_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
-                "src.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.krum_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
             patch("flwr.server.strategy.Krum.aggregate_fit") as mock_parent_aggregate,
         ):

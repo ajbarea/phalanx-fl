@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from src.api.main import app
+from intellifl.api.main import app
 
 
 @pytest.fixture
@@ -84,8 +84,8 @@ def mock_output_dir(tmp_path: Path, monkeypatch) -> Path:
     out_dir = tmp_path / "out"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", out_dir)
-    monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
+    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
 
     return out_dir
 
@@ -111,6 +111,6 @@ def mock_output_with_simulation(
         shutil.copytree(mock_simulation_dir, dest)
 
     # Re-patch to parent of simulation
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_output_dir)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", mock_output_dir)
 
     return dest

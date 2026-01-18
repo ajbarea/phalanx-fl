@@ -194,7 +194,7 @@ def mock_output_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Pa
     (output_dir / "output.log").touch()
 
     monkeypatch.setattr(
-        "src.output_handlers.directory_handler.DirectoryHandler.dirname",
+        "intellifl.output_handlers.directory_handler.DirectoryHandler.dirname",
         str(output_dir),
     )
 
@@ -210,7 +210,7 @@ def prevent_real_output_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     csv_dir.mkdir()
 
     monkeypatch.setattr(
-        "src.output_handlers.directory_handler.DirectoryHandler.dirname",
+        "intellifl.output_handlers.directory_handler.DirectoryHandler.dirname",
         str(test_output),
     )
 
@@ -230,7 +230,7 @@ def strategy_history():
     """
     from unittest.mock import MagicMock
 
-    from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+    from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
 
     history = MagicMock(spec=SimulationStrategyHistory)
     history.insert_round_history_entry = MagicMock()

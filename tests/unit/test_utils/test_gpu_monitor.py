@@ -7,13 +7,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.utils.gpu_monitor import GPUMemoryMonitor, log_gpu_memory
+from intellifl.utils.gpu_monitor import GPUMemoryMonitor, log_gpu_memory
 
 
 @pytest.fixture
 def mock_cuda():
     """Mocks torch.cuda functions."""
-    with patch("src.utils.gpu_monitor.torch.cuda") as mock:
+    with patch("intellifl.utils.gpu_monitor.torch.cuda") as mock:
         mock.get_device_properties.return_value.total_memory = 10 * 1e9
         mock.memory_allocated.return_value = 2 * 1e9
         mock.memory_reserved.return_value = 4 * 1e9
@@ -25,7 +25,7 @@ def mock_cuda():
 @pytest.fixture
 def mock_logging():
     """Mocks the logging module."""
-    with patch("src.utils.gpu_monitor.logging") as mock:
+    with patch("intellifl.utils.gpu_monitor.logging") as mock:
         yield mock
 
 
@@ -117,7 +117,7 @@ class TestGPUMemoryMonitor:
 
 def test_log_gpu_memory_helper(mock_cuda, mock_logging):
     """Tests the log_gpu_memory helper function."""
-    with patch("src.utils.gpu_monitor.torch.device") as mock_dev_cls:
+    with patch("intellifl.utils.gpu_monitor.torch.device") as mock_dev_cls:
         device_mock = MagicMock()
         device_mock.type = "cuda"
         mock_dev_cls.return_value = device_mock

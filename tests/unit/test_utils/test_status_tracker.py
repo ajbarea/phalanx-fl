@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from src.utils.status_tracker import StatusTracker
+from intellifl.utils.status_tracker import StatusTracker
 
 
 class TestStatusTrackerInit(unittest.TestCase):

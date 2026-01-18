@@ -9,8 +9,8 @@ from unittest.mock import patch
 from flwr.common import Context
 from flwr.common.record import RecordDict
 
-from src.data_models.simulation_strategy_config import StrategyConfig
-from src.federated_simulation import FederatedSimulation
+from intellifl.data_models.simulation_strategy_config import StrategyConfig
+from intellifl.federated_simulation import FederatedSimulation
 from tests.common import Mock, np, pytest
 from tests.fixtures.mock_datasets import MockDatasetHandler
 from tests.fixtures.sample_models import MockNetwork
@@ -54,8 +54,8 @@ def _create_simulation_with_mocks(
 ) -> FederatedSimulation:
     """Create a FederatedSimulation instance with mocked dependencies for testing."""
     with (
-        patch("src.federated_simulation.ImageDatasetLoader") as mock_loader,
-        patch(f"src.federated_simulation.{network_name}") as mock_network,
+        patch("intellifl.federated_simulation.ImageDatasetLoader") as mock_loader,
+        patch(f"intellifl.federated_simulation.{network_name}") as mock_network,
     ):
         mock_loader_instance = Mock()
         mock_loader_instance.load_datasets.return_value = (
@@ -331,7 +331,7 @@ class TestFederatedSimulationClientFunction:
             strategy_config, temp_dataset_dir, mock_dataset_handler
         )
 
-        with patch("src.federated_simulation.FlowerClient") as mock_flower_client:
+        with patch("intellifl.federated_simulation.FlowerClient") as mock_flower_client:
             mock_client_instance = Mock()
             mock_client_instance.to_client.return_value = Mock()
             mock_flower_client.return_value = mock_client_instance
@@ -357,7 +357,7 @@ class TestFederatedSimulationClientFunction:
             strategy_config, temp_dataset_dir, mock_dataset_handler
         )
 
-        with patch("src.federated_simulation.FlowerClient") as mock_flower_client:
+        with patch("intellifl.federated_simulation.FlowerClient") as mock_flower_client:
             mock_client_instance = Mock()
             mock_client_instance.to_client.return_value = Mock()
             mock_flower_client.return_value = mock_client_instance
@@ -404,8 +404,8 @@ class TestFederatedSimulationClientFunction:
         )
         strategy_config = StrategyConfig.from_dict(config_dict)
 
-        with patch("src.federated_simulation.MedQuADDatasetLoader") as mock_loader:
-            with patch("src.federated_simulation.load_model") as mock_load_model:
+        with patch("intellifl.federated_simulation.MedQuADDatasetLoader") as mock_loader:
+            with patch("intellifl.federated_simulation.load_model") as mock_load_model:
                 mock_loader_instance = Mock()
                 mock_loader_instance.load_datasets.return_value = (
                     [Mock() for _ in range(5)],
@@ -420,7 +420,7 @@ class TestFederatedSimulationClientFunction:
                     dataset_handler=mock_dataset_handler,
                 )
 
-                with patch("src.federated_simulation.FlowerClient") as mock_flower_client:
+                with patch("intellifl.federated_simulation.FlowerClient") as mock_flower_client:
                     mock_client_instance = Mock()
                     mock_client_instance.to_client.return_value = Mock()
                     mock_flower_client.return_value = mock_client_instance
@@ -498,8 +498,8 @@ class TestFederatedSimulationErrorHandling:
         mock_dataset_handler.setup_dataset(num_clients=5)
 
         with (
-            patch("src.federated_simulation.ImageDatasetLoader") as mock_loader,
-            patch("src.federated_simulation.ITSNetwork") as mock_network,
+            patch("intellifl.federated_simulation.ImageDatasetLoader") as mock_loader,
+            patch("intellifl.federated_simulation.ITSNetwork") as mock_network,
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.load_datasets.return_value = (
@@ -533,7 +533,7 @@ class TestWeightedAverage:
 
     def test_weighted_average_with_single_client(self) -> None:
         """Test weighted average with a single client."""
-        from src.federated_simulation import weighted_average
+        from intellifl.federated_simulation import weighted_average
 
         metrics = [(100, {"accuracy": 0.95, "loss": 0.05})]
         result = weighted_average(metrics)
@@ -542,7 +542,7 @@ class TestWeightedAverage:
 
     def test_weighted_average_with_multiple_clients(self) -> None:
         """Test weighted average with multiple clients."""
-        from src.federated_simulation import weighted_average
+        from intellifl.federated_simulation import weighted_average
 
         metrics = [
             (100, {"accuracy": 0.90, "loss": 0.10}),
@@ -559,7 +559,7 @@ class TestWeightedAverage:
 
     def test_weighted_average_with_empty_metrics(self) -> None:
         """Test weighted average with empty metrics list."""
-        from src.federated_simulation import weighted_average
+        from intellifl.federated_simulation import weighted_average
 
         metrics: list[tuple[int, dict]] = []
         result = weighted_average(metrics)
@@ -568,7 +568,7 @@ class TestWeightedAverage:
 
     def test_weighted_average_with_missing_metrics(self) -> None:
         """Test weighted average when some clients have missing metrics."""
-        from src.federated_simulation import weighted_average
+        from intellifl.federated_simulation import weighted_average
 
         metrics = [
             (100, {"accuracy": 0.90, "loss": 0.10}),
@@ -584,7 +584,7 @@ class TestWeightedAverage:
 
     def test_weighted_average_with_zero_samples(self) -> None:
         """Test weighted average when all clients have zero samples."""
-        from src.federated_simulation import weighted_average
+        from intellifl.federated_simulation import weighted_average
 
         metrics = [
             (0, {"accuracy": 0.90, "loss": 0.10}),
@@ -597,7 +597,7 @@ class TestWeightedAverage:
 
     def test_weighted_average_with_mixed_metric_names(self) -> None:
         """Test weighted average with different metric names across clients."""
-        from src.federated_simulation import weighted_average
+        from intellifl.federated_simulation import weighted_average
 
         metrics = [
             (100, {"accuracy": 0.90, "f1": 0.88}),
@@ -618,7 +618,7 @@ class TestWeightedAverage:
 
     def test_weighted_average_with_negative_values(self) -> None:
         """Test weighted average handles negative metric values correctly."""
-        from src.federated_simulation import weighted_average
+        from intellifl.federated_simulation import weighted_average
 
         metrics = [
             (100, {"delta": -0.05}),

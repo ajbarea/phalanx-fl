@@ -13,8 +13,8 @@ import pytest
 from flwr.common import EvaluateRes
 from flwr.server.client_proxy import ClientProxy
 
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.simulation_strategies.fedavg_strategy import FedAvgStrategy
+from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
+from intellifl.simulation_strategies.fedavg_strategy import FedAvgStrategy
 
 
 class TestFedAvgStrategy:

@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from unittest.mock import mock_open, patch
 
-from src.config_loaders.config_loader import ConfigLoader
+from intellifl.config_loaders.config_loader import ConfigLoader
 from tests.common import pytest
 
 
@@ -184,7 +184,7 @@ class TestConfigLoader:
 
         assert exc_info.value.code == -1
 
-    @patch("src.config_loaders.config_loader.validate_strategy_config")
+    @patch("intellifl.config_loaders.config_loader.validate_strategy_config")
     def test_merge_usecase_configs_validation_failure(self, mock_validate, tmp_path):
         """Test error handling when strategy validation fails."""
         # Mock validation to raise an exception
@@ -697,7 +697,7 @@ class TestConfigLoader:
         assert full_config == dataset_config
         assert len(full_config) == 7  # All 7 datasets
 
-    @patch("src.config_loaders.config_loader.validate_strategy_config")
+    @patch("intellifl.config_loaders.config_loader.validate_strategy_config")
     def test_merge_usecase_configs_without_training_device(self, mock_validate, tmp_path):
         """Test config merging when training_device is not in shared_settings."""
         usecase_config = {
@@ -725,7 +725,7 @@ class TestConfigLoader:
         assert "training_device" not in result[0]
         mock_validate.assert_called_once()
 
-    @patch("src.config_loaders.config_loader.validate_strategy_config")
+    @patch("intellifl.config_loaders.config_loader.validate_strategy_config")
     def test_merge_usecase_configs_attack_schedule_without_selected_clients(
         self, mock_validate, tmp_path
     ):

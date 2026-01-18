@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
 from tests.common import ClientProxy, Mock, generate_mock_client_data, np
 
 # =============================================================================
@@ -137,8 +137,10 @@ def mock_clustering_components():
 def mock_krum_clustering():
     """Fixture for Krum strategy clustering mocks."""
     with (
-        patch("src.simulation_strategies.krum_based_removal_strategy.KMeans") as mock_kmeans,
-        patch("src.simulation_strategies.krum_based_removal_strategy.MinMaxScaler") as mock_scaler,
+        patch("intellifl.simulation_strategies.krum_based_removal_strategy.KMeans") as mock_kmeans,
+        patch(
+            "intellifl.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
+        ) as mock_scaler,
         patch("flwr.server.strategy.Krum.aggregate_fit") as mock_parent_aggregate,
     ):
         mock_kmeans_instance = Mock()
@@ -164,9 +166,11 @@ def mock_krum_clustering():
 def mock_multi_krum_clustering():
     """Fixture for Multi-Krum strategy clustering mocks."""
     with (
-        patch("src.simulation_strategies.multi_krum_based_removal_strategy.KMeans") as mock_kmeans,
         patch(
-            "src.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
+            "intellifl.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
+        ) as mock_kmeans,
+        patch(
+            "intellifl.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
         ) as mock_scaler,
         patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
     ):

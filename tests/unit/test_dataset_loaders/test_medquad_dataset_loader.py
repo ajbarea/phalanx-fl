@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
+from intellifl.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
 from tests.common import Mock, mock_medquad_dependencies, pytest
 
 
@@ -154,7 +154,7 @@ class TestMedQuADDatasetLoader:
         """Verify hidden files/folders are ignored when scanning client folders."""
         mock_dataset_dict, _ = mock_dataset_dict_chain
 
-        with patch("src.dataset_loaders.medquad_dataset_loader.os.listdir") as mock_listdir:
+        with patch("intellifl.dataset_loaders.medquad_dataset_loader.os.listdir") as mock_listdir:
             mock_listdir.return_value = ["client_0", ".DS_Store", "client_1"]
 
             with mock_medquad_dependencies(mock_dataset_dict) as mocks:
@@ -169,7 +169,7 @@ class TestMedQuADDatasetLoader:
         """Verify client folders are processed in numeric order by suffix."""
         mock_dataset_dict, _ = mock_dataset_dict_chain
 
-        with patch("src.dataset_loaders.medquad_dataset_loader.os.listdir") as mock_listdir:
+        with patch("intellifl.dataset_loaders.medquad_dataset_loader.os.listdir") as mock_listdir:
             mock_listdir.return_value = ["client_10", "client_2", "client_1"]
 
             with mock_medquad_dependencies(mock_dataset_dict) as mocks:
@@ -186,7 +186,7 @@ class TestMedQuADDatasetLoader:
         # Set num_poisoned_clients to 2
         dataset_loader.num_poisoned_clients = 2
 
-        with patch("src.dataset_loaders.medquad_dataset_loader.os.listdir") as mock_listdir:
+        with patch("intellifl.dataset_loaders.medquad_dataset_loader.os.listdir") as mock_listdir:
             mock_listdir.return_value = ["client_0", "client_1", "client_2"]
 
             with mock_medquad_dependencies(mock_dataset_dict) as mocks:
@@ -211,7 +211,7 @@ class TestMedQuADDatasetLoader:
     def test_tokenize_function_joins_columns_correctly(self, dataset_loader):
         """Test internal tokenize_function joins specified columns correctly"""
         with patch(
-            "src.dataset_loaders.medquad_dataset_loader.AutoTokenizer.from_pretrained"
+            "intellifl.dataset_loaders.medquad_dataset_loader.AutoTokenizer.from_pretrained"
         ) as mock_tokenizer:
             mock_tokenizer_instance = Mock()
             mock_tokenizer_instance.return_value = {"input_ids": [1, 2, 3]}

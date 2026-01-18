@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 import numpy as np
 
-from src.dataset_loaders.text_classification_loader import TextClassificationLoader
+from intellifl.dataset_loaders.text_classification_loader import TextClassificationLoader
 from tests.common import pytest
 
 
@@ -74,8 +74,8 @@ class TestTextClassificationLoader:
 
         assert loader.partitioning_params == {"alpha": 0.5}
 
-    @patch("src.dataset_loaders.text_classification_loader.load_dataset")
-    @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
+    @patch("intellifl.dataset_loaders.text_classification_loader.load_dataset")
+    @patch("intellifl.dataset_loaders.text_classification_loader.AutoTokenizer")
     def test_load_datasets_uses_validation_split_when_available(
         self, mock_tokenizer_cls, mock_load_dataset, loader
     ):
@@ -101,15 +101,15 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
-            with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
+        with patch("intellifl.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
+            with patch("intellifl.dataset_loaders.text_classification_loader.DataLoader"):
                 trainloaders, valloaders, num_labels = loader.load_datasets()
 
         assert mock_val.map.called
         assert num_labels == 2
 
-    @patch("src.dataset_loaders.text_classification_loader.load_dataset")
-    @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
+    @patch("intellifl.dataset_loaders.text_classification_loader.load_dataset")
+    @patch("intellifl.dataset_loaders.text_classification_loader.AutoTokenizer")
     def test_load_datasets_uses_test_split_when_validation_unavailable(
         self, mock_tokenizer_cls, mock_load_dataset, loader
     ):
@@ -135,15 +135,15 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
-            with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
+        with patch("intellifl.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
+            with patch("intellifl.dataset_loaders.text_classification_loader.DataLoader"):
                 trainloaders, valloaders, num_labels = loader.load_datasets()
 
         assert mock_test.map.called
         assert num_labels == 2
 
-    @patch("src.dataset_loaders.text_classification_loader.load_dataset")
-    @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
+    @patch("intellifl.dataset_loaders.text_classification_loader.load_dataset")
+    @patch("intellifl.dataset_loaders.text_classification_loader.AutoTokenizer")
     def test_load_datasets_detects_num_labels_from_features(
         self, mock_tokenizer_cls, mock_load_dataset, loader
     ):
@@ -164,14 +164,14 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
-            with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
+        with patch("intellifl.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
+            with patch("intellifl.dataset_loaders.text_classification_loader.DataLoader"):
                 _, _, num_labels = loader.load_datasets()
 
         assert num_labels == 5
 
-    @patch("src.dataset_loaders.text_classification_loader.load_dataset")
-    @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
+    @patch("intellifl.dataset_loaders.text_classification_loader.load_dataset")
+    @patch("intellifl.dataset_loaders.text_classification_loader.AutoTokenizer")
     def test_load_datasets_counts_unique_labels_as_fallback(
         self, mock_tokenizer_cls, mock_load_dataset, loader
     ):
@@ -192,14 +192,14 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
-            with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
+        with patch("intellifl.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
+            with patch("intellifl.dataset_loaders.text_classification_loader.DataLoader"):
                 _, _, num_labels = loader.load_datasets()
 
         assert num_labels == 3
 
-    @patch("src.dataset_loaders.text_classification_loader.load_dataset")
-    @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
+    @patch("intellifl.dataset_loaders.text_classification_loader.load_dataset")
+    @patch("intellifl.dataset_loaders.text_classification_loader.AutoTokenizer")
     def test_load_datasets_applies_training_subset_fraction(
         self, mock_tokenizer_cls, mock_load_dataset, loader
     ):
@@ -222,16 +222,16 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
-            with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
+        with patch("intellifl.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
+            with patch("intellifl.dataset_loaders.text_classification_loader.DataLoader"):
                 loader.load_datasets()
 
         assert mock_train.select.call_count >= 1
         first_call_args = mock_train.select.call_args_list[0][0][0]
         assert list(first_call_args) == list(range(50))
 
-    @patch("src.dataset_loaders.text_classification_loader.load_dataset")
-    @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
+    @patch("intellifl.dataset_loaders.text_classification_loader.load_dataset")
+    @patch("intellifl.dataset_loaders.text_classification_loader.AutoTokenizer")
     def test_load_datasets_skips_subset_when_fraction_is_one(
         self, mock_tokenizer_cls, mock_load_dataset, loader
     ):
@@ -253,14 +253,14 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
-            with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
+        with patch("intellifl.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
+            with patch("intellifl.dataset_loaders.text_classification_loader.DataLoader"):
                 loader.load_datasets()
 
         assert mock_train.select.call_count == 3
 
-    @patch("src.dataset_loaders.text_classification_loader.load_dataset")
-    @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
+    @patch("intellifl.dataset_loaders.text_classification_loader.load_dataset")
+    @patch("intellifl.dataset_loaders.text_classification_loader.AutoTokenizer")
     def test_tokenize_dataset_handles_single_text_column(
         self, mock_tokenizer_cls, mock_load_dataset, loader
     ):
@@ -282,8 +282,8 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
-            with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
+        with patch("intellifl.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
+            with patch("intellifl.dataset_loaders.text_classification_loader.DataLoader"):
                 loader.load_datasets()
 
         assert mock_train.map.called
@@ -294,8 +294,8 @@ class TestTextClassificationLoader:
 
         mock_tokenizer.assert_called_with(["Hello world"], truncation=True, max_length=128)
 
-    @patch("src.dataset_loaders.text_classification_loader.load_dataset")
-    @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
+    @patch("intellifl.dataset_loaders.text_classification_loader.load_dataset")
+    @patch("intellifl.dataset_loaders.text_classification_loader.AutoTokenizer")
     def test_tokenize_dataset_handles_sentence_pairs(
         self, mock_tokenizer_cls, mock_load_dataset, loader
     ):
@@ -317,8 +317,8 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
-            with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
+        with patch("intellifl.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
+            with patch("intellifl.dataset_loaders.text_classification_loader.DataLoader"):
                 loader.load_datasets()
 
         tokenize_fn = mock_train.map.call_args[0][0]
@@ -328,8 +328,8 @@ class TestTextClassificationLoader:
 
         mock_tokenizer.assert_called_with(["Hello"], ["World"], truncation=True, max_length=128)
 
-    @patch("src.dataset_loaders.text_classification_loader.load_dataset")
-    @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
+    @patch("intellifl.dataset_loaders.text_classification_loader.load_dataset")
+    @patch("intellifl.dataset_loaders.text_classification_loader.AutoTokenizer")
     def test_tokenize_dataset_renames_label_column(
         self, mock_tokenizer_cls, mock_load_dataset, loader
     ):
@@ -351,14 +351,14 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
-            with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
+        with patch("intellifl.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
+            with patch("intellifl.dataset_loaders.text_classification_loader.DataLoader"):
                 loader.load_datasets()
 
         mock_train.rename_column.assert_called_with("sentiment", "labels")
 
-    @patch("src.dataset_loaders.text_classification_loader.load_dataset")
-    @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
+    @patch("intellifl.dataset_loaders.text_classification_loader.load_dataset")
+    @patch("intellifl.dataset_loaders.text_classification_loader.AutoTokenizer")
     def test_tokenize_dataset_skips_rename_when_already_labels(
         self, mock_tokenizer_cls, mock_load_dataset, loader
     ):
@@ -380,14 +380,14 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
-            with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
+        with patch("intellifl.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
+            with patch("intellifl.dataset_loaders.text_classification_loader.DataLoader"):
                 loader.load_datasets()
 
         mock_train.rename_column.assert_not_called()
 
-    @patch("src.dataset_loaders.text_classification_loader.load_dataset")
-    @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
+    @patch("intellifl.dataset_loaders.text_classification_loader.load_dataset")
+    @patch("intellifl.dataset_loaders.text_classification_loader.AutoTokenizer")
     def test_tokenize_dataset_sets_pytorch_format(
         self, mock_tokenizer_cls, mock_load_dataset, loader
     ):
@@ -407,8 +407,8 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
-            with patch("src.dataset_loaders.text_classification_loader.DataLoader"):
+        with patch("intellifl.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
+            with patch("intellifl.dataset_loaders.text_classification_loader.DataLoader"):
                 loader.load_datasets()
 
         mock_train.set_format.assert_called_with(
@@ -589,9 +589,9 @@ class TestTextClassificationLoader:
 
         assert len(client_datasets) == 5
 
-    @patch("src.dataset_loaders.text_classification_loader.load_dataset")
-    @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
-    @patch("src.dataset_loaders.text_classification_loader.DataLoader")
+    @patch("intellifl.dataset_loaders.text_classification_loader.load_dataset")
+    @patch("intellifl.dataset_loaders.text_classification_loader.AutoTokenizer")
+    @patch("intellifl.dataset_loaders.text_classification_loader.DataLoader")
     def test_load_datasets_creates_correct_number_of_dataloaders(
         self, mock_dataloader_cls, mock_tokenizer_cls, mock_load_dataset, loader
     ):
@@ -612,15 +612,15 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
+        with patch("intellifl.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             trainloaders, valloaders, _ = loader.load_datasets()
 
         assert len(trainloaders) == 3
         assert len(valloaders) == 3
 
-    @patch("src.dataset_loaders.text_classification_loader.load_dataset")
-    @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
-    @patch("src.dataset_loaders.text_classification_loader.DataLoader")
+    @patch("intellifl.dataset_loaders.text_classification_loader.load_dataset")
+    @patch("intellifl.dataset_loaders.text_classification_loader.AutoTokenizer")
+    @patch("intellifl.dataset_loaders.text_classification_loader.DataLoader")
     def test_load_datasets_shuffles_train_loaders(
         self, mock_dataloader_cls, mock_tokenizer_cls, mock_load_dataset, loader
     ):
@@ -641,7 +641,7 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
+        with patch("intellifl.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             loader.load_datasets()
 
         train_calls = [
@@ -651,9 +651,9 @@ class TestTextClassificationLoader:
             _, kwargs = call
             assert kwargs.get("shuffle") is True
 
-    @patch("src.dataset_loaders.text_classification_loader.load_dataset")
-    @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
-    @patch("src.dataset_loaders.text_classification_loader.DataLoader")
+    @patch("intellifl.dataset_loaders.text_classification_loader.load_dataset")
+    @patch("intellifl.dataset_loaders.text_classification_loader.AutoTokenizer")
+    @patch("intellifl.dataset_loaders.text_classification_loader.DataLoader")
     def test_load_datasets_does_not_shuffle_val_loaders(
         self, mock_dataloader_cls, mock_tokenizer_cls, mock_load_dataset, loader
     ):
@@ -674,7 +674,7 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
+        with patch("intellifl.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             loader.load_datasets()
 
         val_calls = [
@@ -684,9 +684,9 @@ class TestTextClassificationLoader:
             _, kwargs = call
             assert kwargs.get("shuffle") is False
 
-    @patch("src.dataset_loaders.text_classification_loader.load_dataset")
-    @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
-    @patch("src.dataset_loaders.text_classification_loader.DataLoader")
+    @patch("intellifl.dataset_loaders.text_classification_loader.load_dataset")
+    @patch("intellifl.dataset_loaders.text_classification_loader.AutoTokenizer")
+    @patch("intellifl.dataset_loaders.text_classification_loader.DataLoader")
     def test_load_datasets_uses_correct_batch_size(
         self, mock_dataloader_cls, mock_tokenizer_cls, mock_load_dataset, loader
     ):
@@ -709,15 +709,15 @@ class TestTextClassificationLoader:
         mock_tokenizer = Mock()
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
-        with patch("src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
+        with patch("intellifl.dataset_loaders.text_classification_loader.DataCollatorWithPadding"):
             loader.load_datasets()
 
         for call in mock_dataloader_cls.call_args_list:
             _, kwargs = call
             assert kwargs.get("batch_size") == 16
 
-    @patch("src.dataset_loaders.text_classification_loader.load_dataset")
-    @patch("src.dataset_loaders.text_classification_loader.AutoTokenizer")
+    @patch("intellifl.dataset_loaders.text_classification_loader.load_dataset")
+    @patch("intellifl.dataset_loaders.text_classification_loader.AutoTokenizer")
     def test_load_datasets_uses_data_collator(self, mock_tokenizer_cls, mock_load_dataset, loader):
         """Verify DataLoaders use DataCollatorWithPadding."""
         mock_train = Mock()
@@ -737,12 +737,14 @@ class TestTextClassificationLoader:
         mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
         with patch(
-            "src.dataset_loaders.text_classification_loader.DataCollatorWithPadding"
+            "intellifl.dataset_loaders.text_classification_loader.DataCollatorWithPadding"
         ) as mock_collator_cls:
             mock_collator = Mock()
             mock_collator_cls.return_value = mock_collator
 
-            with patch("src.dataset_loaders.text_classification_loader.DataLoader") as mock_dl_cls:
+            with patch(
+                "intellifl.dataset_loaders.text_classification_loader.DataLoader"
+            ) as mock_dl_cls:
                 loader.load_datasets()
 
                 mock_collator_cls.assert_called_once_with(tokenizer=mock_tokenizer)

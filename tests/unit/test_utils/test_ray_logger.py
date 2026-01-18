@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.utils.ray_logger import (
+from intellifl.utils.ray_logger import (
     RayLogHandler,
     RaySimulationMonitor,
     check_ray_cluster_health,
@@ -332,7 +332,7 @@ class TestCheckRayClusterHealth:
 
     def test_not_initialized_returns_basic_info(self):
         """Test health check when Ray is not initialized."""
-        with patch("src.utils.ray_logger.ray") as mock_ray:
+        with patch("intellifl.utils.ray_logger.ray") as mock_ray:
             mock_ray.is_initialized.return_value = False
 
             health = check_ray_cluster_health()
@@ -342,7 +342,7 @@ class TestCheckRayClusterHealth:
 
     def test_initialized_returns_cluster_info(self):
         """Test health check when Ray is initialized."""
-        with patch("src.utils.ray_logger.ray") as mock_ray:
+        with patch("intellifl.utils.ray_logger.ray") as mock_ray:
             mock_ray.is_initialized.return_value = True
             mock_ray.cluster_resources.return_value = {"CPU": 8, "GPU": 2}
             mock_ray.available_resources.return_value = {"CPU": 4, "GPU": 1}
@@ -364,7 +364,7 @@ class TestCheckRayClusterHealth:
 
     def test_dead_nodes_are_detected(self):
         """Test that dead nodes are detected and logged."""
-        with patch("src.utils.ray_logger.ray") as mock_ray:
+        with patch("intellifl.utils.ray_logger.ray") as mock_ray:
             mock_ray.is_initialized.return_value = True
             mock_ray.cluster_resources.return_value = {"CPU": 8}
             mock_ray.available_resources.return_value = {"CPU": 4}
@@ -384,7 +384,7 @@ class TestCheckRayClusterHealth:
 
     def test_exception_handling(self):
         """Test exception handling in health check."""
-        with patch("src.utils.ray_logger.ray") as mock_ray:
+        with patch("intellifl.utils.ray_logger.ray") as mock_ray:
             mock_ray.is_initialized.return_value = True
             mock_ray.cluster_resources.side_effect = Exception("Ray connection error")
 
@@ -580,7 +580,7 @@ class TestRaySimulationMonitor:
 
     def test_stop_returns_summary(self, tmp_path: Path):
         """Test stop() returns complete summary."""
-        with patch("src.utils.ray_logger.ray") as mock_ray:
+        with patch("intellifl.utils.ray_logger.ray") as mock_ray:
             mock_ray.is_initialized.return_value = False
 
             monitor = RaySimulationMonitor(tmp_path, "stop_test")
@@ -600,7 +600,7 @@ class TestRaySimulationMonitor:
 
     def test_stop_writes_json_summary(self, tmp_path: Path):
         """Test stop() writes JSON summary file."""
-        with patch("src.utils.ray_logger.ray") as mock_ray:
+        with patch("intellifl.utils.ray_logger.ray") as mock_ray:
             mock_ray.is_initialized.return_value = False
 
             monitor = RaySimulationMonitor(tmp_path, "json_test")
@@ -620,7 +620,7 @@ class TestRaySimulationMonitor:
 
     def test_stop_with_errors_included(self, tmp_path: Path):
         """Test stop() includes error information in summary."""
-        with patch("src.utils.ray_logger.ray") as mock_ray:
+        with patch("intellifl.utils.ray_logger.ray") as mock_ray:
             mock_ray.is_initialized.return_value = False
 
             monitor = RaySimulationMonitor(tmp_path, "errors_test")
@@ -635,7 +635,7 @@ class TestRaySimulationMonitor:
 
     def test_stop_closes_log_handler(self, tmp_path: Path):
         """Test stop() closes the log handler."""
-        with patch("src.utils.ray_logger.ray") as mock_ray:
+        with patch("intellifl.utils.ray_logger.ray") as mock_ray:
             mock_ray.is_initialized.return_value = False
 
             monitor = RaySimulationMonitor(tmp_path, "close_test")
@@ -650,7 +650,7 @@ class TestRaySimulationMonitor:
 
     def test_full_lifecycle(self, tmp_path: Path):
         """Test complete monitor lifecycle: start → record → stop."""
-        with patch("src.utils.ray_logger.ray") as mock_ray:
+        with patch("intellifl.utils.ray_logger.ray") as mock_ray:
             mock_ray.is_initialized.return_value = True
             mock_ray.cluster_resources.return_value = {"CPU": 4}
             mock_ray.available_resources.return_value = {"CPU": 2}
@@ -685,7 +685,7 @@ class TestRaySimulationMonitor:
 
     def test_stop_without_rounds(self, tmp_path: Path):
         """Test stop() with no rounds recorded (avg_round_time should be 0)."""
-        with patch("src.utils.ray_logger.ray") as mock_ray:
+        with patch("intellifl.utils.ray_logger.ray") as mock_ray:
             mock_ray.is_initialized.return_value = False
 
             monitor = RaySimulationMonitor(tmp_path, "no_rounds")
@@ -698,7 +698,7 @@ class TestRaySimulationMonitor:
 
     def test_duration_calculation(self, tmp_path: Path):
         """Test duration is calculated correctly."""
-        with patch("src.utils.ray_logger.ray") as mock_ray:
+        with patch("intellifl.utils.ray_logger.ray") as mock_ray:
             mock_ray.is_initialized.return_value = False
 
             monitor = RaySimulationMonitor(tmp_path, "duration_test")

@@ -31,14 +31,14 @@ def test_full_simulation_lifecycle(api_client: TestClient, tmp_path: Path, monke
     4. GET /api/simulations/{id}/plot-data (verify JSON exists)
     5. DELETE /api/simulations/{id} (cleanup)
     """
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-    monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
 
     # Mock subprocess to prevent actual simulation run
     mock_process = MagicMock()
     mock_process.pid = 99999
     mock_process.poll = MagicMock(return_value=0)  # Simulate completed process
-    monkeypatch.setattr("src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
+    monkeypatch.setattr("intellifl.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
 
     # Step 1: Create simulation
     config = {
@@ -100,14 +100,14 @@ def test_concurrent_simulations(api_client: TestClient, tmp_path: Path, monkeypa
     """
     Test that multiple simulations can be created and tracked simultaneously.
     """
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-    monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
 
     # Mock subprocess to prevent actual simulation runs
     mock_process = MagicMock()
     mock_process.pid = 55555
     mock_process.poll = MagicMock(return_value=None)  # Still running
-    monkeypatch.setattr("src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
+    monkeypatch.setattr("intellifl.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
 
     # Create first simulation
     config1 = {
@@ -166,14 +166,14 @@ def test_attack_simulation_integration(api_client: TestClient, tmp_path: Path, m
     """
     Test simulation with attack parameters completes and generates expected outputs.
     """
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-    monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
 
     # Mock subprocess
     mock_process = MagicMock()
     mock_process.pid = 88888
     mock_process.poll = MagicMock(return_value=0)  # Completed
-    monkeypatch.setattr("src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
+    monkeypatch.setattr("intellifl.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
 
     # Create simulation with attack parameters
     config = {
@@ -242,14 +242,14 @@ def test_simulation_status_transitions(api_client: TestClient, tmp_path: Path, m
     """
     Test that status reports correctly based on result file presence.
     """
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-    monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
 
     # Mock subprocess that always returns completed (process has finished)
     mock_process = MagicMock()
     mock_process.pid = 77777
     mock_process.poll = MagicMock(return_value=0)  # Process finished successfully
-    monkeypatch.setattr("src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
+    monkeypatch.setattr("intellifl.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
 
     # Create simulation
     config = {
@@ -290,14 +290,14 @@ def test_simulation_with_failed_status(api_client: TestClient, tmp_path: Path, m
     """
     Test simulation that fails (process exits with error) is reported correctly.
     """
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-    monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
 
     # Mock subprocess that exits with error code
     mock_process = MagicMock()
     mock_process.pid = 66666
     mock_process.poll = MagicMock(return_value=1)  # Non-zero = error
-    monkeypatch.setattr("src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
+    monkeypatch.setattr("intellifl.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
 
     # Create simulation
     config = {
@@ -329,7 +329,7 @@ def test_list_simulations_with_multiple_runs(api_client: TestClient, tmp_path: P
     """
     Test GET /api/simulations returns all simulations sorted by creation time.
     """
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
 
     # Create multiple mock simulation directories
     out_dir = tmp_path / "out"

@@ -5,7 +5,7 @@ from __future__ import annotations
 import pickle
 from unittest.mock import patch
 
-from src.attack_utils.attack_snapshots import (
+from intellifl.attack_utils.attack_snapshots import (
     get_snapshot_summary,
     list_attack_snapshots,
     load_attack_snapshot,
@@ -176,8 +176,8 @@ class TestSaveAttackSnapshot:
 
         assert snapshot["metadata"]["num_samples"] == 5
 
-    @patch("src.attack_utils.attack_snapshots.pickle.dump")
-    @patch("src.attack_utils.attack_snapshots.logging")
+    @patch("intellifl.attack_utils.attack_snapshots.pickle.dump")
+    @patch("intellifl.attack_utils.attack_snapshots.logging")
     def test_save_snapshot_handles_exception(self, mock_logging, mock_pickle_dump, tmp_path):
         """Test that exceptions are caught and logged."""
         data, labels = create_sample_tensors(batch_size=5)
@@ -302,7 +302,7 @@ class TestLoadAttackSnapshot:
         snapshot = load_attack_snapshot("/nonexistent/path/snapshot.pickle")
         assert snapshot is None
 
-    @patch("src.attack_utils.attack_snapshots.logging")
+    @patch("intellifl.attack_utils.attack_snapshots.logging")
     def test_load_unsupported_format(self, mock_logging, tmp_path):
         """Test loading snapshot with unsupported format."""
         # Create file with unsupported extension
@@ -314,7 +314,7 @@ class TestLoadAttackSnapshot:
         assert snapshot is None
         mock_logging.error.assert_called()
 
-    @patch("src.attack_utils.attack_snapshots.logging")
+    @patch("intellifl.attack_utils.attack_snapshots.logging")
     def test_load_corrupted_pickle(self, mock_logging, tmp_path):
         """Test loading corrupted pickle file."""
         # Create corrupted pickle file
@@ -326,7 +326,7 @@ class TestLoadAttackSnapshot:
         assert snapshot is None
         mock_logging.error.assert_called()
 
-    @patch("src.attack_utils.attack_snapshots.logging")
+    @patch("intellifl.attack_utils.attack_snapshots.logging")
     def test_load_corrupted_json(self, mock_logging, tmp_path):
         """Test loading corrupted JSON file."""
         # Create corrupted JSON file

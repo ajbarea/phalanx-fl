@@ -14,8 +14,8 @@ import numpy as np
 import pytest
 from flwr.common import ndarrays_to_parameters
 
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.simulation_strategies.arkrum_strategy import ArKrumStrategy
+from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
+from intellifl.simulation_strategies.arkrum_strategy import ArKrumStrategy
 
 
 def create_mock_results(param_vectors):

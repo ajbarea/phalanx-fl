@@ -12,22 +12,22 @@ import pytest
 from flwr.common import EvaluateRes, FitRes, ndarrays_to_parameters
 from flwr.server.client_proxy import ClientProxy
 
-from src.data_models.simulation_strategy_config import StrategyConfig
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.simulation_strategies.bulyan_strategy import BulyanStrategy
-from src.simulation_strategies.krum_based_removal_strategy import (
+from intellifl.data_models.simulation_strategy_config import StrategyConfig
+from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
+from intellifl.simulation_strategies.bulyan_strategy import BulyanStrategy
+from intellifl.simulation_strategies.krum_based_removal_strategy import (
     KrumBasedRemovalStrategy,
 )
-from src.simulation_strategies.multi_krum_based_removal_strategy import (
+from intellifl.simulation_strategies.multi_krum_based_removal_strategy import (
     MultiKrumBasedRemovalStrategy,
 )
-from src.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
-from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
-from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
-from src.simulation_strategies.trimmed_mean_based_removal_strategy import (
+from intellifl.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
+from intellifl.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+from intellifl.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
+from intellifl.simulation_strategies.trimmed_mean_based_removal_strategy import (
     TrimmedMeanBasedRemovalStrategy,
 )
-from src.simulation_strategies.trust_based_removal_strategy import (
+from intellifl.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
 
@@ -288,9 +288,11 @@ class TestStrategyPipelineIntegration:
     def mock_clustering(self):
         """Mock clustering components to avoid sklearn dependencies in fast path."""
         with (
-            patch("src.simulation_strategies.krum_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
-                "src.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.krum_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
         ):
             mock_kmeans_instance = Mock()
@@ -440,9 +442,11 @@ class TestStrategyHistoryIntegration:
     def mock_clustering(self):
         """Mock clustering for fast testing."""
         with (
-            patch("src.simulation_strategies.krum_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
-                "src.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.krum_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
         ):
             mock_kmeans_instance = Mock()

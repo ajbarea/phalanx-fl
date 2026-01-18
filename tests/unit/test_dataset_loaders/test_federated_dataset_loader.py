@@ -14,7 +14,7 @@ from flwr_datasets.partitioner import (
 )
 from torch.utils.data import DataLoader
 
-from src.dataset_loaders.federated_dataset_loader import FederatedDatasetLoader
+from intellifl.dataset_loaders.federated_dataset_loader import FederatedDatasetLoader
 
 
 class TestFederatedDatasetLoaderInit:
@@ -155,7 +155,7 @@ class TestCreatePartitioner:
 class TestLoadDatasets:
     """Test dataset loading and partitioning."""
 
-    @patch("src.dataset_loaders.federated_dataset_loader.FederatedDataset")
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.FederatedDataset")
     def test_load_datasets_creates_correct_number_of_loaders(self, mock_federated_dataset):
         """Should create trainloaders and valloaders for each client."""
         # Setup mock partition
@@ -182,7 +182,7 @@ class TestLoadDatasets:
         assert all(isinstance(tl, DataLoader) for tl in trainloaders)
         assert all(isinstance(vl, DataLoader) for vl in valloaders)
 
-    @patch("src.dataset_loaders.federated_dataset_loader.FederatedDataset")
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.FederatedDataset")
     def test_load_datasets_uses_correct_partitioner(self, mock_federated_dataset):
         """Should pass partitioner to FederatedDataset."""
         mock_partition = MagicMock()
@@ -211,7 +211,7 @@ class TestLoadDatasets:
         assert "train" in call_kwargs["partitioners"]
         assert isinstance(call_kwargs["partitioners"]["train"], DirichletPartitioner)
 
-    @patch("src.dataset_loaders.federated_dataset_loader.FederatedDataset")
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.FederatedDataset")
     def test_load_datasets_loads_correct_partitions(self, mock_federated_dataset):
         """Should load partition for each client ID."""
         mock_partition = MagicMock()
@@ -237,8 +237,8 @@ class TestLoadDatasets:
         for i in range(num_clients):
             mock_fds.load_partition.assert_any_call(partition_id=i, split="train")
 
-    @patch("src.dataset_loaders.federated_dataset_loader.FederatedDataset")
-    @patch("src.dataset_loaders.federated_dataset_loader.random_split")
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.FederatedDataset")
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.random_split")
     def test_load_datasets_splits_data_correctly(self, mock_random_split, mock_federated_dataset):
         """Should split data according to training_subset_fraction."""
         mock_partition = MagicMock()
@@ -270,8 +270,8 @@ class TestLoadDatasets:
         call_args = mock_random_split.call_args[0]
         assert call_args[1] == [80, 20]  # 80% of 100, 20% of 100
 
-    @patch("src.dataset_loaders.federated_dataset_loader.FederatedDataset")
-    @patch("src.dataset_loaders.federated_dataset_loader.random_split")
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.FederatedDataset")
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.random_split")
     def test_load_datasets_ensures_validation_sample(
         self, mock_random_split, mock_federated_dataset
     ):
@@ -304,9 +304,9 @@ class TestLoadDatasets:
         call_args = mock_random_split.call_args[0]
         assert call_args[1] == [9, 1]  # 9 train, 1 val
 
-    @patch("src.dataset_loaders.federated_dataset_loader.FederatedDataset")
-    @patch("src.dataset_loaders.federated_dataset_loader.random_split")
-    @patch("src.dataset_loaders.federated_dataset_loader.DataLoader")
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.FederatedDataset")
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.random_split")
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.DataLoader")
     def test_load_datasets_handles_single_sample_partition(
         self, mock_dataloader, mock_random_split, mock_federated_dataset
     ):
@@ -340,7 +340,7 @@ class TestLoadDatasets:
         call_args = mock_random_split.call_args[0]
         assert call_args[1] == [0, 1]
 
-    @patch("src.dataset_loaders.federated_dataset_loader.FederatedDataset")
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.FederatedDataset")
     def test_load_datasets_sets_format_to_torch(self, mock_federated_dataset):
         """Should set partition format to 'torch'."""
         mock_partition = MagicMock()
@@ -364,8 +364,8 @@ class TestLoadDatasets:
         assert mock_partition.set_format.call_count == 2
         mock_partition.set_format.assert_called_with("torch")
 
-    @patch("src.dataset_loaders.federated_dataset_loader.FederatedDataset")
-    @patch("src.dataset_loaders.federated_dataset_loader.DataLoader")
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.FederatedDataset")
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.DataLoader")
     def test_load_datasets_creates_dataloaders_with_correct_batch_size(
         self, mock_dataloader, mock_federated_dataset
     ):
@@ -395,8 +395,8 @@ class TestLoadDatasets:
         for call in calls:
             assert call[1]["batch_size"] == batch_size
 
-    @patch("src.dataset_loaders.federated_dataset_loader.FederatedDataset")
-    @patch("src.dataset_loaders.federated_dataset_loader.DataLoader")
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.FederatedDataset")
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.DataLoader")
     def test_load_datasets_shuffles_training_data(self, mock_dataloader, mock_federated_dataset):
         """Should shuffle training data but not validation data."""
         mock_partition = MagicMock()
@@ -429,7 +429,7 @@ class TestLoadDatasets:
 class TestIntegration:
     """Integration tests with real partitioners (no mocking)."""
 
-    @patch("src.dataset_loaders.federated_dataset_loader.FederatedDataset")
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.FederatedDataset")
     def test_end_to_end_iid_loading(self, mock_federated_dataset):
         """Test complete flow with IID partitioner."""
         mock_partition = MagicMock()
@@ -453,7 +453,7 @@ class TestIntegration:
         assert len(trainloaders) == 3
         assert len(valloaders) == 3
 
-    @patch("src.dataset_loaders.federated_dataset_loader.FederatedDataset")
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.FederatedDataset")
     def test_end_to_end_dirichlet_loading(self, mock_federated_dataset):
         """Test complete flow with Dirichlet partitioner."""
         mock_partition = MagicMock()
@@ -478,7 +478,7 @@ class TestIntegration:
         assert len(trainloaders) == 5
         assert len(valloaders) == 5
 
-    @patch("src.dataset_loaders.federated_dataset_loader.FederatedDataset")
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.FederatedDataset")
     def test_end_to_end_pathological_loading(self, mock_federated_dataset):
         """Test complete flow with Pathological partitioner."""
         mock_partition = MagicMock()

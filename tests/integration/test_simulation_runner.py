@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-from src.data_models.simulation_strategy_config import StrategyConfig
-from src.simulation_runner import SimulationRunner
+from intellifl.data_models.simulation_strategy_config import StrategyConfig
+from intellifl.simulation_runner import SimulationRunner
 from tests.common import Mock, pytest
 
 
@@ -150,8 +150,8 @@ class TestSimulationRunnerInitialization:
     ) -> None:
         """Test initialization with valid configuration files."""
         with (
-            patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
-            patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
+            patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader,
+            patch("intellifl.simulation_runner.DirectoryHandler") as mock_directory_handler,
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [
@@ -181,8 +181,8 @@ class TestSimulationRunnerInitialization:
     ) -> None:
         """Test initialization with multiple strategies."""
         with (
-            patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
-            patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
+            patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader,
+            patch("intellifl.simulation_runner.DirectoryHandler") as mock_directory_handler,
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [
@@ -229,10 +229,10 @@ class TestSimulationRunnerInitialization:
     def test_simulation_runner_logging_configuration(self) -> None:
         """Test logging configuration."""
         with (
-            patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
-            patch("src.simulation_runner.logging.basicConfig") as mock_logging_config,
-            patch("src.simulation_runner.logging.getLogger") as mock_get_logger,
-            patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
+            patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader,
+            patch("intellifl.simulation_runner.logging.basicConfig") as mock_logging_config,
+            patch("intellifl.simulation_runner.logging.getLogger") as mock_get_logger,
+            patch("intellifl.simulation_runner.DirectoryHandler") as mock_directory_handler,
         ):
             mock_logger = Mock()
             mock_logger.hasHandlers.return_value = False
@@ -258,11 +258,11 @@ class TestSimulationRunnerExecution:
     def mock_runner_components(self) -> Any:
         """Create mocked components for testing."""
         with (
-            patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
-            patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
-            patch("src.simulation_runner.DatasetHandler") as mock_dataset_handler,
-            patch("src.simulation_runner.FederatedSimulation") as mock_federated_simulation,
-            patch("src.simulation_runner.new_plot_handler") as mock_plot_handler,
+            patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader,
+            patch("intellifl.simulation_runner.DirectoryHandler") as mock_directory_handler,
+            patch("intellifl.simulation_runner.DatasetHandler") as mock_dataset_handler,
+            patch("intellifl.simulation_runner.FederatedSimulation") as mock_federated_simulation,
+            patch("intellifl.simulation_runner.new_plot_handler") as mock_plot_handler,
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [
@@ -446,8 +446,8 @@ class TestSimulationRunnerConfigurationProcessing:
     def test_configuration_loading_with_shared_settings(self):
         """Test that shared settings are properly applied to all strategies."""
         with (
-            patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
-            patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
+            patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader,
+            patch("intellifl.simulation_runner.DirectoryHandler") as mock_directory_handler,
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [
@@ -497,8 +497,8 @@ class TestSimulationRunnerConfigurationProcessing:
     def test_dataset_configuration_processing(self):
         """Test that dataset configuration is properly loaded and processed."""
         with (
-            patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
-            patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
+            patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader,
+            patch("intellifl.simulation_runner.DirectoryHandler") as mock_directory_handler,
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [
@@ -553,8 +553,8 @@ class TestSimulationRunnerConfigurationProcessing:
             base_config.update({"num_krum_selections": 3})
 
         with (
-            patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
-            patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
+            patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader,
+            patch("intellifl.simulation_runner.DirectoryHandler") as mock_directory_handler,
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [base_config]
@@ -578,11 +578,11 @@ class TestSimulationRunnerOutputGeneration:
     def mock_output_components(self):
         """Create mocked components for output testing."""
         with (
-            patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
-            patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
-            patch("src.simulation_runner.DatasetHandler") as mock_dataset_handler,
-            patch("src.simulation_runner.FederatedSimulation") as mock_federated_simulation,
-            patch("src.simulation_runner.new_plot_handler") as mock_plot_handler,
+            patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader,
+            patch("intellifl.simulation_runner.DirectoryHandler") as mock_directory_handler,
+            patch("intellifl.simulation_runner.DatasetHandler") as mock_dataset_handler,
+            patch("intellifl.simulation_runner.FederatedSimulation") as mock_federated_simulation,
+            patch("intellifl.simulation_runner.new_plot_handler") as mock_plot_handler,
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [
@@ -666,7 +666,7 @@ class TestSimulationRunnerOutputGeneration:
         """Test output generation for multiple strategies."""
         mocks = mock_output_components
 
-        with patch("src.simulation_runner.ConfigLoader") as mock_config_loader:
+        with patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader:
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [
                 {
@@ -703,7 +703,7 @@ class TestSimulationRunnerErrorHandling:
 
     def test_configuration_loading_error_handling(self):
         """Test handling of configuration loading errors."""
-        with patch("src.simulation_runner.ConfigLoader") as mock_config_loader:
+        with patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader:
             mock_config_loader.side_effect = FileNotFoundError("Config file not found")
 
             with pytest.raises(FileNotFoundError, match="Config file not found"):
@@ -712,10 +712,10 @@ class TestSimulationRunnerErrorHandling:
     def test_simulation_execution_error_handling(self):
         """Test handling of simulation execution errors."""
         with (
-            patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
-            patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
-            patch("src.simulation_runner.DatasetHandler") as mock_dataset_handler,
-            patch("src.simulation_runner.FederatedSimulation") as mock_federated_simulation,
+            patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader,
+            patch("intellifl.simulation_runner.DirectoryHandler") as mock_directory_handler,
+            patch("intellifl.simulation_runner.DatasetHandler") as mock_dataset_handler,
+            patch("intellifl.simulation_runner.FederatedSimulation") as mock_federated_simulation,
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [
@@ -741,9 +741,9 @@ class TestSimulationRunnerErrorHandling:
     def test_dataset_setup_error_handling(self):
         """Test handling of dataset setup errors."""
         with (
-            patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
-            patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
-            patch("src.simulation_runner.DatasetHandler") as mock_dataset_handler,
+            patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader,
+            patch("intellifl.simulation_runner.DirectoryHandler") as mock_directory_handler,
+            patch("intellifl.simulation_runner.DatasetHandler") as mock_dataset_handler,
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [
@@ -768,10 +768,10 @@ class TestSimulationRunnerErrorHandling:
     def test_cleanup_on_error(self):
         """Test that cleanup is NOT performed when errors occur during simulation (current behavior)."""
         with (
-            patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
-            patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
-            patch("src.simulation_runner.DatasetHandler") as mock_dataset_handler,
-            patch("src.simulation_runner.FederatedSimulation") as mock_federated_simulation,
+            patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader,
+            patch("intellifl.simulation_runner.DirectoryHandler") as mock_directory_handler,
+            patch("intellifl.simulation_runner.DatasetHandler") as mock_dataset_handler,
+            patch("intellifl.simulation_runner.FederatedSimulation") as mock_federated_simulation,
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [
@@ -806,11 +806,11 @@ class TestSimulationRunnerLogging:
     def test_strategy_execution_logging(self, caplog):
         """Test that strategy execution is properly logged."""
         with (
-            patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
-            patch("src.simulation_runner.DirectoryHandler"),
-            patch("src.simulation_runner.DatasetHandler"),
-            patch("src.simulation_runner.FederatedSimulation"),
-            patch("src.simulation_runner.new_plot_handler"),
+            patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader,
+            patch("intellifl.simulation_runner.DirectoryHandler"),
+            patch("intellifl.simulation_runner.DatasetHandler"),
+            patch("intellifl.simulation_runner.FederatedSimulation"),
+            patch("intellifl.simulation_runner.new_plot_handler"),
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [
@@ -845,11 +845,11 @@ class TestSimulationRunnerLogging:
         }
 
         with (
-            patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
-            patch("src.simulation_runner.DirectoryHandler"),
-            patch("src.simulation_runner.DatasetHandler"),
-            patch("src.simulation_runner.FederatedSimulation"),
-            patch("src.simulation_runner.new_plot_handler"),
+            patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader,
+            patch("intellifl.simulation_runner.DirectoryHandler"),
+            patch("intellifl.simulation_runner.DatasetHandler"),
+            patch("intellifl.simulation_runner.FederatedSimulation"),
+            patch("intellifl.simulation_runner.new_plot_handler"),
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [test_config]

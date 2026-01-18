@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.simulation_strategies.multi_krum_based_removal_strategy import (
+from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
+from intellifl.simulation_strategies.multi_krum_based_removal_strategy import (
     MultiKrumBasedRemovalStrategy,
 )
 from tests.common import (
@@ -144,8 +144,8 @@ class TestMultiKrumBasedRemovalStrategy:
             assert len(scores) == 5
             assert all(np.isfinite(score) for score in scores)
 
-    @patch("src.simulation_strategies.multi_krum_based_removal_strategy.KMeans")
-    @patch("src.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler")
+    @patch("intellifl.simulation_strategies.multi_krum_based_removal_strategy.KMeans")
+    @patch("intellifl.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler")
     def test_aggregate_fit_clustering(
         self, mock_scaler, mock_kmeans, multi_krum_strategy, mock_client_results
     ):
@@ -179,10 +179,10 @@ class TestMultiKrumBasedRemovalStrategy:
         """Test aggregate_fit calculates Multi-Krum scores for all clients."""
         with (
             patch(
-                "src.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
+                "intellifl.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
             ) as mock_kmeans,
             patch(
-                "src.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
             patch("flwr.server.strategy.Krum.aggregate_fit") as mock_parent_aggregate,
         ):
@@ -215,10 +215,10 @@ class TestMultiKrumBasedRemovalStrategy:
         """Test aggregate_fit selects top num_krum_selections clients."""
         with (
             patch(
-                "src.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
+                "intellifl.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
             ) as mock_kmeans,
             patch(
-                "src.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
             patch("flwr.server.strategy.Krum.aggregate_fit") as mock_parent_aggregate,
         ):
@@ -400,10 +400,10 @@ class TestMultiKrumBasedRemovalStrategy:
         """Test integration with strategy history."""
         with (
             patch(
-                "src.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
+                "intellifl.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
             ) as mock_kmeans,
             patch(
-                "src.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
             patch("flwr.server.strategy.Krum.aggregate_fit") as mock_parent_aggregate,
         ):
@@ -460,10 +460,10 @@ class TestMultiKrumBasedRemovalStrategy:
 
         with (
             patch(
-                "src.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
+                "intellifl.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
             ) as mock_kmeans,
             patch(
-                "src.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
             patch("flwr.server.strategy.Krum.aggregate_fit") as mock_parent_aggregate,
         ):

@@ -14,8 +14,8 @@ from unittest.mock import patch
 
 import torch
 
-from src.attack_utils.weight_poisoning import WEIGHT_ATTACK_TYPES
-from src.client_models.flower_client import FlowerClient
+from intellifl.attack_utils.weight_poisoning import WEIGHT_ATTACK_TYPES
+from intellifl.client_models.flower_client import FlowerClient
 from tests.common import ATTACK_TYPES, Mock, pytest
 from tests.fixtures.sample_models import MockCNNNetwork
 
@@ -73,7 +73,7 @@ class TestFlowerClientAttackSnapshots:
         )
 
         # Should return early without saving
-        with patch("src.client_models.flower_client.save_attack_snapshot") as mock_save:
+        with patch("intellifl.client_models.flower_client.save_attack_snapshot") as mock_save:
             client._save_attack_snapshots(
                 current_round=1,
                 attack_configs=[{"attack_type": "label_flipping"}],
@@ -102,7 +102,7 @@ class TestFlowerClientAttackSnapshots:
             output_dir=None,  # No output dir
         )
 
-        with patch("src.client_models.flower_client.save_attack_snapshot") as mock_save:
+        with patch("intellifl.client_models.flower_client.save_attack_snapshot") as mock_save:
             client._save_attack_snapshots(
                 current_round=1,
                 attack_configs=[{"attack_type": "label_flipping"}],
@@ -117,7 +117,7 @@ class TestFlowerClientAttackSnapshots:
     )
     def test_save_attack_snapshots_data_attacks(self, client_with_snapshots, attack_type):
         """Test snapshot saving for data attacks (not weight attacks)."""
-        with patch("src.client_models.flower_client.save_attack_snapshot") as mock_save:
+        with patch("intellifl.client_models.flower_client.save_attack_snapshot") as mock_save:
             client_with_snapshots._save_attack_snapshots(
                 current_round=1,
                 attack_configs=[{"attack_type": attack_type}],
@@ -129,7 +129,7 @@ class TestFlowerClientAttackSnapshots:
     @pytest.mark.parametrize("attack_type", list(WEIGHT_ATTACK_TYPES))
     def test_save_attack_snapshots_filters_weight_attacks(self, client_with_snapshots, attack_type):
         """Test that weight attacks are filtered out (they get separate visualization)."""
-        with patch("src.client_models.flower_client.save_attack_snapshot") as mock_save:
+        with patch("intellifl.client_models.flower_client.save_attack_snapshot") as mock_save:
             client_with_snapshots._save_attack_snapshots(
                 current_round=1,
                 attack_configs=[{"attack_type": attack_type}],
@@ -424,8 +424,8 @@ class TestFlowerClientTransformerAttacks:
     def test_save_attack_snapshots_transformer_path(self, transformer_client, tmp_path):
         """Test transformer visual snapshot saving path."""
         with (
-            patch("src.client_models.flower_client.save_attack_snapshot") as mock_save,
-            patch("src.client_models.flower_client.save_visual_snapshot") as mock_visual,
+            patch("intellifl.client_models.flower_client.save_attack_snapshot") as mock_save,
+            patch("intellifl.client_models.flower_client.save_visual_snapshot") as mock_visual,
         ):
             transformer_client._save_attack_snapshots(
                 current_round=1,
@@ -471,8 +471,8 @@ class TestFlowerClientTransformerAttacks:
         )
 
         with (
-            patch("src.client_models.flower_client.save_attack_snapshot") as mock_save,
-            patch("src.client_models.flower_client.save_visual_snapshot") as mock_visual,
+            patch("intellifl.client_models.flower_client.save_attack_snapshot") as mock_save,
+            patch("intellifl.client_models.flower_client.save_visual_snapshot") as mock_visual,
         ):
             client._save_attack_snapshots(
                 current_round=1,

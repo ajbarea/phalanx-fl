@@ -8,19 +8,19 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from src.simulation_strategies.bulyan_strategy import BulyanStrategy
-from src.simulation_strategies.krum_based_removal_strategy import (
+from intellifl.simulation_strategies.bulyan_strategy import BulyanStrategy
+from intellifl.simulation_strategies.krum_based_removal_strategy import (
     KrumBasedRemovalStrategy,
 )
-from src.simulation_strategies.multi_krum_based_removal_strategy import (
+from intellifl.simulation_strategies.multi_krum_based_removal_strategy import (
     MultiKrumBasedRemovalStrategy,
 )
-from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
-from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
-from src.simulation_strategies.trimmed_mean_based_removal_strategy import (
+from intellifl.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+from intellifl.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
+from intellifl.simulation_strategies.trimmed_mean_based_removal_strategy import (
     TrimmedMeanBasedRemovalStrategy,
 )
-from src.simulation_strategies.trust_based_removal_strategy import (
+from intellifl.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
 from tests.common import (
@@ -114,12 +114,14 @@ class TestStrategyInteractions:
         # Mock the clustering and aggregation components
         with (
             patch(
-                "src.simulation_strategies.trust_based_removal_strategy.KMeans"
+                "intellifl.simulation_strategies.trust_based_removal_strategy.KMeans"
             ) as mock_kmeans_trust,
             patch(
-                "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler_trust,
-            patch("src.simulation_strategies.pid_based_removal_strategy.KMeans") as mock_kmeans_pid,
+            patch(
+                "intellifl.simulation_strategies.pid_based_removal_strategy.KMeans"
+            ) as mock_kmeans_pid,
             patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
         ):
             # Setup mocks for Trust strategy
@@ -365,10 +367,12 @@ class TestStrategyInteractions:
         # Test each strategy's ability to handle Byzantine clients
         for strategy_name, strategy in robust_strategies.items():
             with (
-                patch("src.simulation_strategies.krum_based_removal_strategy.KMeans")
+                patch("intellifl.simulation_strategies.krum_based_removal_strategy.KMeans")
                 if "krum" in strategy_name
                 else (
-                    patch("src.simulation_strategies.multi_krum_based_removal_strategy.KMeans")
+                    patch(
+                        "intellifl.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
+                    )
                     if "multi_krum" in strategy_name
                     else patch("builtins.len", return_value=10)
                 )
@@ -377,13 +381,11 @@ class TestStrategyInteractions:
                     # Mock clustering for Krum strategies
                     # Build the correct module path
                     if strategy_name == "krum":
-                        module_path = (
-                            "src.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
-                        )
+                        module_path = "intellifl.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
                     elif strategy_name == "multi_krum":
-                        module_path = "src.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
+                        module_path = "intellifl.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
                     else:
-                        module_path = f"src.simulation_strategies.{strategy_name}_based_removal_strategy.MinMaxScaler"
+                        module_path = f"intellifl.simulation_strategies.{strategy_name}_based_removal_strategy.MinMaxScaler"
 
                     with patch(module_path):
                         mock_kmeans_instance = Mock()
@@ -530,10 +532,10 @@ class TestStrategyInteractions:
             if strategy_name == "rfa":
                 with (
                     patch(
-                        "src.simulation_strategies.rfa_based_removal_strategy.KMeans"
+                        "intellifl.simulation_strategies.rfa_based_removal_strategy.KMeans"
                     ) as mock_kmeans,
                     patch(
-                        "src.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
+                        "intellifl.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
                     ) as mock_scaler,
                 ):
                     # Setup mocks

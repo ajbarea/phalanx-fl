@@ -7,14 +7,14 @@ from unittest.mock import Mock
 import pytest
 
 STRATEGY_IMPORTS = {
-    "trust": "src.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
-    "krum": "src.simulation_strategies.krum_based_removal_strategy.KrumBasedRemovalStrategy",
-    "multi_krum": "src.simulation_strategies.multi_krum_strategy.MultiKrumStrategy",
-    "multi_krum_removal": "src.simulation_strategies.multi_krum_based_removal_strategy.MultiKrumBasedRemovalStrategy",
-    "bulyan": "src.simulation_strategies.bulyan_strategy.BulyanStrategy",
-    "pid": "src.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
-    "trimmed_mean": "src.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
-    "rfa": "src.simulation_strategies.rfa_based_removal_strategy.RFABasedRemovalStrategy",
+    "trust": "intellifl.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
+    "krum": "intellifl.simulation_strategies.krum_based_removal_strategy.KrumBasedRemovalStrategy",
+    "multi_krum": "intellifl.simulation_strategies.multi_krum_strategy.MultiKrumStrategy",
+    "multi_krum_removal": "intellifl.simulation_strategies.multi_krum_based_removal_strategy.MultiKrumBasedRemovalStrategy",
+    "bulyan": "intellifl.simulation_strategies.bulyan_strategy.BulyanStrategy",
+    "pid": "intellifl.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
+    "trimmed_mean": "intellifl.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
+    "rfa": "intellifl.simulation_strategies.rfa_based_removal_strategy.RFABasedRemovalStrategy",
 }
 
 

@@ -1,5 +1,5 @@
 """
-Unit tests for FastAPI HTTP endpoints in src/api/main.py.
+Unit tests for FastAPI HTTP endpoints in intellifl/api/main.py.
 
 Tests cover:
 - Root and health endpoints
@@ -19,7 +19,7 @@ from unittest.mock import MagicMock
 
 from fastapi.testclient import TestClient
 
-from src.api import main
+from intellifl.api import main
 
 # =============================================================================
 # Root and Health Endpoints
@@ -47,7 +47,7 @@ def test_health_check(api_client: TestClient):
 
 def test_list_simulations_empty(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations returns empty list when no simulations exist."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     response = api_client.get("/api/simulations")
     assert response.status_code == 200
     assert response.json() == []
@@ -55,7 +55,7 @@ def test_list_simulations_empty(api_client: TestClient, tmp_path: Path, monkeypa
 
 def test_list_simulations(api_client: TestClient, mock_simulation_dir: Path, monkeypatch):
     """GET /api/simulations returns list of simulations."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
     response = api_client.get("/api/simulations")
     assert response.status_code == 200
@@ -72,7 +72,7 @@ def test_list_simulations_with_malformed_config(
     api_client: TestClient, tmp_path: Path, monkeypatch
 ):
     """GET /api/simulations skips simulations with malformed config.json."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     (tmp_path / "out").mkdir(parents=True)
 
     # Create simulation with valid config
@@ -103,7 +103,7 @@ def test_list_simulations_with_malformed_config(
 
 def test_list_simulations_with_io_error(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations handles IO errors when reading config."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     (tmp_path / "out").mkdir(parents=True)
 
     sim_dir = tmp_path / "out" / "io_error_sim"
@@ -134,7 +134,7 @@ def test_simulation_with_nested_config_structure(
     api_client: TestClient, tmp_path: Path, monkeypatch
 ):
     """GET /api/simulations handles nested config structure."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "nested_config"
     sim_dir.mkdir(parents=True)
 
@@ -163,7 +163,7 @@ def test_simulation_with_nested_config_structure(
 
 def test_get_simulation_details(api_client: TestClient, mock_simulation_dir: Path, monkeypatch):
     """GET /api/simulations/{id} returns simulation details."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
     response = api_client.get("/api/simulations/api_run_20250107_120000")
     assert response.status_code == 200
@@ -180,7 +180,7 @@ def test_get_simulation_details(api_client: TestClient, mock_simulation_dir: Pat
 
 def test_get_nonexistent_simulation(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/invalid_id returns 404."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     (tmp_path / "out").mkdir(parents=True)
 
     response = api_client.get("/api/simulations/nonexistent_sim")
@@ -190,7 +190,7 @@ def test_get_nonexistent_simulation(api_client: TestClient, tmp_path: Path, monk
 
 def test_missing_config_json_returns_404(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id} returns 404 when config.json missing."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "sim_no_config"
     sim_dir.mkdir(parents=True)
 
@@ -201,7 +201,7 @@ def test_missing_config_json_returns_404(api_client: TestClient, tmp_path: Path,
 
 def test_malformed_config_json_returns_500(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id} returns 500 when config.json is malformed."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "sim_bad_config"
     sim_dir.mkdir(parents=True)
     (sim_dir / "config.json").write_text("{invalid json")
@@ -213,7 +213,7 @@ def test_malformed_config_json_returns_500(api_client: TestClient, tmp_path: Pat
 
 def test_simulation_details_with_failed_status(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id} returns 'failed' status when execution.log exists."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "failed_details"
     sim_dir.mkdir(parents=True)
 
@@ -231,7 +231,7 @@ def test_simulation_details_filters_dataset_directories(
     api_client: TestClient, tmp_path: Path, monkeypatch
 ):
     """GET /api/simulations/{id} excludes dataset_ directories from result_files."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "test_filter"
     sim_dir.mkdir(parents=True)
 
@@ -265,7 +265,7 @@ def test_get_simulation_status_completed(
     api_client: TestClient, mock_simulation_dir: Path, monkeypatch
 ):
     """GET /api/simulations/{id}/status returns 'completed' when results exist."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
     response = api_client.get("/api/simulations/api_run_20250107_120000/status")
     assert response.status_code == 200
@@ -276,7 +276,7 @@ def test_get_simulation_status_completed(
 
 def test_get_simulation_status_pending(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id}/status returns 'pending' when no results exist."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "api_run_pending"
     sim_dir.mkdir(parents=True)
 
@@ -294,7 +294,7 @@ def test_simulation_status_failed_with_error_log(
     api_client: TestClient, tmp_path: Path, monkeypatch
 ):
     """GET /api/simulations/{id}/status returns 'failed' with error message."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "failed_sim"
     sim_dir.mkdir(parents=True)
 
@@ -314,7 +314,7 @@ def test_simulation_status_with_running_process(
     api_client: TestClient, tmp_path: Path, monkeypatch
 ):
     """GET /api/simulations/{id}/status returns 'running' when process is active."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "api_run_active"
     sim_dir.mkdir(parents=True)
     config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
@@ -338,7 +338,7 @@ def test_simulation_status_with_finished_process_no_results(
     api_client: TestClient, tmp_path: Path, monkeypatch
 ):
     """Process finished with non-zero exit and no results returns 'failed'."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "failed_process"
     sim_dir.mkdir(parents=True)
 
@@ -363,7 +363,7 @@ def test_simulation_status_transitions_to_completed(
     api_client: TestClient, mock_simulation_dir: Path, monkeypatch
 ):
     """Process completion transitions status from 'running' to 'completed'."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
     mock_process = MagicMock()
     mock_process.poll.return_value = 0
@@ -380,7 +380,7 @@ def test_simulation_status_transitions_to_completed(
 
 def test_simulation_status_stopped_marker(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id}/status returns 'stopped' when .stopped marker exists."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "stopped_sim"
     sim_dir.mkdir(parents=True)
 
@@ -399,7 +399,7 @@ def test_simulation_status_completed_with_results_no_process(
     api_client: TestClient, mock_simulation_dir: Path, monkeypatch
 ):
     """Status returns 'completed' when results exist but no tracked process."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
     if "api_run_20250107_120000" in main.running_processes:
         del main.running_processes["api_run_20250107_120000"]
@@ -418,12 +418,12 @@ def test_simulation_status_completed_with_results_no_process(
 
 def test_create_simulation_valid_config(api_client: TestClient, tmp_path: Path, monkeypatch):
     """POST /api/simulations with valid config returns 201 and simulation_id."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-    monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
 
     mock_process = MagicMock()
     mock_process.pid = 12345
-    monkeypatch.setattr("src.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
+    monkeypatch.setattr("intellifl.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
 
     config = {
         "aggregation_strategy_keyword": "fedavg",
@@ -450,8 +450,8 @@ def test_create_simulation_spawns_background_task(
     api_client: TestClient, tmp_path: Path, monkeypatch
 ):
     """POST /api/simulations spawns background subprocess."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-    monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
 
     popen_calls = []
 
@@ -461,7 +461,7 @@ def test_create_simulation_spawns_background_task(
         mock_process.pid = 99999
         return mock_process
 
-    monkeypatch.setattr("src.api.main.subprocess.Popen", mock_popen)
+    monkeypatch.setattr("intellifl.api.main.subprocess.Popen", mock_popen)
 
     config = {
         "aggregation_strategy_keyword": "fedavg",
@@ -477,13 +477,13 @@ def test_create_simulation_spawns_background_task(
     cmd = args[0]
     assert "python" in cmd[0]
     assert "-m" in cmd
-    assert "src.simulation_runner" in cmd
+    assert "intellifl.simulation_runner" in cmd
 
 
 def test_create_simulation_config_write_error(api_client: TestClient, tmp_path: Path, monkeypatch):
     """POST /api/simulations handles config write errors."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-    monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
     (tmp_path / "out").mkdir(parents=True, exist_ok=True)
 
     from pathlib import Path as PathLib
@@ -506,13 +506,13 @@ def test_create_simulation_config_write_error(api_client: TestClient, tmp_path: 
 
 def test_create_simulation_subprocess_error(api_client: TestClient, tmp_path: Path, monkeypatch):
     """POST /api/simulations handles subprocess creation errors."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-    monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
 
     def mock_popen(*args, **kwargs):
         raise OSError("Failed to spawn process")
 
-    monkeypatch.setattr("src.api.main.subprocess.Popen", mock_popen)
+    monkeypatch.setattr("intellifl.api.main.subprocess.Popen", mock_popen)
 
     config = {"aggregation_strategy_keyword": "fedavg"}
 
@@ -523,8 +523,8 @@ def test_create_simulation_subprocess_error(api_client: TestClient, tmp_path: Pa
 
 def test_create_simulation_sets_loky_env_vars(api_client: TestClient, tmp_path: Path, monkeypatch):
     """POST /api/simulations sets LOKY_MAX_CPU_COUNT environment variable."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-    monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
 
     captured_env = {}
 
@@ -534,7 +534,7 @@ def test_create_simulation_sets_loky_env_vars(api_client: TestClient, tmp_path: 
         mock_process.pid = 12345
         return mock_process
 
-    monkeypatch.setattr("src.api.main.subprocess.Popen", mock_popen)
+    monkeypatch.setattr("intellifl.api.main.subprocess.Popen", mock_popen)
 
     config = {"aggregation_strategy_keyword": "fedavg"}
     response = api_client.post("/api/simulations", json=config)
@@ -551,8 +551,8 @@ def test_create_simulation_sets_loky_env_vars(api_client: TestClient, tmp_path: 
 
 def test_prepare_simulation_success(api_client: TestClient, tmp_path: Path, monkeypatch):
     """POST /api/simulations/prepare creates config without starting process."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-    monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
 
     # Clean up any leftover mock processes from previous tests
     main.running_processes.clear()
@@ -571,7 +571,7 @@ def test_prepare_simulation_success(api_client: TestClient, tmp_path: Path, monk
     assert "simulation_id" in data
     assert data["simulation_id"].startswith("api_run_")
     assert "command" in data
-    assert "python -m src.simulation_runner" in data["command"]
+    assert "python -m intellifl.simulation_runner" in data["command"]
     assert "config_path" in data
 
     sim_id = data["simulation_id"]
@@ -584,8 +584,8 @@ def test_prepare_simulation_multi_strategy_config(
     api_client: TestClient, tmp_path: Path, monkeypatch
 ):
     """POST /api/simulations/prepare handles multi-strategy config."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-    monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
 
     config = {
         "shared_settings": {
@@ -616,8 +616,8 @@ def test_prepare_simulation_multi_strategy_config(
 
 def test_prepare_simulation_config_write_error(api_client: TestClient, tmp_path: Path, monkeypatch):
     """POST /api/simulations/prepare handles config write errors."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-    monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
 
     from pathlib import Path as PathLib
 
@@ -644,7 +644,7 @@ def test_prepare_simulation_config_write_error(api_client: TestClient, tmp_path:
 
 def test_delete_simulation_success(api_client: TestClient, tmp_path: Path, monkeypatch):
     """DELETE /api/simulations/{id} deletes simulation successfully."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "test_delete"
     sim_dir.mkdir(parents=True)
     config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
@@ -663,7 +663,7 @@ def test_delete_simulation_success(api_client: TestClient, tmp_path: Path, monke
 
 def test_delete_simulation_not_found(api_client: TestClient, tmp_path: Path, monkeypatch):
     """DELETE /api/simulations/{id} returns 404 for nonexistent simulation."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     (tmp_path / "out").mkdir(parents=True)
 
     response = api_client.delete("/api/simulations/nonexistent")
@@ -673,7 +673,7 @@ def test_delete_simulation_not_found(api_client: TestClient, tmp_path: Path, mon
 
 def test_delete_simulation_running_process(api_client: TestClient, tmp_path: Path, monkeypatch):
     """DELETE /api/simulations/{id} returns 409 for running simulation."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "running_sim"
     sim_dir.mkdir(parents=True)
     config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
@@ -692,7 +692,7 @@ def test_delete_simulation_running_process(api_client: TestClient, tmp_path: Pat
 
 def test_delete_simulation_finished_process(api_client: TestClient, tmp_path: Path, monkeypatch):
     """DELETE /api/simulations/{id} succeeds when process is finished."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "finished_sim"
     sim_dir.mkdir(parents=True)
     config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
@@ -710,7 +710,7 @@ def test_delete_simulation_finished_process(api_client: TestClient, tmp_path: Pa
 
 def test_delete_multiple_simulations_success(api_client: TestClient, tmp_path: Path, monkeypatch):
     """DELETE /api/simulations with simulation_ids deletes multiple simulations."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
 
     for sim_id in ["sim1", "sim2", "sim3"]:
         sim_dir = tmp_path / "out" / sim_id
@@ -738,7 +738,7 @@ def test_delete_multiple_simulations_partial_failure(
     api_client: TestClient, tmp_path: Path, monkeypatch
 ):
     """DELETE /api/simulations returns success and failures separately."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     (tmp_path / "out").mkdir(parents=True)
 
     sim_dir = tmp_path / "out" / "valid_sim"
@@ -764,7 +764,7 @@ def test_delete_multiple_simulations_running_process(
     api_client: TestClient, tmp_path: Path, monkeypatch
 ):
     """DELETE /api/simulations skips running simulations."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
 
     for sim_id in ["completed_sim", "running_sim"]:
         sim_dir = tmp_path / "out" / sim_id
@@ -799,7 +799,7 @@ def test_delete_multiple_simulations_running_process(
 
 def test_rename_simulation_success(api_client: TestClient, tmp_path: Path, monkeypatch):
     """PATCH /api/simulations/{id}/rename updates display_name successfully."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "test_rename"
     sim_dir.mkdir(parents=True)
     config = {
@@ -824,7 +824,7 @@ def test_rename_simulation_success(api_client: TestClient, tmp_path: Path, monke
 
 def test_rename_simulation_empty_name(api_client: TestClient, tmp_path: Path, monkeypatch):
     """PATCH /api/simulations/{id}/rename returns 400 for empty display_name."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "test_rename"
     sim_dir.mkdir(parents=True)
     config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
@@ -837,7 +837,7 @@ def test_rename_simulation_empty_name(api_client: TestClient, tmp_path: Path, mo
 
 def test_rename_simulation_name_too_long(api_client: TestClient, tmp_path: Path, monkeypatch):
     """PATCH /api/simulations/{id}/rename returns 400 for name >100 chars."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "test_rename"
     sim_dir.mkdir(parents=True)
     config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
@@ -853,7 +853,7 @@ def test_rename_simulation_name_too_long(api_client: TestClient, tmp_path: Path,
 
 def test_rename_simulation_special_characters(api_client: TestClient, tmp_path: Path, monkeypatch):
     """PATCH /api/simulations/{id}/rename accepts special characters."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "test_rename"
     sim_dir.mkdir(parents=True)
     config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
@@ -873,7 +873,7 @@ def test_rename_simulation_special_characters(api_client: TestClient, tmp_path: 
 
 def test_stop_simulation_success(api_client: TestClient, tmp_path: Path, monkeypatch):
     """POST /api/simulations/{id}/stop stops a running simulation."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "running_stop"
     sim_dir.mkdir(parents=True)
 
@@ -889,7 +889,7 @@ def test_stop_simulation_success(api_client: TestClient, tmp_path: Path, monkeyp
     def mock_psutil_process_init(pid):
         return mock_psutil_process
 
-    monkeypatch.setattr("src.api.main.psutil.Process", mock_psutil_process_init)
+    monkeypatch.setattr("intellifl.api.main.psutil.Process", mock_psutil_process_init)
     main.running_processes["running_stop"] = mock_process
 
     response = api_client.post("/api/simulations/running_stop/stop")
@@ -914,7 +914,7 @@ def test_stop_simulation_not_running(api_client: TestClient):
 
 def test_stream_endpoint_exists(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id}/stream endpoint exists and returns SSE format."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "api_run_stream_test"
     sim_dir.mkdir(parents=True)
 
@@ -929,7 +929,7 @@ def test_stream_endpoint_exists(api_client: TestClient, tmp_path: Path, monkeypa
 
 def test_stream_nonexistent_simulation(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id}/stream returns 404 for nonexistent simulation."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     (tmp_path / "out").mkdir(parents=True)
 
     response = api_client.get("/api/simulations/nonexistent_sim/stream")
@@ -943,7 +943,7 @@ def test_stream_nonexistent_simulation(api_client: TestClient, tmp_path: Path, m
 
 def test_get_metrics_csv(api_client: TestClient, mock_simulation_dir: Path, monkeypatch):
     """GET /api/simulations/{id}/results/metrics.csv serves CSV as JSON."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
     response = api_client.get("/api/simulations/api_run_20250107_120000/results/metrics.csv")
     assert response.status_code == 200
@@ -958,7 +958,7 @@ def test_get_result_file_csv_download(
     api_client: TestClient, mock_simulation_dir: Path, monkeypatch
 ):
     """GET /api/simulations/{id}/results/{file}.csv?download=true returns CSV file."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
     response = api_client.get(
         "/api/simulations/api_run_20250107_120000/results/metrics.csv?download=true"
@@ -971,7 +971,7 @@ def test_get_result_file_csv_download(
 
 def test_get_plot_data_json(api_client: TestClient, mock_simulation_dir: Path, monkeypatch):
     """GET /api/simulations/{id}/plot-data serves interactive plot JSON."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
     response = api_client.get("/api/simulations/api_run_20250107_120000/plot-data")
     assert response.status_code == 200
@@ -983,7 +983,7 @@ def test_get_plot_data_json(api_client: TestClient, mock_simulation_dir: Path, m
 
 def test_get_plot_data_not_found(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id}/plot-data returns 404 when JSON missing."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "api_run_no_plots"
     sim_dir.mkdir(parents=True)
     config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
@@ -996,7 +996,7 @@ def test_get_plot_data_not_found(api_client: TestClient, tmp_path: Path, monkeyp
 
 def test_get_static_plot(api_client: TestClient, mock_simulation_dir: Path, monkeypatch):
     """GET /api/simulations/{id}/results/{plot_name} serves PDF file."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
     response = api_client.get("/api/simulations/api_run_20250107_120000/results/accuracy_plot.pdf")
     assert response.status_code == 200
@@ -1007,7 +1007,7 @@ def test_get_missing_file_returns_404(
     api_client: TestClient, mock_simulation_dir: Path, monkeypatch
 ):
     """GET nonexistent result file returns 404."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
     response = api_client.get("/api/simulations/api_run_20250107_120000/results/nonexistent.pdf")
     assert response.status_code == 404
@@ -1016,7 +1016,7 @@ def test_get_missing_file_returns_404(
 
 def test_get_unsupported_file_type(api_client: TestClient, mock_simulation_dir: Path, monkeypatch):
     """GET unsupported file type returns 400."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
     response = api_client.get("/api/simulations/api_run_20250107_120000/results/malicious.exe")
     assert response.status_code == 400
@@ -1027,7 +1027,7 @@ def test_get_result_file_json_format(
     api_client: TestClient, mock_simulation_dir: Path, monkeypatch
 ):
     """GET /api/simulations/{id}/results/{file}.json serves JSON file."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
 
     response = api_client.get("/api/simulations/api_run_20250107_120000/results/plot_data_0.json")
     assert response.status_code == 200
@@ -1036,7 +1036,7 @@ def test_get_result_file_json_format(
 
 def test_csv_read_error_returns_500(api_client: TestClient, tmp_path: Path, monkeypatch):
     """CSV read errors return 500 with error message."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "sim_bad_csv"
     sim_dir.mkdir(parents=True)
     config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
@@ -1049,7 +1049,7 @@ def test_csv_read_error_returns_500(api_client: TestClient, tmp_path: Path, monk
 
 def test_get_html_result_file(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id}/results/{file}.html serves HTML file."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "api_run_html"
     sim_dir.mkdir(parents=True)
 
@@ -1064,7 +1064,7 @@ def test_get_html_result_file(api_client: TestClient, tmp_path: Path, monkeypatc
 
 def test_get_txt_result_file(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id}/results/{file}.txt serves text file."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "api_run_txt"
     sim_dir.mkdir(parents=True)
 
@@ -1084,7 +1084,7 @@ def test_get_txt_result_file(api_client: TestClient, tmp_path: Path, monkeypatch
 
 def test_get_all_plot_data_success(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id}/all-plot-data returns all strategy plot data."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "api_run_multi_strategy"
     sim_dir.mkdir(parents=True)
 
@@ -1110,7 +1110,7 @@ def test_get_all_plot_data_success(api_client: TestClient, tmp_path: Path, monke
 
 def test_get_all_plot_data_not_found(api_client: TestClient, tmp_path: Path, monkeypatch):
     """GET /api/simulations/{id}/all-plot-data returns 404 when no plot data exists."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "api_run_no_data"
     sim_dir.mkdir(parents=True)
 
@@ -1126,7 +1126,7 @@ def test_get_all_plot_data_invalid_simulation_id(
     api_client: TestClient, tmp_path: Path, monkeypatch
 ):
     """GET /api/simulations/{id}/all-plot-data returns 400 for invalid simulation ID."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     (tmp_path / "out").mkdir(parents=True)
 
     # Use special characters that fail the ID validation
@@ -1139,7 +1139,7 @@ def test_get_all_plot_data_nonexistent_simulation(
     api_client: TestClient, tmp_path: Path, monkeypatch
 ):
     """GET /api/simulations/{id}/all-plot-data returns 404 for nonexistent simulation."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     (tmp_path / "out").mkdir(parents=True)
 
     response = api_client.get("/api/simulations/nonexistent_sim/all-plot-data")
@@ -1206,7 +1206,7 @@ def test_cors_allows_all_configured_ports(api_client: TestClient):
 
 def test_path_traversal_blocked(api_client: TestClient, tmp_path: Path, monkeypatch):
     """Path traversal attempts are blocked with 400 or 404."""
-    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "test_sim"
     sim_dir.mkdir(parents=True)
     config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}

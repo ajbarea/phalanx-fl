@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
+from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
+from intellifl.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 from tests.common import (
     ClientProxy,
     FitRes,
@@ -146,8 +146,8 @@ class TestRFABasedRemovalStrategy:
 
         assert distance_to_origin < distance_to_outlier
 
-    @patch("src.simulation_strategies.rfa_based_removal_strategy.KMeans")
-    @patch("src.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler")
+    @patch("intellifl.simulation_strategies.rfa_based_removal_strategy.KMeans")
+    @patch("intellifl.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler")
     def test_aggregate_fit_clustering(
         self, mock_scaler, mock_kmeans, rfa_strategy, mock_client_results
     ):
@@ -171,9 +171,11 @@ class TestRFABasedRemovalStrategy:
     def test_aggregate_fit_geometric_median_calculation(self, rfa_strategy, mock_client_results):
         """Test aggregate_fit calculates geometric median correctly."""
         with (
-            patch("src.simulation_strategies.rfa_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
-                "src.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.rfa_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
         ):
             # Setup mocks
@@ -201,9 +203,11 @@ class TestRFABasedRemovalStrategy:
     def test_aggregate_fit_deviation_calculation(self, rfa_strategy, mock_client_results):
         """Test aggregate_fit calculates client deviations from geometric median."""
         with (
-            patch("src.simulation_strategies.rfa_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
-                "src.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.rfa_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
         ):
             # Setup mocks
@@ -348,9 +352,11 @@ class TestRFABasedRemovalStrategy:
     def test_rounds_history_tracking(self, rfa_strategy, mock_client_results):
         """Test that strategy_history is properly updated during aggregate_fit."""
         with (
-            patch("src.simulation_strategies.rfa_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
-                "src.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.rfa_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
         ):
             # Setup mocks
@@ -388,9 +394,11 @@ class TestRFABasedRemovalStrategy:
         single_result = [(client_proxy, fit_res)]
 
         with (
-            patch("src.simulation_strategies.rfa_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
-                "src.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.rfa_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
         ):
             # Setup mocks
@@ -431,9 +439,11 @@ class TestRFABasedRemovalStrategy:
             results.append((client_proxy, fit_res))
 
         with (
-            patch("src.simulation_strategies.rfa_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
-                "src.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.rfa_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
         ):
             # Setup mocks
@@ -472,9 +482,11 @@ class TestRFABasedRemovalStrategy:
             results.append((client_proxy, fit_res))
 
         with (
-            patch("src.simulation_strategies.rfa_based_removal_strategy.KMeans") as mock_kmeans,
             patch(
-                "src.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.rfa_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
         ):
             # Setup mocks

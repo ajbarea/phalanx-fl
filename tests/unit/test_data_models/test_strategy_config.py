@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from src.data_models.simulation_strategy_config import StrategyConfig
+from intellifl.data_models.simulation_strategy_config import StrategyConfig
 
 
 class TestStrategyConfig:

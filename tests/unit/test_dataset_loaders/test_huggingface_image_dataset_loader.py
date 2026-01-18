@@ -8,7 +8,7 @@ import pytest
 import torch
 from PIL import Image
 
-from src.dataset_loaders.huggingface_image_dataset_loader import (
+from intellifl.dataset_loaders.huggingface_image_dataset_loader import (
     HuggingFaceImageDataset,
     HuggingFaceImageDatasetLoader,
 )
@@ -47,7 +47,7 @@ def mock_load_dataset(mocker, mock_dataset):
     Returns:
         Mock: The mocked load_dataset function.
     """
-    mock = mocker.patch("src.dataset_loaders.huggingface_image_dataset_loader.load_dataset")
+    mock = mocker.patch("intellifl.dataset_loaders.huggingface_image_dataset_loader.load_dataset")
     mock.return_value = {"train": mock_dataset}
     return mock
 

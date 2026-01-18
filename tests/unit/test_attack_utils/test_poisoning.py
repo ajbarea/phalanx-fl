@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import torch
 
-from src.attack_utils.poisoning import (
+from intellifl.attack_utils.poisoning import (
     apply_gaussian_noise,
     apply_label_flipping,
     apply_poisoning_attack,
@@ -536,8 +536,8 @@ class TestTokenReplacementWithVocabulary:
         tokenizer.encode.side_effect = encode_side_effect
         return tokenizer
 
-    @patch("src.attack_utils.poisoning.get_vocabulary")
-    @patch("src.attack_utils.poisoning.get_replacement_strategy")
+    @patch("intellifl.attack_utils.poisoning.get_vocabulary")
+    @patch("intellifl.attack_utils.poisoning.get_replacement_strategy")
     def test_token_replacement_with_vocab_integration(
         self, mock_get_strategy, mock_get_vocab, mock_tokenizer
     ):

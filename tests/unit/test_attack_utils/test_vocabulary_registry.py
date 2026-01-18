@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import unittest
 
-from src.attack_utils.vocabularies.registry import (
+from intellifl.attack_utils.vocabularies.registry import (
     NEGATIVE_REPLACEMENTS,
     POSITIVE_REPLACEMENTS,
     REPLACEMENT_STRATEGIES,

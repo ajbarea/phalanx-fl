@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 import torch
 
-from src.client_models.flower_client import FlowerClient
+from intellifl.client_models.flower_client import FlowerClient
 from tests.common import Mock, np, pytest
 from tests.fixtures.sample_models import MockCNNNetwork
 
@@ -166,7 +166,7 @@ class TestFlowerClient:
         ]
         assert len(parameters) == len(expected_params)
 
-    @patch("src.network_models.bert_model_definition.get_peft_model_state_dict")
+    @patch("intellifl.network_models.bert_model_definition.get_peft_model_state_dict")
     def test_get_parameters_with_lora(self, mock_get_peft, flower_client_cnn):
         """Test get_parameters method with LoRA."""
         flower_client_cnn.use_lora = True
@@ -192,8 +192,8 @@ class TestFlowerClient:
         for _orig, new, updated in zip(original_params, new_params, updated_params, strict=False):
             np.testing.assert_allclose(updated, new, rtol=1e-5)
 
-    @patch("src.network_models.bert_model_definition.set_peft_model_state_dict")
-    @patch("src.network_models.bert_model_definition.get_peft_model_state_dict")
+    @patch("intellifl.network_models.bert_model_definition.set_peft_model_state_dict")
+    @patch("intellifl.network_models.bert_model_definition.get_peft_model_state_dict")
     def test_set_parameters_with_lora(self, mock_get_peft, mock_set_peft, flower_client_cnn):
         """Test set_parameters method with LoRA."""
         flower_client_cnn.use_lora = True

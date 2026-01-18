@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import torch
 
-from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+from intellifl.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
 from tests.common import ClientProxy, FitRes, Mock, ndarrays_to_parameters, np, pytest
 
 
@@ -412,7 +412,7 @@ class TestPIDBasedRemovalStrategy:
 
             assert abs(threshold - expected_threshold) < 1e-6
 
-    @patch("src.simulation_strategies.pid_based_removal_strategy.KMeans")
+    @patch("intellifl.simulation_strategies.pid_based_removal_strategy.KMeans")
     def test_aggregate_fit_clustering(self, mock_kmeans, pid_strategy, mock_client_results):
         """Test aggregate_fit performs clustering correctly."""
         # Setup mocks
@@ -431,7 +431,9 @@ class TestPIDBasedRemovalStrategy:
     def test_aggregate_fit_pid_calculation(self, pid_strategy, mock_client_results):
         """Test aggregate_fit calculates PID scores for all clients."""
         with (
-            patch("src.simulation_strategies.pid_based_removal_strategy.KMeans") as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.pid_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
             patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
         ):
             # Setup mocks
@@ -453,7 +455,9 @@ class TestPIDBasedRemovalStrategy:
     def test_aggregate_fit_threshold_calculation_pid(self, pid_strategy, mock_client_results):
         """Test aggregate_fit calculates threshold correctly for PID variant."""
         with (
-            patch("src.simulation_strategies.pid_based_removal_strategy.KMeans") as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.pid_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
             patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
         ):
             # Setup mocks
@@ -476,7 +480,9 @@ class TestPIDBasedRemovalStrategy:
     ):
         """Test aggregate_fit calculates distance-based threshold for PID scaled variant."""
         with (
-            patch("src.simulation_strategies.pid_based_removal_strategy.KMeans") as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.pid_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
             patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
         ):
             # Setup mocks
@@ -614,7 +620,9 @@ class TestPIDBasedRemovalStrategy:
     def test_strategy_history_integration(self, pid_strategy, mock_client_results):
         """Test integration with strategy history."""
         with (
-            patch("src.simulation_strategies.pid_based_removal_strategy.KMeans") as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.pid_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
             patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
         ):
             # Setup mocks
@@ -655,7 +663,9 @@ class TestPIDBasedRemovalStrategy:
         single_result = [(client_proxy, fit_res)]
 
         with (
-            patch("src.simulation_strategies.pid_based_removal_strategy.KMeans") as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.pid_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
             patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
         ):
             # Setup mocks

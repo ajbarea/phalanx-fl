@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch
 
 import torch
 
-from src.network_models.text_classifier_model import (
+from intellifl.network_models.text_classifier_model import (
     get_lora_state_dict,
     load_text_classifier_with_lora,
     load_text_classifier_without_lora,
@@ -25,8 +25,8 @@ from tests.common import np
 class TestTextClassifierLoading:
     """Test text classifier model loading functions."""
 
-    @patch("src.network_models.text_classifier_model.AutoModelForSequenceClassification")
-    @patch("src.network_models.text_classifier_model.get_peft_model")
+    @patch("intellifl.network_models.text_classifier_model.AutoModelForSequenceClassification")
+    @patch("intellifl.network_models.text_classifier_model.get_peft_model")
     def test_load_text_classifier_with_lora_default_params(
         self, mock_get_peft_model, mock_auto_model
     ) -> None:
@@ -49,9 +49,9 @@ class TestTextClassifierLoading:
         mock_get_peft_model.assert_called_once()
         assert model == mock_lora_model
 
-    @patch("src.network_models.text_classifier_model.AutoModelForSequenceClassification")
-    @patch("src.network_models.text_classifier_model.get_peft_model")
-    @patch("src.network_models.text_classifier_model.LoraConfig")
+    @patch("intellifl.network_models.text_classifier_model.AutoModelForSequenceClassification")
+    @patch("intellifl.network_models.text_classifier_model.get_peft_model")
+    @patch("intellifl.network_models.text_classifier_model.LoraConfig")
     def test_load_text_classifier_with_lora_custom_params(
         self, mock_lora_config, mock_get_peft_model, mock_auto_model
     ) -> None:
@@ -86,8 +86,8 @@ class TestTextClassifierLoading:
         mock_get_peft_model.assert_called_once_with(mock_base_model, mock_config)
         assert model == mock_lora_model
 
-    @patch("src.network_models.text_classifier_model.AutoModelForSequenceClassification")
-    @patch("src.network_models.text_classifier_model.get_peft_model")
+    @patch("intellifl.network_models.text_classifier_model.AutoModelForSequenceClassification")
+    @patch("intellifl.network_models.text_classifier_model.get_peft_model")
     def test_load_text_classifier_with_lora_multiclass(
         self, mock_get_peft_model, mock_auto_model
     ) -> None:
@@ -109,7 +109,7 @@ class TestTextClassifierLoading:
         )
         assert model == mock_lora_model
 
-    @patch("src.network_models.text_classifier_model.AutoModelForSequenceClassification")
+    @patch("intellifl.network_models.text_classifier_model.AutoModelForSequenceClassification")
     def test_load_text_classifier_without_lora(self, mock_auto_model) -> None:
         """Test loading text classifier without LoRA."""
         mock_model = Mock()
@@ -125,7 +125,7 @@ class TestTextClassifierLoading:
         )
         assert model == mock_model
 
-    @patch("src.network_models.text_classifier_model.AutoModelForSequenceClassification")
+    @patch("intellifl.network_models.text_classifier_model.AutoModelForSequenceClassification")
     def test_load_text_classifier_without_lora_multiclass(self, mock_auto_model) -> None:
         """Test loading text classifier without LoRA for multiclass."""
         mock_model = Mock()
@@ -143,7 +143,7 @@ class TestTextClassifierLoading:
 class TestLoraStateDictFunctions:
     """Test LoRA state dict operations for text classifier."""
 
-    @patch("src.network_models.text_classifier_model.get_peft_model_state_dict")
+    @patch("intellifl.network_models.text_classifier_model.get_peft_model_state_dict")
     def test_get_lora_state_dict(self, mock_get_peft_state_dict) -> None:
         """Test getting LoRA state dict as numpy arrays."""
         mock_state_dict = OrderedDict(
@@ -166,7 +166,7 @@ class TestLoraStateDictFunctions:
         assert all(isinstance(arr, np.ndarray) for arr in result)
         mock_get_peft_state_dict.assert_called_once_with(mock_model)
 
-    @patch("src.network_models.text_classifier_model.get_peft_model_state_dict")
+    @patch("intellifl.network_models.text_classifier_model.get_peft_model_state_dict")
     def test_get_lora_state_dict_empty(self, mock_get_peft_state_dict) -> None:
         """Test getting LoRA state dict when empty."""
         mock_state_dict: OrderedDict[str, Any] = OrderedDict()
@@ -179,8 +179,8 @@ class TestLoraStateDictFunctions:
         assert len(result) == 0
         mock_get_peft_state_dict.assert_called_once_with(mock_model)
 
-    @patch("src.network_models.text_classifier_model.set_peft_model_state_dict")
-    @patch("src.network_models.text_classifier_model.get_peft_model_state_dict")
+    @patch("intellifl.network_models.text_classifier_model.set_peft_model_state_dict")
+    @patch("intellifl.network_models.text_classifier_model.get_peft_model_state_dict")
     def test_set_lora_state_dict(self, mock_get_peft_state_dict, mock_set_peft_state_dict) -> None:
         """Test setting LoRA state dict from numpy arrays."""
         mock_state_dict = OrderedDict(
@@ -203,8 +203,8 @@ class TestLoraStateDictFunctions:
         assert call_args[0][0] == mock_model
         assert isinstance(call_args[0][1], OrderedDict)
 
-    @patch("src.network_models.text_classifier_model.set_peft_model_state_dict")
-    @patch("src.network_models.text_classifier_model.get_peft_model_state_dict")
+    @patch("intellifl.network_models.text_classifier_model.set_peft_model_state_dict")
+    @patch("intellifl.network_models.text_classifier_model.get_peft_model_state_dict")
     def test_set_lora_state_dict_tensor_conversion(
         self, mock_get_peft_state_dict, mock_set_peft_state_dict
     ) -> None:
@@ -233,8 +233,12 @@ class TestLoraStateDictFunctions:
         mock_model = Mock()
 
         with (
-            patch("src.network_models.text_classifier_model.get_peft_model_state_dict") as mock_get,
-            patch("src.network_models.text_classifier_model.set_peft_model_state_dict") as mock_set,
+            patch(
+                "intellifl.network_models.text_classifier_model.get_peft_model_state_dict"
+            ) as mock_get,
+            patch(
+                "intellifl.network_models.text_classifier_model.set_peft_model_state_dict"
+            ) as mock_set,
         ):
             original_state_dict = OrderedDict(
                 {
@@ -257,9 +261,9 @@ class TestLoraStateDictFunctions:
 class TestLoraConfiguration:
     """Test LoRA configuration settings."""
 
-    @patch("src.network_models.text_classifier_model.AutoModelForSequenceClassification")
-    @patch("src.network_models.text_classifier_model.get_peft_model")
-    @patch("src.network_models.text_classifier_model.LoraConfig")
+    @patch("intellifl.network_models.text_classifier_model.AutoModelForSequenceClassification")
+    @patch("intellifl.network_models.text_classifier_model.get_peft_model")
+    @patch("intellifl.network_models.text_classifier_model.LoraConfig")
     def test_lora_config_task_type(
         self, mock_lora_config, mock_get_peft_model, mock_auto_model
     ) -> None:
@@ -283,9 +287,9 @@ class TestLoraConfiguration:
         call_kwargs = mock_lora_config.call_args[1]
         assert call_kwargs["task_type"] == "SEQ_CLS"
 
-    @patch("src.network_models.text_classifier_model.AutoModelForSequenceClassification")
-    @patch("src.network_models.text_classifier_model.get_peft_model")
-    @patch("src.network_models.text_classifier_model.LoraConfig")
+    @patch("intellifl.network_models.text_classifier_model.AutoModelForSequenceClassification")
+    @patch("intellifl.network_models.text_classifier_model.get_peft_model")
+    @patch("intellifl.network_models.text_classifier_model.LoraConfig")
     def test_lora_config_default_target_modules(
         self, mock_lora_config, mock_get_peft_model, mock_auto_model
     ) -> None:
@@ -308,8 +312,8 @@ class TestLoraConfiguration:
         call_kwargs = mock_lora_config.call_args[1]
         assert call_kwargs["target_modules"] == ["q_lin", "v_lin"]
 
-    @patch("src.network_models.text_classifier_model.AutoModelForSequenceClassification")
-    @patch("src.network_models.text_classifier_model.get_peft_model")
+    @patch("intellifl.network_models.text_classifier_model.AutoModelForSequenceClassification")
+    @patch("intellifl.network_models.text_classifier_model.get_peft_model")
     def test_lora_suppresses_trainable_params_output(
         self, mock_get_peft_model, mock_auto_model
     ) -> None:
@@ -333,7 +337,7 @@ class TestLoraConfiguration:
 class TestModelParameterShapes:
     """Test that model parameters have expected shapes."""
 
-    @patch("src.network_models.text_classifier_model.get_peft_model_state_dict")
+    @patch("intellifl.network_models.text_classifier_model.get_peft_model_state_dict")
     def test_lora_state_dict_preserves_shapes(self, mock_get_peft_state_dict) -> None:
         """Test that state dict extraction preserves tensor shapes."""
         original_tensors = {
@@ -351,8 +355,8 @@ class TestModelParameterShapes:
         for i, (_key, tensor) in enumerate(original_tensors.items()):
             assert result[i].shape == tuple(tensor.shape)
 
-    @patch("src.network_models.text_classifier_model.set_peft_model_state_dict")
-    @patch("src.network_models.text_classifier_model.get_peft_model_state_dict")
+    @patch("intellifl.network_models.text_classifier_model.set_peft_model_state_dict")
+    @patch("intellifl.network_models.text_classifier_model.get_peft_model_state_dict")
     def test_set_lora_state_dict_preserves_shapes(
         self, mock_get_peft_state_dict, mock_set_peft_state_dict
     ) -> None:
@@ -384,8 +388,8 @@ class TestModelParameterShapes:
 class TestEdgeCases:
     """Test edge cases and error conditions."""
 
-    @patch("src.network_models.text_classifier_model.AutoModelForSequenceClassification")
-    @patch("src.network_models.text_classifier_model.get_peft_model")
+    @patch("intellifl.network_models.text_classifier_model.AutoModelForSequenceClassification")
+    @patch("intellifl.network_models.text_classifier_model.get_peft_model")
     def test_load_with_single_label(self, mock_get_peft_model, mock_auto_model) -> None:
         """Test loading model with single label (regression-like task)."""
         mock_base_model = Mock()
@@ -405,8 +409,8 @@ class TestEdgeCases:
         )
         assert model == mock_lora_model
 
-    @patch("src.network_models.text_classifier_model.AutoModelForSequenceClassification")
-    @patch("src.network_models.text_classifier_model.get_peft_model")
+    @patch("intellifl.network_models.text_classifier_model.AutoModelForSequenceClassification")
+    @patch("intellifl.network_models.text_classifier_model.get_peft_model")
     def test_load_with_zero_dropout(self, mock_get_peft_model, mock_auto_model) -> None:
         """Test loading model with zero dropout."""
         mock_base_model = Mock()
@@ -424,7 +428,7 @@ class TestEdgeCases:
 
         mock_get_peft_model.assert_called_once()
 
-    @patch("src.network_models.text_classifier_model.get_peft_model_state_dict")
+    @patch("intellifl.network_models.text_classifier_model.get_peft_model_state_dict")
     def test_get_lora_state_dict_with_large_tensors(self, mock_get_peft_state_dict) -> None:
         """Test state dict extraction with large tensors."""
         mock_state_dict = OrderedDict(
@@ -444,10 +448,10 @@ class TestEdgeCases:
 class TestIntegration:
     """Integration tests for text classifier model functions."""
 
-    @patch("src.network_models.text_classifier_model.AutoModelForSequenceClassification")
-    @patch("src.network_models.text_classifier_model.get_peft_model")
-    @patch("src.network_models.text_classifier_model.get_peft_model_state_dict")
-    @patch("src.network_models.text_classifier_model.set_peft_model_state_dict")
+    @patch("intellifl.network_models.text_classifier_model.AutoModelForSequenceClassification")
+    @patch("intellifl.network_models.text_classifier_model.get_peft_model")
+    @patch("intellifl.network_models.text_classifier_model.get_peft_model_state_dict")
+    @patch("intellifl.network_models.text_classifier_model.set_peft_model_state_dict")
     def test_full_workflow_with_lora(
         self,
         mock_set_peft_state_dict,
@@ -491,7 +495,7 @@ class TestIntegration:
         assert mock_get_peft_state_dict.call_count == 2
         assert mock_set_peft_state_dict.called
 
-    @patch("src.network_models.text_classifier_model.AutoModelForSequenceClassification")
+    @patch("intellifl.network_models.text_classifier_model.AutoModelForSequenceClassification")
     def test_full_workflow_without_lora(self, mock_auto_model) -> None:
         """Test workflow without LoRA (full fine-tuning)."""
         mock_model = Mock()

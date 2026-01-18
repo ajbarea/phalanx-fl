@@ -182,14 +182,14 @@ def mock_medquad_dependencies(
         tokenizer_return = Mock()
 
     with (
-        patch("src.dataset_loaders.medquad_dataset_loader.glob.glob") as mock_glob,
+        patch("intellifl.dataset_loaders.medquad_dataset_loader.glob.glob") as mock_glob,
         patch(
-            "src.dataset_loaders.medquad_dataset_loader.AutoTokenizer.from_pretrained"
+            "intellifl.dataset_loaders.medquad_dataset_loader.AutoTokenizer.from_pretrained"
         ) as mock_tokenizer,
-        patch("src.dataset_loaders.medquad_dataset_loader.load_dataset") as mock_load_dataset,
-        patch("src.dataset_loaders.medquad_dataset_loader.DataLoader") as mock_dataloader,
+        patch("intellifl.dataset_loaders.medquad_dataset_loader.load_dataset") as mock_load_dataset,
+        patch("intellifl.dataset_loaders.medquad_dataset_loader.DataLoader") as mock_dataloader,
         patch(
-            "src.dataset_loaders.medquad_dataset_loader.DataCollatorForLanguageModeling"
+            "intellifl.dataset_loaders.medquad_dataset_loader.DataCollatorForLanguageModeling"
         ) as mock_collator,
     ):
         mock_glob.return_value = glob_return

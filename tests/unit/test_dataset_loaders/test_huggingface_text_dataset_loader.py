@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from src.dataset_loaders.huggingface_text_dataset_loader import (
+from intellifl.dataset_loaders.huggingface_text_dataset_loader import (
     HuggingFaceTextDatasetLoader,
 )
 
@@ -18,7 +18,7 @@ def mock_tokenizer():
     Yields:
         Mock: The mocked AutoTokenizer.
     """
-    with patch("src.dataset_loaders.huggingface_text_dataset_loader.AutoTokenizer") as mock:
+    with patch("intellifl.dataset_loaders.huggingface_text_dataset_loader.AutoTokenizer") as mock:
         tokenizer = Mock()
         tokenizer.return_value = {"input_ids": [1, 2, 3], "attention_mask": [1, 1, 1]}
         mock.from_pretrained.return_value = tokenizer
@@ -32,7 +32,7 @@ def mock_dataset_pkg():
     Yields:
         MagicMock: The mocked dataset object.
     """
-    with patch("src.dataset_loaders.huggingface_text_dataset_loader.load_dataset") as mock:
+    with patch("intellifl.dataset_loaders.huggingface_text_dataset_loader.load_dataset") as mock:
         mock_ds = MagicMock()
         mock_ds.__len__.return_value = 100
         mock_ds.column_names = ["text", "label"]
@@ -56,7 +56,7 @@ def mock_dataloader():
     Yields:
         Mock: The mocked DataLoader.
     """
-    with patch("src.dataset_loaders.huggingface_text_dataset_loader.DataLoader") as mock:
+    with patch("intellifl.dataset_loaders.huggingface_text_dataset_loader.DataLoader") as mock:
         yield mock
 
 

@@ -11,7 +11,7 @@ from typing import Any
 
 from jsonschema import ValidationError
 
-from src.config_loaders.validate_strategy_config import (
+from intellifl.config_loaders.validate_strategy_config import (
     _validate_dependent_params,
     _validate_llm_parameters,
     validate_strategy_config,

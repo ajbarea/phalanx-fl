@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
-from src.attack_utils.weight_snapshots import (
+from intellifl.attack_utils.weight_snapshots import (
     _save_weight_histogram,
     save_weight_snapshot,
 )

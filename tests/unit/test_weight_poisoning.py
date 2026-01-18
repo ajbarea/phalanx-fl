@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from src.attack_utils.weight_poisoning import (
+from intellifl.attack_utils.weight_poisoning import (
     WEIGHT_ATTACK_TYPES,
     apply_byzantine_perturbation,
     apply_gradient_scaling,

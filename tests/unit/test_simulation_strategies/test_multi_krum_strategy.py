@@ -10,8 +10,8 @@ from unittest.mock import patch
 
 from flwr.common import EvaluateRes
 
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
+from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
+from intellifl.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
 from tests.common import (
     ClientProxy,
     FitRes,
@@ -122,8 +122,8 @@ class TestMultiKrumStrategy:
             assert len(scores) == 5
             assert all(np.isfinite(score) for score in scores)
 
-    @patch("src.simulation_strategies.multi_krum_strategy.KMeans")
-    @patch("src.simulation_strategies.multi_krum_strategy.MinMaxScaler")
+    @patch("intellifl.simulation_strategies.multi_krum_strategy.KMeans")
+    @patch("intellifl.simulation_strategies.multi_krum_strategy.MinMaxScaler")
     def test_aggregate_fit_clustering(
         self, mock_scaler, mock_kmeans, multi_krum_strategy, mock_client_results
     ):
@@ -154,8 +154,10 @@ class TestMultiKrumStrategy:
     ):
         """Verify scores are calculated for all participating clients."""
         with (
-            patch("src.simulation_strategies.multi_krum_strategy.KMeans") as mock_kmeans,
-            patch("src.simulation_strategies.multi_krum_strategy.MinMaxScaler") as mock_scaler,
+            patch("intellifl.simulation_strategies.multi_krum_strategy.KMeans") as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.multi_krum_strategy.MinMaxScaler"
+            ) as mock_scaler,
             patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
         ):
             # Setup mocks
@@ -183,8 +185,10 @@ class TestMultiKrumStrategy:
     def test_aggregate_fit_top_client_selection(self, multi_krum_strategy, mock_client_results):
         """Verify client selection matches num_krum_selections parameter."""
         with (
-            patch("src.simulation_strategies.multi_krum_strategy.KMeans") as mock_kmeans,
-            patch("src.simulation_strategies.multi_krum_strategy.MinMaxScaler") as mock_scaler,
+            patch("intellifl.simulation_strategies.multi_krum_strategy.KMeans") as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.multi_krum_strategy.MinMaxScaler"
+            ) as mock_scaler,
             patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
         ):
             # Setup mocks
@@ -216,10 +220,12 @@ class TestMultiKrumStrategy:
     def test_aggregate_fit_timing_history_recording(self, multi_krum_strategy, mock_client_results):
         """Verify timing data is recorded in strategy history."""
         with (
-            patch("src.simulation_strategies.multi_krum_strategy.KMeans") as mock_kmeans,
-            patch("src.simulation_strategies.multi_krum_strategy.MinMaxScaler") as mock_scaler,
+            patch("intellifl.simulation_strategies.multi_krum_strategy.KMeans") as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.multi_krum_strategy.MinMaxScaler"
+            ) as mock_scaler,
             patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
-            patch("src.simulation_strategies.multi_krum_strategy.time") as mock_time,
+            patch("intellifl.simulation_strategies.multi_krum_strategy.time") as mock_time,
         ):
             mock_time.time_ns.side_effect = [1000000, 2000000]
 
@@ -341,7 +347,7 @@ class TestMultiKrumStrategy:
         multi_krum_strategy.removed_client_ids = {"2", "3"}
 
         with patch(
-            "src.simulation_strategies.multi_krum_strategy.weighted_loss_avg"
+            "intellifl.simulation_strategies.multi_krum_strategy.weighted_loss_avg"
         ) as mock_weighted_loss:
             mock_weighted_loss.return_value = 0.55
 
@@ -374,8 +380,10 @@ class TestMultiKrumStrategy:
         insufficient_results = [(client_proxy1, fit_res1), (client_proxy2, fit_res2)]
 
         with (
-            patch("src.simulation_strategies.multi_krum_strategy.KMeans") as mock_kmeans,
-            patch("src.simulation_strategies.multi_krum_strategy.MinMaxScaler") as mock_scaler,
+            patch("intellifl.simulation_strategies.multi_krum_strategy.KMeans") as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.multi_krum_strategy.MinMaxScaler"
+            ) as mock_scaler,
             patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
         ):
             # Setup mocks
@@ -435,8 +443,10 @@ class TestMultiKrumStrategy:
     def test_strategy_history_client_entry_creation(self, multi_krum_strategy, mock_client_results):
         """Verify client history entries contain required fields."""
         with (
-            patch("src.simulation_strategies.multi_krum_strategy.KMeans") as mock_kmeans,
-            patch("src.simulation_strategies.multi_krum_strategy.MinMaxScaler") as mock_scaler,
+            patch("intellifl.simulation_strategies.multi_krum_strategy.KMeans") as mock_kmeans,
+            patch(
+                "intellifl.simulation_strategies.multi_krum_strategy.MinMaxScaler"
+            ) as mock_scaler,
             patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
         ):
             # Setup mocks

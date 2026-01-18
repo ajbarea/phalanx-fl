@@ -11,7 +11,7 @@ Research Context:
 
 import pytest
 
-from src.simulation_strategies.termination_policies import (
+from intellifl.simulation_strategies.termination_policies import (
     TerminationHandler,
     TerminationPolicy,
 )
@@ -217,7 +217,7 @@ MANUAL TEST SCENARIOS
 Run these scenarios using:
   ./run_simulation.sh
   # Or
-  python -m src.simulation_runner --config <path-to-test-config>
+  python -m intellifl.simulation_runner --config <path-to-test-config>
 
 Check logs for:
   - ERROR-level termination messages

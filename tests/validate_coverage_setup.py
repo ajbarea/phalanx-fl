@@ -45,7 +45,7 @@ def check_pytest_config() -> bool:
             content = f.read()
 
         required_options = [
-            "--cov=src",
+            "--cov=intellifl",
             "--cov-report=term-missing",
         ]
 
@@ -85,7 +85,7 @@ def check_coverage_rc() -> bool:
             content = f.read()
 
         required_sections = ["[run]", "[report]", "[html]"]
-        required_settings = ["source = src", "show_missing = True"]
+        required_settings = ["source = intellifl", "show_missing = True"]
 
         missing_sections = [sec for sec in required_sections if sec not in content]
         missing_settings = [set for set in required_settings if set not in content]
@@ -141,7 +141,7 @@ def check_ci_config() -> bool:
 
         required_elements = [
             "pytest",
-            "--cov=src",
+            "--cov=intellifl",
             "--cov-report=xml",
             "--cov-report=term-missing",
         ]
@@ -194,7 +194,7 @@ def main() -> int:
     if passed == total:
         logger.info(f"\n🎉 All checks passed ({passed}/{total})")
         logger.info("\nNext steps:")
-        logger.info("  1. Run: pytest --cov=src")
+        logger.info("  1. Run: pytest --cov=intellifl")
         logger.info("  2. Check: htmlcov/index.html")
         logger.info("  3. Commit and push to trigger CI")
         return 0
