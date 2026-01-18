@@ -328,7 +328,12 @@ class TestNumericalStability:
         mean_val = np.mean(values)
 
         assert np.isfinite(mean_val), f"Mean is not finite: {mean_val}"
-        assert min(values) <= mean_val <= max(values), f"Mean {mean_val} outside input range"
+        min_val, max_val = min(values), max(values)
+        # Use epsilon for floating-point tolerance with large values
+        epsilon = 1e-14 * max(abs(min_val), abs(max_val), 1.0)
+        assert min_val - epsilon <= mean_val <= max_val + epsilon, (
+            f"Mean {mean_val} outside input range [{min_val}, {max_val}]"
+        )
 
     @given(
         st.lists(
