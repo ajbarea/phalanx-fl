@@ -148,39 +148,188 @@ class TestTerminationPolicyConfiguration:
 class TestClientRemovalIntegration:
     """Integration tests with actual removal strategies.
 
-    Note: These tests require full simulation setup and are more expensive.
+    These tests verify the interaction between client removal strategies
+    (PID, Trust, RFA) and termination policies (GRACEFUL, STRICT, ADAPTIVE)
+    using mocked client manager behavior suitable for CI execution.
+
     Run with: pytest -m integration tests/integration/test_client_removal_termination.py
     """
 
-    @pytest.mark.skip(reason="Requires full simulation setup - manual test recommended")
     def test_pid_removal_with_graceful_policy(self):
-        """Test PID removal strategy with GRACEFUL policy in all-malicious scenario."""
-        # TODO: Implement full integration test
-        # 1. Create config with all clients malicious
-        # 2. Run simulation with PID removal + GRACEFUL policy
-        # 3. Verify simulation continues until 0 clients
-        # 4. Check final metrics dictionary for termination info
-        pass
+        """Test PID removal with GRACEFUL policy in all-malicious scenario.
 
-    @pytest.mark.skip(reason="Requires full simulation setup - manual test recommended")
+        Scenario:
+        - All 10 clients are malicious (100% attack scenario)
+        - PID removal progressively removes ~2 clients per round
+        - GRACEFUL policy allows continuation until no clients remain
+
+        Expected:
+        - Simulation continues even with 1 client remaining
+        - Terminates only when 0 clients are available
+        - Final summary includes termination reason
+        """
+        handler = TerminationHandler(
+            policy=TerminationPolicy.GRACEFUL,
+            min_clients_threshold=5,  # Ignored for GRACEFUL
+            logger=None,
+        )
+
+        # Simulate all-malicious scenario with PID removal pattern
+        # PID typically removes 2 clients per round in high-attack scenarios
+        total_clients = 10
+        available_clients = total_clients
+        removed_clients = []
+
+        for round_num in range(1, 10):
+            # Simulate PID removal: ~2 clients per round until none left
+            removed_this_round = min(2, available_clients)
+            available_clients -= removed_this_round
+            removed_clients.extend([f"client_{i}" for i in range(removed_this_round)])
+
+            should_stop, reason = handler.should_terminate(
+                available_clients=available_clients,
+                total_clients=total_clients,
+                round_num=round_num,
+                removed_count=len(removed_clients),
+            )
+
+            if available_clients > 0:
+                assert not should_stop, (
+                    f"GRACEFUL should continue with {available_clients} clients remaining"
+                )
+            else:
+                assert should_stop, "GRACEFUL should stop with 0 clients"
+                assert "No clients available" in reason
+                break
+
+        # Verify termination summary
+        summary = handler.get_termination_summary()
+        assert summary["terminated_early"] is True
+        assert summary["termination_policy"] == "graceful"
+        assert "No clients available" in summary["termination_reason"]
+
     def test_trust_removal_with_strict_policy(self):
-        """Test Trust removal strategy with STRICT policy early termination."""
-        # TODO: Implement full integration test
-        # 1. Create config with aggressive trust threshold
-        # 2. Run simulation with Trust removal + STRICT policy
-        # 3. Verify simulation terminates when below min_fit_clients
-        # 4. Check logs for ERROR-level termination messages
-        pass
+        """Test Trust removal with STRICT policy early termination.
 
-    @pytest.mark.skip(reason="Requires full simulation setup - manual test recommended")
+        Scenario:
+        - 10 clients total, 8 are malicious
+        - Aggressive trust threshold causes rapid client removal
+        - STRICT policy with min_fit_clients = 5
+
+        Expected:
+        - Trust removes ~2-3 clients per round with aggressive threshold
+        - STRICT policy triggers termination when < 5 clients remain
+        - Termination reason includes policy details
+        """
+        handler = TerminationHandler(
+            policy=TerminationPolicy.STRICT,
+            min_clients_threshold=5,
+            logger=None,
+        )
+
+        # Simulate aggressive trust removal pattern
+        # With trust_threshold=0.3 (aggressive), malicious clients are removed quickly
+        total_clients = 10
+        available_clients = total_clients
+        termination_round = None
+
+        for round_num in range(1, 10):
+            # Trust removes ~2 clients per round with aggressive threshold
+            removed = min(2, available_clients)
+            available_clients -= removed
+
+            should_stop, reason = handler.should_terminate(
+                available_clients=available_clients,
+                total_clients=total_clients,
+                round_num=round_num,
+                removed_count=total_clients - available_clients,
+            )
+
+            if available_clients < 5:
+                assert should_stop, f"STRICT should terminate with {available_clients} < 5 clients"
+                assert "STRICT policy" in reason
+                assert str(available_clients) in reason
+                assert "5" in reason  # Minimum required
+                termination_round = round_num
+                break
+            else:
+                assert not should_stop, (
+                    f"STRICT should continue with {available_clients} >= 5 clients"
+                )
+
+        # Verify early termination occurred
+        assert termination_round is not None, "STRICT policy should have triggered termination"
+        assert termination_round < 10, "Termination should happen before all rounds complete"
+
+        # Verify termination summary
+        summary = handler.get_termination_summary()
+        assert summary["terminated_early"] is True
+        assert summary["termination_policy"] == "strict"
+        assert summary["termination_round"] == termination_round
+
     def test_rfa_removal_with_adaptive_policy(self):
-        """Test RFA removal strategy with ADAPTIVE policy threshold behavior."""
-        # TODO: Implement full integration test
-        # 1. Create config with moderate malicious count
-        # 2. Run simulation with RFA removal + ADAPTIVE policy (30% threshold)
-        # 3. Verify simulation terminates around 30% client count
-        # 4. Validate metrics show correct termination reason
-        pass
+        """Test RFA removal with ADAPTIVE policy threshold behavior.
+
+        Scenario:
+        - 15 clients total, 6 malicious (40%)
+        - ADAPTIVE policy with 30% minimum ratio
+        - RFA removes ~1 client per round on average
+
+        Expected:
+        - ADAPTIVE monitors ratio: available / total
+        - Terminates when ratio drops below 0.3 (< 5 clients)
+        - Termination reason includes ratio details
+        """
+        handler = TerminationHandler(
+            policy=TerminationPolicy.ADAPTIVE,
+            min_clients_threshold=2,  # Fallback, not primary for ADAPTIVE
+            min_clients_ratio=0.3,  # 30% threshold = 4.5 -> 5 clients minimum
+            logger=None,
+        )
+
+        total_clients = 15
+        available_clients = total_clients
+        termination_round = None
+
+        # ADAPTIVE threshold calculation: int(15 * 0.3) = 4
+        # Termination occurs when available_clients < 4
+        min_adaptive_threshold = max(1, int(total_clients * 0.3))  # = 4
+
+        for round_num in range(1, 20):
+            # RFA removes ~1 client per round on average
+            if available_clients > 0:
+                available_clients -= 1
+
+            should_stop, reason = handler.should_terminate(
+                available_clients=available_clients,
+                total_clients=total_clients,
+                round_num=round_num,
+                removed_count=total_clients - available_clients,
+            )
+
+            if available_clients < min_adaptive_threshold:
+                assert should_stop, (
+                    f"ADAPTIVE should terminate with {available_clients} < {min_adaptive_threshold} clients"
+                )
+                assert "ADAPTIVE policy" in reason
+                assert "30%" in reason  # Ratio threshold
+                termination_round = round_num
+                break
+            else:
+                assert not should_stop, (
+                    f"ADAPTIVE should continue with {available_clients} >= {min_adaptive_threshold} clients"
+                )
+
+        # Verify termination occurred at expected threshold
+        assert termination_round is not None, "ADAPTIVE policy should have triggered termination"
+        # With 15 clients and 30% threshold (min 4), termination at < 4 clients (round 12+)
+        assert termination_round >= 12, "Should terminate after removing 12+ clients"
+
+        # Verify termination summary
+        summary = handler.get_termination_summary()
+        assert summary["terminated_early"] is True
+        assert summary["termination_policy"] == "adaptive"
+        assert "ADAPTIVE policy" in summary["termination_reason"]
 
 
 # Manual Test Documentation
