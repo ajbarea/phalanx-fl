@@ -31,6 +31,47 @@ def _display_image(ax, image: np.ndarray) -> None:
         ax.imshow(image.transpose(1, 2, 0))
 
 
+# ============================================================================
+# STANDARD TITLE STYLING (DRY principle - tweak once, apply everywhere)
+# ============================================================================
+TITLE_STYLE = {
+    "fontsize": 14,
+    "fontweight": "bold",
+    "color": "#2c3e50",  # Dark blue-gray for professional look
+}
+
+SUBTITLE_STYLE = {
+    "fontsize": 11,
+    "fontweight": "normal",
+    "color": "#7f8c8d",  # Lighter gray for subtitles
+    "style": "italic",
+}
+
+
+def _add_figure_title(
+    fig_or_ax,
+    title: str,
+    subtitle: str | None = None,
+    use_suptitle: bool = True,
+) -> None:
+    """Add a standardized title to a figure or axes.
+
+    Args:
+        fig_or_ax: Figure or Axes object to add title to.
+        title: Main title text.
+        subtitle: Optional subtitle text (appears on second line).
+        use_suptitle: If True, uses fig.suptitle(); if False, uses ax.set_title().
+    """
+    full_title = title
+    if subtitle:
+        full_title = f"{title}\n{subtitle}"
+
+    if use_suptitle:
+        fig_or_ax.suptitle(full_title, **TITLE_STYLE)
+    else:
+        fig_or_ax.set_title(full_title, pad=15, **TITLE_STYLE)
+
+
 def _normalize_axes(axes, rows: int, cols: int):
     """Normalize axes array to 2D for consistent indexing."""
     if rows == 1 and cols == 1:
@@ -264,10 +305,10 @@ def save_composite_synopsis(
 
     # Master title
     names = [cfg.get("attack_type", "?") for cfg in attack_config]
-    fig.suptitle(
-        f"Composite Attack Synopsis: {' + '.join(names)}\nPublication-ready multi-panel snapshot",
-        fontsize=16,
-        fontweight="bold",
+    _add_figure_title(
+        fig,
+        f"Composite Attack Synopsis: {' + '.join(names)}",
+        subtitle="Publication-ready multi-panel snapshot",
     )
 
     plt.savefig(filepath, dpi=300, bbox_inches="tight")
@@ -350,6 +391,8 @@ def save_image_grid(
             axes[row_idx][col_original].axis("off")
             axes[row_idx][col_poisoned].axis("off")
 
+        fig.canvas.draw()
+
         for row_idx in range(rows):
             for pair_idx in range(pairs_per_row - 1):
                 col_poisoned = pair_idx * 2 + 1
@@ -367,6 +410,10 @@ def save_image_grid(
                     alpha=0.6,
                 )
                 fig.add_artist(line)
+
+        # Add figure title
+        attack_display = attack_type.replace("_", " ").title()
+        _add_figure_title(fig, f"{attack_display}: Original vs Poisoned Comparison")
 
     else:
         max_cols = 8
@@ -399,6 +446,10 @@ def save_image_grid(
         total_subplots = rows * cols
         for i in range(num_samples, total_subplots):
             axes[i].axis("off")
+
+        # Add figure title
+        attack_display = attack_type.replace("_", " ").title()
+        _add_figure_title(fig, f"{attack_display}: Poisoned Samples")
 
     plt.savefig(filepath, dpi=150, bbox_inches="tight")
     plt.close()
@@ -491,11 +542,10 @@ def save_label_confusion_matrix(
 
     ax.set_xlabel("Poisoned Label", fontsize=12, fontweight="bold")
     ax.set_ylabel("Original Label", fontsize=12, fontweight="bold")
-    ax.set_title(
+    _add_figure_title(
+        ax,
         "Label Flipping Attack: Class Mapping Matrix",
-        fontsize=14,
-        fontweight="bold",
-        pad=15,
+        use_suptitle=False,
     )
 
     total_samples = len(original_labels)
@@ -515,7 +565,7 @@ def save_label_confusion_matrix(
         color="#555555",
     )
 
-    plt.savefig(filepath, dpi=300, bbox_inches="tight", facecolor="white")
+    plt.savefig(filepath, dpi=300, bbox_inches="tight", pad_inches=0.3, facecolor="white")
     plt.close()
 
 
@@ -566,12 +616,16 @@ def save_noise_difference_heatmap(
     noisy_norm = normalize_for_display(noisy_images)
     differences = noisy_norm - orig_norm
 
-    fig, axes = plt.subplots(
+    # Use subfigures: main content area + dedicated footer row
+    fig = plt.figure(figsize=(11, 3 * num_samples + 1.5), layout="constrained")
+    subfigs = fig.subfigures(2, 1, height_ratios=[1, 0.06], hspace=0.02)
+
+    # Main content subfigure
+    main_fig = subfigs[0]
+    axes = main_fig.subplots(
         num_samples,
         3,
-        figsize=(12, 3.5 * num_samples),
-        layout="constrained",
-        gridspec_kw={"wspace": 0.3, "hspace": 0.4},
+        gridspec_kw={"wspace": 0.15, "hspace": 0.25, "right": 0.72},
     )
 
     if num_samples == 1:
@@ -659,20 +713,18 @@ def save_noise_difference_heatmap(
                 rotation=90,
             )
 
-    cbar_ax = fig.add_axes((0.92, 0.15, 0.02, 0.7))
     assert im is not None, "No samples to display"
-    cbar = fig.colorbar(im, cax=cbar_ax)
+    cbar = main_fig.colorbar(im, ax=axes[:, 2], shrink=0.8, pad=0.15)
     cbar.set_label(
         "Pixel Difference (Noisy - Original)",
         rotation=270,
-        labelpad=20,
-        fontsize=11,
+        labelpad=15,
+        fontsize=10,
     )
 
     title = "Gaussian Noise Attack: Pixel-Level Difference Analysis"
-    if snr is not None:
-        title += f"\nTarget SNR: {snr} dB"
-    fig.suptitle(title, fontsize=14, fontweight="bold", y=0.98)
+    subtitle = f"Target SNR: {snr} dB" if snr is not None else None
+    _add_figure_title(main_fig, title, subtitle=subtitle)
 
     total_mean_diff = np.mean(np.abs(differences))
     total_max_diff = np.max(np.abs(differences))
@@ -684,17 +736,24 @@ def save_noise_difference_heatmap(
         f"Max Absolute Diff: {total_max_diff:.4f} | "
         f"Std Dev: {total_std_diff:.4f}"
     )
-    fig.text(
-        0.45,
-        0.02,
+
+    # Footer subfigure with dedicated stats area
+    footer_fig = subfigs[1]
+    footer_ax = footer_fig.add_axes([0, 0, 1, 1])
+    footer_ax.axis("off")
+    footer_ax.text(
+        0.5,
+        0.5,
         stats_text,
         ha="center",
+        va="center",
         fontsize=10,
         style="italic",
         color="#555555",
+        transform=footer_ax.transAxes,
     )
 
-    plt.savefig(filepath, dpi=300, bbox_inches="tight", facecolor="white")
+    plt.savefig(filepath, dpi=300, bbox_inches="tight", pad_inches=0.2, facecolor="white")
     plt.close()
 
 
@@ -722,51 +781,44 @@ def save_label_flipping_grid(
     num_rows = math.ceil(num_samples / samples_per_row)
 
     fig_width = 24
-    fig_height = 4 * num_rows + 1.5
+    fig_height = 4 * num_rows + 1.8
 
+    # Use subfigures: main content area + dedicated footer row
     fig = plt.figure(figsize=(fig_width, fig_height), layout="constrained")
+    subfigs = fig.subfigures(2, 1, height_ratios=[1, 0.05], hspace=0.02)
 
-    gs = fig.add_gridspec(
-        num_rows + 1,
+    # Add consistent figure title
+    _add_figure_title(
+        fig,
+        "Label Flipping: Original vs Corrupted Labels",
+        subtitle="⚠️ Training labels have been corrupted - images remain unchanged",
+    )
+
+    # Main content subfigure
+    main_fig = subfigs[0]
+    gs = main_fig.add_gridspec(
+        num_rows,
         samples_per_row * 2,  # 2 columns per sample (image + labels)
-        height_ratios=[0.4] + [1] * num_rows,
+        height_ratios=[1] * num_rows,
         width_ratios=[1, 1.2] * samples_per_row,
         hspace=0.4,
         wspace=0.3,
     )
-
-    ax_header = fig.add_subplot(gs[0, :])
-    ax_header.set_facecolor("#fff3cd")
-    ax_header.text(
-        0.5,
-        0.5,
-        "⚠️  LABEL FLIPPING ATTACK  ⚠️\n"
-        "Training labels have been corrupted - images remain unchanged",
-        ha="center",
-        va="center",
-        fontsize=14,
-        fontweight="bold",
-        color="#856404",
-        transform=ax_header.transAxes,
-    )
-    ax_header.set_xlim(0, 1)
-    ax_header.set_ylim(0, 1)
-    ax_header.axis("off")
 
     num_flipped = np.sum(original_labels != labels)
     flip_rate = num_flipped / len(labels) * 100 if len(labels) > 0 else 0
 
     axes_to_line = []
     for i in range(num_samples):
-        row_idx = i // samples_per_row + 1
+        row_idx = i // samples_per_row
         col_offset = (i % samples_per_row) * 2
 
-        ax_img = fig.add_subplot(gs[row_idx, col_offset])
+        ax_img = main_fig.add_subplot(gs[row_idx, col_offset])
         _display_image(ax_img, images[i])
         ax_img.axis("off")
         ax_img.set_title(f"Sample {i + 1}", fontsize=10, fontweight="bold", pad=5)
 
-        ax_labels = fig.add_subplot(gs[row_idx, col_offset + 1])
+        ax_labels = main_fig.add_subplot(gs[row_idx, col_offset + 1])
         ax_labels.set_xlim(0, 1)
         ax_labels.set_ylim(0, 1)
         ax_labels.axis("off")
@@ -777,8 +829,8 @@ def save_label_flipping_grid(
 
         ax_labels.add_patch(
             Rectangle(
-                (0.1, 0.6),
-                0.8,
+                (0.02, 0.6),
+                0.96,
                 0.25,
                 facecolor="#27ae60",
                 edgecolor="#1e8449",
@@ -812,8 +864,8 @@ def save_label_flipping_grid(
         edge_color = "#8b1c1c" if label_changed else "#7f8c8d"
         ax_labels.add_patch(
             Rectangle(
-                (0.1, 0.15),
-                0.8,
+                (0.02, 0.15),
+                0.96,
                 0.25,
                 facecolor=badge_color,
                 edgecolor=edge_color,
@@ -839,31 +891,39 @@ def save_label_flipping_grid(
         if (i + 1) % samples_per_row != 0 and (i + 1) < num_samples:
             axes_to_line.append(ax_labels)
 
+    main_fig.canvas.draw()
+
     for ax in axes_to_line:
         bbox = ax.get_position()
         line = Line2D(
             [bbox.x1 + 0.015, bbox.x1 + 0.015],
             [bbox.y0, bbox.y1],
-            transform=fig.transFigure,
+            transform=main_fig.transFigure,
             color="#95a5a6",
             linewidth=2,
             linestyle="-",
             alpha=0.6,
         )
-        fig.add_artist(line)
+        main_fig.add_artist(line)
 
-    fig.text(
+    # Footer subfigure with dedicated stats area
+    footer_fig = subfigs[1]
+    footer_ax = footer_fig.add_axes([0, 0, 1, 1])
+    footer_ax.axis("off")
+    footer_ax.text(
         0.5,
-        0.01,
+        0.5,
         f"Labels Flipped: {num_flipped}/{len(labels)} ({flip_rate:.1f}%)",
         ha="center",
+        va="center",
         fontsize=11,
         style="italic",
         color="#555555",
         bbox={"boxstyle": "round,pad=0.5", "facecolor": "#f8f9fa", "edgecolor": "#dee2e6"},
+        transform=footer_ax.transAxes,
     )
 
-    plt.savefig(filepath, dpi=150, bbox_inches="tight", facecolor="white")
+    plt.savefig(filepath, dpi=150, bbox_inches="tight", pad_inches=0.2, facecolor="white")
     plt.close()
 
 
@@ -990,7 +1050,19 @@ def save_weight_attack_prediction_grid(
         sorted_classes = sorted(display_classes.items(), key=lambda x: -x[1])
         return sorted_classes[:top_k]
 
-    fig = plt.figure(figsize=(16, 5 * num_samples + 1), layout="constrained")
+    # Use subfigures: main content area + dedicated footer row
+    fig = plt.figure(figsize=(16, 3.5 * num_samples + 1.8), layout="constrained")
+    subfigs = fig.subfigures(2, 1, height_ratios=[1, 0.08], hspace=0.02)
+
+    # Main content subfigure
+    main_fig = subfigs[0]
+    gs = main_fig.add_gridspec(
+        num_samples,
+        3,
+        width_ratios=[1, 1.5, 1.5],
+        hspace=0.20,
+        wspace=0.3,
+    )
 
     for i in range(num_samples):
         preds_before = predictions_before[i]
@@ -1032,20 +1104,12 @@ def save_weight_attack_prediction_grid(
             reverse=True,
         )
 
-        gs = fig.add_gridspec(
-            num_samples,
-            3,
-            width_ratios=[1, 1.5, 1.5],
-            hspace=0.4,
-            wspace=0.3,
-        )
-
-        ax_img = fig.add_subplot(gs[i, 0])
+        ax_img = main_fig.add_subplot(gs[i, 0])
         _display_image(ax_img, images[i])
         ax_img.axis("off")
         ax_img.set_title(f"Sample {i + 1}", fontsize=11, fontweight="bold")
 
-        ax_before = fig.add_subplot(gs[i, 1])
+        ax_before = main_fig.add_subplot(gs[i, 1])
         bar_labels = [
             f"✓ {get_class_name(c)}" if c == true_label else f"   {get_class_name(c)}"
             for c in all_classes
@@ -1082,7 +1146,7 @@ def save_weight_attack_prediction_grid(
                 fontsize=9,
             )
 
-        ax_after = fig.add_subplot(gs[i, 2])
+        ax_after = main_fig.add_subplot(gs[i, 2])
         bar_values_after = [after_confs.get(c, 0) * 100 for c in all_classes]
         bar_colors_after = ["#27ae60" if c == true_label else "#e74c3c" for c in all_classes]
         bar_edges_after = ["#1a7a3e" if c == true_label else "none" for c in all_classes]
@@ -1115,10 +1179,10 @@ def save_weight_attack_prediction_grid(
             )
 
     attack_display = attack_type.replace("_", " ").title()
-    fig.suptitle(
-        f"Weight Attack Prediction Impact: {attack_display}\n(✓ = Ground Truth Label)",
-        fontsize=14,
-        fontweight="bold",
+    _add_figure_title(
+        main_fig,
+        f"Weight Attack Prediction Impact: {attack_display}",
+        subtitle="(✓ = Ground Truth Label)",
     )
 
     pct_changed = weight_stats.get("pct_changed", 0)
@@ -1141,16 +1205,22 @@ def save_weight_attack_prediction_grid(
         f"Predictions changed: {pred_changes}/{len(predictions_before)} ({pred_change_pct:.0f}%)"
     )
 
-    fig.text(
+    # Footer subfigure with dedicated stats area
+    footer_fig = subfigs[1]
+    footer_ax = footer_fig.add_axes([0, 0, 1, 1])
+    footer_ax.axis("off")
+    footer_ax.text(
         0.5,
-        0.02,
+        0.5,
         stats_text,
         ha="center",
+        va="center",
         fontsize=10,
         style="italic",
         color="#555555",
         bbox={"boxstyle": "round,pad=0.5", "facecolor": "#f8f9fa", "edgecolor": "#dee2e6"},
+        transform=footer_ax.transAxes,
     )
 
-    plt.savefig(filepath, dpi=150, bbox_inches="tight", facecolor="white")
+    plt.savefig(filepath, dpi=150, bbox_inches="tight", pad_inches=0.2, facecolor="white")
     plt.close()

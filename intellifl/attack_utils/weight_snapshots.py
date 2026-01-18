@@ -16,6 +16,8 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
+from intellifl.attack_utils.snapshot_image_viz import TITLE_STYLE
+
 logger = logging.getLogger(__name__)
 
 
@@ -200,6 +202,13 @@ def _save_weight_histogram(
     weights_before = np.concatenate([p.flatten() for p in params_before])
     weights_after = np.concatenate([p.flatten() for p in params_after])
 
+    # Compute shared x-axis limits for consistent comparison
+    x_min = min(weights_before.min(), weights_after.min())
+    x_max = max(weights_before.max(), weights_after.max())
+    # Add small margin for visual padding
+    x_margin = (x_max - x_min) * 0.02
+    x_limits = (x_min - x_margin, x_max + x_margin)
+
     fig, axes = plt.subplots(1, 3, figsize=(15, 4), layout="constrained")
 
     axes[0].hist(weights_before, bins=100, alpha=0.7, color="blue", density=True)
@@ -207,12 +216,14 @@ def _save_weight_histogram(
     axes[0].set_xlabel("Weight Value")
     axes[0].set_ylabel("Density")
     axes[0].set_yscale("log")
+    axes[0].set_xlim(x_limits)
 
     axes[1].hist(weights_after, bins=100, alpha=0.7, color="red", density=True)
     axes[1].set_title("After Poisoning")
     axes[1].set_xlabel("Weight Value")
     axes[1].set_ylabel("Density")
     axes[1].set_yscale("log")
+    axes[1].set_xlim(x_limits)
 
     axes[2].hist(weights_before, bins=100, alpha=0.5, color="blue", density=True, label="Before")
     axes[2].hist(weights_after, bins=100, alpha=0.5, color="red", density=True, label="After")
@@ -220,9 +231,16 @@ def _save_weight_histogram(
     axes[2].set_xlabel("Weight Value")
     axes[2].set_ylabel("Density")
     axes[2].set_yscale("log")
+    axes[2].set_xlim(x_limits)
     axes[2].legend()
 
-    fig.suptitle(f"Weight Distribution - Client {client_id}, Round {round_num} ({attack_type})")
+    attack_display = attack_type.replace("_", " ").title()
+    fig.suptitle(
+        f"Weight Distribution - Client {client_id}, Round {round_num} ({attack_display})",
+        fontsize=TITLE_STYLE["fontsize"],
+        fontweight=TITLE_STYLE["fontweight"],
+        color=TITLE_STYLE["color"],
+    )
 
     histogram_path = snapshot_dir / f"{attack_type}_weight_histogram.png"
     plt.savefig(histogram_path, dpi=150, bbox_inches="tight")

@@ -15,6 +15,8 @@ from matplotlib.animation import FuncAnimation, PillowWriter
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FuncFormatter, MaxNLocator
 
+from intellifl.attack_utils.snapshot_image_viz import TITLE_STYLE
+
 DEFAULT_FPS = 2  # Slow enough to read, fast enough to engage
 DEFAULT_DPI = 150  # Balance of quality and file size
 DEFAULT_DURATION_PER_FRAME_MS = 500
@@ -77,6 +79,14 @@ def save_attack_timeline_gif(
             "axes.titlesize": 14,
             "axes.titleweight": "bold",
         }
+    )
+
+    # Add consistent figure title
+    fig.suptitle(
+        "Attack Timeline: Federation Rounds",
+        fontsize=TITLE_STYLE["fontsize"],
+        fontweight=TITLE_STYLE["fontweight"],
+        color=TITLE_STYLE["color"],
     )
 
     ax.imshow(
