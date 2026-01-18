@@ -1,6 +1,6 @@
 /**
  * Frontend Validation Utilities
- * Mirrors backend validation logic from src/config_loaders/validate_strategy_config.py
+ * Mirrors backend validation logic from intellifl/config_loaders/validate_strategy_config.py
  *
  * Returns validation results with errors, warnings, and info messages
  */
