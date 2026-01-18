@@ -166,7 +166,7 @@ class TestSimulationRunnerInitialization:
             ]
             mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
             mock_config_loader.return_value = mock_loader_instance
-            mock_directory_handler.return_value = Mock()
+            mock_directory_handler.return_value = Mock(dirname="/tmp/test_output")
 
             runner = SimulationRunner("test_strategy.json")
 
@@ -213,7 +213,7 @@ class TestSimulationRunnerInitialization:
             ]
             mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
             mock_config_loader.return_value = mock_loader_instance
-            mock_directory_handler.return_value = Mock()
+            mock_directory_handler.return_value = Mock(dirname="/tmp/test_output")
 
             runner = SimulationRunner("multi_strategy.json")
 
@@ -242,7 +242,7 @@ class TestSimulationRunnerInitialization:
             mock_loader_instance.get_usecase_config_list.return_value = []
             mock_loader_instance.get_dataset_config_list.return_value = []
             mock_config_loader.return_value = mock_loader_instance
-            mock_directory_handler.return_value = Mock()
+            mock_directory_handler.return_value = Mock(dirname="/tmp/test_output")
 
             SimulationRunner("test_config.json")
 
@@ -473,7 +473,7 @@ class TestSimulationRunnerConfigurationProcessing:
             ]
             mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
             mock_config_loader.return_value = mock_loader_instance
-            mock_directory_handler.return_value = Mock()
+            mock_directory_handler.return_value = Mock(dirname="/tmp/test_output")
 
             runner = SimulationRunner("test_config.json")
 
@@ -512,7 +512,7 @@ class TestSimulationRunnerConfigurationProcessing:
                 }
             ]
             mock_config_loader.return_value = mock_loader_instance
-            mock_directory_handler.return_value = Mock()
+            mock_directory_handler.return_value = Mock(dirname="/tmp/test_output")
 
             runner = SimulationRunner("test_config.json")
 
@@ -560,7 +560,7 @@ class TestSimulationRunnerConfigurationProcessing:
             mock_loader_instance.get_usecase_config_list.return_value = [base_config]
             mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
             mock_config_loader.return_value = mock_loader_instance
-            mock_directory_handler.return_value = Mock()
+            mock_directory_handler.return_value = Mock(dirname="/tmp/test_output")
 
             runner = SimulationRunner("test_config.json")
 
@@ -807,7 +807,7 @@ class TestSimulationRunnerLogging:
         """Test that strategy execution is properly logged."""
         with (
             patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader,
-            patch("intellifl.simulation_runner.DirectoryHandler"),
+            patch("intellifl.simulation_runner.DirectoryHandler") as mock_directory_handler,
             patch("intellifl.simulation_runner.DatasetHandler"),
             patch("intellifl.simulation_runner.FederatedSimulation"),
             patch("intellifl.simulation_runner.new_plot_handler"),
@@ -824,6 +824,7 @@ class TestSimulationRunnerLogging:
             ]
             mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
             mock_config_loader.return_value = mock_loader_instance
+            mock_directory_handler.return_value = Mock(dirname="/tmp/test_output")
 
             runner = SimulationRunner("test_config.json")
 
@@ -846,7 +847,7 @@ class TestSimulationRunnerLogging:
 
         with (
             patch("intellifl.simulation_runner.ConfigLoader") as mock_config_loader,
-            patch("intellifl.simulation_runner.DirectoryHandler"),
+            patch("intellifl.simulation_runner.DirectoryHandler") as mock_directory_handler,
             patch("intellifl.simulation_runner.DatasetHandler"),
             patch("intellifl.simulation_runner.FederatedSimulation"),
             patch("intellifl.simulation_runner.new_plot_handler"),
@@ -857,6 +858,7 @@ class TestSimulationRunnerLogging:
                 {"femnist_iid": "datasets/femnist_iid"}
             ]
             mock_config_loader.return_value = mock_loader_instance
+            mock_directory_handler.return_value = Mock(dirname="/tmp/test_output")
 
             runner = SimulationRunner("test_config.json")
 
