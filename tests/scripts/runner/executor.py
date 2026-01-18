@@ -23,6 +23,8 @@ from rich.progress import (
     TextColumn,
 )
 
+from intellifl.utils.warnings_config import get_subprocess_env_vars
+
 from .timing_db import TimingDatabase
 
 console = Console()
@@ -277,6 +279,7 @@ class ExperimentExecutor:
 
         env = os.environ.copy()
         env["PYTHONPATH"] = str(self.project_root)
+        env.update(get_subprocess_env_vars())
 
         stderr_buffer = []
 

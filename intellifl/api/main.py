@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from intellifl.utils.warnings_config import apply_env_vars, configure_warnings
+from intellifl.utils.warnings_config import (
+    apply_env_vars,
+    configure_warnings,
+    get_subprocess_env_vars,
+)
 
 apply_env_vars()
 
@@ -459,8 +463,7 @@ async def create_simulation(request: CreateSimulationRequest) -> dict[str, Any]:
             env["LOKY_MAX_CPU_COUNT"] = str(physical_cores)
         except ImportError:
             env["LOKY_MAX_CPU_COUNT"] = str(multiprocessing.cpu_count())
-        env["PYTHONWARNINGS"] = "ignore::RuntimeWarning:threadpoolctl"
-        env["RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO"] = "0"
+        env.update(get_subprocess_env_vars())
 
         with error_log_path.open("w") as error_log:
             command = [
