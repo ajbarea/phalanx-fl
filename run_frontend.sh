@@ -54,7 +54,7 @@ FRONTEND_LOG="tests/logs/frontend_dev_$(date +%Y%m%d_%H%M%S).log"
 : > "$API_LOG"
 : > "$FRONTEND_LOG"
 
-uvicorn src.api.main:app --reload --port 8000 > "$API_LOG" 2>&1 &
+uvicorn intellifl.api.main:app --reload --port 8000 > "$API_LOG" 2>&1 &
 API_PID=$!
 
 (cd frontend && npm run dev > "../$FRONTEND_LOG" 2>&1) &

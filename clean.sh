@@ -18,7 +18,7 @@
 #   - Dependency backups: uv.lock.backup.*
 #
 # What is preserved:
-#   - Source code (src/, tests/, frontend/src/)
+#   - Source code (intellifl/, tests/, frontend/src/)
 #   - Datasets (datasets/)
 #   - Configuration files
 #   - Virtual environment (.venv/)

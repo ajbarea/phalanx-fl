@@ -16,7 +16,7 @@
 #
 # Dependencies: python3 (3.10-3.13)
 
-# PYTHONPATH must include project root for Python to find src/ modules.
+# PYTHONPATH must include project root for Python to find intellifl/ modules.
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export PYTHONPATH="$SCRIPT_DIR"
 

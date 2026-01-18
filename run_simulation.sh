@@ -10,7 +10,7 @@
 # The script will:
 #   1. Create/activate virtual environment (runs reinstall_requirements.sh if missing)
 #   2. Download datasets from S3 if datasets/bloodmnist/ doesn't exist
-#   3. Run the simulation via src.simulation_runner
+#   3. Run the simulation via intellifl.simulation_runner
 #
 # Dependencies: python3 (3.10-3.13), wget (optional, falls back to Python urllib)
 
@@ -52,7 +52,7 @@ if [ ! -d "datasets/bloodmnist" ]; then
 fi
 
 log_info "🚀 Initializing simulation..."
-if run_python -m src.simulation_runner; then
+if run_python -m intellifl.simulation_runner; then
     echo ""
     show_simulation_output_info "out/"
 else
