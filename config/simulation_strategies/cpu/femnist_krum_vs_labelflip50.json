@@ -2,7 +2,7 @@
     "_title": "Krum vs 50% Label Flipping (FEMNIST)",
     "shared_settings": {
         "aggregation_strategy_keyword": "krum",
-        "num_of_malicious_clients": 5,
+        "num_of_malicious_clients": 3,
         "remove_clients": true,
         "dataset_keyword": "femnist_iid",
         "model_type": "cnn",
@@ -40,7 +40,7 @@
                     "flip_fraction": 1.0,
                     "target_class": 7,
                     "selection_strategy": "percentage",
-                    "malicious_percentage": 0.5
+                    "malicious_percentage": 0.3
                 }
             ]
         }
