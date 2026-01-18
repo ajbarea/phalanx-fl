@@ -16,6 +16,7 @@ WARNING_FILTERS: dict[str, dict[str, Any]] = {
             "RAY_METRICS_EXPORT_PORT_ENABLED": "0",
             "RAY_enable_export_api_write": "0",
             "RAY_BACKEND_LOG_LEVEL": "fatal",
+            "RAY_DEDUP_LOGS_SKIP_REGEX": r"logging\.cc.*Set ray log level",
         },
         "description": "Suppress Ray metrics exporter agent connection warnings (RpcError: 14)",
     },
@@ -96,6 +97,26 @@ def apply_env_vars(filter_keys: list[str] | None = None) -> None:
 
         for var_name, var_value in env_vars.items():
             os.environ.setdefault(var_name, var_value)
+
+
+def get_subprocess_env_vars(filter_keys: list[str] | None = None) -> dict[str, str]:
+    """Get environment variables dict for subprocess spawning.
+
+    Use this to update a subprocess env dict before spawning:
+        env = os.environ.copy()
+        env.update(get_subprocess_env_vars())
+    """
+    keys = filter_keys or list(WARNING_FILTERS.keys())
+    env_vars: dict[str, str] = {}
+
+    for key in keys:
+        if key not in WARNING_FILTERS:
+            continue
+        config = WARNING_FILTERS[key]
+        for var_name, var_value in config.get("env_vars", {}).items():
+            env_vars[var_name] = var_value
+
+    return env_vars
 
 
 def apply_filter(key: str) -> None:
