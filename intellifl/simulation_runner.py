@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import atexit
 import gc
 import json
 import logging
 import os
+import signal
+import sys
 import time
 from pathlib import Path
 
@@ -26,6 +29,52 @@ import ray
 import torch
 
 configure_warnings()
+
+_shutdown_requested = False
+
+
+def _handle_shutdown_signal(_signum: int, _frame) -> None:
+    """Handle SIGINT/SIGTERM for graceful shutdown.
+
+    First signal: Set flag to stop after current strategy completes.
+    Second signal: Force exit immediately.
+    """
+    global _shutdown_requested
+    if _shutdown_requested:
+        logging.warning("Force quit requested (second interrupt)")
+        _force_cleanup()
+        sys.exit(130)
+    _shutdown_requested = True
+    logging.info(
+        "Shutdown requested. Will stop after current strategy completes. "
+        "(Press Ctrl+C again to force quit)"
+    )
+
+
+def _force_cleanup() -> None:
+    """Force cleanup of Ray resources."""
+    if ray.is_initialized():
+        logging.info("Force shutting down Ray...")
+        try:
+            ray.shutdown()
+        except Exception as e:
+            logging.warning(f"Error during Ray shutdown: {e}")
+
+
+def _atexit_cleanup() -> None:
+    """Cleanup handler called on normal exit or sys.exit()."""
+    if ray.is_initialized():
+        logging.debug("atexit: Cleaning up Ray resources...")
+        try:
+            ray.shutdown()
+            time.sleep(1.0)  # Brief delay for cleanup
+        except Exception as e:
+            logging.warning(f"atexit: Error during Ray shutdown: {e}")
+
+atexit.register(_atexit_cleanup)
+signal.signal(signal.SIGINT, _handle_shutdown_signal)
+if hasattr(signal, "SIGTERM"):  # SIGTERM not available on Windows in all contexts
+    signal.signal(signal.SIGTERM, _handle_shutdown_signal)
 
 from intellifl.config_loaders.config_loader import ConfigLoader
 from intellifl.data_models.simulation_strategy_config import StrategyConfig
@@ -99,6 +148,22 @@ class SimulationRunner:
         else:
             self._directory_handler = DirectoryHandler()
 
+        self._setup_file_logging(log_level)
+
+    def _setup_file_logging(self, log_level: str) -> None:
+        """Configure file logging to output.log in the simulation directory."""
+        assert self._directory_handler.dirname is not None
+        log_file_path = Path(self._directory_handler.dirname) / "output.log"
+
+        file_handler = logging.FileHandler(log_file_path, mode="a", encoding="utf-8")
+        file_handler.setLevel(getattr(logging, log_level))
+        file_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+
+        root_logger = logging.getLogger()
+        root_logger.addHandler(file_handler)
+
+        logging.info(f"Logging to file: {log_file_path}")
+
     def run(self):
         """Run simulations according to the specified usecase config"""
 
@@ -155,6 +220,13 @@ class SimulationRunner:
                     status_tracker.total_strategies = total_strategies
 
                     if strategy_number >= total_strategies:
+                        break
+
+                    if _shutdown_requested:
+                        logging.info(
+                            f"Shutdown requested. Stopping after strategy {strategy_number - 1}. "
+                            f"Skipping remaining {total_strategies - strategy_number} strategies."
+                        )
                         break
 
                     strategy_config_dict = self._simulation_strategy_config_dicts[strategy_number]
@@ -316,5 +388,14 @@ if __name__ == "__main__":
     """Run simulation with config file and optional log level."""
     args = parse_arguments()
 
-    simulation_runner = SimulationRunner(args.config_filename, args.log_level)
-    simulation_runner.run()
+    try:
+        simulation_runner = SimulationRunner(args.config_filename, args.log_level)
+        simulation_runner.run()
+    except KeyboardInterrupt:
+        logging.info("Simulation interrupted by user")
+        _force_cleanup()
+        sys.exit(130)
+    except Exception as e:
+        logging.error(f"Simulation failed with error: {e}")
+        _force_cleanup()
+        sys.exit(1)
