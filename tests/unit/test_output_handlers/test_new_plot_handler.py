@@ -670,36 +670,36 @@ class TestPlotHandler:
         assert len(legend_calls) > 0
 
     @patch("matplotlib.pyplot.show")
-    @patch("matplotlib.pyplot.tight_layout")
     @patch("matplotlib.pyplot.figure")
     def test_show_plots_within_strategy_layout_adjustment(
         self,
         mock_figure,
-        mock_tight_layout,
         mock_show,
         mock_simulation_strategy,
         mock_directory_handler,
     ):
-        """Verifies tight_layout is called for plot layout."""
+        """Verifies constrained layout is used for plots."""
         show_plots_within_strategy(mock_simulation_strategy, mock_directory_handler)
 
-        mock_tight_layout.assert_called()
+        mock_figure.assert_called()
+        call_kwargs = mock_figure.call_args_list[0].kwargs
+        assert call_kwargs.get("layout") == "constrained"
 
     @patch("matplotlib.pyplot.show")
-    @patch("matplotlib.pyplot.tight_layout")
     @patch("matplotlib.pyplot.figure")
     def test_show_inter_strategy_plots_layout_adjustment(
         self,
         mock_figure,
-        mock_tight_layout,
         mock_show,
         mock_multiple_strategies,
         mock_directory_handler,
     ):
-        """Verifies tight_layout is called for inter-strategy plots."""
+        """Verifies constrained layout is used for inter-strategy plots."""
         show_inter_strategy_plots(mock_multiple_strategies, mock_directory_handler)
 
-        mock_tight_layout.assert_called()
+        mock_figure.assert_called()
+        call_kwargs = mock_figure.call_args_list[0].kwargs
+        assert call_kwargs.get("layout") == "constrained"
 
     def test_plot_configuration_constants_access(self):
         """Verifies plot_size and bar_width constants have expected types."""
