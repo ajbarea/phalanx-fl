@@ -2,7 +2,7 @@
 #   docker compose up --build        # Build and run
 #   docker compose up -d             # Run in background
 #   docker compose down              # Stop
-#   docker compose run --rm api python -m src.simulation_runner <config.json>
+#   docker compose run --rm api python -m intellifl.simulation_runner <config.json>
 
 services:
   api:

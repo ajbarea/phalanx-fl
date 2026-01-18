@@ -41,7 +41,7 @@ COPY pyproject.toml uv.lock ./
 ENV UV_PROJECT_ENVIRONMENT=/opt/conda
 RUN uv sync --frozen --no-cache
 
-COPY src/ ./src/
+COPY intellifl/ ./intellifl/
 COPY config/ ./config/
 COPY tests/ ./tests/
 
@@ -57,4 +57,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
 ENTRYPOINT ["./entrypoint.sh"]
-CMD ["python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "intellifl.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

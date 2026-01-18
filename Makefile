@@ -86,7 +86,7 @@ docker-all: docker docker-frontend
 
 # Mutation testing (runs in Docker to avoid Windows compatibility issues)
 mutmut:
-	@docker run --rm --entrypoint sh -v $(CURDIR)/src:/app/src -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/.mutmut-cache:/app/.mutmut-cache intellifl-api:latest -c "cd /app && mutmut run"
+	@docker run --rm --entrypoint sh -v $(CURDIR)/intellifl:/app/intellifl -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/.mutmut-cache:/app/.mutmut-cache intellifl-api:latest -c "cd /app && mutmut run"
 
 mutmut-results:
 	@docker run --rm --entrypoint sh -v $(CURDIR)/.mutmut-cache:/app/.mutmut-cache intellifl-api:latest -c "mutmut results"

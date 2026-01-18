@@ -19,7 +19,7 @@ test-simulation:
     - echo "Installing dependencies with uv..."
     - uv sync --frozen --system
     - echo "Starting simulation..."
-    - python src/simulation_runner.py
+    - python intellifl/simulation_runner.py
   artifacts:
     paths:
       - out/

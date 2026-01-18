@@ -30,15 +30,15 @@ jobs:
 
       - name: Run unit tests (parallel)
         run: |
-          uv run coverage run --append --source=src -m pytest -n auto tests/unit/ --tb=short
+          uv run coverage run --append --source=intellifl -m pytest -n auto tests/unit/ --tb=short
 
       - name: Run integration tests (serial)
         run: |
-          uv run coverage run --append --source=src -m pytest tests/integration/ --tb=short
+          uv run coverage run --append --source=intellifl -m pytest tests/integration/ --tb=short
 
       - name: Run performance tests (serial)
         run: |
-          uv run coverage run --append --source=src -m pytest tests/performance/ --tb=short
+          uv run coverage run --append --source=intellifl -m pytest tests/performance/ --tb=short
 
       - name: Generate final coverage report
         run: |
