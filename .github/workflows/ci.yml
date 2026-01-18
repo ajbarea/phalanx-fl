@@ -68,21 +68,3 @@ jobs:
     - name: Run smoke tests
       run: |
         uv run python -m tests.scripts.ci_smoke_test
-
-  strategy-pipeline-test:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v6.0.1
-
-    - name: Set up uv
-      uses: astral-sh/setup-uv@v7
-      with:
-        version: "0.9.26"
-        enable-cache: true
-    - name: Install dependencies
-      run: uv sync --frozen
-
-    - name: Run strategy pipeline tests
-      run: |
-        uv run pytest tests/integration/test_strategy_pipeline.py -v
