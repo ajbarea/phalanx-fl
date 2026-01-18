@@ -200,7 +200,7 @@ def _save_weight_histogram(
     weights_before = np.concatenate([p.flatten() for p in params_before])
     weights_after = np.concatenate([p.flatten() for p in params_after])
 
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4), layout="constrained")
 
     axes[0].hist(weights_before, bins=100, alpha=0.7, color="blue", density=True)
     axes[0].set_title("Before Poisoning")
@@ -223,7 +223,6 @@ def _save_weight_histogram(
     axes[2].legend()
 
     fig.suptitle(f"Weight Distribution - Client {client_id}, Round {round_num} ({attack_type})")
-    plt.tight_layout()
 
     histogram_path = snapshot_dir / f"{attack_type}_weight_histogram.png"
     plt.savefig(histogram_path, dpi=150, bbox_inches="tight")

@@ -69,7 +69,7 @@ def save_attack_timeline_gif(
                 matrix[client_idx, round_idx] = 1
                 attack_matrix[client_idx][round_idx] = attacks[0] if attacks else None
 
-    fig, ax = plt.subplots(figsize=figsize, facecolor="white")
+    fig, ax = plt.subplots(figsize=figsize, facecolor="white", layout="constrained")
     plt.rcParams.update(
         {
             "font.family": "sans-serif",
@@ -148,8 +148,6 @@ def save_attack_timeline_gif(
             shadow=True,
         )
 
-    plt.tight_layout()
-
     def init():
         round_text.set_text("Round 0 / Starting...")
         for i in range(total_clients):
@@ -211,7 +209,7 @@ def save_accuracy_progression_gif(
     accuracies = [m.get("accuracy", 0) * 100 for m in round_metrics]
     total_rounds = len(rounds)
 
-    fig, ax = plt.subplots(figsize=figsize, facecolor="white")
+    fig, ax = plt.subplots(figsize=figsize, facecolor="white", layout="constrained")
     plt.rcParams.update(
         {
             "font.family": "sans-serif",
@@ -260,7 +258,6 @@ def save_accuracy_progression_gif(
     )
 
     ax.legend(loc="lower right")
-    plt.tight_layout()
 
     def init():
         line.set_data([], [])
@@ -323,7 +320,7 @@ def save_client_comparison_gif(
     client_ids = sorted(per_client_metrics.keys())
     total_rounds = max(len(metrics) for metrics in per_client_metrics.values())
 
-    fig, ax = plt.subplots(figsize=figsize, facecolor="white")
+    fig, ax = plt.subplots(figsize=figsize, facecolor="white", layout="constrained")
 
     honest_color = "#2ecc71"
     malicious_color = "#e74c3c"
@@ -367,7 +364,6 @@ def save_client_comparison_gif(
     )
 
     ax.legend(loc="lower right", ncol=2, fontsize=9)
-    plt.tight_layout()
 
     def init():
         for line in lines.values():

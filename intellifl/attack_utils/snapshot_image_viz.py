@@ -175,7 +175,11 @@ def save_composite_synopsis(
     has_flip = any(cfg.get("attack_type") == "label_flipping" for cfg in attack_config)
 
     fig, axes = plt.subplots(
-        num_samples, 3, figsize=(15, 4 * num_samples), gridspec_kw={"wspace": 0.2, "hspace": 0.3}
+        num_samples,
+        3,
+        figsize=(15, 4 * num_samples),
+        layout="constrained",
+        gridspec_kw={"wspace": 0.2, "hspace": 0.3},
     )
 
     if num_samples == 1:
@@ -260,14 +264,12 @@ def save_composite_synopsis(
 
     # Master title
     names = [cfg.get("attack_type", "?") for cfg in attack_config]
-    plt.suptitle(
+    fig.suptitle(
         f"Composite Attack Synopsis: {' + '.join(names)}\nPublication-ready multi-panel snapshot",
         fontsize=16,
         fontweight="bold",
-        y=0.98,
     )
 
-    plt.tight_layout(rect=(0, 0, 1, 0.95))
     plt.savefig(filepath, dpi=300, bbox_inches="tight")
     plt.close()
 
@@ -302,7 +304,11 @@ def save_image_grid(
         figsize = (3 * cols, 3 * rows)
 
         fig, axes = plt.subplots(
-            rows, cols, figsize=figsize, gridspec_kw={"wspace": 0.3, "hspace": 0.5}
+            rows,
+            cols,
+            figsize=figsize,
+            layout="constrained",
+            gridspec_kw={"wspace": 0.3, "hspace": 0.5},
         )
 
         axes = _normalize_axes(axes, rows, cols)
@@ -443,7 +449,7 @@ def save_label_confusion_matrix(
     percentages = confusion / row_sums * 100
 
     fig_size = max(6, num_classes * 0.8)
-    fig, ax = plt.subplots(figsize=(fig_size, fig_size), dpi=100)
+    fig, ax = plt.subplots(figsize=(fig_size, fig_size), dpi=100, layout="constrained")
 
     im = ax.imshow(confusion, cmap="Blues", aspect="equal")
 
@@ -501,7 +507,7 @@ def save_label_confusion_matrix(
     )
     fig.text(
         0.5,
-        0.02,
+        0.01,
         stats_text,
         ha="center",
         fontsize=10,
@@ -509,7 +515,6 @@ def save_label_confusion_matrix(
         color="#555555",
     )
 
-    plt.tight_layout(rect=(0, 0.05, 1, 1))
     plt.savefig(filepath, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close()
 
@@ -565,6 +570,7 @@ def save_noise_difference_heatmap(
         num_samples,
         3,
         figsize=(12, 3.5 * num_samples),
+        layout="constrained",
         gridspec_kw={"wspace": 0.3, "hspace": 0.4},
     )
 
@@ -718,7 +724,7 @@ def save_label_flipping_grid(
     fig_width = 24
     fig_height = 4 * num_rows + 1.5
 
-    fig = plt.figure(figsize=(fig_width, fig_height))
+    fig = plt.figure(figsize=(fig_width, fig_height), layout="constrained")
 
     gs = fig.add_gridspec(
         num_rows + 1,
@@ -727,10 +733,6 @@ def save_label_flipping_grid(
         width_ratios=[1, 1.2] * samples_per_row,
         hspace=0.4,
         wspace=0.3,
-        left=0.05,
-        right=0.95,
-        top=0.92,
-        bottom=0.05,
     )
 
     ax_header = fig.add_subplot(gs[0, :])
@@ -988,7 +990,7 @@ def save_weight_attack_prediction_grid(
         sorted_classes = sorted(display_classes.items(), key=lambda x: -x[1])
         return sorted_classes[:top_k]
 
-    fig = plt.figure(figsize=(16, 5 * num_samples + 1))
+    fig = plt.figure(figsize=(16, 5 * num_samples + 1), layout="constrained")
 
     for i in range(num_samples):
         preds_before = predictions_before[i]
@@ -1036,10 +1038,6 @@ def save_weight_attack_prediction_grid(
             width_ratios=[1, 1.5, 1.5],
             hspace=0.4,
             wspace=0.3,
-            left=0.05,
-            right=0.95,
-            top=0.92,
-            bottom=0.08,
         )
 
         ax_img = fig.add_subplot(gs[i, 0])

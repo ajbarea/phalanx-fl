@@ -227,7 +227,7 @@ def show_plots_within_strategy(
     plottable_metrics = list_of_client_histories[0].plottable_metrics
 
     for metric_name in plottable_metrics:
-        plt.figure(figsize=plot_size)
+        plt.figure(figsize=plot_size, layout="constrained")
         ax = plt.gca()
 
         if simulation_strategy.strategy_config.attack_schedule:
@@ -304,7 +304,6 @@ def show_plots_within_strategy(
         )
         ax = plt.gca()
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
-        plt.tight_layout()
 
         if simulation_strategy.strategy_config.save_plots:
             plt.savefig(
@@ -337,7 +336,7 @@ def show_inter_strategy_plots(
     ].strategy_history.rounds_history.plottable_metrics
 
     for metric_name in plottable_metrics:
-        plt.figure(figsize=plot_size)
+        plt.figure(figsize=plot_size, layout="constrained")
 
         for simulation_strategy in executed_simulation_strategies:
             round_info = simulation_strategy.strategy_history.rounds_history
@@ -362,7 +361,6 @@ def show_inter_strategy_plots(
         if any(ax.get_legend_handles_labels()):
             plt.legend(title="strategies", loc="upper center", bbox_to_anchor=(0.5, -0.1))
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
-        plt.tight_layout()
 
         if executed_simulation_strategies[0].strategy_config.save_plots:
             plt.savefig(f"{directory_handler.new_plots_dirname}/{metric_name}.pdf")
@@ -378,7 +376,7 @@ def show_inter_strategy_plots(
     ].strategy_history.rounds_history.barable_metrics
 
     for metric_name in barable_metrics:
-        plt.figure(figsize=plot_size)
+        plt.figure(figsize=plot_size, layout="constrained")
 
         rounds_array = np.arange(len(rounds))
         num_strategies = len(executed_simulation_strategies)
@@ -410,7 +408,6 @@ def show_inter_strategy_plots(
             rounds_array + (num_strategies - 1) * bar_width / 2
         )  # Adjust x-ticks to align
         ax.set_xticklabels(rounds)
-        plt.tight_layout()
 
         if executed_simulation_strategies[0].strategy_config.save_plots:
             plt.savefig(f"{directory_handler.new_plots_dirname}/{metric_name}.pdf")
