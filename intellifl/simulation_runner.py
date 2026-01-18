@@ -71,6 +71,7 @@ def _atexit_cleanup() -> None:
         except Exception as e:
             logging.warning(f"atexit: Error during Ray shutdown: {e}")
 
+
 atexit.register(_atexit_cleanup)
 signal.signal(signal.SIGINT, _handle_shutdown_signal)
 if hasattr(signal, "SIGTERM"):  # SIGTERM not available on Windows in all contexts
