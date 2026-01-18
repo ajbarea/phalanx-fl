@@ -47,13 +47,13 @@ if [ "$TEST_MODE" = true ] || [ "$SONAR_MODE" = true ]; then
 fi
 
 log_info "⚡ Running ruff check..."
-ruff check --fix src tests
+ruff check --fix intellifl tests
 
 log_info "⚡ Running isort..."
-isort --quiet src tests
+isort --quiet intellifl tests
 
 log_info "⚡ Running ruff format..."
-ruff format src tests
+ruff format intellifl tests
 
 log_info "✨ Running frontend linting..."
 cd frontend && npm run lint && npm run format -- --log-level warn && cd ..
@@ -63,7 +63,7 @@ mypy --config-file=pyproject.toml
 
 if command_exists pyright; then
     log_info "🔍 Running pyright..."
-    pyright src/ tests/
+    pyright intellifl/ tests/
 else
     log_warning "Pyright not found. Skipping. To install: npm install -g pyright"
 fi
@@ -81,17 +81,17 @@ run_pytest_suite() {
     # Unit tests run in parallel - they're isolated and benefit from xdist.
     log_info "🧪 Running unit tests in parallel (xdist)..."
     run_python -m coverage erase
-    run_python -m coverage run --append --source=src -m pytest -n auto tests/unit/ --tb=short
+    run_python -m coverage run --append --source=intellifl -m pytest -n auto tests/unit/ --tb=short
 
     # Integration tests run serially to avoid port conflicts, database locks,
     # and other shared resource issues.
     log_info "🧪 Running integration tests serially..."
-    run_python -m coverage run --append --source=src -m pytest tests/integration/ --tb=short
+    run_python -m coverage run --append --source=intellifl -m pytest tests/integration/ --tb=short
 
     # Performance tests run serially to ensure accurate timing measurements
     # without interference from parallel test execution.
     log_info "🧪 Running performance tests serially..."
-    run_python -m coverage run --append --source=src -m pytest tests/performance/ --tb=short
+    run_python -m coverage run --append --source=intellifl -m pytest tests/performance/ --tb=short
 
     log_info "📊 Generating coverage reports..."
     run_python -m coverage xml -o "$LOG_DIR/coverage.xml"

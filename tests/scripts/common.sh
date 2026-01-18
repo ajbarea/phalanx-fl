@@ -131,10 +131,10 @@ command_exists() {
 # Navigate to the project root directory.
 #
 # Detects the project root by looking for pyproject.toml or requirements.txt
-# with a src directory. If not already at root, navigates up from common
+# with the intellifl directory. If not already at root, navigates up from common
 # script locations (tests/scripts, tests).
 navigate_to_root() {
-    if { [ -f "pyproject.toml" ] || [ -f "requirements.txt" ]; } && [ -d "src" ]; then
+    if { [ -f "pyproject.toml" ] || [ -f "requirements.txt" ]; } && [ -d "intellifl" ]; then
         return
     fi
     script_dir="$(cd "$(dirname "$0")" && pwd)"

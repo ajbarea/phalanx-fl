@@ -269,7 +269,7 @@ class ExperimentExecutor:
 
         cmd = [
             self.python_exe,
-            "src/simulation_runner.py",
+            "intellifl/simulation_runner.py",
             config_path_arg,
             "--log-level",
             self.log_level,

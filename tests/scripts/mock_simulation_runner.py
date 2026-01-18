@@ -23,31 +23,31 @@ import torch
 from flwr.common import ndarrays_to_parameters
 from rich.console import Console
 
-from src.attack_utils.attack_snapshots import save_attack_snapshot
-from src.attack_utils.snapshot_html_reports import (
+from intellifl.attack_utils.attack_snapshots import save_attack_snapshot
+from intellifl.attack_utils.snapshot_html_reports import (
     generate_main_dashboard,
     generate_snapshot_index,
     generate_summary_json,
 )
-from src.data_models.simulation_strategy_config import StrategyConfig
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.output_handlers import new_plot_handler
-from src.output_handlers.directory_handler import DirectoryHandler
-from src.simulation_strategies.bulyan_strategy import BulyanStrategy
-from src.simulation_strategies.fedavg_strategy import FedAvgStrategy
-from src.simulation_strategies.krum_based_removal_strategy import (
+from intellifl.data_models.simulation_strategy_config import StrategyConfig
+from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
+from intellifl.output_handlers import new_plot_handler
+from intellifl.output_handlers.directory_handler import DirectoryHandler
+from intellifl.simulation_strategies.bulyan_strategy import BulyanStrategy
+from intellifl.simulation_strategies.fedavg_strategy import FedAvgStrategy
+from intellifl.simulation_strategies.krum_based_removal_strategy import (
     KrumBasedRemovalStrategy,
 )
-from src.simulation_strategies.multi_krum_based_removal_strategy import (
+from intellifl.simulation_strategies.multi_krum_based_removal_strategy import (
     MultiKrumBasedRemovalStrategy,
 )
-from src.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
-from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
-from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
-from src.simulation_strategies.trimmed_mean_based_removal_strategy import (
+from intellifl.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
+from intellifl.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+from intellifl.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
+from intellifl.simulation_strategies.trimmed_mean_based_removal_strategy import (
     TrimmedMeanBasedRemovalStrategy,
 )
-from src.simulation_strategies.trust_based_removal_strategy import (
+from intellifl.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
 from tests.fixtures.mock_flower_components import (

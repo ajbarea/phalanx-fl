@@ -137,7 +137,7 @@ if "$SONAR_SCANNER_CMD" \
     -Dsonar.projectName="FL Execution Framework" \
     -Dsonar.projectVersion=1.0 \
     -Dsonar.host.url=http://localhost:9000 \
-    -Dsonar.sources=src \
+    -Dsonar.sources=intellifl \
     -Dsonar.tests=tests \
     -Dsonar.python.version=3.10 \
     -Dsonar.python.coverage.reportPaths=tests/logs/coverage.xml \
