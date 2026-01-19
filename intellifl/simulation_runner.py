@@ -156,6 +156,8 @@ class SimulationRunner:
         assert self._directory_handler.dirname is not None
         log_file_path = Path(self._directory_handler.dirname) / "output.log"
 
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
+
         file_handler = logging.FileHandler(log_file_path, mode="a", encoding="utf-8")
         file_handler.setLevel(getattr(logging, log_level))
         file_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
