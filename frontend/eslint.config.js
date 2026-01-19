@@ -5,7 +5,17 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
-  globalIgnores(['dist', 'node_modules', '.vite']),
+  globalIgnores([
+    'dist/**',
+    'node_modules/**',
+    '.vite/**',
+    '.eslintcache',
+    'coverage/**',
+    'build/**',
+    '.git/**',
+    '**/*.{md,json,yml,yaml,html,css,dockerfile}',
+    '.*/**',
+  ]),
   {
     files: ['vite.config.js'],
     languageOptions: {
@@ -13,7 +23,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['**/*.{js,jsx}'],
+    files: ['src/**/*.{js,jsx}', 'scripts/**/*.js'],
     extends: [
       js.configs.recommended,
       reactHooks.configs['recommended-latest'],
