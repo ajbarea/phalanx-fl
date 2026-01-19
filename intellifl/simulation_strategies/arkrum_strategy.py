@@ -16,9 +16,10 @@ import logging
 import time
 
 import numpy as np
-from flwr.common import FitRes, Parameters, Scalar, parameters_to_ndarrays
+from flwr.common import EvaluateRes, FitRes, Parameters, Scalar, parameters_to_ndarrays
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy import FedAvg
+from flwr.server.strategy.aggregate import weighted_loss_avg
 
 from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
 from intellifl.utils.status_tracker import StatusTracker
@@ -144,7 +145,8 @@ class ArKrumStrategy(FedAvg):
 
         Returns:
             Tuple of (scores, f_estimates, dist_matrix) where scores are Krum scores per client,
-            f_estimates are per-client Byzantine counts, and dist_matrix is symmetric pairwise distance matrix.
+            f_estimates are per-client Byzantine counts, and dist_matrix is symmetric pairwise
+            distance matrix.
         """
         param_data = [parameters_to_ndarrays(fit_res.parameters) for _, fit_res in results]
         flat_params = [np.concatenate([p.flatten() for p in params]) for params in param_data]
@@ -250,3 +252,57 @@ class ArKrumStrategy(FedAvg):
             )
 
         return super().aggregate_fit(server_round, selected_results, failures)
+
+    def aggregate_evaluate(  # type: ignore[override]
+        self,
+        server_round: int,
+        results: list[tuple[ClientProxy, EvaluateRes]],
+        failures: list[tuple[ClientProxy | EvaluateRes, BaseException]],
+    ) -> tuple[float | None, dict[str, Scalar]]:
+        """Aggregate client evaluation results and record per-client metrics.
+
+        Records per-client accuracy and loss metrics to strategy_history for
+        post-simulation analysis and visualization. Computes weighted average
+        loss across all participating clients.
+
+        Side effects:
+            - Registers client mappings via strategy_history
+            - Records per-client accuracy and loss to strategy_history
+            - Records round-level aggregated loss to strategy_history
+
+        Args:
+            server_round: Current round number from the Flower server.
+            results: List of (ClientProxy, EvaluateRes) tuples from participating clients.
+            failures: List of failed evaluation results or exceptions (unused).
+
+        Returns:
+            Tuple of (aggregated_loss, metrics_dict) where loss is weighted average
+            across all clients, or None if no results. metrics_dict is empty.
+        """
+        self.strategy_history.register_node_mappings_from_results(results)
+
+        for client_proxy, eval_res in results:
+            cid = client_proxy.cid
+            metrics = eval_res.metrics or {}
+            self.strategy_history.insert_single_client_history_entry(
+                client_id=cid,
+                current_round=self.current_round,
+                accuracy=float(metrics.get("accuracy", 0.0)),
+            )
+
+        if not results:
+            return None, {}
+
+        aggregate_value = []
+        for client_proxy, eval_res in results:
+            self.strategy_history.insert_single_client_history_entry(
+                client_id=client_proxy.cid,
+                current_round=self.current_round,
+                loss=eval_res.loss,
+            )
+            aggregate_value.append((eval_res.num_examples, eval_res.loss))
+
+        loss_aggregated = weighted_loss_avg(aggregate_value)
+        self.strategy_history.insert_round_history_entry(loss_aggregated=loss_aggregated)
+
+        return loss_aggregated, {}
