@@ -1,36 +1,47 @@
-import { Alert, Button } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
 import { PageContainer } from '@components/layout/PageContainer';
 import { PageHeader } from '@components/layout/PageHeader';
 import { QueueBuilder } from '@components/features/experiment-queue/QueueBuilder';
-import { useRunningSimulation } from '@hooks/useRunningSimulation';
+import { useSimulations } from '@hooks/useSimulations';
+import { SimulationList } from '@components/features/simulation-list/SimulationList';
 
 export function ExperimentQueue() {
-  const { hasRunning, runningSimIds } = useRunningSimulation();
+  const { simulations, statuses, refetch } = useSimulations();
+
+  const activeSimulations = simulations.filter(
+    sim =>
+      statuses[sim.simulation_id]?.status === 'running' ||
+      statuses[sim.simulation_id]?.status === 'queued'
+  );
 
   return (
     <PageContainer>
       <PageHeader title="🧪 Experiment Queue" />
 
-      {hasRunning && (
-        <Alert variant="warning" className="mb-4">
-          <div className="d-flex justify-content-between align-items-center">
-            <div>
-              <i className="bi bi-exclamation-triangle me-2"></i>
-              <strong>Simulation in progress</strong> - New simulations will queue automatically
-            </div>
-            <Button
-              as={Link}
-              to={`/queue/${runningSimIds[0]}`}
-              className="btn-warning-action"
-              size="sm"
-            >
-              View Queue Status
-            </Button>
-          </div>
-        </Alert>
+      {activeSimulations.length > 0 && (
+        <div className="mb-5">
+          <h4 className="mb-3 d-flex align-items-center gap-2">
+            <i className="bi bi-clock-history text-warning"></i>
+            Active & Pending Simulations
+          </h4>
+          <SimulationList
+            simulations={activeSimulations}
+            statuses={statuses}
+            selectedSims={[]}
+            exitingCards={[]}
+            onCardClick={() => {}}
+            onRename={refetch}
+            onStop={() => {}}
+            stopping={false}
+          />
+        </div>
       )}
 
+      <hr className="my-5" />
+
+      <h4 className="mb-3">
+        <i className="bi bi-plus-circle text-primary me-2"></i>
+        Build New Experiment
+      </h4>
       <QueueBuilder />
     </PageContainer>
   );

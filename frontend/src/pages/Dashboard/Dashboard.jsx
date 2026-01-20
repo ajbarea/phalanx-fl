@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 export function Dashboard() {
   const { simulations, loading, error, refetch } = useSimulations();
   const { statuses } = useSimulationStatus(simulations);
-  const { hasRunning, runningSimIds } = useRunningSimulation();
+  const { hasRunning } = useRunningSimulation();
   const [selectedSims, setSelectedSims] = useState([]);
   const [exitingCards, setExitingCards] = useState([]);
   const [deleting, setDeleting] = useState(false);
@@ -270,13 +270,8 @@ export function Dashboard() {
               <i className="bi bi-exclamation-triangle me-2"></i>
               <strong>Simulation in progress</strong> - New simulations will queue automatically
             </div>
-            <Button
-              as={Link}
-              to={`/queue/${runningSimIds[0]}`}
-              className="btn-warning-action"
-              size="sm"
-            >
-              View Queue Status
+            <Button as={Link} to="/experiments/queue" className="btn-warning-action" size="sm">
+              View Global Queue
             </Button>
           </div>
         </Alert>

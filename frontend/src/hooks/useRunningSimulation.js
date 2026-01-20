@@ -26,7 +26,10 @@ export function useRunningSimulation() {
         const statuses = await Promise.all(statusPromises);
 
         const running = simulations
-          .filter((sim, i) => statuses[i].data.status === 'running')
+          .filter(
+            (sim, i) =>
+              statuses[i].data.status === 'running' || statuses[i].data.status === 'queued'
+          )
           .map(sim => sim.simulation_id);
 
         setRunningSimIds(running);
