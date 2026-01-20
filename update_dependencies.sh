@@ -75,20 +75,45 @@ uv lock --upgrade
 
 log_success "Lock file updated successfully!"
 echo ""
+log_info "Syncing local environment to uv.lock (frozen)..."
+uv sync --frozen
+log_success "Local environment synced"
+
+log_info "Exporting requirements.txt from uv.lock for legacy/pip flows..."
+# Include the PyTorch wheel index so pip can resolve CUDA wheels without manual flags.
+uv export \
+    --format requirements-txt \
+    --no-hashes \
+    --extra-index-url https://download.pytorch.org/whl/cu130 \
+    > requirements.txt
+log_success "requirements.txt regenerated from uv.lock"
+
+# Ensure pip sees the PyTorch index.
+if ! grep -q "^--extra-index-url https://download.pytorch.org/whl/cu130" requirements.txt; then
+    TMP_REQ="$(mktemp requirements.txt.XXXXXX)"
+    {
+        echo "--extra-index-url https://download.pytorch.org/whl/cu130"
+        cat requirements.txt
+    } > "${TMP_REQ}"
+    mv "${TMP_REQ}" requirements.txt
+fi
+
 log_info "To see what changed, run:"
-echo "  git diff uv.lock"
+echo "  git diff uv.lock requirements.txt"
 
 
 echo ""
 log_warning "Next steps:"
-echo "  1. Review changes: git diff uv.lock"
+echo "  1. Review changes: git diff uv.lock requirements.txt"
 echo "  2. Test changes: make test"
-echo "  3. Sync environment: uv sync"
-echo "  4. If tests pass, commit the updated uv.lock"
+echo "  3. If tests pass, commit the updated lockfile and requirements"
 echo ""
-log_info "To restore backup if something breaks:"
-echo "  # Find available backups:"
-echo "  ls -t uv.lock.backup.*"
-echo ""
-echo "  # Restore latest (safely):"
-echo "  [ -f uv.lock.backup.* ] && mv \$(ls -t uv.lock.backup.* | head -n1) uv.lock && uv sync"
+log_info "To restore backup if something breaks (copy-paste ready):"
+cat <<'EOF'
+    # Restore the most recent uv.lock backup
+    set -euo pipefail
+    latest="$(ls -t uv.lock.backup.* 2>/dev/null | head -n1)"
+    [ -n "$latest" ] || { echo "No backups found." >&2; exit 1; }
+    cp "$latest" uv.lock
+    uv sync
+EOF
