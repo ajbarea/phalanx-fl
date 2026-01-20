@@ -24,7 +24,7 @@ class DirectoryHandler:
         base = (
             Path(output_dir)
             if output_dir
-            else Path(f"out/{datetime.datetime.now().strftime('%m-%d-%Y_%H-%M-%S')}")
+            else Path(f"out/{datetime.datetime.now().strftime('%m-%d-%Y_%H-%M-%S_%f')}")
         )
         self.dirname = str(base)
         self.new_plots_dirname = self.dirname

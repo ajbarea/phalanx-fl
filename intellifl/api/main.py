@@ -65,10 +65,161 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+async def queue_manager():
+    """A background task that continuously manages the simulation queue."""
+    await asyncio.sleep(5)  # Initial delay to allow server to fully start
+    logger.info("Starting background queue manager...")
+
+    while True:
+        try:
+            lock_file = OUTPUT_DIR / ".simulation.lock"
+
+            # Attempt to acquire lock
+            if lock_file.exists():
+                try:
+                    with lock_file.open("r") as f:
+                        lock_pid = int(f.read().strip())
+                    if psutil.pid_exists(lock_pid):
+                        await asyncio.sleep(10)  # Another process is managing, wait longer
+                        continue
+                except (OSError, ValueError):
+                    pass  # Stale lock file, proceed
+
+            with lock_file.open("w") as f:
+                f.write(str(os.getpid()))
+
+            try:
+                # Queue Management
+                simulations = []
+                if OUTPUT_DIR.is_dir():
+                    for sim_dir in OUTPUT_DIR.iterdir():
+                        if sim_dir.is_dir():
+                            status_path = sim_dir / "status.json"
+                            if status_path.exists():
+                                try:
+                                    with status_path.open("r") as f:
+                                        status_data = json.load(f)
+                                    simulations.append(
+                                        {
+                                            "id": sim_dir.name,
+                                            "path": sim_dir,
+                                            "config_path": sim_dir / "config.json",
+                                            "status_path": status_path,
+                                            "created_at": sim_dir.stat().st_ctime,
+                                            "status": status_data.get("status"),
+                                            "pid": status_data.get("pid"),
+                                        }
+                                    )
+                                except (json.JSONDecodeError, FileNotFoundError):
+                                    continue
+
+                # Check if a simulation is already running
+                is_simulation_running = False
+                for sim in simulations:
+                    if sim["status"] == "running":
+                        if sim["pid"] and psutil.pid_exists(sim["pid"]):
+                            is_simulation_running = True
+                            break
+                        else:
+                            # Orphaned running sim, mark as failed
+                            logger.warning(
+                                f"Found orphaned running simulation {sim['id']}. Marking as failed."
+                            )
+                            try:
+                                with sim["status_path"].open("r+") as f:
+                                    status_data = json.load(f)
+                                    status_data["status"] = "failed"
+                                    status_data["error"] = "Process died unexpectedly."
+                                    f.seek(0)
+                                    json.dump(status_data, f, indent=2)
+                                    f.truncate()
+                            except (FileNotFoundError, json.JSONDecodeError) as e:
+                                logger.error(
+                                    f"Could not update status for orphaned sim {sim['id']}: {e}"
+                                )
+
+                if not is_simulation_running:
+                    # Find the next queued simulation to run
+                    queued_sims = [s for s in simulations if s["status"] == "queued"]
+                    if queued_sims:
+                        queued_sims.sort(key=lambda x: x["created_at"])
+                        sim_to_start = queued_sims[0]
+                        sim_id_to_start = sim_to_start["id"]
+
+                        logger.info(f"Queue is free. Starting next simulation: {sim_id_to_start}")
+
+                        # Start the simulation process
+                        try:
+                            error_log_path = sim_to_start["path"] / "execution.log"
+                            env = get_safe_env()
+                            env.update(get_subprocess_env_vars())
+
+                            with error_log_path.open("a") as error_log:
+                                command = [
+                                    sys.executable,
+                                    "-m",
+                                    "intellifl.simulation_runner",
+                                    str(sim_to_start["config_path"]),
+                                ]
+                                # stdout to log file (not PIPE) to avoid 64KB buffer deadlock
+                                process = subprocess.Popen(
+                                    command,
+                                    cwd=BASE_DIR,
+                                    stdout=error_log,
+                                    stderr=subprocess.STDOUT,  # Merge stderr into stdout
+                                    env=env,
+                                )
+
+                            running_processes[sim_id_to_start] = process
+
+                            # Update status to running (single atomic write)
+                            with sim_to_start["status_path"].open("r+") as f:
+                                status_data = json.load(f)
+                                status_data["status"] = "running"
+                                status_data["pid"] = process.pid
+                                status_data["updated_at"] = datetime.datetime.now(
+                                    datetime.timezone.utc
+                                ).isoformat()
+                                f.seek(0)
+                                json.dump(status_data, f, indent=2)
+                                f.truncate()
+
+                            logger.info(
+                                f"Successfully started {sim_id_to_start} with new PID {process.pid}"
+                            )
+
+                        except Exception as e:
+                            logger.exception(f"Failed to start simulation {sim_id_to_start}: {e}")
+                            # Safely update status to failed
+                            try:
+                                with sim_to_start["status_path"].open("r+") as f:
+                                    status_data = json.load(f)
+                                    status_data["status"] = "failed"
+                                    status_data["error"] = f"Failed to start: {e}"
+                                    f.seek(0)
+                                    json.dump(status_data, f, indent=2)
+                                    f.truncate()
+                            except Exception as e_inner:
+                                logger.error(
+                                    f"Additionally failed to mark sim as failed: {e_inner}"
+                                )
+
+            finally:
+                # Release lock
+                if lock_file.exists():
+                    lock_file.unlink()
+
+        except Exception as e:
+            logger.exception(f"Error in queue manager loop: {e}")
+
+        await asyncio.sleep(15)  # Check queue every 15 seconds
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handles the application lifespan events (startup and shutdown)."""
     logger.info("Federated Learning API initialized")
+    asyncio.create_task(queue_manager())
     yield
 
 
@@ -430,7 +581,7 @@ async def create_simulation(request: CreateSimulationRequest) -> dict[str, Any]:
         except Exception:
             logger.exception("Failed to add to running queue, creating new simulation instead")
 
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     simulation_id = f"api_run_{timestamp}"
 
     output_sim_path = OUTPUT_DIR / simulation_id
@@ -453,6 +604,32 @@ async def create_simulation(request: CreateSimulationRequest) -> dict[str, Any]:
             json.dump(wrapped_config, f, indent=4)
     except OSError as e:
         raise HTTPException(status_code=500, detail=f"Failed to write config file: {e}")
+
+    # Create status.json immediately with 'queued' status so it appears in the queue
+    status_filepath = output_sim_path / "status.json"
+    try:
+        first_strategy_config = (
+            wrapped_config.get("simulation_strategies", [{}])[0]
+            if "simulation_strategies" in wrapped_config
+            else wrapped_config
+        )
+        total_rounds = first_strategy_config.get("num_of_rounds", 10)
+        total_strategies = len(wrapped_config.get("simulation_strategies", [1]))
+        initial_status = {
+            "status": "queued",
+            "current_round": 0,
+            "total_rounds": total_rounds,
+            "current_strategy": 0,
+            "total_strategies": total_strategies,
+            "progress": 0.0,
+            "pid": None,
+            "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        }
+        with status_filepath.open("w") as f:
+            json.dump(initial_status, f, indent=2)
+        logger.info(f"Created initial status.json for {simulation_id} with queued status")
+    except OSError as e:
+        logger.warning(f"Failed to create initial status.json: {e}")
 
     try:
         error_log_path = output_sim_path / "execution.log"
@@ -504,7 +681,7 @@ async def prepare_simulation(request: CreateSimulationRequest) -> dict[str, Any]
     """
     config = request.get_config_without_queue_flag()
 
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     simulation_id = f"api_run_{timestamp}"
 
     output_sim_path = OUTPUT_DIR / simulation_id
