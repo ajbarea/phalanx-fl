@@ -748,6 +748,19 @@ def _get_status_data(sim_path: Path, simulation_id: str) -> dict[str, Any]:
             raw_status = status_data.get("status", "running")
             pid = status_data.get("pid")
 
+            # Check if result files exist, which indicates the simulation has completed
+            # even if status.json hasn't been updated (e.g., in tests or interrupted processes)
+            result_files = list(sim_path.glob("*.pdf")) + list(sim_path.glob("csv/*.csv"))
+            if result_files and raw_status in ["queued", "pending", "running"]:
+                return {
+                    "status": "completed",
+                    "progress": 1.0,
+                    "current_round": status_data.get("current_round"),
+                    "total_rounds": status_data.get("total_rounds"),
+                    "current_strategy": status_data.get("current_strategy"),
+                    "total_strategies": status_data.get("total_strategies"),
+                }
+
             # Detect orphaned simulations
             if raw_status in ["running", "queued"] and pid:
                 process_alive = False
