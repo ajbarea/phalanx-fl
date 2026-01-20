@@ -8,6 +8,7 @@
     "dev:frontend": "vite",
     "dev:api": "cd .. && uvicorn intellifl.api.main:app --reload --port 8000",
     "dev:all": "concurrently -n API,UI -c blue,green \"npm run dev:api\" \"npm run dev:frontend\"",
+    "dev:monitored": "cd .. && sh run_frontend_monitored.sh",
     "build": "vite build",
     "lint": "eslint .",
     "format": "prettier --write .",

@@ -1,7 +1,7 @@
 # IntelliFL - Makefile for common tasks
 # Cross-platform compatible (uses shell scripts)
 
-.PHONY: help setup dev sim test lint lint-test sonar clean upgrade docker docker-frontend mutmut mutmut-results mutmut-show
+.PHONY: help setup dev dev-monitored sim test lint lint-test sonar clean upgrade docker docker-frontend mutmut mutmut-results mutmut-show
 
 # Default target
 help:
@@ -15,7 +15,8 @@ help:
 	@echo "  make setup-frontend   Frontend dependencies only"
 	@echo ""
 	@echo "Development:"
-	@echo "  make dev              Start dev servers (API + frontend)"
+	@echo "  make dev              Start dev servers (API + frontend) with log tailing"
+	@echo "  make dev-monitored    Start dev servers with heartbeat monitoring"
 	@echo "  make sim              Run simulation"
 	@echo ""
 	@echo "Quality:"
@@ -49,6 +50,9 @@ setup-frontend:
 # Development targets
 dev:
 	@./run_frontend.sh
+
+dev-monitored:
+	@./run_frontend_monitored.sh
 
 sim:
 	@./run_simulation.sh
