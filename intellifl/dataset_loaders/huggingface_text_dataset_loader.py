@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any, cast
 
-import numpy as np
+from flwr_datasets.partitioner import DirichletPartitioner
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, DataCollatorForLanguageModeling, PreTrainedTokenizerBase
 
@@ -56,10 +56,10 @@ class HuggingFaceTextDatasetLoader:
         self.max_samples = max_samples
         self.tokenizer: PreTrainedTokenizerBase | None = None
 
-    def _partition_iid(self, full_dataset: Any) -> list[list[int]]:
+    def _partition_iid(self, full_dataset: Any) -> list[Any]:
         """Partition dataset uniformly across clients (IID distribution)."""
         client_size = len(full_dataset) // self.num_of_clients
-        client_indices: list[list[int]] = []
+        client_partitions: list[Any] = []
 
         for client_id in range(self.num_of_clients):
             start_idx = client_id * client_size
@@ -68,45 +68,41 @@ class HuggingFaceTextDatasetLoader:
                 if client_id < self.num_of_clients - 1
                 else len(full_dataset)
             )
-            client_indices.append(list(range(start_idx, end_idx)))
+            client_partitions.append(full_dataset.select(range(start_idx, end_idx)))
 
-        return client_indices
+        return client_partitions
 
-    def _partition_label_skew_dirichlet(
-        self, full_dataset: Any, alpha: float = 0.5
-    ) -> list[list[int]]:
+    def _partition_label_skew_dirichlet(self, full_dataset: Any, alpha: float = 0.5) -> list[Any]:
         """
         Partition dataset using Dirichlet distribution (Non-IID).
+
+        Uses Flower's DirichletPartitioner based on the paper
+        "Bayesian Nonparametric Federated Learning of Neural Networks"
+        (https://arxiv.org/abs/1905.12022).
+
         Lower alpha = more heterogeneous (typical: 0.1-1.0).
+
+        Args:
+            full_dataset: HuggingFace Dataset with "label" column
+            alpha: Dirichlet concentration parameter
+
+        Returns:
+            List of dataset partitions, one per client
         """
-        labels = np.array(full_dataset["label"])
-        num_classes = len(np.unique(labels))
-        client_indices: list[list[int]] = [[] for _ in range(self.num_of_clients)]
+        partitioner = DirichletPartitioner(
+            num_partitions=self.num_of_clients,
+            partition_by="label",
+            alpha=alpha,
+            min_partition_size=1,
+            self_balancing=True,
+            seed=42,
+        )
 
-        # Use fixed seed for reproducibility
-        rng = np.random.default_rng(42)
+        # Assign dataset to partitioner
+        partitioner.dataset = full_dataset
 
-        for class_id in range(num_classes):
-            class_indices = np.where(labels == class_id)[0]
-            proportions = rng.dirichlet(np.repeat(alpha, self.num_of_clients))
-            proportions = (proportions * len(class_indices)).astype(int)
-
-            # Adjust to ensure all samples are assigned
-            proportions[-1] = len(class_indices) - proportions[:-1].sum()
-
-            rng.shuffle(class_indices)
-
-            start_idx = 0
-            for client_id, count in enumerate(proportions):
-                end_idx = start_idx + int(count)
-                client_indices[client_id].extend(class_indices[start_idx:end_idx].tolist())
-                start_idx = end_idx
-
-        # Shuffle each client's indices to mix classes
-        for indices in client_indices:
-            rng.shuffle(indices)
-
-        return client_indices
+        # Load partitions for each client
+        return [partitioner.load_partition(i) for i in range(self.num_of_clients)]
 
     def load_datasets(self):
         """Loads dataset from HuggingFace Hub and partitions into clients."""
@@ -152,15 +148,15 @@ class HuggingFaceTextDatasetLoader:
 
         # Use Non-IID for labeled datasets, IID for unlabeled
         if "label" in full_dataset.column_names:
-            client_indices_list = self._partition_label_skew_dirichlet(full_dataset, alpha=0.5)
+            client_partitions = self._partition_label_skew_dirichlet(full_dataset, alpha=0.5)
         else:
             # Only shuffle if not already shuffled above
             if self.max_samples is None or len(dataset["train"]) <= self.max_samples:
                 full_dataset = full_dataset.shuffle(seed=42)
-            client_indices_list = self._partition_iid(full_dataset)
+            client_partitions = self._partition_iid(full_dataset)
 
         for client_id in range(self.num_of_clients):
-            client_dataset = full_dataset.select(client_indices_list[client_id])
+            client_dataset = client_partitions[client_id]
 
             def tokenize_function(examples):
                 texts = [

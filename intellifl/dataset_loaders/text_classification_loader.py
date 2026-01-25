@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 import numpy as np
+from flwr_datasets.partitioner import DirichletPartitioner
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, DataCollatorWithPadding
 
@@ -219,46 +220,32 @@ class TextClassificationLoader:
         """
         Partition dataset using Dirichlet distribution (non-IID).
 
-        Creates label imbalance across clients using Dirichlet distribution.
+        Uses Flower's DirichletPartitioner based on the paper
+        "Bayesian Nonparametric Federated Learning of Neural Networks"
+        (https://arxiv.org/abs/1905.12022).
 
         Args:
-            dataset: HuggingFace Dataset
+            dataset: HuggingFace Dataset (must have "labels" column)
 
         Returns:
             List of datasets, one per client
         """
         alpha = self.partitioning_params.get("alpha", 0.5)
 
-        # Get labels
-        labels = np.array(dataset["labels"])
-        num_classes = len(np.unique(labels))
+        partitioner = DirichletPartitioner(
+            num_partitions=self.num_of_clients,
+            partition_by="labels",
+            alpha=alpha,
+            min_partition_size=1,
+            self_balancing=True,
+            seed=42,
+        )
 
-        # Group indices by label
-        label_indices = [np.where(labels == i)[0] for i in range(num_classes)]
+        # Assign dataset to partitioner
+        partitioner.dataset = dataset
 
-        # Initialize client indices
-        client_indices: list[list[int]] = [[] for _ in range(self.num_of_clients)]
-
-        # For each class, distribute samples to clients using Dirichlet
-        for class_indices in label_indices:
-            np.random.shuffle(class_indices)
-            proportions = np.random.dirichlet([alpha] * self.num_of_clients)
-            proportions = (np.cumsum(proportions) * len(class_indices)).astype(int)[:-1]
-            client_splits = np.split(class_indices, proportions)
-
-            for client_id, indices in enumerate(client_splits):
-                client_indices[client_id].extend(indices.tolist())
-
-        # Create datasets for each client
-        client_datasets = []
-        for client_idxs in client_indices:
-            if len(client_idxs) > 0:
-                client_datasets.append(dataset.select(client_idxs))
-            else:
-                # Empty partition - create minimal dataset with one sample
-                client_datasets.append(dataset.select([0]))
-
-        return client_datasets
+        # Load partitions for each client
+        return [partitioner.load_partition(i) for i in range(self.num_of_clients)]
 
     def _partition_pathological(self, dataset):
         """
