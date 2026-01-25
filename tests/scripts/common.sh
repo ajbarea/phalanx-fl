@@ -264,6 +264,14 @@ setup_virtual_environment() {
     if [ -n "${VIRTUAL_ENV:-}" ]; then
         VENV_DIR="$VIRTUAL_ENV"
         export VENV_DIR
+        if [ -f "$VENV_DIR/Scripts/python.exe" ]; then
+            PYTHON_CMD="$VENV_DIR/Scripts/python.exe"
+        elif [ -f "$VENV_DIR/bin/python" ]; then
+            PYTHON_CMD="$VENV_DIR/bin/python"
+        fi
+        export PYTHON_CMD
+        PYTHON_ARGS=""
+        export PYTHON_ARGS
         return 0
     fi
 
