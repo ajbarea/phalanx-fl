@@ -196,6 +196,15 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
 # =============================================================================
+# pyright Configuration
+# =============================================================================
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.10"
+reportAttributeAccessIssue = "none"
+
+# =============================================================================
 # Mutation Testing (mutmut) Configuration
 # =============================================================================
 [tool.mutmut]
