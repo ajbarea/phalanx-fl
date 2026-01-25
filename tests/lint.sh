@@ -59,7 +59,7 @@ log_info "✨ Running frontend linting..."
 cd frontend && npm run lint && npm run format -- --log-level warn && cd ..
 
 log_info "🔍 Running mypy..."
-mypy --config-file=pyproject.toml
+run_python -m mypy --config-file=pyproject.toml
 
 if command_exists pyright; then
     log_info "🔍 Running pyright..."
