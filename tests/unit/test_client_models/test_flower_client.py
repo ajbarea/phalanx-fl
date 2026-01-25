@@ -390,7 +390,9 @@ class TestFlowerClient:
 
             loss, dataset_size, metrics = flower_client_cnn.evaluate(initial_params, config={})
 
-            mock_test.assert_called_once_with(flower_client_cnn.net, flower_client_cnn.valloader)
+            mock_test.assert_called_once_with(
+                flower_client_cnn.net, flower_client_cnn.valloader, config={}
+            )
 
             assert isinstance(loss, float)
             assert isinstance(dataset_size, int)
