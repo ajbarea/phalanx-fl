@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 import torch
@@ -105,37 +105,39 @@ class TestHuggingFaceImageDatasetLoader:
         assert len(valloaders) == 2
         assert mock_ds.select.called
 
-    def test_partition_non_iid_dirichlet(self, mock_load_dataset):
+    @patch("intellifl.dataset_loaders.huggingface_image_dataset_loader.DirichletPartitioner")
+    def test_partition_non_iid_dirichlet(self, mock_partitioner_cls, mock_load_dataset):
         """Tests Non-IID Dirichlet partitioning."""
         loader = HuggingFaceImageDatasetLoader("test/path", num_of_clients=2, max_samples=100)
 
         mock_ds = mock_load_dataset.return_value["train"]
         mock_ds.column_names = ["image", "label"]
 
-        def getitem(key):
-            if key == "label":
-                return [0] * 50 + [1] * 50
-            return []
+        # Setup mock partitioner to return mock partitions
+        mock_partitioner = Mock()
+        mock_partitioner.load_partition = Mock(return_value=mock_ds)
+        mock_partitioner_cls.return_value = mock_partitioner
 
-        mock_ds.__getitem__ = Mock(side_effect=getitem)
         mock_ds.__len__.return_value = 100
 
         trainloaders, valloaders = loader.load_datasets()
 
         assert len(trainloaders) == 2
+        # Verify DirichletPartitioner was used for labeled data
+        mock_partitioner_cls.assert_called_once()
 
-    def test_load_optimization(self, mock_load_dataset):
+    @patch("intellifl.dataset_loaders.huggingface_image_dataset_loader.DirichletPartitioner")
+    def test_load_optimization(self, mock_partitioner_cls, mock_load_dataset):
         """Tests max_samples optimization limit."""
         loader = HuggingFaceImageDatasetLoader("test/path", max_samples=50)
         mock_ds = mock_load_dataset.return_value["train"]
         mock_ds.__len__.return_value = 1000
 
-        def getitem(key):
-            if key == "label":
-                return [0] * 1000
-            return {"image": Image.new("RGB", (32, 32)), "label": 0}
+        # Setup mock partitioner
+        mock_partitioner = Mock()
+        mock_partitioner.load_partition = Mock(return_value=mock_ds)
+        mock_partitioner_cls.return_value = mock_partitioner
 
-        mock_ds.__getitem__.side_effect = getitem
         mock_ds.column_names = ["image", "label"]
 
         loader.load_datasets()

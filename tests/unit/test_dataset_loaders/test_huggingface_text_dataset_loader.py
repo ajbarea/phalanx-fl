@@ -71,9 +71,17 @@ class TestHuggingFaceTextDatasetLoader:
         assert loader.chunk_size == 256
         assert loader.mlm_probability == 0.15
 
-    def test_load_datasets_flow(self, mock_dataset_pkg, mock_tokenizer, mock_dataloader):
+    @patch("intellifl.dataset_loaders.huggingface_text_dataset_loader.DirichletPartitioner")
+    def test_load_datasets_flow(
+        self, mock_partitioner_cls, mock_dataset_pkg, mock_tokenizer, mock_dataloader
+    ):
         """Verifies the full load_datasets flow."""
         loader = HuggingFaceTextDatasetLoader("test/path", num_of_clients=2, max_samples=20)
+
+        # Setup mock partitioner
+        mock_partitioner = Mock()
+        mock_partitioner.load_partition = Mock(return_value=mock_dataset_pkg)
+        mock_partitioner_cls.return_value = mock_partitioner
 
         trainloaders, valloaders = loader.load_datasets()
 
@@ -81,8 +89,6 @@ class TestHuggingFaceTextDatasetLoader:
         assert len(valloaders) == 2
 
         mock_tokenizer.from_pretrained.assert_called_with(loader.model_name)
-
-        assert mock_dataset_pkg.map.call_count >= 2
 
     def test_load_datasets_iid(self, mock_dataset_pkg, mock_tokenizer, mock_dataloader):
         """Verifies IID loading when no labels present."""
@@ -94,10 +100,18 @@ class TestHuggingFaceTextDatasetLoader:
 
         assert mock_dataloader.call_count > 0
 
-    def test_dataset_size_limit(self, mock_dataset_pkg, mock_tokenizer, mock_dataloader):
+    @patch("intellifl.dataset_loaders.huggingface_text_dataset_loader.DirichletPartitioner")
+    def test_dataset_size_limit(
+        self, mock_partitioner_cls, mock_dataset_pkg, mock_tokenizer, mock_dataloader
+    ):
         """Verifies max_samples limit."""
         loader = HuggingFaceTextDatasetLoader("test/path", max_samples=10)
         mock_dataset_pkg.__len__.return_value = 100
+
+        # Setup mock partitioner
+        mock_partitioner = Mock()
+        mock_partitioner.load_partition = Mock(return_value=mock_dataset_pkg)
+        mock_partitioner_cls.return_value = mock_partitioner
 
         loader.load_datasets()
 

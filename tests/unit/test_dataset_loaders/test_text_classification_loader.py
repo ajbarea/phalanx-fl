@@ -496,53 +496,54 @@ class TestTextClassificationLoader:
         assert list(calls[1][0][0]) == list(range(30, 60))
         assert list(calls[2][0][0]) == list(range(60, 91))
 
-    def test_partition_dirichlet_uses_alpha_from_params(self, loader):
+    @patch("intellifl.dataset_loaders.text_classification_loader.DirichletPartitioner")
+    def test_partition_dirichlet_uses_alpha_from_params(self, mock_partitioner_cls, loader):
         """Verify _partition_dirichlet uses alpha from partitioning_params."""
         loader.partitioning_params = {"alpha": 0.3}
 
         mock_dataset = Mock()
-        mock_dataset.__getitem__ = Mock(return_value=np.array([0, 0, 1, 1]))
-        mock_dataset.select = Mock(side_effect=lambda x: Mock())
+        mock_partitioner = Mock()
+        mock_partitioner.load_partition = Mock(return_value=Mock())
+        mock_partitioner_cls.return_value = mock_partitioner
 
-        with patch("numpy.random.dirichlet") as mock_dirichlet:
-            mock_dirichlet.return_value = np.array([0.5, 0.3, 0.2])
-            loader._partition_dirichlet(mock_dataset)
+        loader._partition_dirichlet(mock_dataset)
 
-            calls = mock_dirichlet.call_args_list
-            for call in calls:
-                assert call[0][0][0] == 0.3
+        mock_partitioner_cls.assert_called_once()
+        call_kwargs = mock_partitioner_cls.call_args[1]
+        assert call_kwargs["alpha"] == 0.3
 
-    def test_partition_dirichlet_defaults_alpha_to_point_five(self, loader):
+    @patch("intellifl.dataset_loaders.text_classification_loader.DirichletPartitioner")
+    def test_partition_dirichlet_defaults_alpha_to_point_five(self, mock_partitioner_cls, loader):
         """Verify _partition_dirichlet defaults alpha to 0.5."""
         loader.partitioning_params = {}
 
         mock_dataset = Mock()
-        mock_dataset.__getitem__ = Mock(return_value=np.array([0, 0, 1, 1]))
-        mock_dataset.select = Mock(side_effect=lambda x: Mock())
+        mock_partitioner = Mock()
+        mock_partitioner.load_partition = Mock(return_value=Mock())
+        mock_partitioner_cls.return_value = mock_partitioner
 
-        with patch("numpy.random.dirichlet") as mock_dirichlet:
-            mock_dirichlet.return_value = np.array([0.5, 0.3, 0.2])
-            loader._partition_dirichlet(mock_dataset)
+        loader._partition_dirichlet(mock_dataset)
 
-            calls = mock_dirichlet.call_args_list
-            for call in calls:
-                assert call[0][0][0] == 0.5
+        mock_partitioner_cls.assert_called_once()
+        call_kwargs = mock_partitioner_cls.call_args[1]
+        assert call_kwargs["alpha"] == 0.5
 
-    def test_partition_dirichlet_handles_empty_partition(self, loader):
-        """Verify _partition_dirichlet creates minimal dataset for empty partitions."""
+    @patch("intellifl.dataset_loaders.text_classification_loader.DirichletPartitioner")
+    def test_partition_dirichlet_returns_correct_number_of_partitions(
+        self, mock_partitioner_cls, loader
+    ):
+        """Verify _partition_dirichlet returns one partition per client."""
         loader.num_of_clients = 3
 
         mock_dataset = Mock()
-        labels = np.array([0, 0])  # Only 2 samples, 1 class
-        mock_dataset.__getitem__ = Mock(return_value=labels)
-        mock_dataset.select = Mock(side_effect=lambda x: Mock())
+        mock_partitioner = Mock()
+        mock_partitioner.load_partition = Mock(return_value=Mock())
+        mock_partitioner_cls.return_value = mock_partitioner
 
-        with patch("numpy.random.dirichlet") as mock_dirichlet:
-            mock_dirichlet.return_value = np.array([1.0, 0.0, 0.0])
-            with patch("numpy.random.shuffle"):
-                client_datasets = loader._partition_dirichlet(mock_dataset)
+        client_datasets = loader._partition_dirichlet(mock_dataset)
 
         assert len(client_datasets) == 3
+        assert mock_partitioner.load_partition.call_count == 3
 
     def test_partition_pathological_uses_num_classes_from_params(self, loader):
         """Verify _partition_pathological uses num_classes_per_partition."""
