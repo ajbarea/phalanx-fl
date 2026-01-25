@@ -66,14 +66,8 @@ echo ""
 uvicorn intellifl.api.main:app --reload --port 8000 >> "$API_LOG" 2>&1 &
 API_PID=$!
 
-# Start frontend server - strip ANSI color codes for clean logs
-# Use sed to remove escape sequences: ESC[ followed by any sequence ending in a letter
-if command_exists sed; then
-    (cd frontend && npm run dev 2>&1 | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' >> "../$FRONTEND_LOG") &
-else
-    # Fallback if sed is not available
-    (cd frontend && npm run dev >> "../$FRONTEND_LOG" 2>&1) &
-fi
+# Start frontend server
+(cd frontend && npm run dev >> "../$FRONTEND_LOG" 2>&1) &
 FRONTEND_PID=$!
 
 # Wait for API to be ready
