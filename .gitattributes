@@ -1,8 +1,2 @@
-# Force LF line endings for all text files
+# Normalize all text files to LF to avoid cross-platform line ending issues
 * text=auto eol=lf
-
-# Ensure shell scripts are always LF
-*.sh text eol=lf
-
-# Ensure ShellCheck config uses LF
-.shellcheckrc text eol=lf
