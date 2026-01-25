@@ -139,6 +139,16 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                     original_data_sample=original_data_sample.cpu().numpy(),
                 )
 
+    def _to_device_only_tensors(self, batch: dict) -> dict:
+        """Move only tensor values to device, leaving non-tensors as-is.
+
+        This handles batches that may contain non-tensor metadata fields
+        (strings, lists, etc.) that would cause errors with .to(device).
+        """
+        return {
+            k: v.to(self.training_device) if torch.is_tensor(v) else v for k, v in batch.items()
+        }
+
     def set_parameters(self, net, parameters: list[np.ndarray]) -> None:
         """Load parameters into the model, handling LoRA adapters if enabled."""
         if self.use_lora:
@@ -328,7 +338,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                                 original_labels_sample=original_labels,
                             )
 
-                    batch = {k: v.to(self.training_device) for k, v in batch.items()}
+                    batch = self._to_device_only_tensors(batch)
                     labels = batch["labels"]
 
                     outputs = net(**batch)
@@ -383,23 +393,46 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                 f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'."
             )
 
-    def test(self, net, testloader) -> tuple[float, float]:
+    def test(self, net, testloader, config=None) -> tuple[float, float]:
         """Evaluate the network on the test set.
 
         Args:
             net: Neural network model to evaluate.
             testloader: DataLoader for test data.
+            config: Optional config dict containing 'server_round' for dynamic poisoning.
 
         Returns:
             Tuple of (loss, accuracy).
         """
+        current_round = config.get("server_round", 1) if config else 1
+
         if self.model_type == "cnn":
             criterion = torch.nn.CrossEntropyLoss()
             correct, total, loss = 0, 0, 0.0
             net.eval()
 
+            if hasattr(net, "fc3"):
+                num_classes = net.fc3.out_features
+            elif hasattr(net, "fc"):
+                num_classes = net.fc.out_features
+            else:
+                num_classes = 10
+
             with torch.no_grad():
                 for images, labels in testloader:
+                    should_poison, attack_configs = should_poison_this_round(
+                        current_round, self.client_id, self.attacks_schedule
+                    )
+                    if should_poison and attack_configs:
+                        for attack_config in attack_configs:
+                            images, labels = apply_poisoning_attack(
+                                images,
+                                labels,
+                                attack_config,
+                                tokenizer=self.tokenizer,
+                                num_classes=num_classes,
+                            )
+
                     images, labels = (
                         images.to(self.training_device),
                         labels.to(self.training_device),
@@ -420,7 +453,20 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
 
             with torch.no_grad():
                 for batch in testloader:
-                    batch = {k: v.to(self.training_device) for k, v in batch.items()}
+                    should_poison, attack_configs = should_poison_this_round(
+                        current_round, self.client_id, self.attacks_schedule
+                    )
+                    if should_poison and attack_configs:
+                        for attack_config in attack_configs:
+                            if attack_config.get("attack_type") == "token_replacement":
+                                batch["input_ids"], batch["labels"] = apply_poisoning_attack(
+                                    batch["input_ids"],
+                                    batch["labels"],
+                                    attack_config,
+                                    tokenizer=self.tokenizer,
+                                )
+
+                    batch = self._to_device_only_tensors(batch)
                     labels = batch["labels"]
 
                     outputs = net(**batch)
@@ -610,7 +656,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
             Tuple of (loss, num_samples, metrics_dict).
         """
         self.set_parameters(self.net, parameters)
-        loss, accuracy = self.test(self.net, self.valloader)
+        loss, accuracy = self.test(self.net, self.valloader, config=config)
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
