@@ -73,6 +73,10 @@ coverage==7.13.1
     #   pytest-cov
 cryptography==44.0.3
     # via flwr
+cuda-bindings==13.0.3 ; sys_platform == 'linux'
+    # via torch
+cuda-pathfinder==1.3.3 ; sys_platform == 'linux'
+    # via cuda-bindings
 cycler==0.12.1
     # via matplotlib
 datasets==3.1.0
@@ -151,7 +155,7 @@ huggingface-hub==0.36.0
     #   peft
     #   tokenizers
     #   transformers
-hypothesis==6.150.2
+hypothesis==6.150.3
     # via fl-execution-framework
 idna==3.11
     # via
@@ -257,44 +261,44 @@ numpy==2.4.1 ; python_full_version >= '3.11'
     #   seaborn
     #   torchvision
     #   transformers
-nvidia-cublas==13.0.0.19 ; sys_platform == 'linux'
+nvidia-cublas==13.1.0.3 ; sys_platform == 'linux'
     # via
     #   nvidia-cudnn-cu13
     #   nvidia-cusolver
     #   torch
-nvidia-cuda-cupti==13.0.48 ; sys_platform == 'linux'
+nvidia-cuda-cupti==13.0.85 ; sys_platform == 'linux'
     # via torch
-nvidia-cuda-nvrtc==13.0.48 ; sys_platform == 'linux'
+nvidia-cuda-nvrtc==13.0.88 ; sys_platform == 'linux'
     # via torch
-nvidia-cuda-runtime==13.0.48 ; sys_platform == 'linux'
+nvidia-cuda-runtime==13.0.96 ; sys_platform == 'linux'
     # via torch
-nvidia-cudnn-cu13==9.13.0.50 ; sys_platform == 'linux'
+nvidia-cudnn-cu13==9.15.1.9 ; sys_platform == 'linux'
     # via torch
-nvidia-cufft==12.0.0.15 ; sys_platform == 'linux'
+nvidia-cufft==12.0.0.61 ; sys_platform == 'linux'
     # via torch
-nvidia-cufile==1.15.0.42 ; sys_platform == 'linux'
+nvidia-cufile==1.15.1.6 ; sys_platform == 'linux'
     # via torch
 nvidia-curand==10.4.0.35 ; sys_platform == 'linux'
     # via torch
-nvidia-cusolver==12.0.3.29 ; sys_platform == 'linux'
+nvidia-cusolver==12.0.4.66 ; sys_platform == 'linux'
     # via torch
-nvidia-cusparse==12.6.2.49 ; sys_platform == 'linux'
+nvidia-cusparse==12.6.3.3 ; sys_platform == 'linux'
     # via
     #   nvidia-cusolver
     #   torch
 nvidia-cusparselt-cu13==0.8.0 ; sys_platform == 'linux'
     # via torch
-nvidia-nccl-cu13==2.27.7 ; sys_platform == 'linux'
+nvidia-nccl-cu13==2.28.9 ; sys_platform == 'linux'
     # via torch
-nvidia-nvjitlink==13.0.39 ; sys_platform == 'linux'
+nvidia-nvjitlink==13.0.88 ; sys_platform == 'linux'
     # via
     #   nvidia-cufft
     #   nvidia-cusolver
     #   nvidia-cusparse
     #   torch
-nvidia-nvshmem-cu13==3.3.24 ; sys_platform == 'linux'
+nvidia-nvshmem-cu13==3.4.5 ; sys_platform == 'linux'
     # via torch
-nvidia-nvtx==13.0.39 ; sys_platform == 'linux'
+nvidia-nvtx==13.0.85 ; sys_platform == 'linux'
     # via torch
 opencensus==0.11.4
     # via ray
@@ -317,7 +321,7 @@ opentelemetry-sdk==1.39.1
     #   ray
 opentelemetry-semantic-conventions==0.60b1
     # via opentelemetry-sdk
-packaging==25.0
+packaging==26.0
     # via
     #   accelerate
     #   datasets
@@ -327,7 +331,12 @@ packaging==25.0
     #   pytest
     #   ray
     #   transformers
-pandas==2.3.3
+pandas==2.3.3 ; python_full_version < '3.11'
+    # via
+    #   datasets
+    #   fl-execution-framework
+    #   seaborn
+pandas==3.0.0 ; python_full_version >= '3.11'
     # via
     #   datasets
     #   fl-execution-framework
@@ -386,7 +395,7 @@ pyasn1==0.6.2
     #   rsa
 pyasn1-modules==0.4.2
     # via google-auth
-pycparser==2.23 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
+pycparser==3.0 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
     # via cffi
 pycryptodome==3.23.0
     # via flwr
@@ -402,7 +411,7 @@ pygments==2.19.2
     #   pytest
     #   rich
     #   textual
-pyparsing==3.3.1
+pyparsing==3.3.2
     # via matplotlib
 pyright==1.1.408
     # via fl-execution-framework
@@ -434,7 +443,7 @@ python-dateutil==2.9.0.post0
     #   pandas
 python-dotenv==1.2.1
     # via uvicorn
-pytz==2025.2
+pytz==2025.2 ; python_full_version < '3.11'
     # via pandas
 pywinpty==3.0.2 ; sys_platform == 'win32'
     # via fl-execution-framework
@@ -481,7 +490,7 @@ rpds-py==0.30.0
     #   referencing
 rsa==4.9.1
     # via google-auth
-ruff==0.14.13
+ruff==0.14.14
     # via fl-execution-framework
 safetensors==0.7.0
     # via
@@ -504,7 +513,7 @@ seaborn==0.13.2
     # via flwr-datasets
 setproctitle==1.3.7
     # via mutmut
-setuptools==80.9.0 ; python_full_version >= '3.12'
+setuptools==80.10.1 ; python_full_version >= '3.12'
     # via torch
 shellingham==1.5.4
     # via typer
@@ -540,15 +549,13 @@ tomli==2.4.0
     #   pytest
 tomli-w==1.2.0
     # via flwr
-torch==2.9.1+cu130
+torch==2.10.0+cu130
     # via
     #   accelerate
     #   fl-execution-framework
     #   peft
     #   torchvision
-torchvision==0.24.1 ; python_full_version < '3.15' and platform_machine == 'aarch64' and platform_python_implementation == 'CPython' and sys_platform == 'linux'
-    # via fl-execution-framework
-torchvision==0.24.1+cu130 ; python_full_version >= '3.15' or platform_machine != 'aarch64' or platform_python_implementation != 'CPython' or sys_platform != 'linux'
+torchvision==0.25.0+cu130
     # via fl-execution-framework
 tqdm==4.67.1
     # via
@@ -562,7 +569,7 @@ transformers==4.57.6
     # via
     #   fl-execution-framework
     #   peft
-triton==3.5.1 ; sys_platform == 'linux'
+triton==3.6.0 ; sys_platform == 'linux'
     # via torch
 typer==0.20.1
     # via flwr
@@ -594,7 +601,7 @@ typing-extensions==4.15.0
     #   virtualenv
 typing-inspection==0.4.2
     # via pydantic
-tzdata==2025.3
+tzdata==2025.3 ; python_full_version < '3.11' or sys_platform == 'emscripten' or sys_platform == 'win32'
     # via pandas
 uc-micro-py==1.0.3
     # via linkify-it-py
