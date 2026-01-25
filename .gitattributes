@@ -1,2 +1,5 @@
-# Normalize all text files to LF to avoid cross-platform line ending issues
+# Normalize all text files
 * text=auto eol=lf
+
+# Normalize all shell scripts
+*.sh text eol=lf
