@@ -4,7 +4,7 @@
     "aggregation_strategy_keyword": "krum",
     "remove_clients": false,
     "dataset_source": "huggingface",
-    "dataset_keyword": "pubmed_classification_20k",
+    "dataset_keyword": "lexglue",
     "use_llm": true,
     "num_of_rounds": 3,
     "num_of_clients": 5,
@@ -49,7 +49,7 @@
   },
   "simulation_strategies": [
     {
-      "display_name": "Test: HuggingFace Text Dataset - PubMed Classification 20k"
+      "display_name": "Test: HuggingFace Text Dataset - LexGLUE"
     }
   ]
 }
