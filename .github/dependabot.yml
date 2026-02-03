@@ -25,7 +25,7 @@ updates:
       - "automated"
     # Review security updates immediately
     reviewers:
-      - "ajbar" # Replace with your GitHub username
+      - "ajbarea"
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
