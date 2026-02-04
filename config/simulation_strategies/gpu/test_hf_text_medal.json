@@ -1,10 +1,10 @@
 {
-  "display_name": "Test: HuggingFace Text Dataset - PubMed Classification 20k",
+  "display_name": "Test: HuggingFace Text Dataset - Medal",
   "strict_mode": false,
   "aggregation_strategy_keyword": "krum",
   "remove_clients": false,
   "dataset_source": "huggingface",
-  "dataset_keyword": "pubmed_classification_20k",
+  "dataset_keyword": "medal",
   "use_llm": true,
   "num_of_rounds": 3,
   "num_of_clients": 5,
