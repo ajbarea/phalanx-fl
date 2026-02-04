@@ -28,7 +28,8 @@ export function SimulationDetails() {
     isMultiStrategy,
     isStreaming,
   } = useSimulationDetails(simulationId);
-  const { csvData } = useCSVData(simulationId, details?.result_files);
+  const displayStatus = status || details?.status;
+  const { csvData } = useCSVData(simulationId, details?.result_files, displayStatus);
   const [isCloning, setIsCloning] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
 
@@ -80,7 +81,6 @@ export function SimulationDetails() {
     return null;
   }
 
-  const displayStatus = status || details.status;
   const csvFiles = details.result_files?.filter(file => file.endsWith('.csv')) || [];
   const cfg = details.config?.shared_settings || details.config;
 
@@ -100,7 +100,9 @@ export function SimulationDetails() {
             <div className="d-flex align-items-center gap-3 mb-2">
               <h6 className="mb-0 flex-grow-1">
                 Simulation in Progress
-                {currentRound && totalRounds && ` (Round ${currentRound}/${totalRounds})`}
+                {currentRound > 0 && totalRounds != null
+                  ? ` (Round ${currentRound}/${totalRounds})`
+                  : ' (Setting up environment...)'}
               </h6>
               <Spinner animation="border" size="sm" />
             </div>
@@ -158,7 +160,7 @@ export function SimulationDetails() {
         )}
 
         <Tab eventKey="plots" title="Plots" mountOnEnter unmountOnExit>
-          <PlotsTab simulation={{ ...details, id: simulationId }} />
+          <PlotsTab simulation={{ ...details, id: simulationId, status: displayStatus }} />
         </Tab>
 
         <Tab eventKey="attacks" title="Attacks">
