@@ -1,14 +1,16 @@
 [project]
-name = "fl-execution-framework"
+name = "intellifl"
 version = "0.1.0"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.14"
 dependencies = [
     "accelerate",
+    "celery[redis]>=5.4.0",
     "click",
     "datasets",
     "dill",
     "fastapi",
     "flwr",
+    "flower>=2.0.0",
     "flwr-datasets",
     "fsspec",
     "httpx",
@@ -47,6 +49,7 @@ dependencies = [
     "tqdm",
     "transformers",
     "uvicorn[standard]",
+    "huggingface_hub[hf_xet]",
 ]
 
 [build-system]
@@ -309,3 +312,4 @@ filterwarnings = [
     "ignore::RuntimeWarning:threadpoolctl.*",
     "ignore::PendingDeprecationWarning",
 ]
+
