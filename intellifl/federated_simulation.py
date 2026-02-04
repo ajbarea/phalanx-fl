@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -92,6 +94,16 @@ if TYPE_CHECKING:
     from intellifl.output_handlers.directory_handler import DirectoryHandler
 
 
+def get_hf_dataset_config(dataset_keyword: str) -> dict:
+    """
+    Load HuggingFace dataset config for a given keyword from config/huggingface_datasets.json.
+    """
+    config_path = os.path.join(os.path.dirname(__file__), "../config/huggingface_datasets.json")
+    with open(config_path, encoding="utf-8") as f:
+        all_configs = json.load(f)
+    return all_configs[dataset_keyword]
+
+
 def weighted_average(metrics: list[tuple[int, dict[str, Any]]]) -> dict[str, Any]:
     """Compute weighted average of metrics from multiple clients.
 
@@ -137,7 +149,33 @@ class FederatedSimulation:
     ):
         self.strategy_config = strategy_config
 
-        # PyTorch uses "cuda" instead of "gpu"
+        dataset_keyword = getattr(self.strategy_config, "dataset_keyword", None)
+        if (
+            getattr(self.strategy_config, "dataset_source", None) == "huggingface"
+            and dataset_keyword is not None
+        ):
+            try:
+                hf_cfg = get_hf_dataset_config(dataset_keyword)
+                for k, v in hf_cfg.items():
+                    if not hasattr(self.strategy_config, k):
+                        setattr(self.strategy_config, k, v)
+                vocab_domain = hf_cfg.get("vocabulary_domain")
+                if (
+                    vocab_domain
+                    and hasattr(self.strategy_config, "attack_schedule")
+                    and self.strategy_config.attack_schedule
+                ):
+                    for attack in self.strategy_config.attack_schedule:
+                        if (
+                            attack.get("attack_type") == "token_replacement"
+                            and "target_vocabulary" not in attack
+                        ):
+                            attack["target_vocabulary"] = vocab_domain
+            except Exception as e:
+                logging.warning(
+                    f"Could not inject dataset fields from huggingface_datasets.json: {e}"
+                )
+
         if self.strategy_config.training_device and isinstance(
             self.strategy_config.training_device, str
         ):
@@ -350,43 +388,13 @@ class FederatedSimulation:
                     model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
                 )
 
-        elif dataset_keyword == "financial_phrasebank":
+        elif dataset_keyword in ["financial_phrasebank", "lexglue", "pubmed_classification_20k"]:
+            hf_cfg = get_hf_dataset_config(dataset_keyword)
             dataset_loader = HuggingFaceTextDatasetLoader(
-                hf_dataset_path="takala/financial_phrasebank",
-                hf_dataset_name="sentences_allagree",
-                tokenize_columns=["sentence"],
-                remove_columns=["sentence", "label"],
-                dataset_dir=self._dataset_dir,
-                num_of_clients=num_of_clients,
-                training_subset_fraction=training_subset_fraction,
-                model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
-                batch_size=batch_size,
-                chunk_size=cast(int, getattr(self.strategy_config, "llm_chunk_size", 512)),
-                mlm_probability=cast(float, getattr(self.strategy_config, "mlm_probability", 0.15)),
-                num_poisoned_clients=self.strategy_config.num_of_malicious_clients or 0,
-                attack_schedule=self.strategy_config.attack_schedule,
-            )
-            if getattr(self.strategy_config, "llm_finetuning", None) == "lora":
-                self._network_model = load_model_with_lora(
-                    model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
-                    lora_rank=cast(int, getattr(self.strategy_config, "lora_rank", 8)),
-                    lora_alpha=cast(int, getattr(self.strategy_config, "lora_alpha", 16)),
-                    lora_dropout=cast(float, getattr(self.strategy_config, "lora_dropout", 0.05)),
-                    lora_target_modules=cast(
-                        list, getattr(self.strategy_config, "lora_target_modules", None)
-                    ),
-                )
-            else:
-                self._network_model = load_model(
-                    model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
-                )
-
-        elif dataset_keyword == "lexglue":
-            dataset_loader = HuggingFaceTextDatasetLoader(
-                hf_dataset_path="coastalcph/lex_glue",
-                hf_dataset_name="ledgar",
-                tokenize_columns=["text"],
-                remove_columns=["text", "label"],
+                hf_dataset_path=hf_cfg["hf_dataset_path"],
+                hf_dataset_name=hf_cfg["hf_dataset_name"],
+                tokenize_columns=hf_cfg.get("tokenize_columns"),
+                remove_columns=hf_cfg.get("remove_columns"),
                 dataset_dir=self._dataset_dir,
                 num_of_clients=num_of_clients,
                 training_subset_fraction=training_subset_fraction,
