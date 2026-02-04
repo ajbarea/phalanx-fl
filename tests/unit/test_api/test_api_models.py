@@ -161,7 +161,6 @@ class TestCreateSimulationRequest:
         # Single-sim mode returns flat config
         assert config.get("aggregation_strategy_keyword") == "fedavg"
         assert config.get("num_of_rounds") == 10
-        # Booleans are stored as actual booleans (best practice)
         assert config.get("remove_clients") is True
 
     def test_multi_sim_to_config_dict(self) -> None:
@@ -181,7 +180,6 @@ class TestCreateSimulationRequest:
         assert "shared_settings" in config
         assert "simulation_strategies" in config
         assert config["shared_settings"]["num_of_rounds"] == 10
-        # Booleans are stored as actual booleans (best practice)
         assert config["shared_settings"]["remove_clients"] is True
 
     def test_add_to_queue_default(self) -> None:

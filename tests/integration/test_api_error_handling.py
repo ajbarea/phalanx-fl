@@ -1,19 +1,56 @@
 """
 API error handling and edge case tests.
 
-These tests target uncovered error paths in intellifl/api/main.py:
+These tests target uncovered error paths in intellifl/api/routers/simulations.py:
 - 404 responses for non-existent resources
 - Validation errors for invalid configurations
 - Edge cases in result retrieval
+
+Note: These tests mock Celery task submission to avoid requiring
+Redis during test execution.
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
+
+
+@pytest.fixture
+def mock_celery_task():
+    """Mock Celery task to prevent Redis connection attempts.
+
+    Mocks the run_simulation import within the create_simulation function
+    to avoid requiring Celery/Redis to be available during tests.
+    """
+    import sys
+
+    mock_task = MagicMock()
+    mock_task.id = "test-celery-task-id-12345"
+
+    # Create mock module structure for intellifl.tasks.simulation_tasks
+    mock_run_simulation = MagicMock()
+    mock_run_simulation.delay.return_value = mock_task
+
+    mock_simulation_tasks = MagicMock()
+    mock_simulation_tasks.run_simulation = mock_run_simulation
+
+    mock_tasks = MagicMock()
+    mock_tasks.simulation_tasks = mock_simulation_tasks
+
+    # Patch the module in sys.modules before it gets imported
+    with patch.dict(
+        sys.modules,
+        {
+            "intellifl.tasks": mock_tasks,
+            "intellifl.tasks.simulation_tasks": mock_simulation_tasks,
+        },
+    ):
+        yield mock_run_simulation
 
 
 class TestAPIErrorResponses:
@@ -35,12 +72,14 @@ class TestAPIErrorResponses:
         response = api_client.get("/api/simulations/api_run_nonexistent/results/metrics.csv")
         assert response.status_code == 404
 
-    def test_get_nonexistent_result_file(self, api_client: TestClient, tmp_path: Path, monkeypatch):
+    def test_get_nonexistent_result_file(
+        self, api_client: TestClient, tmp_path: Path, patch_output_dir
+    ):
         """Test 404 for existing simulation but non-existent result file."""
-        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+        out_dir = patch_output_dir(tmp_path / "out")
 
         # Create simulation directory without the requested file
-        sim_dir = tmp_path / "out" / "api_run_20250101_120000"
+        sim_dir = out_dir / "api_run_20250101_120000"
         sim_dir.mkdir(parents=True)
         (sim_dir / "config.json").write_text(json.dumps({"shared_settings": {}}))
 
@@ -56,11 +95,11 @@ class TestAPIErrorResponses:
         assert response.status_code == 400
         assert "invalid" in response.json().get("detail", "").lower()
 
-    def test_unsupported_file_type(self, api_client: TestClient, tmp_path: Path, monkeypatch):
+    def test_unsupported_file_type(self, api_client: TestClient, tmp_path: Path, patch_output_dir):
         """Test 400 for unsupported file types."""
-        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+        out_dir = patch_output_dir(tmp_path / "out")
 
-        sim_dir = tmp_path / "out" / "api_run_20250101_120000"
+        sim_dir = out_dir / "api_run_20250101_120000"
         sim_dir.mkdir(parents=True)
         (sim_dir / "config.json").write_text(json.dumps({"shared_settings": {}}))
         (sim_dir / "script.sh").write_text("#!/bin/bash")
@@ -74,36 +113,20 @@ class TestAPIValidationErrors:
     """Test API input validation."""
 
     def test_create_simulation_empty_config(
-        self, api_client: TestClient, tmp_path: Path, monkeypatch
+        self, api_client: TestClient, tmp_path: Path, patch_output_dir, mock_celery_task
     ):
         """Test creating simulation with empty config."""
-        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
-        monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
-
-        mock_process = MagicMock()
-        mock_process.pid = 12345
-        mock_process.poll = MagicMock(return_value=None)
-        monkeypatch.setattr(
-            "intellifl.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process
-        )
+        patch_output_dir(tmp_path / "out")
 
         # Empty config should still work (uses defaults)
         response = api_client.post("/api/simulations", json={})
         assert response.status_code in [201, 422]  # 201 if defaults, 422 if validation
 
     def test_create_simulation_with_all_optional_fields(
-        self, api_client: TestClient, tmp_path: Path, monkeypatch
+        self, api_client: TestClient, tmp_path: Path, patch_output_dir, mock_celery_task
     ):
         """Test creating simulation with all optional fields."""
-        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
-        monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
-
-        mock_process = MagicMock()
-        mock_process.pid = 12345
-        mock_process.poll = MagicMock(return_value=None)
-        monkeypatch.setattr(
-            "intellifl.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process
-        )
+        patch_output_dir(tmp_path / "out")
 
         config = {
             "aggregation_strategy_keyword": "krum",
@@ -118,13 +141,31 @@ class TestAPIValidationErrors:
         assert response.status_code == 201
         assert "simulation_id" in response.json()
 
+    def test_rename_simulation_too_long(
+        self, api_client: TestClient, tmp_path: Path, patch_output_dir
+    ):
+        """Test renaming simulation with name exceeding 100 chars."""
+        out_dir = patch_output_dir(tmp_path / "out")
+
+        sim_dir = out_dir / "api_run_20250101_120000"
+        sim_dir.mkdir(parents=True)
+        (sim_dir / "config.json").write_text(json.dumps({"shared_settings": {}}))
+
+        long_name = "A" * 101
+        response = api_client.patch(
+            "/api/simulations/api_run_20250101_120000/rename",
+            json={"display_name": long_name},
+        )
+        assert response.status_code == 400
+        assert "100 characters" in response.json().get("detail", "").lower()
+
     def test_rename_simulation_empty_name(
-        self, api_client: TestClient, tmp_path: Path, monkeypatch
+        self, api_client: TestClient, tmp_path: Path, patch_output_dir
     ):
         """Test renaming simulation with empty name."""
-        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+        out_dir = patch_output_dir(tmp_path / "out")
 
-        sim_dir = tmp_path / "out" / "api_run_20250101_120000"
+        sim_dir = out_dir / "api_run_20250101_120000"
         sim_dir.mkdir(parents=True)
         (sim_dir / "config.json").write_text(json.dumps({"shared_settings": {}}))
 
@@ -136,12 +177,12 @@ class TestAPIValidationErrors:
         assert "empty" in response.json().get("detail", "").lower()
 
     def test_rename_simulation_special_characters(
-        self, api_client: TestClient, tmp_path: Path, monkeypatch
+        self, api_client: TestClient, tmp_path: Path, patch_output_dir
     ):
         """Test renaming simulation with special characters succeeds."""
-        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+        out_dir = patch_output_dir(tmp_path / "out")
 
-        sim_dir = tmp_path / "out" / "api_run_20250101_120000"
+        sim_dir = out_dir / "api_run_20250101_120000"
         sim_dir.mkdir(parents=True)
         (sim_dir / "config.json").write_text(json.dumps({"shared_settings": {}}))
 
@@ -149,46 +190,27 @@ class TestAPIValidationErrors:
             "/api/simulations/api_run_20250101_120000/rename",
             json={"display_name": "Test<>Simulation"},
         )
+        # Special characters are allowed in display names
         assert response.status_code == 200
         assert response.json()["display_name"] == "Test<>Simulation"
-
-    def test_rename_simulation_too_long(self, api_client: TestClient, tmp_path: Path, monkeypatch):
-        """Test renaming simulation with name exceeding 100 chars."""
-        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
-
-        sim_dir = tmp_path / "out" / "api_run_20250101_120000"
-        sim_dir.mkdir(parents=True)
-        (sim_dir / "config.json").write_text(json.dumps({"shared_settings": {}}))
-
-        long_name = "A" * 101
-        response = api_client.patch(
-            "/api/simulations/api_run_20250101_120000/rename",
-            json={"display_name": long_name},
-        )
-        assert response.status_code == 400
-        assert "100" in response.json().get("detail", "")
 
 
 class TestAPIEdgeCases:
     """Test API edge cases and boundary conditions."""
 
-    def test_list_simulations_empty(self, api_client: TestClient, tmp_path: Path, monkeypatch):
+    def test_list_simulations_empty(self, api_client: TestClient, tmp_path: Path, patch_output_dir):
         """Test listing simulations when none exist."""
-        empty_out = tmp_path / "out"
-        empty_out.mkdir()
-        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", empty_out)
+        patch_output_dir(tmp_path / "out")
 
         response = api_client.get("/api/simulations")
         assert response.status_code == 200
         assert response.json() == []
 
     def test_list_simulations_with_non_api_dirs(
-        self, api_client: TestClient, tmp_path: Path, monkeypatch
+        self, api_client: TestClient, tmp_path: Path, patch_output_dir
     ):
         """Test that non-api_run directories are filtered correctly."""
-        out_dir = tmp_path / "out"
-        out_dir.mkdir()
-        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
+        out_dir = patch_output_dir(tmp_path / "out")
 
         # Create non-api directories that should be ignored (no config.json)
         (out_dir / "some_other_dir").mkdir()
@@ -199,12 +221,10 @@ class TestAPIEdgeCases:
         assert response.json() == []  # No valid simulation dirs
 
     def test_simulation_with_malformed_config(
-        self, api_client: TestClient, tmp_path: Path, monkeypatch
+        self, api_client: TestClient, tmp_path: Path, patch_output_dir
     ):
         """Test handling of simulation with malformed config.json."""
-        out_dir = tmp_path / "out"
-        out_dir.mkdir()
-        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
+        out_dir = patch_output_dir(tmp_path / "out")
 
         # Create simulation with invalid JSON
         sim_dir = out_dir / "api_run_20250101_120000"
@@ -215,11 +235,9 @@ class TestAPIEdgeCases:
         # Should handle gracefully
         assert response.status_code in [404, 500]
 
-    def test_get_pdf_result(self, api_client: TestClient, tmp_path: Path, monkeypatch):
+    def test_get_pdf_result(self, api_client: TestClient, tmp_path: Path, patch_output_dir):
         """Test retrieving PDF result file."""
-        out_dir = tmp_path / "out"
-        out_dir.mkdir()
-        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
+        out_dir = patch_output_dir(tmp_path / "out")
 
         sim_dir = out_dir / "api_run_20250101_120000"
         sim_dir.mkdir()
@@ -231,11 +249,9 @@ class TestAPIEdgeCases:
         )
         assert response.status_code == 200
 
-    def test_get_csv_as_download(self, api_client: TestClient, tmp_path: Path, monkeypatch):
+    def test_get_csv_as_download(self, api_client: TestClient, tmp_path: Path, patch_output_dir):
         """Test CSV download mode."""
-        out_dir = tmp_path / "out"
-        out_dir.mkdir()
-        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
+        out_dir = patch_output_dir(tmp_path / "out")
 
         sim_dir = out_dir / "api_run_20250101_120000"
         sim_dir.mkdir()
@@ -279,12 +295,10 @@ class TestAPIDeleteOperations:
         assert response.status_code == 404
 
     def test_delete_multiple_simulations_mixed(
-        self, api_client: TestClient, tmp_path: Path, monkeypatch
+        self, api_client: TestClient, tmp_path: Path, patch_output_dir
     ):
         """Test deleting multiple simulations with mixed results."""
-        out_dir = tmp_path / "out"
-        out_dir.mkdir()
-        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
+        out_dir = patch_output_dir(tmp_path / "out")
 
         # Create one valid simulation
         sim_dir = out_dir / "api_run_valid_001"
@@ -306,11 +320,9 @@ class TestAPIDeleteOperations:
 class TestAPIPlotData:
     """Test plot data retrieval endpoints."""
 
-    def test_get_plot_data_no_files(self, api_client: TestClient, tmp_path: Path, monkeypatch):
+    def test_get_plot_data_no_files(self, api_client: TestClient, tmp_path: Path, patch_output_dir):
         """Test plot data when no plot files exist."""
-        out_dir = tmp_path / "out"
-        out_dir.mkdir()
-        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
+        out_dir = patch_output_dir(tmp_path / "out")
 
         sim_dir = out_dir / "api_run_20250101_120000"
         sim_dir.mkdir()
@@ -321,12 +333,10 @@ class TestAPIPlotData:
         assert "not yet available" in response.json().get("detail", "").lower()
 
     def test_get_all_plot_data_multiple_strategies(
-        self, api_client: TestClient, tmp_path: Path, monkeypatch
+        self, api_client: TestClient, tmp_path: Path, patch_output_dir
     ):
         """Test retrieving all plot data for multi-strategy simulation."""
-        out_dir = tmp_path / "out"
-        out_dir.mkdir()
-        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
+        out_dir = patch_output_dir(tmp_path / "out")
 
         sim_dir = out_dir / "api_run_20250101_120000"
         sim_dir.mkdir()
@@ -354,12 +364,10 @@ class TestAPIAttackSnapshots:
     """Test attack snapshot retrieval."""
 
     def test_get_attack_snapshots_no_snapshots(
-        self, api_client: TestClient, tmp_path: Path, monkeypatch
+        self, api_client: TestClient, tmp_path: Path, patch_output_dir
     ):
         """Test getting attack snapshots when none exist."""
-        out_dir = tmp_path / "out"
-        out_dir.mkdir()
-        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
+        out_dir = patch_output_dir(tmp_path / "out")
 
         sim_dir = out_dir / "api_run_20250101_120000"
         sim_dir.mkdir()
@@ -372,12 +380,10 @@ class TestAPIAttackSnapshots:
         assert data["strategies"] == []
 
     def test_get_attack_snapshots_with_data(
-        self, api_client: TestClient, tmp_path: Path, monkeypatch
+        self, api_client: TestClient, tmp_path: Path, patch_output_dir
     ):
         """Test getting attack snapshots with data present."""
-        out_dir = tmp_path / "out"
-        out_dir.mkdir()
-        monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", out_dir)
+        out_dir = patch_output_dir(tmp_path / "out")
 
         sim_dir = out_dir / "api_run_20250101_120000"
         sim_dir.mkdir()

@@ -275,8 +275,8 @@ class TestPlotHandler:
             rounds_history = Mock(spec=RoundsInfo)
             rounds_history.plottable_metrics = ["accuracy", "loss"]
             rounds_history.barable_metrics = ["num_clients"]
-            rounds_history.get_metric_by_name.side_effect = (
-                lambda metric: [0.7 + i * 0.1, 0.8 + i * 0.1, 0.9 + i * 0.1]
+            rounds_history.get_metric_by_name.side_effect = lambda metric: (
+                [0.7 + i * 0.1, 0.8 + i * 0.1, 0.9 + i * 0.1]
                 if metric in ["accuracy", "loss", "num_clients"]
                 else []
             )

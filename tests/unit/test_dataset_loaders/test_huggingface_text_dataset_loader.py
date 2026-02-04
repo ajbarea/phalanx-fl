@@ -43,6 +43,7 @@ def mock_dataset_pkg():
         mock_ds.remove_columns.return_value = mock_ds
         mock_ds.select.return_value = mock_ds
         mock_ds.shuffle.return_value = mock_ds
+        mock_ds.filter.return_value = mock_ds
         mock_ds.train_test_split.return_value = {"train": mock_ds, "test": mock_ds}
 
         mock.return_value = {"train": mock_ds}

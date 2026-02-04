@@ -8,6 +8,9 @@ Tests end-to-end workflows:
 
 These tests verify the complete API + backend integration, ensuring
 the entire system works together correctly.
+
+Note: These tests mock Celery task submission to avoid requiring
+Redis during test execution.
 """
 
 from __future__ import annotations
@@ -15,14 +18,51 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
+
+
+@pytest.fixture
+def mock_celery_task():
+    """Mock Celery task to prevent Redis connection attempts.
+
+    Mocks the run_simulation import within the create_simulation function
+    to avoid requiring Celery/Redis to be available during tests.
+    """
+    import sys
+
+    mock_task = MagicMock()
+    mock_task.id = "test-celery-task-id-12345"
+
+    # Create mock module structure for intellifl.tasks.simulation_tasks
+    mock_run_simulation = MagicMock()
+    mock_run_simulation.delay.return_value = mock_task
+
+    mock_simulation_tasks = MagicMock()
+    mock_simulation_tasks.run_simulation = mock_run_simulation
+
+    mock_tasks = MagicMock()
+    mock_tasks.simulation_tasks = mock_simulation_tasks
+
+    # Patch the module in sys.modules before it gets imported
+    with patch.dict(
+        sys.modules,
+        {
+            "intellifl.tasks": mock_tasks,
+            "intellifl.tasks.simulation_tasks": mock_simulation_tasks,
+        },
+    ):
+        yield mock_run_simulation
+
 
 # --- Full Simulation Lifecycle Test ---
 
 
-def test_full_simulation_lifecycle(api_client: TestClient, tmp_path: Path, monkeypatch):
+def test_full_simulation_lifecycle(
+    api_client: TestClient, tmp_path: Path, patch_output_dir, mock_celery_task
+):
     """
     Test complete simulation workflow:
     1. POST /api/simulations (create)
@@ -31,14 +71,7 @@ def test_full_simulation_lifecycle(api_client: TestClient, tmp_path: Path, monke
     4. GET /api/simulations/{id}/plot-data (verify JSON exists)
     5. DELETE /api/simulations/{id} (cleanup)
     """
-    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
-    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
-
-    # Mock subprocess to prevent actual simulation run
-    mock_process = MagicMock()
-    mock_process.pid = 99999
-    mock_process.poll = MagicMock(return_value=0)  # Simulate completed process
-    monkeypatch.setattr("intellifl.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
+    out_dir = patch_output_dir(tmp_path / "out")
 
     # Step 1: Create simulation
     config = {
@@ -52,14 +85,17 @@ def test_full_simulation_lifecycle(api_client: TestClient, tmp_path: Path, monke
     sim_id = response.json()["simulation_id"]
     assert sim_id.startswith("api_run_")
 
-    # Step 2: Poll status (initially pending)
+    # Verify Celery task was submitted
+    mock_celery_task.delay.assert_called_once()
+
+    # Step 2: Poll status (initially queued)
     response = api_client.get(f"/api/simulations/{sim_id}/status")
     assert response.status_code == 200
     status_data = response.json()
     assert status_data["status"] in ["queued", "pending", "running", "completed"]
 
     # Simulate simulation completion by creating result files
-    sim_dir = tmp_path / "out" / sim_id
+    sim_dir = out_dir / sim_id
     (sim_dir / "metrics.csv").write_text("round,accuracy,loss\n1,0.75,0.5\n2,0.85,0.3\n")
     (sim_dir / "plot_data_0.json").write_text(
         json.dumps({"rounds": [1, 2], "accuracy": [0.75, 0.85]})
@@ -96,18 +132,13 @@ def test_full_simulation_lifecycle(api_client: TestClient, tmp_path: Path, monke
 # --- Concurrent Simulations Test ---
 
 
-def test_concurrent_simulations(api_client: TestClient, tmp_path: Path, monkeypatch):
+def test_concurrent_simulations(
+    api_client: TestClient, tmp_path: Path, patch_output_dir, mock_celery_task
+):
     """
     Test that multiple simulations can be created and tracked simultaneously.
     """
-    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
-    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
-
-    # Mock subprocess to prevent actual simulation runs
-    mock_process = MagicMock()
-    mock_process.pid = 55555
-    mock_process.poll = MagicMock(return_value=None)  # Still running
-    monkeypatch.setattr("intellifl.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
+    patch_output_dir(tmp_path / "out")
 
     # Create first simulation
     config1 = {
@@ -121,7 +152,7 @@ def test_concurrent_simulations(api_client: TestClient, tmp_path: Path, monkeypa
     sim_id_1 = response1.json()["simulation_id"]
 
     # Create second simulation (different timestamp)
-    time.sleep(1.1)  # Ensure different timestamp (resolution is seconds)
+    time.sleep(0.01)  # Ensure different timestamp
     config2 = {
         "aggregation_strategy_keyword": "krum",
         "dataset_keyword": "pneumoniamnist",
@@ -152,7 +183,7 @@ def test_concurrent_simulations(api_client: TestClient, tmp_path: Path, monkeypa
     assert response2.status_code == 200
     assert response2.json()["config"]["shared_settings"]["aggregation_strategy_keyword"] == "krum"
 
-    # Both should be running/pending (no result files yet)
+    # Both should be queued/pending (no result files yet)
     status1 = api_client.get(f"/api/simulations/{sim_id_1}/status").json()
     status2 = api_client.get(f"/api/simulations/{sim_id_2}/status").json()
     assert status1["status"] in ["queued", "pending", "running"]
@@ -162,18 +193,13 @@ def test_concurrent_simulations(api_client: TestClient, tmp_path: Path, monkeypa
 # --- Attack Simulation Integration Test ---
 
 
-def test_attack_simulation_integration(api_client: TestClient, tmp_path: Path, monkeypatch):
+def test_attack_simulation_integration(
+    api_client: TestClient, tmp_path: Path, patch_output_dir, mock_celery_task
+):
     """
     Test simulation with attack parameters completes and generates expected outputs.
     """
-    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
-    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
-
-    # Mock subprocess
-    mock_process = MagicMock()
-    mock_process.pid = 88888
-    mock_process.poll = MagicMock(return_value=0)  # Completed
-    monkeypatch.setattr("intellifl.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
+    out_dir = patch_output_dir(tmp_path / "out")
 
     # Create simulation with attack parameters
     config = {
@@ -190,7 +216,7 @@ def test_attack_simulation_integration(api_client: TestClient, tmp_path: Path, m
     sim_id = response.json()["simulation_id"]
 
     # Verify config was saved with attack parameters
-    sim_dir = tmp_path / "out" / sim_id
+    sim_dir = out_dir / sim_id
     config_path = sim_dir / "config.json"
     assert config_path.exists()
 
@@ -199,9 +225,10 @@ def test_attack_simulation_integration(api_client: TestClient, tmp_path: Path, m
 
     assert saved_config["shared_settings"]["num_of_malicious_clients"] == 2
     assert saved_config["shared_settings"]["attack_type"] == "gaussian_noise"
-    # Note: krum_num_of_byzantines may be in simulation_strategies[0] or elsewhere depending on config structure
 
     # Simulate attack simulation completion with results
+    # Note: Status detection checks for *.pdf files or csv/*.csv files
+    (sim_dir / "accuracy_plot.pdf").write_bytes(b"%PDF-1.4 mock")
     (sim_dir / "metrics.csv").write_text(
         "round,accuracy,loss,byzantine_detected\n1,0.60,0.8,2\n2,0.70,0.6,1\n3,0.75,0.5,0\n"
     )
@@ -215,12 +242,11 @@ def test_attack_simulation_integration(api_client: TestClient, tmp_path: Path, m
         )
     )
 
-    # Verify status is completed or still queued/pending (depends on mock timing)
+    # Verify status is completed since we have result files (PDF triggers completion)
     response = api_client.get(f"/api/simulations/{sim_id}/status")
     assert response.status_code == 200
-    # Status should be completed since mock process returns 0 (success)
     status = response.json()["status"]
-    assert status in ["queued", "pending", "running", "completed", "failed"]
+    assert status == "completed"
 
     # Verify metrics include attack-related data
     response = api_client.get(f"/api/simulations/{sim_id}/results/metrics.csv")
@@ -240,18 +266,13 @@ def test_attack_simulation_integration(api_client: TestClient, tmp_path: Path, m
 # --- Simulation Status Transitions Test ---
 
 
-def test_simulation_status_transitions(api_client: TestClient, tmp_path: Path, monkeypatch):
+def test_simulation_status_transitions(
+    api_client: TestClient, tmp_path: Path, patch_output_dir, mock_celery_task
+):
     """
     Test that status reports correctly based on result file presence.
     """
-    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
-    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
-
-    # Mock subprocess that always returns completed (process has finished)
-    mock_process = MagicMock()
-    mock_process.pid = 77777
-    mock_process.poll = MagicMock(return_value=0)  # Process finished successfully
-    monkeypatch.setattr("intellifl.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
+    out_dir = patch_output_dir(tmp_path / "out")
 
     # Create simulation
     config = {
@@ -263,14 +284,13 @@ def test_simulation_status_transitions(api_client: TestClient, tmp_path: Path, m
     response = api_client.post("/api/simulations", json=config)
     assert response.status_code == 201
     sim_id = response.json()["simulation_id"]
-    sim_dir = tmp_path / "out" / sim_id
+    sim_dir = out_dir / sim_id
 
-    # Check 1: No result files yet - status could be pending/running
+    # Check 1: No result files yet - status should be queued
     response = api_client.get(f"/api/simulations/{sim_id}/status")
     assert response.status_code == 200
-    # Process finished but no result files = completed with no output yet
     initial_status = response.json()["status"]
-    assert initial_status in ["queued", "pending", "running", "completed"]
+    assert initial_status in ["queued", "pending", "running"]
 
     # Add result files
     (sim_dir / "metrics.csv").write_text("round,accuracy\n1,0.8\n2,0.9\n")
@@ -288,18 +308,13 @@ def test_simulation_status_transitions(api_client: TestClient, tmp_path: Path, m
 # --- Error Recovery Test ---
 
 
-def test_simulation_with_failed_status(api_client: TestClient, tmp_path: Path, monkeypatch):
+def test_simulation_with_failed_status(
+    api_client: TestClient, tmp_path: Path, patch_output_dir, mock_celery_task
+):
     """
-    Test simulation that fails (process exits with error) is reported correctly.
+    Test simulation that fails is reported correctly via status.json.
     """
-    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
-    monkeypatch.setattr("intellifl.api.main.BASE_DIR", tmp_path)
-
-    # Mock subprocess that exits with error code
-    mock_process = MagicMock()
-    mock_process.pid = 66666
-    mock_process.poll = MagicMock(return_value=1)  # Non-zero = error
-    monkeypatch.setattr("intellifl.api.main.subprocess.Popen", lambda *args, **kwargs: mock_process)
+    out_dir = patch_output_dir(tmp_path / "out")
 
     # Create simulation
     config = {
@@ -311,34 +326,36 @@ def test_simulation_with_failed_status(api_client: TestClient, tmp_path: Path, m
     response = api_client.post("/api/simulations", json=config)
     assert response.status_code == 201
     sim_id = response.json()["simulation_id"]
-    sim_dir = tmp_path / "out" / sim_id
+    sim_dir = out_dir / sim_id
 
-    # Create execution log
-    (sim_dir / "execution.log").write_text("Simulation failed: Out of memory")
+    # Update status.json to failed state (simulating Celery task failure)
+    status_path = sim_dir / "status.json"
+    with open(status_path) as f:
+        status_data = json.load(f)
+    status_data["status"] = "failed"
+    status_data["error"] = "Out of memory"
+    with open(status_path, "w") as f:
+        json.dump(status_data, f)
 
-    # Status should show failure when execution log is present
+    # Status should show failure
     response = api_client.get(f"/api/simulations/{sim_id}/status")
     assert response.status_code == 200
     status_data = response.json()
-    # Status may be queued/pending if execution log hasn't been detected yet
-    assert status_data["status"] in ["queued", "pending", "running", "completed", "failed"]
-    if status_data["status"] == "failed":
-        assert "Out of memory" in status_data.get("error", "")
+    assert status_data["status"] == "failed"
 
 
 # --- Simulation List Filtering Test ---
 
 
-def test_list_simulations_with_multiple_runs(api_client: TestClient, tmp_path: Path, monkeypatch):
+def test_list_simulations_with_multiple_runs(
+    api_client: TestClient, tmp_path: Path, patch_output_dir
+):
     """
     Test GET /api/simulations returns all simulations sorted by creation time.
     """
-    monkeypatch.setattr("intellifl.api.main.OUTPUT_DIR", tmp_path / "out")
+    out_dir = patch_output_dir(tmp_path / "out")
 
     # Create multiple mock simulation directories
-    out_dir = tmp_path / "out"
-    out_dir.mkdir()
-
     for i, strategy in enumerate(["fedavg", "krum", "trimmed_mean"]):
         sim_dir = out_dir / f"api_run_2025010{i}_120000"
         sim_dir.mkdir()
