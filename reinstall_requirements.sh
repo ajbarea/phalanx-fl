@@ -12,9 +12,7 @@
 . "$(dirname "$0")/tests/scripts/common.sh"
 
 VENV_NAME=$(get_venv_name)
-
-log_info "Removing existing '$VENV_NAME' directory..."
-rm -rf "$VENV_NAME"
+force_remove_venv "$VENV_NAME"
 
 # Prefer uv for faster environment creation and dependency resolution.
 # Fall back to pip if uv is unavailable (common on minimal systems).

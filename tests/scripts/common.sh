@@ -332,6 +332,51 @@ get_venv_name() {
     fi
 }
 
+# Force remove a virtual environment directory, killing processes if needed.
+#
+# On Windows/MINGW, kills Python processes that may be locking files,
+# then retries removal with increasing aggression.
+#
+# Arguments:
+#   $1: Path to venv directory
+#
+# Returns:
+#   0: Directory removed successfully
+#   1: Failed to remove (exits script)
+force_remove_venv() {
+    local venv_dir="$1"
+
+    [ -d "$venv_dir" ] || return 0
+
+    log_info "Removing existing '$venv_dir' directory..."
+
+    # On Windows/MINGW, kill Python processes that might hold file locks
+    if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "mingw"* || "$OSTYPE" == "cygwin" ]]; then
+        for proc in python.exe pythonw.exe uvicorn.exe gunicorn.exe celery.exe pytest.exe pip.exe; do
+            taskkill //F //IM "$proc" 2>/dev/null || true
+        done
+        sleep 1
+    fi
+
+    # Retry removal with delays
+    for attempt in 1 2 3; do
+        rm -rf "$venv_dir" 2>/dev/null && return 0
+        [ -d "$venv_dir" ] || return 0
+        log_info "Retry $attempt/3: Waiting for file handles to release..."
+        sleep 2
+    done
+
+    # Windows fallback: use cmd rmdir
+    if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "mingw"* || "$OSTYPE" == "cygwin" ]]; then
+        log_info "Using Windows force delete..."
+        cmd //c "rmdir /s /q \"$(cygpath -w "$venv_dir" 2>/dev/null || echo "$venv_dir")\"" 2>/dev/null || true
+        [ -d "$venv_dir" ] || return 0
+    fi
+
+    log_error "Failed to remove '$venv_dir' - close any programs using it and retry"
+    exit 1
+}
+
 # Ensure a virtual environment exists and activate it.
 #
 # Checks for an existing venv and activates it. If no venv is found,
