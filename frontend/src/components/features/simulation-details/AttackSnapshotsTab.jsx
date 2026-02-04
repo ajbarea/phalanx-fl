@@ -3,7 +3,6 @@ import { Card, Alert, Spinner, Badge, Row, Col, Form, Modal, Button, Nav } from 
 import { apiClient } from '@api/client';
 import { ImageLightbox } from '@components/common/ImageLightbox';
 
-// Visualization type labels and display order (defaults)
 const VIZ_TYPES = {
   primary: { label: 'Samples', icon: '🖼️' },
   comparison: { label: 'Comparison', icon: '🔄' },
@@ -14,8 +13,6 @@ const VIZ_TYPES = {
   html_diff: { label: 'Token Diff', icon: '📝' },
 };
 
-// Attack-type-specific overrides for visualization labels
-// Weight-based attacks show prediction comparisons, not data samples
 const ATTACK_VIZ_OVERRIDES = {
   model_poisoning: {
     primary: { label: 'Prediction Comparison', icon: '🎯' },
@@ -28,13 +25,11 @@ const ATTACK_VIZ_OVERRIDES = {
   },
 };
 
-// Helper to get visualization config with attack-type-specific overrides
 const getVizConfig = (vizType, attackType) => {
   const override = ATTACK_VIZ_OVERRIDES[attackType]?.[vizType];
   return override || VIZ_TYPES[vizType] || { label: vizType, icon: '📄' };
 };
 
-// Attack type descriptions for education
 const ATTACK_DESCRIPTIONS = {
   label_flipping: {
     title: 'Label Flipping Attack',
@@ -72,23 +67,19 @@ const ATTACK_DESCRIPTIONS = {
 function AttackSnapshotCard({ snapshot, simulationId, onImageClick }) {
   const [activeTab, setActiveTab] = useState('primary');
 
-  // Memoize visualizations to prevent dependency changes on every render
   const visualizations = useMemo(
     () => snapshot.visualizations || { primary: snapshot.image_path },
     [snapshot.visualizations, snapshot.image_path]
   );
 
-  // Get available visualization types for this snapshot (with attack-specific labels)
   const availableViz = useMemo(() => {
     return Object.keys(VIZ_TYPES)
       .filter(key => visualizations[key])
       .map(key => ({ key, ...getVizConfig(key, snapshot.attack_type) }));
   }, [visualizations, snapshot.attack_type]);
 
-  // Get attack info
   const attackInfo = ATTACK_DESCRIPTIONS[snapshot.attack_type] || null;
 
-  // Ensure active tab is valid
   useEffect(() => {
     if (!visualizations[activeTab]) {
       const firstAvailable = availableViz[0]?.key || 'primary';
@@ -100,7 +91,6 @@ function AttackSnapshotCard({ snapshot, simulationId, onImageClick }) {
     const vizPath = visualizations[activeTab];
     if (!vizPath) return null;
 
-    // Check if the path is an HTML file (for text-based attacks)
     const isHtmlViz = activeTab === 'html_diff' || vizPath.endsWith('.html');
 
     if (isHtmlViz) {
@@ -297,22 +287,18 @@ export function AttackSnapshotsTab({ simulationId, status }) {
     );
   }
 
-  // Combine all snapshots from all strategies for filtering
   const allSnapshots = data.strategies.flatMap(s => s.snapshots);
   const uniqueRounds = [...new Set(allSnapshots.map(s => s.round_num))].sort((a, b) => a - b);
   const uniqueClients = [...new Set(allSnapshots.map(s => s.client_id))].sort((a, b) => a - b);
 
-  // Filter snapshots
   const filteredSnapshots = allSnapshots.filter(snapshot => {
     if (selectedRound !== 'all' && snapshot.round_num !== parseInt(selectedRound)) return false;
     if (selectedClient !== 'all' && snapshot.client_id !== parseInt(selectedClient)) return false;
     return true;
   });
 
-  // Get summary from first strategy
   const summary = data.strategies[0]?.summary;
 
-  // Count visualization types available
   const vizTypeCounts = {};
   allSnapshots.forEach(s => {
     if (s.visualizations) {
@@ -413,7 +399,7 @@ export function AttackSnapshotsTab({ simulationId, status }) {
 
         <Row className="g-3">
           {filteredSnapshots.map((snapshot, idx) => (
-            <Col key={idx} xs={12} lg={6}>
+            <Col key={idx} xs={12} lg={snapshot.is_text_attack ? 12 : 6}>
               <AttackSnapshotCard
                 snapshot={snapshot}
                 simulationId={simulationId}
@@ -428,39 +414,6 @@ export function AttackSnapshotsTab({ simulationId, status }) {
             No snapshots match the current filters.
           </Alert>
         )}
-
-        <div className="mt-4 small text-muted">
-          <strong>Understanding Attack Snapshots:</strong>
-          <ul className="mb-0 mt-2">
-            <li>
-              <strong>Before/After Comparisons:</strong> Images show original data (left) vs
-              poisoned data (right)
-            </li>
-            <li>
-              <strong>Label Flipping:</strong> Changes labels to wrong classes, causing model
-              confusion
-            </li>
-            <li>
-              <strong>Gaussian Noise:</strong> Adds random noise to training images, disrupting
-              learning
-            </li>
-            <li>
-              <strong>Model Poisoning:</strong> Manipulates model weights to extreme values,
-              degrading performance
-            </li>
-            <li>
-              <strong>Gradient Scaling:</strong> Multiplies weight updates by a factor, amplifying
-              malicious changes
-            </li>
-            <li>
-              <strong>Byzantine Perturbation:</strong> Injects random noise into model weights
-            </li>
-            <li>
-              <strong>Token Replacement:</strong> Replaces tokens in text data with adversarial
-              alternatives (NLP)
-            </li>
-          </ul>
-        </div>
       </Card.Body>
 
       {/* Full-size image lightbox with zoom */}
