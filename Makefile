@@ -9,6 +9,8 @@ help:
 	@echo "IntelliFL - Available Commands"
 	@echo "==============================="
 	@echo ""
+	@echo "Quick start: make setup && make dev"
+	@echo ""
 	@echo "Setup:"
 	@echo "  make setup            Complete project setup (Python + frontend)"
 	@echo "  make setup-python     Python environment only"
