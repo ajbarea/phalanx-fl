@@ -5,12 +5,6 @@ This module provides:
 - Structured logging for Ray worker events (crashes, restarts, OOM)
 - Fault tolerance configuration for Ray simulations
 - Log file management for debugging Ray issues
-
-Best practices from Ray 2024-2025 documentation:
-- Use structured logging with worker_id, task_id, node_id fields
-- Enable fault tolerance with max_retries
-- Configure actor restart policies
-- Use Ray's built-in logging configuration
 """
 
 from __future__ import annotations
@@ -61,7 +55,7 @@ class RayLogHandler(logging.Handler):
 def configure_ray_logging(
     output_dir: Path,
     simulation_id: str,
-    log_level: str = "INFO",
+    log_level: str = "DEBUG",
 ) -> RayLogHandler:
     """
     Configure Ray logging to capture worker events.
@@ -111,7 +105,7 @@ def get_fault_tolerance_config(
         # Enable fault tolerance
         "namespace": "fl_simulation",
         # Configure logging
-        "logging_level": logging.INFO,
+        "logging_level": logging.DEBUG,
         "log_to_driver": True,
         # Runtime environment for better error messages
         "runtime_env": {
@@ -198,7 +192,7 @@ def log_ray_worker_event(
         ray_logger.warning(f"[RAY_WORKER] {log_msg}")
         logging.warning(f"[RAY_WORKER] {log_msg}")
     else:
-        ray_logger.info(f"[RAY_WORKER] {log_msg}")
+        ray_logger.debug(f"[RAY_WORKER] {log_msg}")
 
 
 def check_ray_cluster_health() -> dict[str, Any]:

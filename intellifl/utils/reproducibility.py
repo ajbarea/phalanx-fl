@@ -129,6 +129,6 @@ def save_reproducibility_manifest(
     try:
         with open(manifest_path, "w") as f:
             json.dump(manifest, f, indent=4)
-        logging.info(f"Reproducibility manifest saved to {manifest_path}")
+        logging.debug(f"Reproducibility manifest saved to {manifest_path}")
     except OSError as e:
         logging.error(f"Failed to save reproducibility manifest: {e}")

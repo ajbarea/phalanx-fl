@@ -34,7 +34,7 @@ class SimulationLock:
 
         while True:
             if self._try_acquire():
-                logger.info(f"Lock acquired by PID {self.pid}")
+                logger.debug(f"Lock acquired by PID {self.pid}")
                 return
 
             # Lock is held, check if owner is still alive
@@ -53,8 +53,6 @@ class SimulationLock:
 
     def _try_acquire(self) -> bool:
         """Attempt to atomically acquire the lock via directory creation."""
-        # We use a directory as a lock because mkdir is atomic on almost all platforms
-        # including Windows and Unix-like systems.
         try:
             lock_path = self.lock_file
             if lock_path.exists():
@@ -98,6 +96,6 @@ class SimulationLock:
         owner_pid = self._get_owner_pid()
         if owner_pid == self.pid:
             self._break_lock()
-            logger.info(f"Lock released by PID {self.pid}")
+            logger.debug(f"Lock released by PID {self.pid}")
         else:
             logger.debug(f"Release called by non-owner PID {self.pid} (Owner: {owner_pid})")
