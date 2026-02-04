@@ -586,7 +586,7 @@ async def prepare_simulation(request: CreateSimulationRequest) -> dict[str, Any]
     command = (
         f"nohup {python_exe} -m intellifl.simulation_runner "
         f"{relative_config_path} --origin api > /dev/null 2>&1 & "
-        f"sleep 0.5 && tail -f {output_log_path}"
+        f"tail -F {output_log_path}"
     )
 
     logger.info(f"Prepared simulation {simulation_id} for terminal execution (detached)")
