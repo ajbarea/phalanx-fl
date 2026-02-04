@@ -121,11 +121,19 @@ def parse_arguments() -> argparse.Namespace:
         help="Set logging verbosity (default: INFO)",
     )
 
+    parser.add_argument(
+        "--origin",
+        type=str,
+        choices=["cli", "api"],
+        default="cli",
+        help="Set the origin of the run (cli or api). Default: cli",
+    )
+
     return parser.parse_args()
 
 
 class SimulationRunner:
-    def __init__(self, config_filename: str, log_level: str = "INFO") -> None:
+    def __init__(self, config_filename: str, log_level: str = "INFO", origin: str = "cli") -> None:
         if not logging.getLogger().hasHandlers():
             logging.basicConfig(
                 level=getattr(logging, log_level), format="%(levelname)s: %(message)s"
@@ -148,6 +156,8 @@ class SimulationRunner:
             self._directory_handler = DirectoryHandler(output_dir=str(config_parent))
         else:
             self._directory_handler = DirectoryHandler()
+
+        self._origin = origin
 
         self._setup_file_logging(log_level)
 
@@ -182,11 +192,12 @@ class SimulationRunner:
             output_dir=Path(self._directory_handler.dirname),
             total_rounds=total_rounds,
             total_strategies=total_strategies,
+            origin=self._origin,
         )
 
         # Mark as queued BEFORE waiting for the lock
         status_tracker.queue()
-        logging.info("Simulation added to hardware queue. Waiting for lock...")
+        logging.debug("Simulation added to hardware queue. Waiting for lock...")
 
         with SimulationLock():
             # Mark as formally running once lock is acquired
@@ -391,8 +402,9 @@ if __name__ == "__main__":
     """Run simulation with config file and optional log level."""
     args = parse_arguments()
 
+    logging.debug(f"SimulationRunner starting with origin: {args.origin}")
     try:
-        simulation_runner = SimulationRunner(args.config_filename, args.log_level)
+        simulation_runner = SimulationRunner(args.config_filename, args.log_level, args.origin)
         simulation_runner.run()
     except KeyboardInterrupt:
         logging.info("Simulation interrupted by user")

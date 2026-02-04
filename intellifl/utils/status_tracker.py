@@ -31,6 +31,7 @@ class StatusTracker:
         output_dir: Path,
         total_rounds: int,
         total_strategies: int = 1,
+        origin: str | None = None,
     ):
         """Initialize the status tracker.
 
@@ -38,6 +39,7 @@ class StatusTracker:
             output_dir: Directory where status.json will be written
             total_rounds: Total number of rounds per strategy
             total_strategies: Total number of strategies to execute
+            origin: Optional string to indicate run origin (e.g., 'api', 'cli')
         """
         self.status_file = Path(output_dir) / "status.json"
         self.total_rounds = total_rounds
@@ -46,6 +48,7 @@ class StatusTracker:
         self.current_round = 0
         self.started_at: str | None = None
         self._pid = os.getpid()
+        self.origin = origin
 
     def _write_status(self, status_data: dict) -> None:
         """Write status data to status.json atomically.
@@ -56,6 +59,10 @@ class StatusTracker:
         try:
             # Add timestamp
             status_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+            # Add origin if set
+            if self.origin is not None:
+                status_data["origin"] = self.origin
 
             # Write to temp file first, then rename for atomicity
             temp_file = self.status_file.with_suffix(".json.tmp")
@@ -100,6 +107,19 @@ class StatusTracker:
                 "pid": self._pid,
             }
         )
+
+    def set_origin(self, origin: str) -> None:
+        """Set the origin for this tracker and update status file."""
+        self.origin = origin
+        # Optionally update the status file immediately
+        if self.status_file.exists():
+            try:
+                with self.status_file.open("r") as f:
+                    status_data = json.load(f)
+                status_data["origin"] = origin
+                self._write_status(status_data)
+            except Exception:
+                pass
 
     def start(self) -> None:
         """Mark the simulation as started.
