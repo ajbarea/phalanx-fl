@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getResultFile } from '@api/endpoints/simulations';
 
-export function useCSVData(simulationId, resultFiles) {
+export function useCSVData(simulationId, resultFiles, status) {
   const [csvData, setCsvData] = useState({});
   const [loading, setLoading] = useState(false);
   const isMountedRef = useRef(true);
@@ -26,7 +26,6 @@ export function useCSVData(simulationId, resultFiles) {
         }
       })
     ).then(results => {
-      // Only update state if component is still mounted
       if (!isMountedRef.current) return;
 
       const newData = results.reduce(
@@ -40,7 +39,7 @@ export function useCSVData(simulationId, resultFiles) {
     return () => {
       isMountedRef.current = false;
     };
-  }, [simulationId, resultFiles]);
+  }, [simulationId, resultFiles, status]);
 
   return { csvData, loading };
 }
