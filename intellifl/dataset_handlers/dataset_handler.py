@@ -12,11 +12,16 @@ class DatasetHandler:
         self.dst_dataset = directory_handler.dataset_dir
         self.src_dataset = dataset_config_list[self._strategy_config.dataset_keyword]
 
+        self.is_huggingface = False
+        if (isinstance(self.src_dataset, str) and self.src_dataset == "huggingface") or (
+            isinstance(self.src_dataset, dict) and self.src_dataset.get("source") == "huggingface"
+        ):
+            self.is_huggingface = True
+
     def setup_dataset(self) -> None:
         """Copy the specified number of clients' subsets to runtime folder"""
-        # Skip copying for HuggingFace datasets (loaded on-the-fly)
-        if self.src_dataset == "huggingface":
-            logging.info(
+        if self.is_huggingface:
+            logging.debug(
                 f"Skipping dataset copy for HuggingFace dataset: {self._strategy_config.dataset_keyword}"
             )
             return

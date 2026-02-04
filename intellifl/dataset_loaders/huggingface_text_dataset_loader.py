@@ -40,6 +40,7 @@ class HuggingFaceTextDatasetLoader:
         num_poisoned_clients: int = 0,
         attack_schedule: list[Any] | None = None,
         max_samples: int | None = None,  # Limit dataset size
+        max_length: int = 512,  # Maximum sequence length for tokenization
     ):
         self.hf_dataset_path = hf_dataset_path
         self.hf_dataset_name = hf_dataset_name
@@ -55,6 +56,7 @@ class HuggingFaceTextDatasetLoader:
         self.attack_schedule = attack_schedule
         self.max_samples = max_samples
         self.tokenizer: PreTrainedTokenizerBase | None = None
+        self.max_length = max_length
 
     def _partition_iid(self, full_dataset: Any) -> list[Any]:
         """Partition dataset uniformly across clients (IID distribution)."""
@@ -129,6 +131,12 @@ class HuggingFaceTextDatasetLoader:
 
         full_dataset: HFDataset = dataset["train"]
 
+        # Filter out rows with None in any of the tokenize_columns
+        def not_none(example):
+            return all(example.get(col) is not None for col in self.tokenize_columns)
+
+        full_dataset = full_dataset.filter(not_none)
+
         # Limit dataset size for memory optimization
         if self.max_samples is not None and len(full_dataset) > self.max_samples:
             original_size = len(full_dataset)
@@ -160,10 +168,10 @@ class HuggingFaceTextDatasetLoader:
 
             def tokenize_function(examples):
                 texts = [
-                    " ".join(row)
+                    " ".join(str(item) for item in row)
                     for row in zip(*[examples[col] for col in self.tokenize_columns], strict=False)
                 ]
-                return tokenizer(texts, truncation=False)
+                return tokenizer(texts, truncation=True, max_length=self.max_length)
 
             def chunk_function(examples: dict[str, Any]) -> dict[str, Any]:
                 concatenated: dict[str, Any] = {k: sum(examples[k], []) for k in examples}

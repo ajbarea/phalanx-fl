@@ -233,6 +233,8 @@ class SimulationStatusResponse(BaseModel):
     Provides accurate schema documentation for simulation status endpoints.
     """
 
+    model_config = ConfigDict(extra="allow")
+
     status: Literal["queued", "pending", "running", "completed", "failed", "stopped"]
     progress: float = Field(ge=0, le=1, default=0.0)
     current_round: int | None = None
