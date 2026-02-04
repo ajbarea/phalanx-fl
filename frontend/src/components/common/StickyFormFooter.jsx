@@ -1,3 +1,4 @@
+import './StickyFormFooter.css';
 import PropTypes from 'prop-types';
 import { Button, Spinner } from 'react-bootstrap';
 
@@ -54,29 +55,32 @@ function StickyFormFooter({
           )}
         </div>
 
-        {/* Submit button */}
-        <Button
-          variant="primary"
-          type="submit"
-          disabled={isSubmitting || hasErrors}
-          className="sticky-submit-btn"
-        >
-          {isSubmitting ? (
-            <>
-              <Spinner
-                as="span"
-                animation="border"
-                size="sm"
-                role="status"
-                aria-hidden="true"
-                className="me-2"
-              />
-              {submittingLabel}
-            </>
-          ) : (
-            submitLabel
-          )}
-        </Button>
+        <div className="sticky-footer-actions">
+          <Button
+            variant="primary"
+            type="submit"
+            disabled={isSubmitting || hasErrors}
+            className="sticky-submit-btn"
+          >
+            {isSubmitting ? (
+              <>
+                <Spinner
+                  as="span"
+                  animation="border"
+                  size="sm"
+                  role="status"
+                  aria-hidden="true"
+                  className="me-2"
+                />
+                {submittingLabel}
+              </>
+            ) : (
+              submitLabel
+            )}
+          </Button>
+
+          <div className="sticky-devtools-spacer" />
+        </div>
       </div>
     </div>
   );

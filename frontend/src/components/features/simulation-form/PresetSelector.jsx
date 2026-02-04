@@ -1,3 +1,4 @@
+import './PresetCard.css';
 import { Card, Row, Col, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { PRESETS } from '@constants/presets';
 

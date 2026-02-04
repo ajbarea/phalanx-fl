@@ -1,3 +1,4 @@
+import './QueueBuilder.css';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, Tab, Alert, Button, Spinner } from 'react-bootstrap';

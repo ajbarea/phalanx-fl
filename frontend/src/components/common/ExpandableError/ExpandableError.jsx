@@ -4,22 +4,14 @@ import { Alert } from 'react-bootstrap';
 
 /**
  * ExpandableError - A truncated error display with expand/collapse toggle.
- *
- * Follows 2026 best practices:
- * - Uses -webkit-line-clamp for multi-line truncation
- * - Accessible with aria-expanded attribute
- * - Keyboard navigable (Enter/Space to toggle)
  */
 export function ExpandableError({ error, maxLines = 2, variant = 'danger' }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const alertRef = useRef(null);
   const wasExpanded = useRef(false);
 
-  // Scroll back to the card when collapsing
   useEffect(() => {
     if (wasExpanded.current && !isExpanded) {
-      // Small delay to allow the collapse transition to start/settle
-      // requestAnimationFrame ensures the DOM has updated
       requestAnimationFrame(() => {
         alertRef.current?.scrollIntoView({
           behavior: 'smooth',
@@ -41,10 +33,9 @@ export function ExpandableError({ error, maxLines = 2, variant = 'danger' }) {
     }
   };
 
-  // When expanded, clicking anywhere in the error area collapses it
   const handleAlertClick = e => {
     if (isExpanded) {
-      e.stopPropagation(); // Prevent card selection
+      e.stopPropagation();
       setIsExpanded(false);
     }
   };
@@ -74,7 +65,7 @@ export function ExpandableError({ error, maxLines = 2, variant = 'danger' }) {
           type="button"
           className="expandable-error-toggle btn btn-link btn-sm p-0 mt-1"
           onClick={e => {
-            e.stopPropagation(); // Prevent double-toggle from Alert click
+            e.stopPropagation();
             toggleExpanded();
           }}
           onKeyDown={handleKeyDown}

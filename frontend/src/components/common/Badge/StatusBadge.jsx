@@ -1,3 +1,4 @@
+import './StatusBadge.css';
 import PropTypes from 'prop-types';
 import { OverlayTrigger, Tooltip } from 'react-bootstrap';
 

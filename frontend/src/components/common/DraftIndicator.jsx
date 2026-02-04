@@ -1,3 +1,4 @@
+import './DraftIndicator.css';
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Accordion, Button } from 'react-bootstrap';
