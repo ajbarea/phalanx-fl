@@ -2,9 +2,10 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Dependencies first for layer caching
+# Dependencies first for layer caching with cache mount
 COPY package*.json ./
-RUN npm ci --silent
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --silent
 
 COPY . .
 RUN npm run build

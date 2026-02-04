@@ -9,25 +9,29 @@ services:
     image: intellifl-api:latest
     build: .
     container_name: intellifl-api
+    restart: unless-stopped
     ports:
       - "${API_PORT:-8000}:8000"
 
     # Shared memory for PyTorch DataLoader workers
     shm_size: '4gb'
 
-    # Mount data at runtime (best practice for reproducibility)
+    # Mount data at runtime
     volumes:
       - ./out:/app/out                    # Simulation outputs (persistent)
       - ./datasets:/app/datasets          # Datasets (auto-downloaded on first run)
       - ./config:/app/config:ro           # Configs (read-only)
 
     environment:
-      - PYTHONUNBUFFERED=1
+      PYTHONUNBUFFERED: 1
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND_URL: redis://redis:6379/1
 
     # GPU support (ignored on CPU-only machines)
     deploy:
       resources:
         reservations:
+          memory: 8G
           devices:
             - driver: nvidia
               count: all
@@ -44,8 +48,84 @@ services:
     image: intellifl-web:latest
     build: ./frontend
     container_name: intellifl-web
+    restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-80}:80"
     depends_on:
       api:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ============================================================================
+  # Celery Task Queue Infrastructure
+  # ============================================================================
+
+  redis:
+    image: redis:7-alpine
+    container_name: intellifl-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  celery-worker:
+    image: intellifl-api:latest
+    container_name: intellifl-worker
+    restart: unless-stopped
+    command: celery -A intellifl.celery_app worker --loglevel=info --concurrency=${CELERY_CONCURRENCY:-1}
+    shm_size: '8gb'
+    volumes:
+      - ./out:/app/out
+      - ./datasets:/app/datasets
+    environment:
+      PYTHONUNBUFFERED: 1
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND_URL: redis://redis:6379/1
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        reservations:
+          memory: 8G
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A intellifl.celery_app inspect ping -d celery@$HOSTNAME || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  celery-monitor:
+    image: mher/flower
+    container_name: intellifl-celery-monitor
+    restart: unless-stopped
+    command: celery --broker=redis://redis:6379/0 flower --port=5555
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+volumes:
+  redis-data:
