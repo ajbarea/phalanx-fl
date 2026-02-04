@@ -300,17 +300,25 @@ def save_text_samples_html(
         .sample-content {{
             padding: 20px;
         }}
-        .text-row {{
+        .text-columns {{
             display: grid;
-            grid-template-columns: 80px 1fr;
-            gap: 10px;
-            margin-bottom: 15px;
-            align-items: start;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }}
+        .text-column {{
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }}
         .text-label {{
             font-weight: bold;
-            color: #90caf9;
-            padding-top: 8px;
+            font-size: 13px;
+        }}
+        .text-label.original-label {{
+            color: #66bb6a;
+        }}
+        .text-label.poisoned-label {{
+            color: #ef5350;
         }}
         .text-content {{
             font-family: 'Consolas', 'Monaco', monospace;
@@ -319,6 +327,7 @@ def save_text_samples_html(
             white-space: pre-wrap;
             word-break: break-word;
             line-height: 1.8;
+            flex: 1;
         }}
         .original-text {{
             background-color: var(--original-bg);
@@ -327,6 +336,11 @@ def save_text_samples_html(
         .poisoned-text {{
             background-color: var(--replaced-bg);
             border: 1px solid #c62828;
+        }}
+        @media (max-width: 480px) {{
+            .text-columns {{
+                grid-template-columns: 1fr;
+            }}
         }}
         .token {{
             display: inline;
@@ -482,13 +496,15 @@ def save_text_samples_html(
                 <span class="sample-stats">{num_replaced} tokens replaced ({replacement_rate:.1f}%)</span>
             </summary>
             <div class="sample-content">
-                <div class="text-row">
-                    <div class="text-label">Original:</div>
-                    <div class="text-content original-text">{"".join(original_html_tokens)}</div>
-                </div>
-                <div class="text-row">
-                    <div class="text-label">Poisoned:</div>
-                    <div class="text-content poisoned-text">{"".join(poisoned_html_tokens)}</div>
+                <div class="text-columns">
+                    <div class="text-column">
+                        <div class="text-label original-label">Original:</div>
+                        <div class="text-content original-text">{"".join(original_html_tokens)}</div>
+                    </div>
+                    <div class="text-column">
+                        <div class="text-label poisoned-label">Poisoned:</div>
+                        <div class="text-content poisoned-text">{"".join(poisoned_html_tokens)}</div>
+                    </div>
                 </div>
                 {label_html}
             </div>
