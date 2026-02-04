@@ -1,0 +1,248 @@
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.status-badge:hover {
+  transform: scale(1.05);
+  filter: brightness(1.2);
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Pending */
+.status-pending {
+  color: #6c757d;
+  background-color: rgba(108, 117, 125, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.status-pending .status-dot {
+  background-color: #6c757d;
+}
+
+.status-pending::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+}
+
+/* Running */
+.status-running {
+  color: #0d6efd;
+  background-color: rgba(13, 110, 253, 0.1);
+  animation: statusGlow 2s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+.status-running .status-dot {
+  background-color: #0d6efd;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.status-running::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+/* Completed */
+.status-completed {
+  color: #198754;
+  background-color: rgba(25, 135, 84, 0.1);
+}
+
+.status-completed .status-dot {
+  background-color: #198754;
+  animation: celebrate 0.5s ease-out;
+}
+
+/* Failed */
+.status-failed {
+  color: #dc3545;
+  background-color: rgba(220, 53, 69, 0.1);
+}
+
+.status-failed .status-dot {
+  background-color: #dc3545;
+}
+
+/* Stopped */
+.status-stopped {
+  color: #fd7e14;
+  background-color: rgba(253, 126, 20, 0.1);
+}
+
+.status-stopped .status-dot {
+  background-color: #fd7e14;
+}
+
+/* Unknown */
+.status-unknown {
+  color: #fd7e14;
+  background-color: rgba(253, 126, 20, 0.1);
+}
+
+.status-unknown .status-dot {
+  background-color: #fd7e14;
+}
+
+/* Loading */
+.status-loading {
+  color: #6c757d;
+  background-color: rgba(108, 117, 125, 0.08);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.status-loading .status-dot {
+  background-color: #adb5bd;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Dark Mode Variants */
+:root[data-theme='dark'] .status-pending {
+  color: var(--color-text-secondary);
+  background-color: rgba(202, 196, 208, 0.12);
+}
+
+:root[data-theme='dark'] .status-pending .status-dot {
+  background-color: var(--color-text-muted);
+}
+
+:root[data-theme='dark'] .status-running {
+  color: var(--color-info);
+  background-color: var(--color-info-bg);
+}
+
+:root[data-theme='dark'] .status-running .status-dot {
+  background-color: #5b9dd9;
+}
+
+:root[data-theme='dark'] .status-completed {
+  color: var(--color-success);
+  background-color: var(--color-success-bg);
+}
+
+:root[data-theme='dark'] .status-completed .status-dot {
+  background-color: #4caf50;
+}
+
+:root[data-theme='dark'] .status-failed {
+  color: var(--color-danger);
+  background-color: var(--color-danger-bg);
+}
+
+:root[data-theme='dark'] .status-failed .status-dot {
+  background-color: #e57373;
+}
+
+:root[data-theme='dark'] .status-stopped {
+  color: var(--color-warning);
+  background-color: var(--color-warning-bg);
+}
+
+:root[data-theme='dark'] .status-stopped .status-dot {
+  background-color: #ff9800;
+}
+
+:root[data-theme='dark'] .status-unknown {
+  color: var(--color-warning);
+  background-color: var(--color-warning-bg);
+}
+
+:root[data-theme='dark'] .status-unknown .status-dot {
+  background-color: #ff9800;
+}
+
+:root[data-theme='dark'] .status-loading {
+  color: var(--color-text-secondary);
+  background-color: rgba(202, 196, 208, 0.08);
+}
+
+:root[data-theme='dark'] .status-loading .status-dot {
+  background-color: var(--color-text-muted);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Keyframes */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes statusGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 currentColor;
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: 0 0 16px 4px currentColor;
+    filter: brightness(1.3);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+/* Mobile */
+@media (max-width: 767px) {
+  .status-badge {
+    font-size: var(--font-size-xs);
+    padding: 3px 8px;
+  }
+
+  .status-dot {
+    width: 5px;
+    height: 5px;
+  }
+}
