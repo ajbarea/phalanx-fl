@@ -1,21 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Alert } from 'react-bootstrap';
 import { PageContainer } from '@components/layout/PageContainer';
 import { PageHeader } from '@components/layout/PageHeader';
 import { SimulationForm } from '@components/features/simulation-form/SimulationForm';
+import { ConfigEditorOffcanvas } from '@components/features/simulation-form/ConfigEditorOffcanvas';
 import { OutlineButton } from '@components/common/Button/OutlineButton';
 import { ConfirmModal } from '@components/common/Modal/ConfirmModal';
-import { QueueChoiceModal } from '@components/common/Modal/QueueChoiceModal';
 import { PresetConfirmModal } from '@components/common/Modal/PresetConfirmModal';
 import { DraftIndicator } from '@components/common/DraftIndicator';
-import { createSimulation, prepareSimulation } from '@api';
+import { createSimulation } from '@api';
 import { getErrorMessage } from '@utils/errorMessages';
 import { useConfigValidation } from '@hooks/useConfigValidation';
 import { useRunningSimulation } from '@hooks/useRunningSimulation';
 import { useDeviceInfo } from '@hooks/useDeviceInfo';
 import { useDevice } from '@contexts/DeviceContext';
-import { useTerminal } from '@contexts/TerminalContext';
 import { initialConfig } from '@constants/initialConfig';
 import { PRESETS } from '@constants/presets';
 import { TOAST_DURATION, POLLING_INTERVALS } from '@constants/ui';
@@ -43,16 +42,14 @@ export function NewSimulation() {
   const [error, setError] = useState(null);
   const [selectedPreset, setSelectedPreset] = useState(null);
   const [showClearModal, setShowClearModal] = useState(false);
-  const [showQueueChoiceModal, setShowQueueChoiceModal] = useState(false);
-  const [pendingConfig, setPendingConfig] = useState(null);
   const [draftInfo, setDraftInfo] = useState(null);
   const [showPresetConfirmModal, setShowPresetConfirmModal] = useState(false);
   const [pendingPreset, setPendingPreset] = useState(null);
+  const [showConfigEditor, setShowConfigEditor] = useState(false);
   const navigate = useNavigate();
 
   const validation = useConfigValidation(config);
-  const { hasRunning, runningSimIds } = useRunningSimulation();
-  const { openTerminal, interruptAndRun } = useTerminal();
+  const { hasRunning } = useRunningSimulation();
   const {
     gpuAvailable,
     gpuInfo,
@@ -243,48 +240,16 @@ export function NewSimulation() {
 
   const handleSubmit = async e => {
     e.preventDefault();
-
-    if (hasRunning) {
-      const sanitizedConfig = sanitizeConfig(config);
-      setPendingConfig(sanitizedConfig);
-      setShowQueueChoiceModal(true);
-      return;
-    }
-
-    await submitSimulation(null);
-  };
-
-  const submitSimulation = async (addToQueue = null) => {
     setSubmitting(true);
     setError(null);
-    setShowQueueChoiceModal(false);
 
     try {
-      const configToSubmit = pendingConfig || sanitizeConfig(config);
-
-      if (addToQueue === true) {
-        const response = await createSimulation(configToSubmit, addToQueue);
-        const { simulation_id } = response.data;
-        localStorage.removeItem(STORAGE_KEYS.SIMULATION_DRAFT);
-        setPendingConfig(null);
-        toast.success('Added to experiment queue!');
-        navigate(`/queue/${simulation_id}`);
-      } else {
-        const response = await prepareSimulation(configToSubmit);
-        const { simulation_id, command } = response.data;
-        localStorage.removeItem(STORAGE_KEYS.SIMULATION_DRAFT);
-        setPendingConfig(null);
-
-        toast.success('Simulation started!');
-        openTerminal();
-
-        // Give terminal time to open, then interrupt any running process and run the command
-        setTimeout(() => {
-          interruptAndRun(`${command}\n`);
-        }, 100);
-
-        navigate(`/simulations/${simulation_id}`);
-      }
+      const configToSubmit = sanitizeConfig(config);
+      const response = await createSimulation(configToSubmit);
+      const { simulation_id } = response.data;
+      localStorage.removeItem(STORAGE_KEYS.SIMULATION_DRAFT);
+      toast.success('Simulation submitted!');
+      navigate(`/simulations/${simulation_id}`);
     } catch (err) {
       // API interceptor shows toast; just update UI state
       setError(getErrorMessage(err));
@@ -352,6 +317,22 @@ export function NewSimulation() {
     e.target.value = '';
   };
 
+  const toggleConfigEditor = () => {
+    setShowConfigEditor(prev => !prev);
+  };
+
+  const handleSaveConfigFromJson = updatedConfig => {
+    const configValues = updatedConfig?.shared_settings || updatedConfig;
+    const nextConfig = { ...initialConfig, ...configValues };
+    setConfig(nextConfig);
+    setSelectedPreset(null);
+
+    const timestamp = new Date().toISOString();
+    setDraftInfo({ source: 'user-input', timestamp });
+    localStorage.setItem(STORAGE_KEYS.DRAFT_SOURCE, 'user-input');
+    localStorage.setItem(STORAGE_KEYS.DRAFT_TIMESTAMP, timestamp);
+  };
+
   return (
     <PageContainer>
       <PageHeader title="✨ New Simulation">
@@ -380,21 +361,9 @@ export function NewSimulation() {
       </PageHeader>
 
       {hasRunning && (
-        <Alert variant="warning" className="mb-4">
-          <div className="d-flex justify-content-between align-items-center">
-            <div>
-              <i className="bi bi-exclamation-triangle me-2"></i>
-              <strong>Simulation in progress</strong> - New simulations will queue automatically
-            </div>
-            <OutlineButton
-              as={Link}
-              to={`/queue/${runningSimIds[0]}`}
-              className="btn-warning-action"
-              size="sm"
-            >
-              View Queue Status
-            </OutlineButton>
-          </div>
+        <Alert variant="info" className="mb-4">
+          <i className="bi bi-info-circle me-2"></i>
+          <strong>A simulation is in progress.</strong> Your new simulation will queue behind it.
         </Alert>
       )}
 
@@ -416,6 +385,7 @@ export function NewSimulation() {
         validation={validation}
         error={error}
         gpuInfo={gpuInfo}
+        onEditJson={() => setShowConfigEditor(true)}
       />
 
       <ConfirmModal
@@ -425,16 +395,6 @@ export function NewSimulation() {
         variant="warning"
         onConfirm={confirmResetConfig}
         onCancel={() => setShowClearModal(false)}
-      />
-
-      <QueueChoiceModal
-        show={showQueueChoiceModal}
-        onHide={() => {
-          setShowQueueChoiceModal(false);
-          setPendingConfig(null);
-        }}
-        onAddToQueue={() => submitSimulation(true)}
-        onCreateSeparate={() => submitSimulation(false)}
       />
 
       {pendingPreset && PRESETS[pendingPreset] && (
@@ -447,6 +407,13 @@ export function NewSimulation() {
           onCancel={handleCancelPresetChange}
         />
       )}
+
+      <ConfigEditorOffcanvas
+        isOpen={showConfigEditor}
+        toggle={toggleConfigEditor}
+        config={config}
+        onSave={handleSaveConfigFromJson}
+      />
     </PageContainer>
   );
 }

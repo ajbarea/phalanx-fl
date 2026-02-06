@@ -4,12 +4,7 @@ export const getSimulations = () => apiClient.get('/simulations');
 
 export const getSimulationDetails = simulationId => apiClient.get(`/simulations/${simulationId}`);
 
-export const createSimulation = (config, addToQueue = null) => {
-  const body = addToQueue !== null ? { ...config, add_to_queue: addToQueue } : config;
-  return apiClient.post('/simulations', body);
-};
-
-export const prepareSimulation = config => apiClient.post('/simulations/prepare', config);
+export const createSimulation = config => apiClient.post('/simulations', config);
 
 export const getSimulationStatus = simulationId =>
   apiClient.get(`/simulations/${simulationId}/status`);
