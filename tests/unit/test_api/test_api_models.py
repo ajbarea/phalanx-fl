@@ -182,31 +182,6 @@ class TestCreateSimulationRequest:
         assert config["shared_settings"]["num_of_rounds"] == 10
         assert config["shared_settings"]["remove_clients"] is True
 
-    def test_add_to_queue_default(self) -> None:
-        """Test add_to_queue defaults to False."""
-        request = CreateSimulationRequest(aggregation_strategy_keyword="fedavg")  # type: ignore[call-arg]
-        assert request.add_to_queue is False
-
-    def test_add_to_queue_explicit(self) -> None:
-        """Test add_to_queue can be set explicitly."""
-        request = CreateSimulationRequest(
-            aggregation_strategy_keyword="fedavg",  # type: ignore[call-arg]
-            add_to_queue=True,
-        )
-        assert request.add_to_queue is True
-
-    def test_get_config_without_queue_flag(self) -> None:
-        """Test that add_to_queue is excluded from config."""
-        request = CreateSimulationRequest(
-            aggregation_strategy_keyword="fedavg",  # type: ignore[call-arg]
-            add_to_queue=True,
-        )
-        config = request.get_config_without_queue_flag()
-
-        # add_to_queue should not be in the config
-        assert "add_to_queue" not in config
-        assert config.get("aggregation_strategy_keyword") == "fedavg"
-
 
 class TestBooleanStorage:
     """Test that boolean values are stored correctly."""

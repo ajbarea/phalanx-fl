@@ -52,3 +52,53 @@ def patch_output_dir(monkeypatch) -> Callable[[Path], Path]:
         return output_dir
 
     return _patch
+
+
+@pytest.fixture
+def mock_celery_task():
+    """Mock Celery task and connection to prevent Redis connection attempts.
+
+    Mocks both celery_app.connection() (for Redis connectivity check) and
+    run_simulation.delay() (for task submission) to allow tests to run
+    without requiring Celery/Redis to be available.
+    """
+    import sys
+    from unittest.mock import MagicMock, patch
+
+    mock_task = MagicMock()
+    mock_task.id = "test-celery-task-id-12345"
+
+    # Create mock connection that passes the Redis connectivity check
+    mock_connection = MagicMock()
+    mock_connection.ensure_connection = MagicMock(return_value=None)
+    mock_connection.close = MagicMock()
+
+    # Create mock celery app
+    mock_celery_app = MagicMock()
+    mock_celery_app.connection.return_value = mock_connection
+    mock_celery_app.conf.broker_url = "redis://localhost:6379/0"
+
+    # Create mock module structure for intellifl.tasks.simulation_tasks
+    mock_run_simulation = MagicMock()
+    mock_run_simulation.delay.return_value = mock_task
+
+    mock_simulation_tasks = MagicMock()
+    mock_simulation_tasks.run_simulation = mock_run_simulation
+
+    mock_tasks = MagicMock()
+    mock_tasks.simulation_tasks = mock_simulation_tasks
+
+    # Create mock celery_app module
+    mock_celery_app_module = MagicMock()
+    mock_celery_app_module.app = mock_celery_app
+
+    # Patch the modules in sys.modules before they get imported
+    with patch.dict(
+        sys.modules,
+        {
+            "intellifl.celery_app": mock_celery_app_module,
+            "intellifl.tasks": mock_tasks,
+            "intellifl.tasks.simulation_tasks": mock_simulation_tasks,
+        },
+    ):
+        yield mock_run_simulation

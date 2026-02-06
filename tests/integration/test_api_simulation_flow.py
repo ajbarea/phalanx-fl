@@ -18,43 +18,10 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 
-
-@pytest.fixture
-def mock_celery_task():
-    """Mock Celery task to prevent Redis connection attempts.
-
-    Mocks the run_simulation import within the create_simulation function
-    to avoid requiring Celery/Redis to be available during tests.
-    """
-    import sys
-
-    mock_task = MagicMock()
-    mock_task.id = "test-celery-task-id-12345"
-
-    # Create mock module structure for intellifl.tasks.simulation_tasks
-    mock_run_simulation = MagicMock()
-    mock_run_simulation.delay.return_value = mock_task
-
-    mock_simulation_tasks = MagicMock()
-    mock_simulation_tasks.run_simulation = mock_run_simulation
-
-    mock_tasks = MagicMock()
-    mock_tasks.simulation_tasks = mock_simulation_tasks
-
-    # Patch the module in sys.modules before it gets imported
-    with patch.dict(
-        sys.modules,
-        {
-            "intellifl.tasks": mock_tasks,
-            "intellifl.tasks.simulation_tasks": mock_simulation_tasks,
-        },
-    ):
-        yield mock_run_simulation
+# mock_celery_task fixture is now in conftest.py
 
 
 # --- Full Simulation Lifecycle Test ---

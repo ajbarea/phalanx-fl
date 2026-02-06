@@ -209,36 +209,29 @@ class TestGetStatusData:
         assert result["status"] == "completed"
         assert result["progress"] == 1.0
 
-    def test_get_status_data_execution_log_error(
-        self, tmp_path: Path, patch_output_dir, monkeypatch
-    ):
-        """_get_status_data handles execution.log read errors."""
+    def test_get_status_data_output_log_error(self, tmp_path: Path, patch_output_dir, monkeypatch):
+        """_get_status_data falls back to pending when output.log can't be read."""
         out_dir = patch_output_dir(tmp_path / "out")
-        sim_dir = out_dir / "execution_log_issue"
+        sim_dir = out_dir / "output_log_issue"
         sim_dir.mkdir(parents=True)
 
         config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
         (sim_dir / "config.json").write_text(json.dumps(config))
-        (sim_dir / "execution.log").write_text("Some error")
-
-        mock_process = MagicMock()
-        mock_process.poll.return_value = 1
-
-        dependencies.running_processes["execution_log_issue"] = mock_process
+        (sim_dir / "output.log").write_text("Some error")
 
         from pathlib import Path as PathLib
 
         original_open = PathLib.open
 
         def mock_open(self, *args, **kwargs):
-            if "execution.log" in str(self):
-                raise OSError("Cannot read execution log")
+            if "output.log" in str(self):
+                raise OSError("Cannot read output log")
             return original_open(self, *args, **kwargs)
 
         monkeypatch.setattr("pathlib.Path.open", mock_open)
 
         result = simulations._get_status_data(sim_dir, "execution_log_issue")
-        assert result["status"] == "failed"
+        assert result["status"] == "pending"
 
 
 # =============================================================================
@@ -405,52 +398,6 @@ class TestStatusMarkers:
 
 
 # =============================================================================
-# Add to Queue Tests
-# =============================================================================
-
-
-class TestAddToQueue:
-    """Tests for adding strategies to running simulations."""
-
-    def test_add_to_queue_with_running_simulation(
-        self, api_client: TestClient, tmp_path: Path, patch_output_dir
-    ):
-        """POST /api/simulations with add_to_queue=true adds to running simulation."""
-        out_dir = patch_output_dir(tmp_path / "out")
-
-        existing_sim = out_dir / "api_run_running"
-        existing_sim.mkdir(parents=True)
-        existing_config = {
-            "shared_settings": {"dataset_keyword": "bloodmnist", "num_of_rounds": 5},
-            "simulation_strategies": [{"aggregation_strategy_keyword": "fedavg"}],
-        }
-        (existing_sim / "config.json").write_text(json.dumps(existing_config))
-
-        mock_process = MagicMock()
-        mock_process.poll.return_value = None
-        dependencies.running_processes["api_run_running"] = mock_process
-
-        new_config = {
-            "aggregation_strategy_keyword": "krum",
-            "num_of_malicious_clients": 2,
-            "add_to_queue": True,
-        }
-
-        response = api_client.post("/api/simulations", json=new_config)
-        assert response.status_code == 201
-        data = response.json()
-
-        assert data["simulation_id"] == "api_run_running"
-        assert data.get("queued") is True
-
-        with open(existing_sim / "config.json") as f:
-            updated_config = json.load(f)
-
-        assert len(updated_config["simulation_strategies"]) == 2
-        assert updated_config["simulation_strategies"][1]["aggregation_strategy_keyword"] == "krum"
-
-
-# =============================================================================
 # Stop Endpoint Edge Cases
 # =============================================================================
 
@@ -490,31 +437,6 @@ class TestStopEndpointEdgeCases:
         with open(sim_dir / "status.json") as f:
             status = json.load(f)
         assert status["status"] == "stopped"
-
-    def test_stop_already_completed(
-        self, api_client: TestClient, tmp_path: Path, patch_output_dir, monkeypatch
-    ):
-        """POST /api/simulations/{id}/stop returns 409 for already completed process."""
-        out_dir = patch_output_dir(tmp_path / "out")
-        sim_dir = out_dir / "completed_sim"
-        sim_dir.mkdir(parents=True)
-
-        config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
-        (sim_dir / "config.json").write_text(json.dumps(config))
-
-        mock_process = MagicMock()
-        mock_process.poll.return_value = None
-        mock_process.pid = 12345
-        dependencies.running_processes["completed_sim"] = mock_process
-
-        def mock_psutil_process(pid):
-            raise simulations.psutil.NoSuchProcess(pid)
-
-        monkeypatch.setattr("intellifl.api.routers.simulations.psutil.Process", mock_psutil_process)
-
-        response = api_client.post("/api/simulations/completed_sim/stop")
-        assert response.status_code == 409
-        assert "already completed" in response.json()["detail"].lower()
 
 
 # =============================================================================

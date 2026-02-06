@@ -19,8 +19,6 @@ from unittest.mock import MagicMock
 
 from fastapi.testclient import TestClient
 
-from intellifl.api import dependencies
-
 # =============================================================================
 # Root and Health Endpoints
 # =============================================================================
@@ -37,7 +35,11 @@ def test_health_check(api_client: TestClient):
     """GET /api/health returns healthy status."""
     response = api_client.get("/api/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "healthy"}
+    data = response.json()
+    assert data["status"] in ("healthy", "degraded")
+    assert "redis" in data
+    assert "celery_workers" in data
+    assert data["execution_mode"] in ("celery", "subprocess")
 
 
 # =============================================================================
@@ -217,14 +219,14 @@ def test_malformed_config_json_returns_500(
 def test_simulation_details_with_failed_status(
     api_client: TestClient, tmp_path: Path, patch_output_dir
 ):
-    """GET /api/simulations/{id} returns 'failed' status when execution.log exists."""
+    """GET /api/simulations/{id} returns 'failed' status when output.log exists."""
     out_dir = patch_output_dir(tmp_path / "out")
     sim_dir = out_dir / "failed_details"
     sim_dir.mkdir(parents=True)
 
     config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
-    (sim_dir / "execution.log").write_text("Simulation failed")
+    (sim_dir / "output.log").write_text("Simulation failed")
 
     response = api_client.get("/api/simulations/failed_details")
     assert response.status_code == 200
@@ -305,7 +307,7 @@ def test_simulation_status_failed_with_error_log(
 
     config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
-    (sim_dir / "execution.log").write_text("Critical error: Out of memory")
+    (sim_dir / "output.log").write_text("Critical error: Out of memory")
 
     response = api_client.get("/api/simulations/failed_sim/status")
     assert response.status_code == 200
@@ -313,74 +315,6 @@ def test_simulation_status_failed_with_error_log(
     assert data["status"] == "failed"
     assert "error" in data
     assert "Out of memory" in data["error"]
-
-
-def test_simulation_status_with_running_process(
-    api_client: TestClient, tmp_path: Path, patch_output_dir
-):
-    """GET /api/simulations/{id}/status returns 'running' when process is active."""
-    out_dir = patch_output_dir(tmp_path / "out")
-    sim_dir = out_dir / "api_run_active"
-    sim_dir.mkdir(parents=True)
-    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
-    (sim_dir / "config.json").write_text(json.dumps(config))
-
-    mock_process = MagicMock()
-    mock_process.poll.return_value = None
-
-    dependencies.running_processes["api_run_active"] = mock_process
-
-    response = api_client.get("/api/simulations/api_run_active/status")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "running"
-    assert data["progress"] == 0.0
-
-    del dependencies.running_processes["api_run_active"]
-
-
-def test_simulation_status_with_finished_process_no_results(
-    api_client: TestClient, tmp_path: Path, patch_output_dir
-):
-    """Process finished with non-zero exit and no results returns 'failed'."""
-    out_dir = patch_output_dir(tmp_path / "out")
-    sim_dir = out_dir / "failed_process"
-    sim_dir.mkdir(parents=True)
-
-    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
-    (sim_dir / "config.json").write_text(json.dumps(config))
-    (sim_dir / "execution.log").write_text("Process exited with code 1")
-
-    mock_process = MagicMock()
-    mock_process.poll.return_value = 1
-
-    dependencies.running_processes["failed_process"] = mock_process
-
-    response = api_client.get("/api/simulations/failed_process/status")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "failed"
-    assert data["progress"] == 0.0
-    assert "failed_process" not in dependencies.running_processes
-
-
-def test_simulation_status_transitions_to_completed(
-    api_client: TestClient, mock_simulation_dir: Path, patch_output_dir
-):
-    """Process completion transitions status from 'running' to 'completed'."""
-    patch_output_dir(mock_simulation_dir.parent)
-
-    mock_process = MagicMock()
-    mock_process.poll.return_value = 0
-
-    dependencies.running_processes["api_run_20250107_120000"] = mock_process
-
-    response = api_client.get("/api/simulations/api_run_20250107_120000/status")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "completed"
-    assert data["progress"] == 1.0
-    assert "api_run_20250107_120000" not in dependencies.running_processes
 
 
 def test_simulation_status_stopped_marker(api_client: TestClient, tmp_path: Path, patch_output_dir):
@@ -405,9 +339,6 @@ def test_simulation_status_completed_with_results_no_process(
 ):
     """Status returns 'completed' when results exist but no tracked process."""
     patch_output_dir(mock_simulation_dir.parent)
-
-    if "api_run_20250107_120000" in dependencies.running_processes:
-        del dependencies.running_processes["api_run_20250107_120000"]
 
     response = api_client.get("/api/simulations/api_run_20250107_120000/status")
     assert response.status_code == 200
@@ -510,11 +441,11 @@ def test_create_simulation_config_write_error(
     assert "failed to write config" in response.json()["detail"].lower()
 
 
-def test_create_simulation_celery_error(
+def test_create_simulation_celery_unavailable_falls_back_to_subprocess(
     api_client: TestClient, tmp_path: Path, patch_output_dir, monkeypatch
 ):
-    """POST /api/simulations handles Celery task submission errors."""
-    patch_output_dir(tmp_path / "out")
+    """POST /api/simulations falls back to subprocess when Celery is unavailable."""
+    out_dir = patch_output_dir(tmp_path / "out")
 
     def mock_delay(*args):  # noqa: ARG001
         raise ConnectionError("Redis connection refused")
@@ -523,11 +454,26 @@ def test_create_simulation_celery_error(
     mock_run_simulation.delay = mock_delay
     monkeypatch.setattr("intellifl.tasks.simulation_tasks.run_simulation", mock_run_simulation)
 
+    # Mock _launch_subprocess to prevent actual process execution
+    launched = []
+    monkeypatch.setattr(
+        "intellifl.api.routers.simulations._launch_subprocess",
+        lambda path: launched.append(path),
+    )
+
     config = {"aggregation_strategy_keyword": "fedavg"}
 
     response = api_client.post("/api/simulations", json=config)
-    assert response.status_code == 500
-    assert "task queue" in response.json()["detail"].lower()
+    assert response.status_code == 201
+    assert len(launched) == 1
+
+    # status.json should NOT contain celery_task_id
+    sim_id = response.json()["simulation_id"]
+    status_path = out_dir / sim_id / "status.json"
+    with open(status_path) as f:
+        status_data = json.load(f)
+    assert "celery_task_id" not in status_data
+    assert status_data["status"] == "queued"
 
 
 def test_create_simulation_stores_celery_task_id(
@@ -551,98 +497,6 @@ def test_create_simulation_stores_celery_task_id(
     with open(status_path) as f:
         status_data = json.load(f)
     assert status_data.get("celery_task_id") == "celery-task-id-789"
-
-
-# =============================================================================
-# Prepare Simulation (POST /api/simulations/prepare)
-# =============================================================================
-
-
-def test_prepare_simulation_success(api_client: TestClient, tmp_path: Path, patch_output_dir):
-    """POST /api/simulations/prepare creates config without starting process."""
-    out_dir = patch_output_dir(tmp_path / "out")
-
-    # Clean up any leftover mock processes from previous tests
-    dependencies.running_processes.clear()
-
-    config = {
-        "aggregation_strategy_keyword": "fedavg",
-        "dataset_keyword": "bloodmnist",
-        "num_of_rounds": 3,
-        "num_of_clients": 2,
-    }
-
-    response = api_client.post("/api/simulations/prepare", json=config)
-    assert response.status_code == 201
-    data = response.json()
-
-    assert "simulation_id" in data
-    assert data["simulation_id"].startswith("api_run_")
-    assert "command" in data
-    assert "-m intellifl.simulation_runner" in data["command"]
-    assert "config_path" in data
-
-    sim_id = data["simulation_id"]
-    config_path = out_dir / sim_id / "config.json"
-    assert config_path.exists()
-    assert sim_id not in dependencies.running_processes
-
-
-def test_prepare_simulation_multi_strategy_config(
-    api_client: TestClient, tmp_path: Path, patch_output_dir
-):
-    """POST /api/simulations/prepare handles multi-strategy config."""
-    out_dir = patch_output_dir(tmp_path / "out")
-
-    config = {
-        "shared_settings": {
-            "dataset_keyword": "bloodmnist",
-            "num_of_rounds": 5,
-            "num_of_clients": 4,
-        },
-        "simulation_strategies": [
-            {"aggregation_strategy_keyword": "fedavg"},
-            {"aggregation_strategy_keyword": "krum"},
-        ],
-    }
-
-    response = api_client.post("/api/simulations/prepare", json=config)
-    assert response.status_code == 201
-    data = response.json()
-
-    sim_id = data["simulation_id"]
-    config_path = out_dir / sim_id / "config.json"
-
-    with open(config_path) as f:
-        saved_config = json.load(f)
-
-    assert "shared_settings" in saved_config
-    assert "simulation_strategies" in saved_config
-    assert len(saved_config["simulation_strategies"]) == 2
-
-
-def test_prepare_simulation_config_write_error(
-    api_client: TestClient, tmp_path: Path, patch_output_dir, monkeypatch
-):
-    """POST /api/simulations/prepare handles config write errors."""
-    patch_output_dir(tmp_path / "out")
-
-    from pathlib import Path as PathLib
-
-    original_open = PathLib.open
-
-    def mock_open(self, *args, **kwargs):
-        if "config.json" in str(self):
-            raise OSError("Permission denied")
-        return original_open(self, *args, **kwargs)
-
-    monkeypatch.setattr("pathlib.Path.open", mock_open)
-
-    config = {"aggregation_strategy_keyword": "fedavg"}
-
-    response = api_client.post("/api/simulations/prepare", json=config)
-    assert response.status_code == 500
-    assert "failed to write config" in response.json()["detail"].lower()
 
 
 # =============================================================================
@@ -676,47 +530,6 @@ def test_delete_simulation_not_found(api_client: TestClient, tmp_path: Path, pat
     response = api_client.delete("/api/simulations/nonexistent")
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
-
-
-def test_delete_simulation_running_process(
-    api_client: TestClient, tmp_path: Path, patch_output_dir
-):
-    """DELETE /api/simulations/{id} returns 409 for running simulation."""
-    out_dir = patch_output_dir(tmp_path / "out")
-    sim_dir = out_dir / "running_sim"
-    sim_dir.mkdir(parents=True)
-    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
-    (sim_dir / "config.json").write_text(json.dumps(config))
-
-    mock_process = MagicMock()
-    mock_process.poll.return_value = None
-    dependencies.running_processes["running_sim"] = mock_process
-
-    response = api_client.delete("/api/simulations/running_sim")
-    assert response.status_code == 409
-    assert "cannot delete" in response.json()["detail"].lower()
-
-    del dependencies.running_processes["running_sim"]
-
-
-def test_delete_simulation_finished_process(
-    api_client: TestClient, tmp_path: Path, patch_output_dir
-):
-    """DELETE /api/simulations/{id} succeeds when process is finished."""
-    out_dir = patch_output_dir(tmp_path / "out")
-    sim_dir = out_dir / "finished_sim"
-    sim_dir.mkdir(parents=True)
-    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
-    (sim_dir / "config.json").write_text(json.dumps(config))
-
-    mock_process = MagicMock()
-    mock_process.poll.return_value = 0
-    dependencies.running_processes["finished_sim"] = mock_process
-
-    response = api_client.delete("/api/simulations/finished_sim")
-    assert response.status_code == 200
-    assert not sim_dir.exists()
-    assert "finished_sim" not in dependencies.running_processes
 
 
 def test_delete_multiple_simulations_success(
@@ -770,38 +583,6 @@ def test_delete_multiple_simulations_partial_failure(
     assert len(data["failed"]) == 1
     assert data["failed"][0]["simulation_id"] == "nonexistent"
     assert "not found" in data["failed"][0]["error"].lower()
-
-
-def test_delete_multiple_simulations_running_process(
-    api_client: TestClient, tmp_path: Path, patch_output_dir
-):
-    """DELETE /api/simulations skips running simulations."""
-    out_dir = patch_output_dir(tmp_path / "out")
-
-    for sim_id in ["completed_sim", "running_sim"]:
-        sim_dir = out_dir / sim_id
-        sim_dir.mkdir(parents=True)
-        config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
-        (sim_dir / "config.json").write_text(json.dumps(config))
-
-    mock_process = MagicMock()
-    mock_process.poll.return_value = None
-    dependencies.running_processes["running_sim"] = mock_process
-
-    response = api_client.request(
-        "DELETE",
-        "/api/simulations",
-        json={"simulation_ids": ["completed_sim", "running_sim"]},
-    )
-    assert response.status_code == 200
-    data = response.json()
-
-    assert "completed_sim" in data["deleted"]
-    assert len(data["failed"]) == 1
-    assert data["failed"][0]["simulation_id"] == "running_sim"
-    assert "running" in data["failed"][0]["error"].lower()
-
-    del dependencies.running_processes["running_sim"]
 
 
 # =============================================================================
@@ -888,34 +669,30 @@ def test_rename_simulation_special_characters(
 def test_stop_simulation_success(
     api_client: TestClient, tmp_path: Path, patch_output_dir, monkeypatch
 ):
-    """POST /api/simulations/{id}/stop stops a running simulation."""
+    """POST /api/simulations/{id}/stop stops a running simulation via process discovery."""
     out_dir = patch_output_dir(tmp_path / "out")
     sim_dir = out_dir / "running_stop"
     sim_dir.mkdir(parents=True)
 
-    mock_process = MagicMock()
-    mock_process.poll.return_value = None
-    mock_process.pid = 12345
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
+    (sim_dir / "config.json").write_text(json.dumps(config))
 
     mock_psutil_process = MagicMock()
     mock_psutil_process.children.return_value = []
     mock_psutil_process.terminate = MagicMock()
     mock_psutil_process.wait = MagicMock()
 
-    def mock_psutil_process_init(pid):  # noqa: ARG001
-        return mock_psutil_process
-
+    # Mock _find_simulation_process to return our mock process
     monkeypatch.setattr(
-        "intellifl.api.routers.simulations.psutil.Process", mock_psutil_process_init
+        "intellifl.api.routers.simulations._find_simulation_process",
+        lambda sim_id: mock_psutil_process,
     )
-    dependencies.running_processes["running_stop"] = mock_process
 
     response = api_client.post("/api/simulations/running_stop/stop")
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "stopped"
     assert data["simulation_id"] == "running_stop"
-    assert "running_stop" not in dependencies.running_processes
 
 
 def test_stop_simulation_not_running(api_client: TestClient):
