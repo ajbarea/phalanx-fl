@@ -12,6 +12,8 @@ function StickyFormFooter({
   submitLabel = 'Create Simulation',
   submittingLabel = 'Creating Simulation...',
   onErrorClick,
+  onEditJson,
+  editJsonLabel = 'Edit JSON',
 }) {
   const errors = validation?.errors || [];
   const warnings = validation?.warnings || [];
@@ -56,6 +58,18 @@ function StickyFormFooter({
         </div>
 
         <div className="sticky-footer-actions">
+          {onEditJson && (
+            <Button
+              variant="outline-secondary"
+              type="button"
+              onClick={onEditJson}
+              disabled={isSubmitting}
+              className="sticky-edit-json-btn"
+              aria-label="Edit raw JSON configuration"
+            >
+              {editJsonLabel}
+            </Button>
+          )}
           <Button
             variant="primary"
             type="submit"
@@ -105,6 +119,8 @@ StickyFormFooter.propTypes = {
   submitLabel: PropTypes.string,
   submittingLabel: PropTypes.string,
   onErrorClick: PropTypes.func,
+  onEditJson: PropTypes.func,
+  editJsonLabel: PropTypes.string,
 };
 
 export default StickyFormFooter;

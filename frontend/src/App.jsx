@@ -4,7 +4,6 @@ import { Dashboard } from './pages/Dashboard/Dashboard';
 import { NewSimulation } from './pages/NewSimulation/NewSimulation';
 import { SimulationDetails } from './pages/SimulationDetails/SimulationDetails';
 import { ExperimentQueue } from './pages/ExperimentQueue/ExperimentQueue';
-import { QueueStatus } from './pages/QueueStatus/QueueStatus';
 import { NotFound } from './pages/NotFound/NotFound';
 import AssistantPage from './pages/Assistant/AssistantPage';
 import ComparisonView from './components/ComparisonView';
@@ -16,6 +15,7 @@ import { AssistantRuntimeProvider, AssistantPanel } from './components/features/
 import { Toaster } from 'sonner';
 import { useEffect, useState } from 'react';
 import { useTerminal } from './contexts/TerminalContext';
+import { ASSISTANT_BRANDING } from '@constants/assistantBranding';
 import './App.css';
 
 function App() {
@@ -92,15 +92,15 @@ function App() {
                     Experiment Queue
                   </Nav.Link>
                   <Nav.Link as={Link} to="/assistant">
-                    Assistant
+                    {ASSISTANT_BRANDING.navLabel}
                   </Nav.Link>
                 </Nav>
                 <Nav className="align-items-center">
                   <button
                     className="aui-navbar-btn"
                     onClick={() => setIsAssistantOpen(true)}
-                    title="Open Assistant"
-                    aria-label="Open IntelliFL Assistant"
+                    title={ASSISTANT_BRANDING.openButtonTitle}
+                    aria-label={ASSISTANT_BRANDING.openButtonAriaLabel}
                   >
                     <span className="material-symbols-outlined">chat</span>
                   </button>
@@ -121,7 +121,6 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/simulations/new" element={<NewSimulation />} />
               <Route path="/experiments/queue" element={<ExperimentQueue />} />
-              <Route path="/queue/:simulationId" element={<QueueStatus />} />
               <Route path="/simulations/:simulationId" element={<SimulationDetails />} />
               <Route path="/compare" element={<ComparisonView />} />
               <Route path="/assistant" element={<AssistantPage />} />

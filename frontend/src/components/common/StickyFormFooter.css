@@ -30,7 +30,16 @@
   min-width: 0;
 }
 
-/* Error Badge */
+.sticky-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.sticky-edit-json-btn {
+  flex-shrink: 0;
+}
+
 .sticky-error-badge {
   display: inline-flex;
   align-items: center;
@@ -79,7 +88,6 @@
   color: #1c1b1f;
 }
 
-/* Warning Badge */
 .sticky-warning-badge {
   display: inline-flex;
   align-items: center;
@@ -116,7 +124,6 @@
   color: #1c1b1f;
 }
 
-/* Success Badge */
 .sticky-success-badge {
   display: inline-flex;
   align-items: center;
@@ -144,12 +151,10 @@
   min-width: 180px;
 }
 
-/* Content padding to prevent overlap */
 .simulation-form-container {
   padding-bottom: 80px;
 }
 
-/* Mobile */
 @media (max-width: 576px) {
   .sticky-form-footer {
     padding: var(--spacing-sm);
@@ -163,6 +168,15 @@
   .sticky-form-footer-status {
     width: 100%;
     text-align: center;
+  }
+
+  .sticky-footer-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .sticky-footer-actions .btn {
+    width: 100%;
   }
 
   .sticky-submit-btn {

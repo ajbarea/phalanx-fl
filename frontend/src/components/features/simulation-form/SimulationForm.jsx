@@ -55,6 +55,7 @@ export function SimulationForm({
   isSubmitting,
   validation,
   error,
+  onEditJson,
 }) {
   const [activeSection, setActiveSection] = useState(['0']);
 
@@ -520,6 +521,7 @@ export function SimulationForm({
         validation={validation}
         isSubmitting={isSubmitting}
         onErrorClick={handleErrorClick}
+        onEditJson={onEditJson}
       />
     </Form>
   );
