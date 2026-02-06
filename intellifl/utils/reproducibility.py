@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import platform
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -69,14 +70,26 @@ def get_system_metadata() -> dict[str, Any]:
     except (subprocess.SubprocessError, FileNotFoundError):
         logging.debug("Git metadata not available")
 
-    # Gather Pip freeze
-    try:
-        pip_freeze = subprocess.check_output([sys.executable, "-m", "pip", "freeze"]).decode(
-            "utf-8"
-        )
-        metadata["packages"] = pip_freeze.splitlines()
-    except subprocess.SubprocessError:
-        logging.debug("Pip freeze metadata not available")
+    # Gather installed packages - prefer uv over pip
+    packages_captured = False
+    if shutil.which("uv"):
+        try:
+            uv_freeze = subprocess.check_output(
+                ["uv", "pip", "freeze"], stderr=subprocess.DEVNULL
+            ).decode("utf-8")
+            metadata["packages"] = uv_freeze.splitlines()
+            packages_captured = True
+        except subprocess.SubprocessError:
+            logging.debug("uv pip freeze not available, trying pip")
+
+    if not packages_captured:
+        try:
+            pip_freeze = subprocess.check_output(
+                [sys.executable, "-m", "pip", "freeze"], stderr=subprocess.DEVNULL
+            ).decode("utf-8")
+            metadata["packages"] = pip_freeze.splitlines()
+        except subprocess.SubprocessError:
+            logging.debug("Pip freeze metadata not available")
 
     return metadata
 
