@@ -33,10 +33,56 @@ def read_root() -> dict[str, str]:
     return {"message": "Federated Learning Simulation Framework API"}
 
 
-@router.get("/api/health")
-def health_check() -> dict[str, str]:
-    """Health check endpoint for startup detection and monitoring."""
-    return {"status": "healthy"}
+class HealthResponse(BaseModel):
+    """Health check response with service statuses."""
+
+    status: str
+    redis: str
+    celery_workers: int
+    execution_mode: str
+
+
+@router.get("/api/health", response_model=HealthResponse)
+def health_check() -> HealthResponse:
+    """Health check endpoint including Redis and Celery worker status."""
+    redis_status = "unavailable"
+    worker_count = 0
+
+    try:
+        from intellifl.celery_app import app as celery_app
+
+        # Check Redis broker connectivity
+        conn = celery_app.connection()
+        try:
+            conn.ensure_connection(max_retries=0, timeout=1)
+            redis_status = "connected"
+        except Exception:
+            pass
+        finally:
+            conn.close()
+
+        # Check active Celery workers
+        if redis_status == "connected":
+            try:
+                inspect = celery_app.control.inspect(timeout=1)
+                active = inspect.active()
+                if active:
+                    worker_count = len(active)
+            except Exception:
+                pass
+
+    except ImportError:
+        redis_status = "celery_not_installed"
+
+    overall = "healthy" if redis_status == "connected" else "degraded"
+    execution_mode = "celery" if redis_status == "connected" else "subprocess"
+
+    return HealthResponse(
+        status=overall,
+        redis=redis_status,
+        celery_workers=worker_count,
+        execution_mode=execution_mode,
+    )
 
 
 @router.get("/api/system/devices", response_model=SystemDevicesResponse)

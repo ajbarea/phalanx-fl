@@ -22,7 +22,6 @@ from sse_starlette.sse import EventSourceResponse
 from intellifl.api.dependencies import (
     OUTPUT_DIR,
     get_simulation_path,
-    running_processes,
     secure_join,
 )
 from intellifl.api.models import CreateSimulationRequest, SimulationStatusResponse
@@ -139,33 +138,21 @@ def _get_status_data(sim_path: Path, simulation_id: str) -> dict[str, Any]:
     if running_marker.is_file():
         return {"status": "running", "progress": 0.0}
 
-    if simulation_id in running_processes:
-        process = running_processes[simulation_id]
-        poll_result = process.poll()
-
-        if poll_result is None:
-            return {"status": "running", "progress": 0.0}
-        else:
-            del running_processes[simulation_id]
-            result_files = list(sim_path.glob("*.pdf")) + list(sim_path.glob("csv/*.csv"))
-            if result_files or poll_result == 0:
-                return {"status": "completed", "progress": 1.0}
-            else:
-                return {"status": "failed", "progress": 0.0}
-
     result_files = list(sim_path.glob("*.pdf")) + list(sim_path.glob("csv/*.csv"))
     if result_files:
         return {"status": "completed", "progress": 1.0}
 
-    execution_log_path = sim_path / "execution.log"
-    if execution_log_path.is_file():
-        try:
-            with execution_log_path.open("r") as f:
-                error_content = f.read(1024)
-            if error_content.strip():
-                return {"status": "failed", "progress": 0.0}
-        except OSError:
-            pass
+    # Check for log files (output.log for new sims, execution.log for legacy)
+    for log_name in ("output.log", "execution.log"):
+        log_path = sim_path / log_name
+        if log_path.is_file():
+            try:
+                with log_path.open("r") as f:
+                    error_content = f.read(1024)
+                if error_content.strip():
+                    return {"status": "failed", "progress": 0.0}
+            except OSError:
+                pass
 
     return {"status": "pending", "progress": 0.0}
 
@@ -391,6 +378,41 @@ def get_result_file(
     return FileResponse(file_path)
 
 
+# ---------------------------------------------------------------------------
+# Subprocess execution backend (used when Celery/Redis is unavailable)
+# ---------------------------------------------------------------------------
+
+
+def _launch_subprocess(config_filepath: Path) -> None:
+    """Fire-and-forget launch of simulation_runner as an async subprocess."""
+    log_path = config_filepath.parent / "output.log"
+    log_file = log_path.open("a")
+    project_root = Path(__file__).resolve().parents[3]
+    loop = asyncio.get_running_loop()
+    loop.create_task(_run_subprocess(config_filepath, log_file, project_root))
+
+
+async def _run_subprocess(config_filepath: Path, log_file: Any, project_root: Path) -> None:
+    """Run simulation_runner as an async subprocess — mirrors the Celery task."""
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable,
+            "-m",
+            "intellifl.simulation_runner",
+            str(config_filepath),
+            "--origin",
+            "api",
+            stdout=log_file,
+            stderr=asyncio.subprocess.STDOUT,
+            cwd=str(project_root),
+        )
+        await proc.wait()
+    except Exception:
+        logger.exception(f"Subprocess execution failed for {config_filepath.parent.name}")
+    finally:
+        log_file.close()
+
+
 @router.post("/api/simulations", status_code=201)
 async def create_simulation(request: CreateSimulationRequest) -> dict[str, Any]:
     """Creates and initiates a new simulation based on the provided configuration.
@@ -404,62 +426,17 @@ async def create_simulation(request: CreateSimulationRequest) -> dict[str, Any]:
     Raises:
         HTTPException: If the simulation process fails to start or config cannot be written.
     """
-    add_to_queue = request.add_to_queue
-
-    config = request.get_config_without_queue_flag()
+    config = request.to_config_dict()
 
     config_keys = list(config.keys())
     has_shared = "shared_settings" in config
     has_strategies = "simulation_strategies" in config
     logger.info(
         f"New simulation request. Keys: {config_keys}, Shared: {has_shared}, "
-        f"Strategies: {has_strategies}, Queue: {add_to_queue}"
+        f"Strategies: {has_strategies}"
     )
 
     config_dict = config
-
-    running_sim_id = None
-    for sim_id, process in running_processes.items():
-        if process.poll() is None:
-            running_sim_id = sim_id
-            break
-
-    if (
-        running_sim_id
-        and add_to_queue is True
-        and not ("shared_settings" in config_dict and "simulation_strategies" in config_dict)
-    ):
-        logger.info(f"User chose to add to running simulation {running_sim_id}")
-
-        running_sim_path = OUTPUT_DIR / running_sim_id
-        config_filepath = running_sim_path / "config.json"
-
-        try:
-            with config_filepath.open("r") as f:
-                running_config = json.load(f)
-
-            new_strategy = {}
-            strategy_fields = [
-                "aggregation_strategy_keyword",
-                "num_of_malicious_clients",
-                "num_krum_selections",
-                "remove_clients",
-                "begin_removing_from_round",
-            ]
-            for field in strategy_fields:
-                if config_dict.get(field) is not None:
-                    new_strategy[field] = config_dict[field]
-
-            running_config["simulation_strategies"].append(new_strategy)
-
-            with config_filepath.open("w") as f:
-                json.dump(running_config, f, indent=4)
-
-            logger.info(f"Added strategy to running simulation {running_sim_id}")
-            return {"simulation_id": running_sim_id, "queued": True}
-
-        except Exception:
-            logger.exception("Failed to add to running queue, creating new simulation instead")
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     simulation_id = f"api_run_{timestamp}"
@@ -485,117 +462,45 @@ async def create_simulation(request: CreateSimulationRequest) -> dict[str, Any]:
     except OSError as e:
         raise HTTPException(status_code=500, detail=f"Failed to write config file: {e}")
 
+    # Try Celery+Redis first; fall back to direct subprocess if unavailable.
     status_filepath = output_sim_path / "status.json"
+    celery_task_id = None
     try:
-        first_strategy_config = (
-            wrapped_config.get("simulation_strategies", [{}])[0]
-            if "simulation_strategies" in wrapped_config
-            else wrapped_config
-        )
-        total_rounds = first_strategy_config.get("num_of_rounds", 10)
+        from intellifl.celery_app import app as celery_app
+        from intellifl.tasks.simulation_tasks import run_simulation
+
+        conn = celery_app.connection()
+        try:
+            conn.ensure_connection(max_retries=0, timeout=2)
+        finally:
+            conn.close()
+
+        task = run_simulation.delay(str(config_filepath))  # type: ignore
+        celery_task_id = task.id
+        logger.info(f"Celery: queued simulation {simulation_id} (task_id: {celery_task_id})")
+    except Exception as celery_err:
+        # Redis unavailable or Celery not installed — subprocess fallback
+        logger.info(f"Celery unavailable ({celery_err!r}), using subprocess for {simulation_id}")
+        _launch_subprocess(config_filepath)
+    # Create initial status.json
+    try:
         total_strategies = len(wrapped_config.get("simulation_strategies", [1]))
         initial_status = {
             "status": "queued",
-            "current_round": 0,
-            "total_rounds": total_rounds,
+            "progress": 0.0,
             "current_strategy": 0,
             "total_strategies": total_strategies,
-            "progress": 0.0,
-            "pid": None,
             "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "origin": "api",
         }
+        if celery_task_id:
+            initial_status["celery_task_id"] = celery_task_id
         with status_filepath.open("w") as f:
             json.dump(initial_status, f, indent=2)
-        logger.info(f"Created initial status.json for {simulation_id} with queued status")
     except OSError as e:
         logger.warning(f"Failed to create initial status.json: {e}")
-        # Even if status file fails, attempt to queue the task
-        pass
 
-    # Submit to Celery task queue (workers execute simulations)
-    try:
-        from intellifl.tasks.simulation_tasks import run_simulation
-
-        task = run_simulation.delay(str(config_filepath))  # type: ignore
-        logger.info(f"Submitted simulation {simulation_id} to Celery queue (task_id: {task.id})")
-
-        # Store task ID in status.json for tracking/cancellation
-        try:
-            with status_filepath.open("r") as f:
-                status_data = json.load(f)
-            status_data["celery_task_id"] = task.id
-            with status_filepath.open("w") as f:
-                json.dump(status_data, f, indent=2)
-        except (OSError, json.JSONDecodeError):
-            pass
-
-    except Exception:
-        logger.exception(f"Failed to submit simulation {simulation_id} to Celery")
-        raise HTTPException(status_code=500, detail="Failed to submit simulation to task queue")
     return {"simulation_id": simulation_id}
-
-
-@router.post("/api/simulations/prepare", status_code=201)
-async def prepare_simulation(request: CreateSimulationRequest) -> dict[str, Any]:
-    """Prepares a simulation by creating config but not starting the process.
-
-    This endpoint is used when the frontend wants to run the simulation
-    directly in the terminal PTY for real-time output.
-
-    Args:
-        request: Validated simulation configuration request.
-
-    Returns:
-        A dictionary containing:
-        - simulation_id: The unique identifier for the simulation
-        - command: The command to run in the terminal
-
-    Raises:
-        HTTPException: If the config cannot be written.
-    """
-    config = request.get_config_without_queue_flag()
-
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    simulation_id = f"api_run_{timestamp}"
-
-    output_sim_path = OUTPUT_DIR / simulation_id
-    output_sim_path.mkdir(parents=True, exist_ok=True)
-
-    config_filepath = output_sim_path / "config.json"
-
-    if "shared_settings" in config and "simulation_strategies" in config:
-        logger.info("Multi-sim config detected, using as-is")
-        wrapped_config = config
-    else:
-        logger.info("Single sim config detected, wrapping with first strategy")
-        wrapped_config = {
-            "shared_settings": config,
-            "simulation_strategies": [config.copy()],
-        }
-
-    try:
-        with config_filepath.open("w") as f:
-            json.dump(wrapped_config, f, indent=4)
-    except OSError as e:
-        raise HTTPException(status_code=500, detail=f"Failed to write config file: {e}")
-
-    relative_config_path = f"out/{simulation_id}/config.json"
-    output_log_path = f"out/{simulation_id}/output.log"
-    python_exe = Path(sys.executable).as_posix()
-    command = (
-        f"nohup {python_exe} -m intellifl.simulation_runner "
-        f"{relative_config_path} --origin api > /dev/null 2>&1 & "
-        f"tail -F {output_log_path}"
-    )
-
-    logger.info(f"Prepared simulation {simulation_id} for terminal execution (detached)")
-
-    return {
-        "simulation_id": simulation_id,
-        "command": command,
-        "config_path": relative_config_path,
-    }
 
 
 @router.get("/api/simulations/{simulation_id}/status", response_model=SimulationStatusResponse)
@@ -618,15 +523,17 @@ def get_simulation_status(
     status_data = _get_status_data(sim_path, simulation_id)
 
     if status_data.get("status") == "failed":
-        execution_log_path = sim_path / "execution.log"
-        if execution_log_path.is_file():
-            try:
-                with execution_log_path.open("r") as f:
-                    error_message = f.read(102400).strip()
-                if error_message:
-                    status_data["error"] = error_message
-            except OSError:
-                pass
+        for log_name in ("output.log", "execution.log"):
+            log_path = sim_path / log_name
+            if log_path.is_file():
+                try:
+                    with log_path.open("r") as f:
+                        error_message = f.read(102400).strip()
+                    if error_message:
+                        status_data["error"] = error_message
+                        break
+                except OSError:
+                    pass
 
     return SimulationStatusResponse(**status_data)
 
@@ -637,8 +544,20 @@ async def stream_simulation_status(
     sim_path: Path = Depends(get_simulation_path),
     simulation_id: str = "",
 ) -> EventSourceResponse:
+    """Stream simulation status and output via Server-Sent Events.
+
+    Sends two event types:
+    - ``status``: JSON with status, progress, round/strategy info (on change)
+    - ``output``: JSON with ``{"text": "..."}`` containing new log output
+
+    The stream closes once the simulation reaches a terminal status
+    (completed, failed, stopped).
+    """
+
     async def event_generator():
         last_status: dict[str, Any] | None = None
+        log_position = 0
+        log_path: Path | None = None
 
         while True:
             if await request.is_disconnected():
@@ -648,17 +567,58 @@ async def stream_simulation_status(
             current_status = _get_status_data(sim_path, simulation_id)
 
             if current_status != last_status:
-                yield {"data": json.dumps(current_status)}
+                yield {"event": "status", "data": json.dumps(current_status)}
                 last_status = current_status.copy()
 
-                if current_status.get("status") in _TERMINAL_STATUSES:
-                    logger.debug(
-                        f"SSE stream closing for {simulation_id}: "
-                        f"terminal status '{current_status.get('status')}'"
-                    )
-                    break
+            # Find log file if not yet found
+            if log_path is None:
+                for log_name in ("output.log", "execution.log"):
+                    candidate = sim_path / log_name
+                    if candidate.is_file():
+                        log_path = candidate
+                        break
 
-            await asyncio.sleep(1)
+            # Stream new output from log file
+            if log_path is not None and log_path.is_file():
+                try:
+                    with log_path.open("rb") as f:
+                        f.seek(log_position)
+                        new_bytes = f.read()
+                        if new_bytes:
+                            log_position = f.tell()
+                            new_content = new_bytes.decode("utf-8", errors="replace")
+                            yield {
+                                "event": "output",
+                                "data": json.dumps({"text": new_content}),
+                            }
+                except OSError:
+                    pass
+
+            if current_status.get("status") in _TERMINAL_STATUSES:
+                # Final output flush after terminal status
+                if log_path is not None and log_path.is_file():
+                    try:
+                        with log_path.open("rb") as f:
+                            f.seek(log_position)
+                            final_bytes = f.read()
+                            if final_bytes:
+                                final_content = final_bytes.decode("utf-8", errors="replace")
+                                yield {
+                                    "event": "output",
+                                    "data": json.dumps({"text": final_content}),
+                                }
+                    except OSError:
+                        pass
+
+                yield {"event": "done", "data": ""}
+
+                logger.debug(
+                    f"SSE stream closing for {simulation_id}: "
+                    f"terminal status '{current_status.get('status')}'"
+                )
+                break
+
+            await asyncio.sleep(0.5)
 
     return EventSourceResponse(
         event_generator(),
@@ -685,12 +645,6 @@ def delete_simulation(
     Raises:
         HTTPException: If the simulation is currently running or deletion fails.
     """
-    if simulation_id in running_processes:
-        process = running_processes[simulation_id]
-        if process.poll() is None:
-            raise HTTPException(status_code=409, detail="Cannot delete a running simulation.")
-        del running_processes[simulation_id]
-
     try:
         shutil.rmtree(sim_path)
         logger.info(f"Deleted simulation: {simulation_id}")
@@ -726,18 +680,6 @@ def delete_multiple_simulations(
             if not sim_path.is_dir():
                 failed.append({"simulation_id": simulation_id, "error": "Simulation not found"})
                 continue
-
-            if simulation_id in running_processes:
-                process = running_processes[simulation_id]
-                if process.poll() is None:
-                    failed.append(
-                        {
-                            "simulation_id": simulation_id,
-                            "error": "Simulation is running",
-                        }
-                    )
-                    continue
-                del running_processes[simulation_id]
 
             shutil.rmtree(sim_path)
             deleted.append(simulation_id)
@@ -852,47 +794,28 @@ def stop_simulation(simulation_id: str) -> dict[str, str]:
         except Exception as e:
             logger.warning(f"Celery revocation failed, trying process termination: {e}")
 
-    # Fallback: process-based termination (legacy or subprocess still running)
-    process = None
-    parent = None
+    # Fallback: process-based termination (find by PID or cmdline pattern)
+    parent = _find_simulation_process(simulation_id)
 
-    if simulation_id in running_processes:
-        process = running_processes[simulation_id]
-        if process.poll() is not None:
-            del running_processes[simulation_id]
-            process = None
+    if parent is None:
+        if status_path.exists():
+            try:
+                with status_path.open() as f:
+                    status_data = json.load(f)
+                if status_data.get("status") == "running":
+                    status_data["status"] = "stopped"
+                    status_data["stopped_at"] = datetime.datetime.now(
+                        tz=datetime.timezone.utc
+                    ).isoformat()
+                    status_data["error"] = "Process terminated unexpectedly"
+                    with status_path.open("w") as f:
+                        json.dump(status_data, f, indent=2)
+                    logger.info(f"Marked orphaned simulation {simulation_id} as stopped")
+                    return {"message": "stopped", "simulation_id": simulation_id}
+            except (OSError, json.JSONDecodeError) as e:
+                logger.warning(f"Failed to update orphaned status for {simulation_id}: {e}")
 
-    if process is None:
-        found_proc = _find_simulation_process(simulation_id)
-        if found_proc:
-            parent = found_proc
-        else:
-            if status_path.exists():
-                try:
-                    with status_path.open() as f:
-                        status_data = json.load(f)
-                    if status_data.get("status") == "running":
-                        status_data["status"] = "stopped"
-                        status_data["stopped_at"] = datetime.datetime.now(
-                            tz=datetime.timezone.utc
-                        ).isoformat()
-                        status_data["error"] = "Process terminated unexpectedly"
-                        with status_path.open("w") as f:
-                            json.dump(status_data, f, indent=2)
-                        logger.info(f"Marked orphaned simulation {simulation_id} as stopped")
-                        return {"message": "stopped", "simulation_id": simulation_id}
-                except (OSError, json.JSONDecodeError) as e:
-                    logger.warning(f"Failed to update orphaned status for {simulation_id}: {e}")
-
-            raise HTTPException(
-                status_code=404, detail="Simulation is not running or does not exist."
-            )
-    else:
-        try:
-            parent = psutil.Process(process.pid)
-        except psutil.NoSuchProcess:
-            del running_processes[simulation_id]
-            raise HTTPException(status_code=409, detail="Simulation has already completed.")
+        raise HTTPException(status_code=404, detail="Simulation is not running or does not exist.")
 
     try:
         children = parent.children(recursive=True)
@@ -911,9 +834,6 @@ def stop_simulation(simulation_id: str) -> dict[str, str]:
                     child.kill()
             parent.wait()
 
-        if simulation_id in running_processes:
-            del running_processes[simulation_id]
-
         sim_path = OUTPUT_DIR / simulation_id
         stopped_marker = sim_path / ".stopped"
         try:
@@ -925,8 +845,6 @@ def stop_simulation(simulation_id: str) -> dict[str, str]:
         logger.info(f"Stopped simulation {simulation_id} and all child processes")
         return {"message": "stopped", "simulation_id": simulation_id}
     except psutil.NoSuchProcess:
-        if simulation_id in running_processes:
-            del running_processes[simulation_id]
         logger.info(f"Simulation {simulation_id} already terminated")
         return {"message": "stopped", "simulation_id": simulation_id}
     except Exception:
