@@ -6,6 +6,7 @@ import './Assistant.css';
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import { Thread } from './Thread';
+import { ASSISTANT_BRANDING } from '@constants/assistantBranding';
 
 export function AssistantPanel({ isOpen, onClose }) {
   const navigate = useNavigate();
@@ -23,11 +24,11 @@ export function AssistantPanel({ isOpen, onClose }) {
       {/* Panel */}
       <aside
         className={`aui-panel ${isOpen ? 'open' : ''}`}
-        aria-label="IntelliFL Assistant"
+        aria-label={ASSISTANT_BRANDING.panelAriaLabel}
         aria-hidden={!isOpen}
       >
         <header className="aui-panel-header">
-          <h3 className="aui-panel-title">IntelliFL Assistant</h3>
+          <h3 className="aui-panel-title">{ASSISTANT_BRANDING.panelTitle}</h3>
           <div className="aui-panel-actions">
             <button
               className="aui-panel-btn"

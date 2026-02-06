@@ -5,10 +5,11 @@ import { useAui } from '@assistant-ui/react';
 import PropTypes from 'prop-types';
 
 const DEFAULT_SUGGESTIONS = [
-  'What strategies are available?',
-  'How do I configure an experiment?',
-  'Show me recent simulations',
-  'Why is FL different from traditional ML?',
+  'What does this framework do?',
+  'How do I configure and run a simulation?',
+  'Which aggregation strategies are built in?',
+  'What datasets are available?',
+  'What are the current limitations?',
 ];
 
 const NUMBER_OF_SUGGESTIONS = 3;

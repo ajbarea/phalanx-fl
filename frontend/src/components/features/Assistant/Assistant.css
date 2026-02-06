@@ -1,4 +1,3 @@
-/* Navbar Chat Button */
 .aui-navbar-btn {
   display: flex;
   align-items: center;
@@ -19,7 +18,6 @@
   color: var(--color-primary);
 }
 
-/* Side Panel */
 .aui-panel {
   position: fixed;
   top: 0;
@@ -31,7 +29,7 @@
   border-left: 1px solid var(--color-border);
   box-shadow: var(--shadow-lg);
   transition: right var(--transition-base);
-  z-index: var(--z-modal);
+  z-index: 100001;
   display: flex;
   flex-direction: column;
 }
@@ -44,7 +42,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.3);
-  z-index: calc(var(--z-modal) - 1);
+  z-index: 100000;
   animation: auiFadeIn var(--transition-fast);
 }
 
@@ -52,6 +50,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -104,7 +103,6 @@
   overflow: hidden;
 }
 
-/* Full Page */
 .aui-page {
   max-width: 800px;
   margin: 0 auto;
@@ -139,7 +137,6 @@
   background: var(--color-surface);
 }
 
-/* Thread */
 .aui-thread-root {
   display: flex;
   flex-direction: column;
@@ -156,7 +153,6 @@
   gap: var(--spacing-md);
 }
 
-/* Messages */
 .aui-message {
   max-width: 85%;
   padding: var(--spacing-sm) var(--spacing-md);
@@ -169,6 +165,7 @@
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -181,6 +178,10 @@
   color: white;
 }
 
+.aui-user-message * {
+  color: white !important;
+}
+
 .aui-assistant-message {
   margin-right: auto;
   background: var(--color-surface-variant);
@@ -191,11 +192,22 @@
 .aui-message-text {
   line-height: 1.5;
 }
+
 .aui-message-text p {
   margin: 0 0 0.5em;
 }
+
 .aui-message-text p:last-child {
   margin-bottom: 0;
+}
+
+.aui-message-text ul {
+  margin: 0.4em 0 0.5em 1.2em;
+  padding: 0;
+}
+
+.aui-message-text li {
+  margin: 0.15em 0;
 }
 
 .aui-message-text code {
@@ -217,7 +229,6 @@
   margin: 0.5em 0;
 }
 
-/* Composer */
 .aui-composer {
   display: flex;
   gap: var(--spacing-sm);
@@ -245,6 +256,7 @@
   outline: none;
   border-color: var(--color-primary);
 }
+
 .aui-composer-input::placeholder {
   color: var(--color-text-muted);
 }
@@ -267,13 +279,13 @@
   background: var(--color-primary-dark);
   transform: scale(1.05);
 }
+
 .aui-composer-send:disabled {
   background: var(--color-text-muted);
   cursor: not-allowed;
   transform: none;
 }
 
-/* Suggestions */
 .aui-suggestions {
   display: flex;
   flex-direction: column;
