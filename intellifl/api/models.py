@@ -168,7 +168,7 @@ class StrategyOverrides(BaseModel):
 
 
 class CreateSimulationRequest(BaseModel):
-    """Request model for POST /api/simulations and POST /api/simulations/prepare.
+    """Request model for POST /api/simulations.
 
     Supports two configuration modes:
     1. Single-sim mode: All config fields at root level
@@ -186,7 +186,6 @@ class CreateSimulationRequest(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    add_to_queue: bool = False
     shared_settings: SimulationSettings | None = None
     simulation_strategies: list[StrategyOverrides] | None = None
 
@@ -212,14 +211,6 @@ class CreateSimulationRequest(BaseModel):
         else:
             # Single-sim mode - extra fields contain the config
             return dict(self.__pydantic_extra__) if self.__pydantic_extra__ else {}
-
-    def get_config_without_queue_flag(self) -> dict[str, Any]:
-        """Get config dict excluding the add_to_queue flag.
-
-        Used when we need to extract just the simulation config
-        for storage or further processing.
-        """
-        return self.to_config_dict()
 
 
 # =============================================================================

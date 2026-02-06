@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import subprocess
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -11,9 +10,6 @@ from fastapi import HTTPException
 # Directory constants
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = BASE_DIR / "out"
-
-# Shared state for tracking running simulation processes
-running_processes: dict[str, subprocess.Popen] = {}
 
 # Patterns for filtering sensitive environment variables
 SENSITIVE_ENV_PATTERNS = frozenset(
