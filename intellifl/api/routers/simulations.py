@@ -142,17 +142,15 @@ def _get_status_data(sim_path: Path, simulation_id: str) -> dict[str, Any]:
     if result_files:
         return {"status": "completed", "progress": 1.0}
 
-    # Check for log files (output.log for new sims, execution.log for legacy)
-    for log_name in ("output.log", "execution.log"):
-        log_path = sim_path / log_name
-        if log_path.is_file():
-            try:
-                with log_path.open("r") as f:
-                    error_content = f.read(1024)
-                if error_content.strip():
-                    return {"status": "failed", "progress": 0.0}
-            except OSError:
-                pass
+    log_path = sim_path / "output.log"
+    if log_path.is_file():
+        try:
+            with log_path.open("r") as f:
+                error_content = f.read(1024)
+            if error_content.strip():
+                return {"status": "failed", "progress": 0.0}
+        except OSError:
+            pass
 
     return {"status": "pending", "progress": 0.0}
 
@@ -523,17 +521,15 @@ def get_simulation_status(
     status_data = _get_status_data(sim_path, simulation_id)
 
     if status_data.get("status") == "failed":
-        for log_name in ("output.log", "execution.log"):
-            log_path = sim_path / log_name
-            if log_path.is_file():
-                try:
-                    with log_path.open("r") as f:
-                        error_message = f.read(102400).strip()
-                    if error_message:
-                        status_data["error"] = error_message
-                        break
-                except OSError:
-                    pass
+        log_path = sim_path / "output.log"
+        if log_path.is_file():
+            try:
+                with log_path.open("r") as f:
+                    error_message = f.read(102400).strip()
+                if error_message:
+                    status_data["error"] = error_message
+            except OSError:
+                pass
 
     return SimulationStatusResponse(**status_data)
 
@@ -572,11 +568,9 @@ async def stream_simulation_status(
 
             # Find log file if not yet found
             if log_path is None:
-                for log_name in ("output.log", "execution.log"):
-                    candidate = sim_path / log_name
-                    if candidate.is_file():
-                        log_path = candidate
-                        break
+                candidate = sim_path / "output.log"
+                if candidate.is_file():
+                    log_path = candidate
 
             # Stream new output from log file
             if log_path is not None and log_path.is_file():

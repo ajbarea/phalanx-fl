@@ -60,7 +60,7 @@ def _read_simulation_status(sim_dir: Path) -> ValidStatus:
     if result_files:
         return "completed"
 
-    if (sim_dir / "execution.log").is_file():
+    if (sim_dir / "output.log").is_file():
         return "failed"
 
     return "pending"

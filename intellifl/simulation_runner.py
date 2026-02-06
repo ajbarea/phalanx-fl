@@ -159,7 +159,8 @@ class SimulationRunner:
 
         self._origin = origin
 
-        self._setup_file_logging(log_level)
+        if origin == "cli":
+            self._setup_file_logging(log_level)
 
     def _setup_file_logging(self, log_level: str) -> None:
         """Configure file logging to output.log in the simulation directory."""
