@@ -26,6 +26,11 @@ navigate_to_root
 setup_unicode_env
 setup_logging_with_file "tests/logs" "lint"
 
+if [ -n "${LOG_FILE:-}" ]; then
+    export LOG_CAPTURE_ALL_OUTPUT=true
+    exec > >(tee -a "$LOG_FILE") 2>&1
+fi
+
 if ! ensure_virtual_environment; then
     log_error "Please run './reinstall_requirements.sh' first."
     exit 1

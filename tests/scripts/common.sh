@@ -33,7 +33,11 @@ export IS_WSL="${IS_WSL:-}"
 #   LOG_FILE: If set, message is appended to this file
 log_info() {
     if [ -n "${LOG_FILE:-}" ]; then
-        echo "✅ $1" | tee -a "$LOG_FILE"
+        if [ -n "${LOG_CAPTURE_ALL_OUTPUT:-}" ]; then
+            echo "✅ $1"
+        else
+            echo "✅ $1" | tee -a "$LOG_FILE"
+        fi
     else
         echo "✅ $1"
     fi
@@ -48,7 +52,11 @@ log_info() {
 #   LOG_FILE: If set, message is appended to this file
 log_warning() {
     if [ -n "${LOG_FILE:-}" ]; then
-        echo "⚠️  $1" | tee -a "$LOG_FILE"
+        if [ -n "${LOG_CAPTURE_ALL_OUTPUT:-}" ]; then
+            echo "⚠️  $1"
+        else
+            echo "⚠️  $1" | tee -a "$LOG_FILE"
+        fi
     else
         echo "⚠️  $1"
     fi
@@ -63,7 +71,11 @@ log_warning() {
 #   LOG_FILE: If set, message is appended to this file
 log_error() {
     if [ -n "${LOG_FILE:-}" ]; then
-        echo "❌ $1" | tee -a "$LOG_FILE" >&2
+        if [ -n "${LOG_CAPTURE_ALL_OUTPUT:-}" ]; then
+            echo "❌ $1" >&2
+        else
+            echo "❌ $1" | tee -a "$LOG_FILE" >&2
+        fi
     else
         echo "❌ $1" >&2
     fi
@@ -106,7 +118,11 @@ setup_logging_with_file() {
 #   LOG_FILE: If set, text is appended to this file
 log_and_tee() {
     if [ -n "${LOG_FILE:-}" ]; then
-        printf "%s\n" "$*" | tee -a "$LOG_FILE"
+        if [ -n "${LOG_CAPTURE_ALL_OUTPUT:-}" ]; then
+            printf "%s\n" "$*"
+        else
+            printf "%s\n" "$*" | tee -a "$LOG_FILE"
+        fi
     else
         printf "%s\n" "$*"
     fi
