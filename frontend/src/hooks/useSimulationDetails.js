@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchApi } from '@api/client';
-import { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef, useState, useCallback } from 'react';
 import { useSimulationStatusSSE } from './useSimulationStatus';
 
 const TERMINAL_STATUSES = ['completed', 'failed', 'stopped'];
@@ -23,6 +23,16 @@ export function useSimulationDetails(simulationId) {
     return !currentStatus || !TERMINAL_STATUSES.includes(currentStatus);
   }, [simulationId, details?.status]);
 
+  const [output, setOutput] = useState('');
+
+  const handleOutput = useCallback(text => {
+    setOutput(prev => prev + text);
+  }, []);
+
+  useEffect(() => {
+    setOutput('');
+  }, [simulationId]);
+
   const {
     status: sseStatus,
     progress: sseProgress,
@@ -31,7 +41,9 @@ export function useSimulationDetails(simulationId) {
     currentStrategy: currentStrategySse,
     totalStrategies: totalStrategiesSse,
     isConnected: isStreaming,
-  } = useSimulationStatusSSE(shouldStream ? simulationId : null);
+  } = useSimulationStatusSSE(shouldStream ? simulationId : null, {
+    onOutput: handleOutput,
+  });
 
   const prevSseStatusRef = useRef(null);
   useEffect(() => {
@@ -70,6 +82,49 @@ export function useSimulationDetails(simulationId) {
     }, {});
   }, [details, isMultiStrategy]);
 
+  const strategyProgress = useMemo(() => {
+    if (!isMultiStrategy || !details) return null;
+
+    const totalStrats = details.config.simulation_strategies.length;
+    const resultFiles = details.result_files || [];
+
+    const completedIndices = [];
+    for (let i = 0; i < totalStrats; i++) {
+      if (resultFiles.some(f => f.includes(`csv/round_metrics_${i}.csv`))) {
+        completedIndices.push(i);
+      }
+    }
+
+    const currentIdx = completedIndices.length;
+    const isComplete = currentIdx >= totalStrats;
+
+    const strategies = details.config.simulation_strategies.map((strat, index) => {
+      let stratStatus = 'queued';
+      if (completedIndices.includes(index)) {
+        stratStatus = 'completed';
+      } else if (index === currentIdx && status === 'running') {
+        stratStatus = 'running';
+      } else if (status === 'failed') {
+        stratStatus = 'failed';
+      }
+
+      const data = { index, config: strat, status: stratStatus };
+      if (stratStatus === 'running') {
+        data.progress = progress;
+        data.currentRound = currentRound;
+        data.totalRounds = totalRounds;
+      }
+      return data;
+    });
+
+    return {
+      current: currentIdx,
+      total: totalStrats,
+      strategies,
+      isComplete: isComplete && status === 'completed',
+    };
+  }, [isMultiStrategy, details, status, progress, currentRound, totalRounds]);
+
   return {
     details,
     status,
@@ -83,6 +138,8 @@ export function useSimulationDetails(simulationId) {
     refetch,
     isMultiStrategy,
     strategyGroups,
+    strategyProgress,
     isStreaming,
+    output,
   };
 }

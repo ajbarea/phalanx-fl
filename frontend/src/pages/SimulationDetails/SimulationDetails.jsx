@@ -9,6 +9,8 @@ import { ConfigTab } from '@components/features/simulation-details/ConfigTab/Con
 import { PlotsTab } from '@components/features/simulation-details/PlotsTab/PlotsTab';
 import { ComparisonTab } from '@components/features/simulation-details/ComparisonTab/ComparisonTab';
 import { AttackSnapshotsTab } from '@components/features/simulation-details/AttackSnapshotsTab';
+import { OutputViewer } from '@components/features/simulation-details/OutputViewer';
+import { QueueJobCard } from '@components/features/experiment-queue/QueueJobCard';
 import { useSimulationDetails } from '@hooks/useSimulationDetails';
 import { useCSVData } from '@hooks/useCSVData';
 import { createSimulation, stopSimulation } from '@api/endpoints/simulations';
@@ -26,7 +28,9 @@ export function SimulationDetails() {
     loading,
     error,
     isMultiStrategy,
+    strategyProgress,
     isStreaming,
+    output,
   } = useSimulationDetails(simulationId);
   const displayStatus = status || details?.status;
   const { csvData } = useCSVData(simulationId, details?.result_files, displayStatus);
@@ -83,6 +87,7 @@ export function SimulationDetails() {
 
   const csvFiles = details.result_files?.filter(file => file.endsWith('.csv')) || [];
   const cfg = details.config?.shared_settings || details.config;
+  const isActive = displayStatus === 'running' || displayStatus === 'queued';
 
   return (
     <PageContainer>
@@ -129,6 +134,48 @@ export function SimulationDetails() {
                 )}
               </p>
             </div>
+          </Card.Body>
+        </Card>
+      )}
+
+      {isMultiStrategy && strategyProgress && isActive && (
+        <Card className="mb-3">
+          <Card.Header>
+            <strong>
+              {strategyProgress.isComplete
+                ? 'All Strategies Complete'
+                : `Strategy ${strategyProgress.current + 1} of ${strategyProgress.total}`}
+            </strong>
+          </Card.Header>
+          <Card.Body>
+            <ProgressBar
+              now={Math.round((strategyProgress.current / strategyProgress.total) * 100)}
+              variant={strategyProgress.isComplete ? 'success' : 'primary'}
+              striped={!strategyProgress.isComplete}
+              animated={displayStatus === 'running'}
+              className="mb-3"
+              label={`${Math.round((strategyProgress.current / strategyProgress.total) * 100)}%`}
+            />
+            {strategyProgress.strategies.map(strategy => (
+              <QueueJobCard
+                key={strategy.index}
+                strategy={strategy}
+                simulationId={simulationId}
+                sharedConfig={details.config?.shared_settings}
+              />
+            ))}
+          </Card.Body>
+        </Card>
+      )}
+
+      {isActive && output && (
+        <Card className="mb-3">
+          <Card.Header>
+            <i className="bi bi-terminal me-2"></i>
+            Simulation Output
+          </Card.Header>
+          <Card.Body className="p-0">
+            <OutputViewer output={output} height={350} />
           </Card.Body>
         </Card>
       )}

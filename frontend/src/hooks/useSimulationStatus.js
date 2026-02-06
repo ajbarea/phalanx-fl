@@ -2,29 +2,17 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@api/client';
 
-/**
- * Terminal statuses that indicate simulation has finished.
- * When reached, SSE stream will close and polling should stop.
- */
 const TERMINAL_STATUSES = ['completed', 'failed', 'stopped'];
 
 /**
- * SSE hook for real-time simulation status updates.
- *
- * Uses Server-Sent Events for efficient, low-latency status streaming.
- * Automatically reconnects on connection loss (browser built-in).
- * Closes connection when simulation reaches terminal state.
- *
- * Benefits over polling:
- * - Sub-second updates (vs 2-5 second polling intervals)
- * - Lower bandwidth (5 bytes/message vs ~500 bytes/request)
- * - No race conditions between poll intervals
- * - Auto-reconnection built into EventSource API
+ * SSE hook for real-time simulation status and output streaming.
  *
  * @param {string|null} simulationId - The simulation ID to stream, or null to disable
+ * @param {Object} [options]
+ * @param {function} [options.onOutput] - Callback receiving new output text chunks
  * @returns {Object} Status data and connection state
  */
-export function useSimulationStatusSSE(simulationId) {
+export function useSimulationStatusSSE(simulationId, { onOutput } = {}) {
   const [status, setStatus] = useState(null);
   const [progress, setProgress] = useState(0);
   const [currentRound, setCurrentRound] = useState(null);
@@ -35,11 +23,16 @@ export function useSimulationStatusSSE(simulationId) {
   const [isConnected, setIsConnected] = useState(false);
   const queryClient = useQueryClient();
   const eventSourceRef = useRef(null);
+  const onOutputRef = useRef(onOutput);
+
+  // Ref avoids reconnecting SSE when onOutput callback identity changes
+  useEffect(() => {
+    onOutputRef.current = onOutput;
+  }, [onOutput]);
 
   const connect = useCallback(() => {
     if (!simulationId) return;
 
-    // Close existing connection before creating new one
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
@@ -53,7 +46,7 @@ export function useSimulationStatusSSE(simulationId) {
       setError(null);
     };
 
-    eventSource.onmessage = event => {
+    eventSource.addEventListener('status', event => {
       try {
         const data = JSON.parse(event.data);
         setStatus(data.status);
@@ -63,24 +56,34 @@ export function useSimulationStatusSSE(simulationId) {
         setCurrentStrategy(data.current_strategy ?? null);
         setTotalStrategies(data.total_strategies ?? null);
         setError(null);
+      } catch (e) {
+        console.error('SSE status parse error:', e);
+      }
+    });
 
-        // When terminal status is reached:
-        // 1. Invalidate cached queries to trigger refetch with final data
-        // 2. Close the SSE connection (server also closes, but be explicit)
-        if (TERMINAL_STATUSES.includes(data.status)) {
-          queryClient.invalidateQueries({
-            queryKey: ['simulation-details', simulationId],
-          });
-          queryClient.invalidateQueries({
-            queryKey: ['simulations'],
-          });
-          eventSource.close();
-          setIsConnected(false);
+    // Server sends "done" after the final output flush on terminal status.
+    // Close only here so no trailing output events are lost.
+    eventSource.addEventListener('done', () => {
+      queryClient.invalidateQueries({
+        queryKey: ['simulation-details', simulationId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['simulations'],
+      });
+      eventSource.close();
+      setIsConnected(false);
+    });
+
+    eventSource.addEventListener('output', event => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.text && onOutputRef.current) {
+          onOutputRef.current(data.text);
         }
       } catch (e) {
-        console.error('SSE parse error:', e);
+        console.error('SSE output parse error:', e);
       }
-    };
+    });
 
     eventSource.onerror = () => {
       setIsConnected(false);
@@ -95,7 +98,6 @@ export function useSimulationStatusSSE(simulationId) {
   useEffect(() => {
     connect();
 
-    // Cleanup: close EventSource on unmount or simulationId change
     return () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
@@ -117,10 +119,10 @@ export function useSimulationStatusSSE(simulationId) {
 }
 
 /**
- * Legacy polling-based status hook.
+ * Polling-based status hook for batch simulation status fetching.
  *
- * Kept for backwards compatibility and fallback scenarios.
- * For single simulation status, prefer useSimulationStatusSSE.
+ * Best suited for list views (e.g. Dashboard) where multiple simulations
+ * need status updates without opening an SSE connection per card.
  *
  * @param {string|Array} simulationIdOrSimulations - Single ID or array of simulation objects
  * @param {Object} options - Configuration options
@@ -128,7 +130,6 @@ export function useSimulationStatusSSE(simulationId) {
  * @returns {Object} Status data
  */
 export function useSimulationStatus(simulationIdOrSimulations, options = {}) {
-  // Handle both single simulation (string) and multiple simulations (array)
   const isMultiple = Array.isArray(simulationIdOrSimulations);
   const interval = options.interval || 2000;
 
@@ -166,9 +167,15 @@ export function useSimulationStatus(simulationIdOrSimulations, options = {}) {
     };
   }
 
+  const data = singleQuery.data;
   return {
-    status: singleQuery.data ?? null,
-    error: singleQuery.error?.message ?? null,
+    status: data?.status ?? null,
+    progress: data?.progress ?? 0,
+    currentRound: data?.current_round ?? null,
+    totalRounds: data?.total_rounds ?? null,
+    currentStrategy: data?.current_strategy ?? null,
+    totalStrategies: data?.total_strategies ?? null,
+    error: data?.error ?? singleQuery.error?.message ?? null,
     refetch: singleQuery.refetch,
   };
 }
