@@ -1,6 +1,5 @@
 .simulation-card {
   cursor: pointer;
-  transition: all var(--transition-base);
   border-width: 1px;
   height: 100%;
   display: flex;
@@ -178,7 +177,6 @@
   pointer-events: none;
 }
 
-/* View Details Button Enhancement */
 .simulation-card .btn-outline-primary {
   position: relative;
   overflow: hidden;
@@ -201,7 +199,6 @@
   box-shadow: 0 4px 12px rgba(103, 80, 164, 0.3);
 }
 
-/* Card Metadata Fade In */
 .card-meta,
 .card-stats {
   opacity: 0.7;
@@ -213,50 +210,60 @@
   opacity: 1;
 }
 
-/* Stagger card entrance based on index */
 .simulation-card:nth-child(1) {
   animation-delay: 0ms;
 }
+
 .simulation-card:nth-child(2) {
   animation-delay: 60ms;
 }
+
 .simulation-card:nth-child(3) {
   animation-delay: 120ms;
 }
+
 .simulation-card:nth-child(4) {
   animation-delay: 180ms;
 }
+
 .simulation-card:nth-child(5) {
   animation-delay: 240ms;
 }
+
 .simulation-card:nth-child(6) {
   animation-delay: 300ms;
 }
+
 .simulation-card:nth-child(7) {
   animation-delay: 360ms;
 }
+
 .simulation-card:nth-child(8) {
   animation-delay: 420ms;
 }
+
 .simulation-card:nth-child(9) {
   animation-delay: 480ms;
 }
+
 .simulation-card:nth-child(10) {
   animation-delay: 540ms;
 }
+
 .simulation-card:nth-child(11) {
   animation-delay: 600ms;
 }
+
 .simulation-card:nth-child(12) {
   animation-delay: 660ms;
 }
 
-/* Keyframes */
 @keyframes cardEnter {
   0% {
     opacity: 0;
     transform: translateY(30px) scale(0.95);
   }
+
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -268,6 +275,7 @@
     opacity: 1;
     transform: scale(1) translateY(0);
   }
+
   100% {
     opacity: 0;
     transform: scale(0.9) translateY(-10px);
@@ -279,12 +287,15 @@
   100% {
     transform: translateY(-4px) rotate(0deg);
   }
+
   25% {
     transform: translateY(-5px) rotate(-2deg) scale(1.01);
   }
+
   50% {
     transform: translateY(-6px) rotate(0deg) scale(1.02);
   }
+
   75% {
     transform: translateY(-5px) rotate(2deg) scale(1.01);
   }
@@ -295,15 +306,176 @@
     transform: scale(0);
     opacity: 0.8;
   }
+
   100% {
     transform: scale(4);
     opacity: 0;
   }
 }
 
-/* Mobile: disable hover transforms */
+@keyframes pulse-border-dark {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 3px rgba(208, 188, 255, 0.35),
+      0 0 28px rgba(208, 188, 255, 0.3),
+      0 8px 24px rgba(0, 0, 0, 0.45);
+  }
+
+  50% {
+    box-shadow:
+      0 0 0 3px rgba(208, 188, 255, 0.5),
+      0 0 36px rgba(208, 188, 255, 0.45),
+      0 10px 28px rgba(0, 0, 0, 0.55);
+  }
+}
+
 @media (max-width: 767px) {
   .simulation-card:hover {
     transform: none;
   }
+}
+
+@media (max-width: 991px) {
+  .simulation-card {
+    cursor: pointer;
+    transition: all var(--transition-base);
+    border-width: 1px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .simulation-card > .card-body {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+  }
+
+  .simulation-card .card-content {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    min-width: 0;
+  }
+
+  .simulation-card .card-content > a:last-child {
+    margin-top: auto;
+  }
+
+  .simulation-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--color-border-strong);
+  }
+
+  :root[data-theme='dark'] .simulation-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--color-border-strong);
+  }
+
+  .simulation-card.selected {
+    border-color: #6750a4 !important;
+    border-width: 2px;
+    background: linear-gradient(
+      135deg,
+      rgba(103, 80, 164, 0.08) 0%,
+      rgba(103, 80, 164, 0.03) 100%
+    ) !important;
+  }
+
+  .simulation-card.selected .card-body {
+    background: transparent !important;
+  }
+
+  :root[data-theme='dark'] .simulation-card.selected {
+    border-color: #d0bcff !important;
+    border-width: 2.5px;
+    background: linear-gradient(
+      135deg,
+      rgba(208, 188, 255, 0.18) 0%,
+      rgba(208, 188, 255, 0.1) 100%
+    ) !important;
+    box-shadow:
+      0 0 0 3px rgba(208, 188, 255, 0.35),
+      0 0 28px rgba(208, 188, 255, 0.3),
+      0 8px 24px rgba(0, 0, 0, 0.45) !important;
+    animation: pulse-border-dark 2.5s ease-in-out infinite;
+  }
+
+  :root[data-theme='dark'] .simulation-card.selected .card-body {
+    background: transparent !important;
+  }
+
+  .simulation-card .card-checkbox {
+    display: flex;
+    align-items: flex-start;
+    padding-top: 2px;
+  }
+
+  .simulation-card .simulation-checkbox .form-check-input {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    margin: 0;
+  }
+
+  .simulation-card .simulation-checkbox .form-check-input:checked {
+    background-color: #6750a4;
+    border-color: #6750a4;
+  }
+
+  :root[data-theme='dark'] .simulation-card .simulation-checkbox .form-check-input:checked {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+
+  .simulation-card .card-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+
+  .simulation-card .card-title-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .simulation-card .card-title-name .editable-sim-name span,
+  .simulation-card .card-title-name .editable-sim-name button {
+    font-size: 1rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+  }
+
+  .simulation-card .card-title-status {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .simulation-card .card-meta code {
+    font-size: 0.75rem;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+
+  :root[data-theme='dark'] .simulation-card .card-meta code {
+    background: rgba(208, 188, 255, 0.15);
+    color: var(--color-primary) !important;
+  }
+
+  .simulation-card .card-stats {
+    color: var(--color-text-secondary);
+  }
+}
+
+.simulation-card .badge.rounded-pill.opacity-75.fw-normal {
+  font-size: 0.7rem;
 }
