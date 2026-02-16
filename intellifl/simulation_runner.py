@@ -413,5 +413,22 @@ if __name__ == "__main__":
         sys.exit(130)
     except Exception as e:
         logging.error(f"Simulation failed with error: {e}")
+
+        # Write failed status for early failures
+        config_path = Path(args.config_filename)
+        if not config_path.exists():
+            config_path = Path("config/simulation_strategies") / args.config_filename
+        status_file = config_path.parent / "status.json"
+        if status_file.exists():
+            try:
+                with status_file.open("r") as f:
+                    status_data = json.load(f)
+                status_data["status"] = "failed"
+                status_data["error"] = str(e)
+                with status_file.open("w") as f:
+                    json.dump(status_data, f, indent=2)
+            except Exception:
+                pass
+
         _force_cleanup()
         sys.exit(1)
