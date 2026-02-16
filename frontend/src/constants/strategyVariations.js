@@ -5,14 +5,38 @@ export const QUICK_PATTERNS = {
     id: 'sweepMalicious',
     name: 'Sweep Malicious Clients (0-5)',
     description: 'Test defense robustness by increasing malicious clients from 0 to 5',
-    generate: (baseStrategy, numOfClients = 5) => {
+    generate: (baseStrategy, numOfClients = 5, numOfRounds = 4) => {
       // Limit sweep to valid range for the number of clients
       const maxMalicious = Math.min(5, numOfClients - 1);
+      const attackType = 'gaussian_noise';
+      const endRound = Math.max(1, numOfRounds || 1);
+      // Include strategy-specific defaults (e.g. num_krum_selections for krum,
+      // trim_ratio for trimmed_mean) so validation passes for any base strategy
+      const strategyDefaults = STRATEGY_DEFAULTS[baseStrategy] || {};
+      const buildAttackSchedule = malCount =>
+        malCount > 0
+          ? [
+              {
+                start_round: 1,
+                end_round: endRound,
+                attack_type: attackType,
+                selection_strategy: 'random',
+                malicious_client_count: malCount,
+                target_noise_snr: 10,
+                attack_ratio: 1.0,
+              },
+            ]
+          : [];
+
       return Array.from({ length: maxMalicious + 1 }, (_, i) => ({
+        ...strategyDefaults,
         name: `${baseStrategy || 'fedavg'}_mal_${i}`,
         aggregation_strategy_keyword: baseStrategy || 'fedavg',
         num_of_malicious_clients: i,
-        remove_clients: i > 0 ? 'true' : 'false',
+        remove_clients: 'false',
+        attack_type: attackType,
+        attack_schedule: buildAttackSchedule(i),
+        preserve_dataset: false,
       }));
     },
   },
@@ -127,6 +151,7 @@ export const QUICK_PATTERNS = {
           num_of_malicious_clients: malicious,
           num_krum_selections: 1,
           remove_clients: 'true',
+          strict_mode: false,
           begin_removing_from_round: 2,
         },
         {
@@ -135,6 +160,7 @@ export const QUICK_PATTERNS = {
           num_of_malicious_clients: malicious,
           num_krum_selections: Math.min(3, maxK),
           remove_clients: 'true',
+          strict_mode: false,
           begin_removing_from_round: 2,
         },
         {
@@ -143,6 +169,7 @@ export const QUICK_PATTERNS = {
           num_of_malicious_clients: malicious,
           num_krum_selections: Math.min(3, maxK),
           remove_clients: 'true',
+          strict_mode: false,
           begin_removing_from_round: 2,
         },
         {
@@ -151,6 +178,7 @@ export const QUICK_PATTERNS = {
           num_of_malicious_clients: malicious,
           trim_ratio: 0.1,
           remove_clients: 'true',
+          strict_mode: false,
           begin_removing_from_round: 2,
         },
         {
@@ -158,6 +186,7 @@ export const QUICK_PATTERNS = {
           aggregation_strategy_keyword: 'rfa',
           num_of_malicious_clients: malicious,
           remove_clients: 'true',
+          strict_mode: false,
           begin_removing_from_round: 2,
         },
         {
@@ -167,6 +196,7 @@ export const QUICK_PATTERNS = {
           trust_threshold: 0.15,
           beta_value: 0.75,
           remove_clients: 'true',
+          strict_mode: false,
           begin_removing_from_round: 2,
         },
         {
@@ -178,6 +208,7 @@ export const QUICK_PATTERNS = {
           Kd: 0.05,
           num_std_dev: 2.0,
           remove_clients: 'true',
+          strict_mode: false,
           begin_removing_from_round: 2,
         },
       ];
@@ -215,6 +246,7 @@ export const QUICK_PATTERNS = {
             num_krum_selections: strategy === 'trimmed_mean' ? undefined : validK,
             trim_ratio: strategy === 'trimmed_mean' ? 0.1 : undefined,
             remove_clients: mal > 0 ? 'true' : 'false',
+            strict_mode: mal > 0 ? false : undefined,
             begin_removing_from_round: mal > 0 ? 2 : undefined,
           });
         }

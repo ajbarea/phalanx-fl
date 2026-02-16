@@ -78,7 +78,7 @@ export function QueueBuilder() {
 
       const strategyWord = strategyVariations.length === 1 ? 'strategy' : 'strategies';
       toast.success(`Experiment queue created! (${strategyVariations.length} ${strategyWord})`);
-      navigate(`/queue/${simulation_id}`);
+      navigate(`/simulations/${simulation_id}`);
     } catch (err) {
       const errorMsg = err.response?.data?.detail || 'An unexpected error occurred.';
       toast.error(errorMsg, { duration: 5000 });
@@ -136,6 +136,13 @@ export function QueueBuilder() {
               variations={strategyVariations}
               onChange={setStrategyVariations}
               numOfClients={sharedConfig.num_of_clients}
+              numOfRounds={sharedConfig.num_of_rounds}
+              onQuickPattern={pattern =>
+                setSharedConfig(prev => ({
+                  ...prev,
+                  display_name: pattern?.name || prev.display_name,
+                }))
+              }
             />
           </div>
         </Tab>

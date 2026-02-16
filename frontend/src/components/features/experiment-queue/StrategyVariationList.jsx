@@ -18,7 +18,13 @@ const strategyNeeds = {
   removeFromRound: s => ['trust', 'pid', 'bulyan', 'trimmed_mean', 'rfa'].includes(s),
 };
 
-export function StrategyVariationList({ variations, onChange, numOfClients }) {
+export function StrategyVariationList({
+  variations,
+  onChange,
+  numOfClients,
+  numOfRounds,
+  onQuickPattern,
+}) {
   // Calculate valid krum selections based on research constraints
   const getValidKrumSelections = (strategyType, maliciousCount) => {
     const honestClients = numOfClients - maliciousCount;
@@ -121,13 +127,16 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
       const baseStrategy =
         variations.length > 0 ? variations[0].aggregation_strategy_keyword : 'fedavg';
       // Pass numOfClients to pattern generators for proper validation
-      const generated = pattern.generate(baseStrategy, numOfClients);
+      const generated = pattern.generate(baseStrategy, numOfClients, numOfRounds);
       const withDefaults = generated.map(v => applyStrategyDefaults(v));
       const withIds = withDefaults.map((v, i) => ({
         ...v,
         id: Date.now() + i,
       }));
       onChange(withIds);
+      if (onQuickPattern) {
+        onQuickPattern(pattern);
+      }
     }
   };
 
