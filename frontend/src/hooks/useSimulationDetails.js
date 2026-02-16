@@ -58,7 +58,9 @@ export function useSimulationDetails(simulationId) {
     }
   }, [sseStatus, refetch]);
 
-  const status = sseStatus ?? details?.status ?? null;
+  const detailsStatus =
+    typeof details?.status === 'string' ? details.status : (details?.status?.status ?? null);
+  const status = sseStatus ?? detailsStatus ?? null;
   const progress = sseProgress ?? details?.progress ?? 0;
   const currentRound = currentRoundSse ?? details?.current_round ?? null;
   const totalRounds = totalRoundsSse ?? details?.total_rounds ?? null;

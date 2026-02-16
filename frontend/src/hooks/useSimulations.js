@@ -31,7 +31,7 @@ export function useSimulations() {
   // Fetch config and status for each simulation
   const detailsQueries = useQueries({
     queries: simulationsRaw.map(sim => ({
-      queryKey: ['simulation-details', sim.simulation_id],
+      queryKey: ['simulation-list-item', sim.simulation_id],
       queryFn: () => fetchSimDetails(sim),
       enabled: !!sim.simulation_id,
       refetchInterval: POLLING_INTERVALS.SIMULATIONS,
