@@ -535,6 +535,79 @@
     color: var(--color-text-secondary);
   }
 
+  :root[data-theme='dark'] .badge.bg-info {
+    background-color: rgba(157, 198, 240, 0.18) !important;
+    color: var(--color-info);
+  }
+
+  :root[data-theme='dark'] .bg-primary-subtle {
+    background-color: var(--color-primary-container) !important;
+  }
+
+  :root[data-theme='dark'] .bg-danger-subtle {
+    background-color: var(--color-danger-bg) !important;
+  }
+
+  :root[data-theme='dark'] .bg-success-subtle {
+    background-color: var(--color-success-bg) !important;
+  }
+
+  :root[data-theme='dark'] .bg-warning-subtle {
+    background-color: var(--color-warning-bg) !important;
+  }
+
+  :root[data-theme='dark'] .bg-info-subtle {
+    background-color: var(--color-info-bg) !important;
+  }
+
+  :root[data-theme='dark'] .bg-secondary-subtle {
+    background-color: var(--color-secondary-bg) !important;
+  }
+
+  :root[data-theme='dark'] .text-primary {
+    color: var(--color-primary) !important;
+  }
+
+  :root[data-theme='dark'] .text-danger {
+    color: var(--color-danger) !important;
+  }
+
+  :root[data-theme='dark'] .text-success {
+    color: var(--color-success) !important;
+  }
+
+  :root[data-theme='dark'] .text-warning {
+    color: var(--color-warning) !important;
+  }
+
+  :root[data-theme='dark'] .text-info {
+    color: var(--color-info) !important;
+  }
+
+  :root[data-theme='dark'] .border-primary-subtle {
+    border-color: rgba(208, 188, 255, 0.25) !important;
+  }
+
+  :root[data-theme='dark'] .border-danger-subtle {
+    border-color: var(--color-danger-border) !important;
+  }
+
+  :root[data-theme='dark'] .border-success-subtle {
+    border-color: var(--color-success-border) !important;
+  }
+
+  :root[data-theme='dark'] .border-warning-subtle {
+    border-color: var(--color-warning-border) !important;
+  }
+
+  :root[data-theme='dark'] .border-info-subtle {
+    border-color: var(--color-info-border) !important;
+  }
+
+  :root[data-theme='dark'] .fact-badge.border {
+    border-color: var(--color-border) !important;
+  }
+
   :root[data-theme='dark'] .modal-content {
     background-color: var(--color-surface) !important;
     color: var(--color-text-primary);

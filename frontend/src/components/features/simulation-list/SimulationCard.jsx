@@ -27,7 +27,6 @@ export function SimulationCard({
   };
 
   const handleCardClick = e => {
-    // Don't select if clicking on links or buttons
     if (e.target.closest('a') || e.target.closest('button') || e.target.closest('input')) {
       return;
     }
@@ -56,10 +55,9 @@ export function SimulationCard({
   return (
     <Card
       onClick={handleCardClick}
-      className={`simulation-card shadow-sm border-0 ${isSelected ? 'selected' : ''} ${isExiting ? 'exiting' : ''}`}
+      className={`simulation-card shadow-sm ${isSelected ? 'selected' : ''} ${isExiting ? 'exiting' : ''}`}
     >
       <Card.Body className="d-flex gap-3">
-        {/* Selection checkbox */}
         <div className="card-checkbox mt-1">
           <Form.Check
             type="checkbox"
@@ -70,9 +68,7 @@ export function SimulationCard({
           />
         </div>
 
-        {/* Main content area */}
         <div className="card-content flex-grow-1 min-width-0">
-          {/* Title row with name and status */}
           <div className="card-title-row d-flex justify-content-between align-items-start mb-1">
             <div className="card-title-name flex-grow-1 me-2">
               <EditableSimName
@@ -82,8 +78,7 @@ export function SimulationCard({
               />
             </div>
             <div className="card-title-status d-flex align-items-center gap-2">
-              <StatusBadge status={statusData?.status} error={statusData?.error} />
-              {/* Stop button - only for running simulations */}
+              <StatusBadge status={statusData?.status} errorMessage={statusData?.error} />
               {isRunning && (
                 <button
                   className="btn btn-xs btn-outline-warning"
