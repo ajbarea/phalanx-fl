@@ -1,21 +1,7 @@
 #!/bin/bash
-# Start the IntelliFL development servers (Redis, Celery, API, Frontend).
-#
-# Launches all required services for local development with automatic
-# cleanup on exit. Logs are saved to tests/logs/ for debugging.
-#
-# Usage: ./run_frontend.sh
-#
-# Servers:
-#   - Redis: localhost:6379 (task queue broker)
-#   - Celery: worker for simulation execution
-#   - API: http://localhost:8000 (FastAPI with uvicorn)
-#   - Frontend: http://localhost:5173 (Vite dev server)
-#
-# For running simulations without the web UI, use ./run_simulation.sh instead
-# (no Redis/Celery required for direct CLI execution).
-#
-# Dependencies: npm, uvicorn, curl, redis-server (optional) or Docker (for Redis), celery
+# Start Redis, Celery, FastAPI, and Vite dev servers for local development.
+# Usage: ./run_frontend.sh  |  make dev
+# See ./run_simulation.sh for CLI-only execution (no Redis/Celery needed).
 
 set -eu
 
@@ -35,9 +21,14 @@ fi
 find_python_interpreter
 
 if [ -d "frontend" ] && [ -f "frontend/package.json" ]; then
-    log_info "📦 Installing frontend dependencies..."
-    (cd frontend && npm install)
-    log_info "Frontend dependencies installed"
+    # Only run npm install when node_modules is missing or package.json changed
+    if [ ! -d "frontend/node_modules" ] || [ "frontend/package.json" -nt "frontend/node_modules" ]; then
+        log_info "📦 Installing frontend dependencies..."
+        (cd frontend && npm install)
+        log_info "Frontend dependencies installed"
+    else
+        log_info "📦 Frontend dependencies up to date (skipping npm install)"
+    fi
 else
     log_error "Frontend directory or package.json not found"
     exit 1
@@ -65,12 +56,13 @@ FRONTEND_LOG="tests/logs/frontend_dev_${TIMESTAMP}.log"
 : > "$API_LOG"
 : > "$FRONTEND_LOG"
 
-# Start Redis (required for Celery task queue)
 REDIS_PID=""
 REDIS_LOG_PID=""
 REDIS_STARTED_WITH_COMPOSE=""
 REDIS_START_FAILED=""
 COMPOSE_CMD=""
+
+# --- Redis startup (local redis-server preferred, Docker Compose fallback) ---
 
 get_compose_cmd() {
     if command_exists docker; then
@@ -109,7 +101,7 @@ start_redis_with_compose() {
 
     REDIS_STARTED_WITH_COMPOSE="true"
 
-    # Follow container logs into the Redis log file for unified tailing.
+    # Stream container logs into the unified log file for tailing below
     if command_exists docker; then
         docker logs -f intellifl-redis >> "$REDIS_LOG" 2>&1 &
         REDIS_LOG_PID=$!
@@ -144,7 +136,6 @@ else
     exit 1
 fi
 
-# Wait for Redis to be ready
 log_info "Waiting for Redis (up to 120s)..."
 max_redis_attempts=60
 redis_attempt=0
@@ -176,13 +167,67 @@ if [ $redis_attempt -eq $max_redis_attempts ]; then
     exit 1
 fi
 
-# Start Celery worker
-log_info "Starting Celery worker..."
-celery -A intellifl.celery_app worker --loglevel=info --concurrency=1 > "$CELERY_LOG" 2>&1 &
+# --- Celery worker ---
+# Windows/MSYS doesn't support prefork; fall back to solo pool
+CELERY_POOL="prefork"
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) CELERY_POOL="solo" ;;
+esac
+log_info "Starting Celery worker (pool=$CELERY_POOL)..."
+celery -A intellifl.celery_app worker --loglevel=info --concurrency=1 --pool="$CELERY_POOL" > "$CELERY_LOG" 2>&1 &
 CELERY_PID=$!
 
-# Wait briefly for Celery to connect to Redis
-sleep 2
+# --- Cleanup ---
+# PID variables use ${VAR:-} guards because cleanup may fire before all processes have been launched
+cleanup() {
+    [ -n "${_CLEANING_UP:-}" ] && return
+    _CLEANING_UP=1
+    trap - INT TERM
+
+    echo ""
+    log_info "🛑 Stopping servers..."
+
+    if command_exists taskkill; then
+        # Windows: /T kills child trees, /F forces termination
+        [ -n "${TAIL_PID:-}" ] && taskkill //F //T //PID $TAIL_PID 2>/dev/null || true
+        [ -n "${FRONTEND_PID:-}" ] && taskkill //F //T //PID $FRONTEND_PID 2>/dev/null || true
+        [ -n "${API_PID:-}" ] && taskkill //F //T //PID $API_PID 2>/dev/null || true
+        [ -n "${CELERY_PID:-}" ] && taskkill //F //T //PID $CELERY_PID 2>/dev/null || true
+        [ -n "${REDIS_LOG_PID:-}" ] && taskkill //F //T //PID $REDIS_LOG_PID 2>/dev/null || true
+        [ -n "${REDIS_PID:-}" ] && taskkill //F //T //PID $REDIS_PID 2>/dev/null || true
+    else
+        # Unix: try process-group kill first, then direct PID
+        [ -n "${TAIL_PID:-}" ] && (kill -- -$TAIL_PID 2>/dev/null || kill $TAIL_PID 2>/dev/null || true)
+        [ -n "${FRONTEND_PID:-}" ] && (kill -- -$FRONTEND_PID 2>/dev/null || kill $FRONTEND_PID 2>/dev/null || true)
+        [ -n "${API_PID:-}" ] && (kill -- -$API_PID 2>/dev/null || kill $API_PID 2>/dev/null || true)
+        [ -n "${CELERY_PID:-}" ] && (kill -- -$CELERY_PID 2>/dev/null || kill $CELERY_PID 2>/dev/null || true)
+        [ -n "${REDIS_LOG_PID:-}" ] && (kill -- -$REDIS_LOG_PID 2>/dev/null || kill $REDIS_LOG_PID 2>/dev/null || true)
+        [ -n "${REDIS_PID:-}" ] && (kill -- -$REDIS_PID 2>/dev/null || kill $REDIS_PID 2>/dev/null || true)
+    fi
+
+    if [ -n "${REDIS_STARTED_WITH_COMPOSE:-}" ] && [ -n "${COMPOSE_CMD:-}" ]; then
+        $COMPOSE_CMD stop redis 2>/dev/null || true
+    fi
+
+    # Sweep orphaned processes still bound to our ports (e.g. uvicorn workers)
+    if command_exists lsof; then
+        lsof -ti:6379 | xargs kill -9 2>/dev/null || true
+        lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+        lsof -ti:5173 | xargs kill -9 2>/dev/null || true
+    fi
+
+    [ -n "${FRONTEND_PID:-}" ] && (wait $FRONTEND_PID 2>/dev/null || true)
+    [ -n "${API_PID:-}" ] && (wait $API_PID 2>/dev/null || true)
+    [ -n "${CELERY_PID:-}" ] && (wait $CELERY_PID 2>/dev/null || true)
+    [ -n "${REDIS_PID:-}" ] && (wait $REDIS_PID 2>/dev/null || true)
+    log_info "Servers stopped. Logs saved to tests/logs/"
+    exit 0
+}
+
+trap cleanup INT TERM
+
+# --- API & Frontend ---
+sleep 2  # brief pause for Celery to connect to Redis
 
 uvicorn intellifl.api.main:app --reload --port 8000 > "$API_LOG" 2>&1 &
 API_PID=$!
@@ -206,7 +251,6 @@ if [ $attempt -eq $max_attempts ]; then
     log_error "API failed to start within 30 seconds"
 fi
 
-# Open browser automatically if a supported command is available.
 if command_exists xdg-open; then
     xdg-open http://localhost:5173 2>/dev/null || true
 elif command_exists open; then
@@ -215,63 +259,13 @@ elif command_exists start; then
     start http://localhost:5173 2>/dev/null || true
 fi
 
-# Clean up all server processes and any orphaned children on exit.
-#
-# Process cleanup is platform-specific: Windows requires taskkill with /T
-# to terminate child processes, while Unix can kill process groups directly.
-# The lsof fallback catches orphaned processes that may have detached from
-# their parent (common with uvicorn --reload which spawns worker processes).
-cleanup() {
-    echo ""
-    log_info "🛑 Stopping servers..."
-
-    if command_exists taskkill; then
-        # Windows: /T kills child processes, /F forces termination.
-        taskkill //F //T //PID $FRONTEND_PID 2>/dev/null || true
-        taskkill //F //T //PID $API_PID 2>/dev/null || true
-        taskkill //F //T //PID $CELERY_PID 2>/dev/null || true
-        [ -n "${REDIS_LOG_PID:-}" ] && taskkill //F //T //PID $REDIS_LOG_PID 2>/dev/null || true
-        [ -n "${REDIS_PID:-}" ] && taskkill //F //T //PID $REDIS_PID 2>/dev/null || true
-    else
-        # Unix: kill process group first, fall back to direct PID if not a group leader.
-        kill -- -$FRONTEND_PID 2>/dev/null || kill $FRONTEND_PID 2>/dev/null || true
-        kill -- -$API_PID 2>/dev/null || kill $API_PID 2>/dev/null || true
-        kill -- -$CELERY_PID 2>/dev/null || kill $CELERY_PID 2>/dev/null || true
-        [ -n "${REDIS_LOG_PID:-}" ] && (kill -- -$REDIS_LOG_PID 2>/dev/null || kill $REDIS_LOG_PID 2>/dev/null || true)
-        [ -n "${REDIS_PID:-}" ] && (kill -- -$REDIS_PID 2>/dev/null || kill $REDIS_PID 2>/dev/null || true)
-    fi
-
-    # Stop Docker Redis container if we started one
-    if [ -n "${REDIS_STARTED_WITH_COMPOSE:-}" ] && [ -n "${COMPOSE_CMD:-}" ]; then
-        $COMPOSE_CMD stop redis 2>/dev/null || true
-    else
-        docker stop intellifl-redis 2>/dev/null || true
-    fi
-
-    # Catch orphaned processes still bound to our ports (uvicorn workers, node, celery).
-    if command_exists lsof; then
-        lsof -ti:6379 | xargs kill -9 2>/dev/null || true
-        lsof -ti:8000 | xargs kill -9 2>/dev/null || true
-        lsof -ti:5173 | xargs kill -9 2>/dev/null || true
-    fi
-
-    wait $FRONTEND_PID 2>/dev/null || true
-    wait $API_PID 2>/dev/null || true
-    wait $CELERY_PID 2>/dev/null || true
-    [ -n "$REDIS_PID" ] && wait $REDIS_PID 2>/dev/null || true
-    log_info "Servers stopped. Logs saved to tests/logs/"
-    exit 0
-}
-
-# Trap INT (Ctrl+C) and TERM signals to ensure cleanup runs on exit.
-trap cleanup INT TERM
-
 echo ""
 log_info "📋 Tailing logs (Ctrl+C to stop)..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-tail -f "$REDIS_LOG" "$CELERY_LOG" "$API_LOG" "$FRONTEND_LOG" 2>/dev/null | while IFS= read -r line; do
+# Tail in a background subshell
+(tail -f "$REDIS_LOG" "$CELERY_LOG" "$API_LOG" "$FRONTEND_LOG" 2>/dev/null | while IFS= read -r line; do
     case "$line" in
         *"==> $REDIS_LOG <=="*)
             echo ""
@@ -295,4 +289,7 @@ tail -f "$REDIS_LOG" "$CELERY_LOG" "$API_LOG" "$FRONTEND_LOG" 2>/dev/null | whil
             echo "$line"
             ;;
     esac
-done
+done) &
+TAIL_PID=$!
+
+wait $TAIL_PID 2>/dev/null || true
