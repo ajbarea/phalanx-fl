@@ -189,63 +189,69 @@ class TestValidationEndpoint:
 class TestParseLogLine:
     """Tests for parse_log_line utility function."""
 
-    def test_parse_iso_timestamp_with_level(self):
-        """parse_log_line parses ISO timestamp with level format."""
-        line = "2025-01-07 12:00:00,123 - INFO - Starting simulation"
+    def test_parse_ray_logger_format(self):
+        """parse_log_line parses ray_logger pipe-delimited format."""
+        line = "2025-01-07 12:00:00 | INFO | intellifl.utils.ray_logger | Starting Ray worker"
         result = parse_log_line(line)
-        assert result["timestamp"] == "2025-01-07 12:00:00,123"
+        assert result["timestamp"] == "2025-01-07 12:00:00"
+        assert result["level"] == "INFO"
+        assert result["message"] == "Starting Ray worker"
+
+    def test_parse_ray_logger_various_levels(self):
+        """parse_log_line handles various log levels in ray_logger format."""
+        for level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
+            line = f"2025-01-07 12:00:00 | {level} | root | Test message"
+            result = parse_log_line(line)
+            assert result["level"] == level
+            assert result["message"] == "Test message"
+
+    def test_parse_simulation_runner_format(self):
+        """parse_log_line parses simulation_runner 'LEVEL: message' format."""
+        line = "INFO: Starting simulation"
+        result = parse_log_line(line)
         assert result["level"] == "INFO"
         assert result["message"] == "Starting simulation"
+        assert "timestamp" in result
 
-    def test_parse_iso_timestamp_t_separator(self):
-        """parse_log_line parses ISO timestamp with T separator."""
-        line = "2025-01-07T12:00:00.123 INFO Processing data"
+    def test_parse_simulation_runner_error(self):
+        """parse_log_line parses ERROR level from simulation_runner format."""
+        line = "ERROR: Failed to load dataset"
         result = parse_log_line(line)
-        assert result["timestamp"] == "2025-01-07T12:00:00.123"
-        assert result["level"] == "INFO"
-        assert result["message"] == "Processing data"
+        assert result["level"] == "ERROR"
+        assert result["message"] == "Failed to load dataset"
 
-    def test_parse_level_module_message(self):
-        """parse_log_line parses level:module:message format."""
+    def test_parse_basicconfig_level_module_message(self):
+        """parse_log_line parses Python basicConfig 'LEVEL:module:message' format."""
         line = "INFO:root:Processing data"
         result = parse_log_line(line)
         assert result["level"] == "INFO"
         assert result["message"] == "Processing data"
         assert "timestamp" in result
 
-    def test_parse_bracketed_timestamp(self):
-        """parse_log_line parses [timestamp] LEVEL: message format."""
-        line = "[2025-01-07 12:00:00] ERROR: Connection failed"
+    def test_parse_basicconfig_nested_module(self):
+        """parse_log_line parses basicConfig format with dotted module name."""
+        line = "DEBUG:intellifl.simulation:Processing round 5"
         result = parse_log_line(line)
-        assert result["timestamp"] == "2025-01-07 12:00:00"
-        assert result["level"] == "ERROR"
-        assert result["message"] == "Connection failed"
+        assert result["level"] == "DEBUG"
+        assert result["message"] == "Processing round 5"
 
-    def test_parse_unparseable_line(self):
-        """parse_log_line falls back for unparseable lines."""
-        line = "Unparseable log line"
+    def test_parse_raw_message_fallback(self):
+        """parse_log_line falls back to raw message for unformatted lines."""
+        line = "Round 5 completed"
         result = parse_log_line(line)
         assert result["level"] == "INFO"
-        assert result["message"] == "Unparseable log line"
+        assert result["message"] == "Round 5 completed"
         assert "timestamp" in result
-
-    def test_parse_various_log_levels(self):
-        """parse_log_line handles various log levels."""
-        for level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
-            line = f"2025-01-07 12:00:00 - {level} - Test message"
-            result = parse_log_line(line)
-            assert result["level"] == level
-            assert result["message"] == "Test message"
 
     def test_parse_message_with_special_characters(self):
         """parse_log_line preserves special characters in message."""
-        line = "2025-01-07 12:00:00 - INFO - Error: Connection@Host#123 failed!"
+        line = "INFO: Error: Connection@Host#123 failed!"
         result = parse_log_line(line)
         assert "Connection@Host#123" in result["message"]
 
     def test_parse_multiword_message(self):
         """parse_log_line handles multiword messages."""
-        line = "2025-01-07 12:00:00 - INFO - This is a long message with many words"
+        line = "INFO: This is a long message with many words"
         result = parse_log_line(line)
         assert result["message"] == "This is a long message with many words"
 
