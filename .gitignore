@@ -30,3 +30,5 @@ MagicMock/
 .mypy_cache/
 .playwright-mcp/
 uv.lock.backup.*
+node_modules/
+test-results/
