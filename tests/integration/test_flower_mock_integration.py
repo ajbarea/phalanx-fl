@@ -124,7 +124,7 @@ class TestFlowerMockIntegration:
         assert len(history["losses_distributed"]) == 2
         assert "metrics_distributed" in history
 
-    @patch("flwr.simulation.start_simulation")
+    @patch("flwr.simulation.run_simulation")
     def test_mock_as_replacement_for_real_flower(self, mock_flwr_start: MagicMock) -> None:
         """Test that mocks can replace real Flower components in tests."""
 
