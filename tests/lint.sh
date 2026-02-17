@@ -51,14 +51,14 @@ if [ "$TEST_MODE" = true ] || [ "$SONAR_MODE" = true ]; then
     install_requirements
 fi
 
-log_info "⚡ Running ruff check..."
-ruff check --fix intellifl tests
-
 log_info "⚡ Running isort..."
 isort --quiet intellifl tests
 
 log_info "⚡ Running ruff format..."
 ruff format intellifl tests
+
+log_info "⚡ Running ruff check..."
+ruff check --fix intellifl tests
 
 log_info "✨ Running frontend linting..."
 cd frontend && npm run lint && npm run format -- --log-level warn && cd ..
