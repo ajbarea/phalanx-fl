@@ -76,7 +76,7 @@ function App() {
                   style={{ objectFit: 'contain' }}
                 />
                 <span className="brand-text">
-                  Intelli<span className="brand-text-fl">FL</span>
+                  Inte<span className="brand-text-fl">FL</span>
                 </span>
               </Navbar.Brand>
               <Navbar.Toggle aria-controls="navbar-nav" />
