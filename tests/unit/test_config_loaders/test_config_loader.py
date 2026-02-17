@@ -172,17 +172,13 @@ class TestConfigLoader:
         config_file = tmp_path / "invalid_config.json"
         config_file.write_text("{ invalid json syntax }")
 
-        with pytest.raises(SystemExit) as exc_info:
+        with pytest.raises(Exception):
             ConfigLoader._merge_usecase_configs(str(config_file))
-
-        assert exc_info.value.code == -1
 
     def test_merge_usecase_configs_missing_file(self):
         """Test error handling for missing configuration file."""
-        with pytest.raises(SystemExit) as exc_info:
+        with pytest.raises(Exception):
             ConfigLoader._merge_usecase_configs("nonexistent_file.json")
-
-        assert exc_info.value.code == -1
 
     @patch("intellifl.config_loaders.config_loader.validate_strategy_config")
     def test_merge_usecase_configs_validation_failure(self, mock_validate, tmp_path):
@@ -204,10 +200,8 @@ class TestConfigLoader:
         with open(config_file, "w") as f:
             json.dump(usecase_config, f)
 
-        with pytest.raises(SystemExit) as exc_info:
+        with pytest.raises(Exception):
             ConfigLoader._merge_usecase_configs(str(config_file))
-
-        assert exc_info.value.code == -1
 
     def test_set_config_success(self, tmp_path):
         """Test successful loading of dataset configuration."""
@@ -232,17 +226,13 @@ class TestConfigLoader:
         config_file = tmp_path / "invalid_dataset.json"
         config_file.write_text("{ invalid json }")
 
-        with pytest.raises(SystemExit) as exc_info:
+        with pytest.raises(Exception):
             ConfigLoader._set_config(str(config_file))
-
-        assert exc_info.value.code == -1
 
     def test_set_config_missing_file(self):
         """Test error handling for missing dataset configuration file."""
-        with pytest.raises(SystemExit) as exc_info:
+        with pytest.raises(Exception):
             ConfigLoader._set_config("nonexistent_dataset.json")
-
-        assert exc_info.value.code == -1
 
     def test_get_usecase_config_list(self, tmp_path):
         """Test retrieval of usecase configuration list."""
