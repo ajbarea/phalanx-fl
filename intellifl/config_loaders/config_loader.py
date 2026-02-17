@@ -46,8 +46,9 @@ class ConfigLoader:
 
             shared_settings = raw_config["shared_settings"]
 
-            for strategy in raw_config["simulation_strategies"]:
-                strategy.update(shared_settings)
+            for i, strategy in enumerate(raw_config["simulation_strategies"]):
+                # Merge: shared provides defaults, strategy-specific values override
+                raw_config["simulation_strategies"][i] = {**shared_settings, **strategy}
 
             for strategy in raw_config["simulation_strategies"]:
                 # Validate the strategy configuration
@@ -74,7 +75,7 @@ class ConfigLoader:
 
         except Exception as e:
             logging.error(f"Error while loading config from JSON: {e}")
-            sys.exit(-1)
+            raise
 
     @staticmethod
     def _set_config(config_path: str) -> dict:
@@ -88,4 +89,4 @@ class ConfigLoader:
 
         except Exception as e:
             logging.error(f"Error while loading config from JSON: {e}")
-            sys.exit(-1)
+            raise
