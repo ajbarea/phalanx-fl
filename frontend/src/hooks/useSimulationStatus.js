@@ -137,7 +137,10 @@ export function useSimulationStatus(simulationIdOrSimulations, options = {}) {
     queryKey: ['simulation-status', simulationIdOrSimulations],
     queryFn: () => fetchApi(`/simulations/${simulationIdOrSimulations}/status`),
     enabled: !isMultiple && !!simulationIdOrSimulations,
-    refetchInterval: query => (query.state.data?.status === 'running' ? interval : false),
+    refetchInterval: query => {
+      const s = query.state.data?.status;
+      return s === 'running' || s === 'queued' ? interval : false;
+    },
   });
 
   const multiQueries = useQueries({
@@ -146,7 +149,10 @@ export function useSimulationStatus(simulationIdOrSimulations, options = {}) {
           queryKey: ['simulation-status', sim.simulation_id],
           queryFn: () => fetchApi(`/simulations/${sim.simulation_id}/status`),
           enabled: !!sim.simulation_id,
-          refetchInterval: query => (query.state.data?.status === 'running' ? interval : false),
+          refetchInterval: query => {
+            const s = query.state.data?.status;
+            return s === 'running' || s === 'queued' ? interval : false;
+          },
         }))
       : [],
   });
