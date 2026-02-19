@@ -71,9 +71,6 @@ yarn-error.log*
 pnpm-debug.log*
 .pnpm-store/
 
-# Frontend
-frontend/
-
 # Environment & Secrets
 .env
 .env.*
@@ -85,12 +82,6 @@ frontend/
 secrets/
 credentials/
 
-# Docker
-Dockerfile*
-docker-compose*.yml
-.docker/
-*.dockerfile
-
 # Output & Logs
 out/
 logs/
@@ -98,7 +89,6 @@ logs/
 tests/logs/
 
 # Documentation
-docs/
 *.md
 !README.md
 LICENSE*
