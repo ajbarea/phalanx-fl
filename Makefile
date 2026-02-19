@@ -1,7 +1,10 @@
 # IntelliFL - Makefile for common tasks
 # Cross-platform compatible (uses shell scripts)
 
-.PHONY: help setup dev dev-monitored sim test lint lint-test sonar clean upgrade docker docker-frontend mutmut mutmut-results mutmut-show
+ARCH            := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+NATIVE_PLATFORM := linux/$(ARCH)
+
+.PHONY: help setup setup-python setup-frontend dev dev-down prod prod-down sim lint test sonar clean upgrade docker docker-frontend docker-all docker-push mutmut mutmut-results mutmut-show
 
 # Default target
 help:
@@ -17,9 +20,15 @@ help:
 	@echo "  make setup-frontend   Frontend dependencies only"
 	@echo ""
 	@echo "Development:"
-	@echo "  make dev              Start dev servers (API + frontend) with log tailing"
-	@echo "  make dev-monitored    Start dev servers with heartbeat monitoring"
-	@echo "  make sim              Run simulation"
+	@echo "  make dev              Start all services in dev mode (hot reload, Celery monitoring)"
+	@echo "  make dev-down         Stop all services"
+	@echo ""
+	@echo "Production:"
+	@echo "  make prod             Start all services in production mode"
+	@echo "  make prod-down        Stop prod services"
+	@echo ""
+	@echo "Simulation:"
+	@echo "  make sim              Run a simulation"
 	@echo ""
 	@echo "Quality:"
 	@echo "  make lint             Run linting only"
@@ -34,58 +43,74 @@ help:
 	@echo "  make upgrade          Update dependencies to latest versions"
 	@echo ""
 	@echo "Docker:"
-	@echo "  make docker           Build backend Docker image (intellifl-api)"
-	@echo "  make docker-frontend  Build frontend Docker image (intellifl-web)"
-	@echo "  make docker-all       Build all Docker images"
+	@echo "  make docker           Build API image for this machine (load to local Docker)"
+	@echo "  make docker-frontend  Build frontend image for this machine (load to local Docker)"
+	@echo "  make docker-all       Build all images for this machine (load to local Docker)"
+	@echo "  make docker-push      Build all images for amd64+arm64 and push to registry"
 	@echo ""
 
 # Setup targets
 setup:
-	@./setup.sh
+	@bash setup.sh
 
 setup-python:
-	@./reinstall_requirements.sh
+	@bash reinstall_requirements.sh
 
 setup-frontend:
 	@cd frontend && npm install
 
 # Development targets
 dev:
-	@./run_frontend.sh
+	@docker compose up
 
-dev-monitored:
-	@./run_frontend_monitored.sh
+dev-down:
+	@docker compose down
+
+prod:
+	@docker compose -f docker-compose.yml up -d
+
+prod-down:
+	@docker compose -f docker-compose.yml down
 
 sim:
-	@./run_simulation.sh
+	@bash run_simulation.sh
 
 # Quality targets
 lint:
-	@./tests/lint.sh
+	@bash tests/lint.sh
 
 test:
-	@./tests/lint.sh --test
+	@bash tests/lint.sh --test
 
 sonar:
-	@./tests/lint.sh --sonar
+	@bash tests/lint.sh --sonar
 
 # Maintenance targets
 clean:
-	@./clean.sh
+	@bash clean.sh
 
 upgrade:
-	@./update_dependencies.sh
+	@bash update_dependencies.sh
 
 # Docker targets
 docker:
-	@docker build -t intellifl-api:latest .
+	@docker buildx bake -f docker-bake.hcl api --load --set "api.platforms=$(NATIVE_PLATFORM)"
 
 docker-frontend:
-	@cd frontend && docker build -t intellifl-web:latest .
+	@docker buildx bake -f docker-bake.hcl frontend --load --set "frontend.platforms=$(NATIVE_PLATFORM)"
 
-docker-all: docker docker-frontend
+docker-all:
+	@docker buildx bake -f docker-bake.hcl --load --set "*.platforms=$(NATIVE_PLATFORM)"
 	@echo ""
-	@echo "[+] Built IntelliFL components:"
+	@echo "[+] Built IntelliFL components for $(NATIVE_PLATFORM):"
+	@echo "  - intellifl-api:latest"
+	@echo "  - intellifl-web:latest"
+	@echo ""
+
+docker-push:
+	@docker buildx bake -f docker-bake.hcl --push
+	@echo ""
+	@echo "[+] Pushed IntelliFL components (linux/amd64 + linux/arm64):"
 	@echo "  - intellifl-api:latest"
 	@echo "  - intellifl-web:latest"
 	@echo ""
