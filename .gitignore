@@ -32,3 +32,5 @@ MagicMock/
 uv.lock.backup.*
 node_modules/
 test-results/
+site/
+.env
