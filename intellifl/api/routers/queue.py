@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 import logging
+from contextlib import suppress
 from pathlib import Path
 from typing import Literal
 
+import psutil
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -34,14 +36,7 @@ ValidStatus = Literal["queued", "pending", "running", "completed", "failed", "st
 
 
 def _read_simulation_status(sim_dir: Path) -> ValidStatus:
-    """Read status from a simulation directory.
-
-    Fallback logic mirrors _get_status_data in simulations.py but simplified
-    for aggregate counting (no PID checks).
-
-    Returns:
-        Status string or 'pending' as fallback.
-    """
+    """Read status from a simulation directory, reporting orphaned tasks as failed."""
     if (sim_dir / ".stopped").is_file():
         return "stopped"
 
@@ -52,6 +47,38 @@ def _read_simulation_status(sim_dir: Path) -> ValidStatus:
                 data = json.load(f)
             raw = data.get("status", "pending")
             if raw in ("queued", "pending", "running", "completed", "failed", "stopped"):
+                if raw in ("queued", "running"):
+                    result_files = list(sim_dir.glob("*.pdf")) + list(sim_dir.glob("csv/*.csv"))
+                    if result_files:
+                        return "completed"
+
+                    celery_task_id = data.get("celery_task_id")
+                    pid = data.get("pid")
+                    if celery_task_id:
+                        # PID belongs to the worker container — use AsyncResult instead
+                        task_alive = False
+                        with suppress(Exception):
+                            from celery.result import AsyncResult
+
+                            from intellifl.celery_app import app as celery_app
+
+                            result = AsyncResult(celery_task_id, app=celery_app)
+                            task_alive = result.state in (
+                                "PENDING",
+                                "STARTED",
+                                "RETRY",
+                                "RECEIVED",
+                            )
+                        if not task_alive:
+                            return "failed"
+                    elif pid:
+                        # Subprocess mode: PID is in the same namespace — safe to check
+                        process_alive = False
+                        with suppress(Exception):
+                            process_alive = psutil.pid_exists(pid)
+                        if not process_alive:
+                            return "failed"
+
                 return raw  # type: ignore[return-value]
         except (OSError, json.JSONDecodeError):
             pass
@@ -68,11 +95,7 @@ def _read_simulation_status(sim_dir: Path) -> ValidStatus:
 
 @router.get("/api/queue/status", response_model=QueueStatusResponse)
 def get_queue_status() -> QueueStatusResponse:
-    """Get aggregate status counts for all simulations.
-
-    Returns counts for each status type plus a boolean indicating
-    if the queue is empty (no running or queued simulations).
-    """
+    """Return aggregate status counts across all simulations."""
     counts: dict[str, int] = {
         "queued": 0,
         "pending": 0,
