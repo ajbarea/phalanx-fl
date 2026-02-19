@@ -7,6 +7,7 @@ import datetime
 import json
 import logging
 import shutil
+import subprocess
 import sys
 from contextlib import suppress
 from pathlib import Path
@@ -16,7 +17,7 @@ import pandas as pd
 import psutil
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sse_starlette.sse import EventSourceResponse
 
 from intellifl.api.dependencies import (
@@ -24,7 +25,11 @@ from intellifl.api.dependencies import (
     get_simulation_path,
     secure_join,
 )
-from intellifl.api.models import CreateSimulationRequest, SimulationStatusResponse
+from intellifl.api.models import (
+    CreateSimulationRequest,
+    SimulationStatusResponse,
+    ValidationResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,18 +60,7 @@ _TERMINAL_STATUSES = frozenset({"completed", "failed", "stopped"})
 
 
 def _get_status_data(sim_path: Path, simulation_id: str) -> dict[str, Any]:
-    """Extract status data from simulation directory.
-
-    This helper is shared between the REST GET endpoint and SSE stream
-    to ensure consistent status detection logic.
-
-    Args:
-        sim_path: The validated path to the simulation directory.
-        simulation_id: The simulation identifier.
-
-    Returns:
-        A dictionary containing status, progress, and round information.
-    """
+    """Extract status data from a simulation directory; shared by REST and SSE endpoints."""
     stopped_marker = sim_path / ".stopped"
     if stopped_marker.is_file():
         return {"status": "stopped", "progress": 0.0}
@@ -91,7 +85,53 @@ def _get_status_data(sim_path: Path, simulation_id: str) -> dict[str, Any]:
                     "origin": status_data.get("origin"),
                 }
 
-            if raw_status in ["running", "queued"] and pid:
+            celery_task_id = status_data.get("celery_task_id")
+
+            if raw_status in ["running", "queued"] and celery_task_id:
+                # PID belongs to the worker container — use AsyncResult instead
+                task_alive = False
+                with suppress(Exception):
+                    from celery.result import AsyncResult
+
+                    from intellifl.celery_app import app as celery_app
+
+                    result = AsyncResult(celery_task_id, app=celery_app)
+                    task_alive = result.state in (
+                        "PENDING",
+                        "STARTED",
+                        "RETRY",
+                        "RECEIVED",
+                    )
+                if not task_alive:
+                    try:
+                        with status_file.open("r") as f:
+                            fresh_status = json.load(f)
+                        if fresh_status.get("status") == "completed":
+                            return {
+                                "status": "completed",
+                                "progress": 1.0,
+                                "current_round": fresh_status.get("current_round"),
+                                "total_rounds": fresh_status.get("total_rounds"),
+                                "current_strategy": fresh_status.get("current_strategy"),
+                                "total_strategies": fresh_status.get("total_strategies"),
+                                "origin": fresh_status.get("origin"),
+                            }
+                    except (OSError, json.JSONDecodeError):
+                        pass
+
+                    logger.warning(
+                        f"Simulation {simulation_id} {raw_status} but Celery task "
+                        f"{celery_task_id} is gone. Reporting as failed."
+                    )
+                    return {
+                        "status": "failed",
+                        "progress": status_data.get("progress", 0.0),
+                        "error": "Task was lost from queue (e.g. Redis restart). "
+                        "Re-submit or restart the API server to auto-recover.",
+                    }
+
+            elif raw_status in ["running", "queued"] and pid:
+                # Subprocess mode: PID is in the same namespace — safe to check
                 process_alive = False
                 with suppress(Exception):
                     process_alive = psutil.pid_exists(pid)
@@ -156,18 +196,7 @@ def _get_status_data(sim_path: Path, simulation_id: str) -> dict[str, Any]:
 
 
 def _find_simulation_process(simulation_id: str) -> psutil.Process | None:
-    """Find a running simulation process by its simulation ID.
-
-    Searches for processes by:
-    1. Command line pattern matching simulation_runner with config path
-    2. PID stored in status.json file
-
-    Args:
-        simulation_id: The simulation identifier.
-
-    Returns:
-        The psutil.Process if found, None otherwise.
-    """
+    """Find a running simulation process by cmdline pattern or stored PID."""
     config_pattern = f"out/{simulation_id}/config.json"
     alt_config_pattern = f"out\\{simulation_id}\\config.json"
 
@@ -202,13 +231,60 @@ def _find_simulation_process(simulation_id: str) -> psutil.Process | None:
     return None
 
 
-@router.get("/api/simulations", response_model=list[SimulationMetadata])
-def get_simulations() -> list[SimulationMetadata]:
-    """Retrieves metadata for all available simulation runs.
+def parse_log_line(line: str) -> dict[str, str]:
+    """Parse a log line into structured fields (timestamp, level, message).
+
+    Args:
+        line: Raw log line string to parse.
 
     Returns:
-        A list of SimulationMetadata objects sorted by creation time.
+        Dict with timestamp, level, and message. Unrecognised formats default to INFO.
     """
+    import re
+
+    _LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
+
+    # Ray logger: "2025-01-07 12:00:00 | INFO | name | message"
+    match = re.match(
+        r"^(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\s*\|\s*(\w+)\s*\|\s*[\w.]+\s*\|\s*(.+)$",
+        line,
+    )
+    if match and match.group(2).upper() in _LOG_LEVELS:
+        return {
+            "timestamp": match.group(1),
+            "level": match.group(2).upper(),
+            "message": match.group(3).strip(),
+        }
+
+    # simulation_runner file handler: "LEVEL: message"
+    match = re.match(r"^([A-Z]+):\s+(.+)$", line)
+    if match and match.group(1) in _LOG_LEVELS:
+        return {
+            "timestamp": datetime.datetime.now().isoformat(),
+            "level": match.group(1),
+            "message": match.group(2).strip(),
+        }
+
+    # Python basicConfig: "LEVEL:module:message"
+    match = re.match(r"^([A-Z]+):[\w.]+:(.+)$", line)
+    if match and match.group(1) in _LOG_LEVELS:
+        return {
+            "timestamp": datetime.datetime.now().isoformat(),
+            "level": match.group(1),
+            "message": match.group(2).strip(),
+        }
+
+    # Fallback — unrecognised format
+    return {
+        "timestamp": datetime.datetime.now().isoformat(),
+        "level": "INFO",
+        "message": line.strip(),
+    }
+
+
+@router.get("/api/simulations", response_model=list[SimulationMetadata])
+def get_simulations() -> list[SimulationMetadata]:
+    """List all simulations, sorted by most recent first."""
     simulations = []
     if not OUTPUT_DIR.is_dir():
         return []
@@ -247,18 +323,7 @@ def get_simulations() -> list[SimulationMetadata]:
 def get_simulation_details(
     sim_path: Path = Depends(get_simulation_path), simulation_id: str = ""
 ) -> SimulationDetails:
-    """Retrieves configuration and result files for a specific simulation.
-
-    Args:
-        sim_path: The validated path to the simulation directory.
-        simulation_id: The simulation identifier.
-
-    Returns:
-        A SimulationDetails object containing config, results, and status.
-
-    Raises:
-        HTTPException: If the configuration file cannot be read.
-    """
+    """Return config, result files, and current status for a simulation."""
     config_path = sim_path / "config.json"
     if not config_path.is_file():
         raise HTTPException(status_code=404, detail="Simulation config.json not found.")
@@ -299,17 +364,7 @@ def get_simulation_details(
 def get_simulation_config(
     sim_path: Path = Depends(get_simulation_path),
 ) -> dict[str, Any]:
-    """Retrieves just the configuration for a specific simulation.
-
-    Args:
-        sim_path: The validated path to the simulation directory.
-
-    Returns:
-        The simulation's config.json contents as a dictionary.
-
-    Raises:
-        HTTPException: If the configuration file cannot be read.
-    """
+    """Return the raw config.json for a simulation."""
     config_path = sim_path / "config.json"
     if not config_path.is_file():
         raise HTTPException(status_code=404, detail="Simulation config.json not found.")
@@ -330,19 +385,7 @@ def get_result_file(
     sim_path: Path = Depends(get_simulation_path),
     download: bool = False,
 ) -> FileResponse | JSONResponse:
-    """Retrieves a specific result file from a simulation.
-
-    Args:
-        result_filename: The name of the file to retrieve.
-        sim_path: The validated path to the simulation directory.
-        download: Whether to trigger a file download for CSVs.
-
-    Returns:
-        A FileResponse or JSONResponse containing the file data.
-
-    Raises:
-        HTTPException: If the file type is unsupported or file is missing.
-    """
+    """Serve a result file; CSVs are returned as JSON records unless ?download=true."""
     if not result_filename.endswith((".png", ".pdf", ".csv", ".json", ".html", ".txt")):
         raise HTTPException(status_code=400, detail="Unsupported file type.")
 
@@ -376,9 +419,8 @@ def get_result_file(
     return FileResponse(file_path)
 
 
-# ---------------------------------------------------------------------------
-# Subprocess execution backend (used when Celery/Redis is unavailable)
-# ---------------------------------------------------------------------------
+# Subprocess fallback (used when Celery/Redis is unavailable).
+# Uses Popen+executor because asyncio.create_subprocess_exec is broken on Windows.
 
 
 def _launch_subprocess(config_filepath: Path) -> None:
@@ -390,21 +432,44 @@ def _launch_subprocess(config_filepath: Path) -> None:
     loop.create_task(_run_subprocess(config_filepath, log_file, project_root))
 
 
-async def _run_subprocess(config_filepath: Path, log_file: Any, project_root: Path) -> None:
-    """Run simulation_runner as an async subprocess — mirrors the Celery task."""
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            sys.executable,
+def _find_python() -> str:
+    """Return the venv Python interpreter, falling back to sys.executable."""
+    # sys.executable can point to system Python when uvicorn --reload is active
+    project_root = Path(__file__).resolve().parents[3]
+    for candidate in (
+        project_root / ".venv" / "Scripts" / "python.exe",
+        project_root / ".venv" / "bin" / "python",
+    ):
+        if candidate.is_file():
+            return str(candidate)
+    return sys.executable
+
+
+def _run_subprocess_blocking(config_filepath: Path, log_file: Any, project_root: Path) -> None:
+    """Synchronous subprocess wrapper (runs in a thread via run_in_executor)."""
+    proc = subprocess.Popen(
+        [
+            _find_python(),
             "-m",
             "intellifl.simulation_runner",
             str(config_filepath),
             "--origin",
             "api",
-            stdout=log_file,
-            stderr=asyncio.subprocess.STDOUT,
-            cwd=str(project_root),
+        ],
+        stdout=log_file,
+        stderr=subprocess.STDOUT,
+        cwd=str(project_root),
+    )
+    proc.wait()
+
+
+async def _run_subprocess(config_filepath: Path, log_file: Any, project_root: Path) -> None:
+    """Run simulation_runner in a thread executor."""
+    try:
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None, _run_subprocess_blocking, config_filepath, log_file, project_root
         )
-        await proc.wait()
     except Exception:
         logger.exception(f"Subprocess execution failed for {config_filepath.parent.name}")
     finally:
@@ -413,17 +478,7 @@ async def _run_subprocess(config_filepath: Path, log_file: Any, project_root: Pa
 
 @router.post("/api/simulations", status_code=201)
 async def create_simulation(request: CreateSimulationRequest) -> dict[str, Any]:
-    """Creates and initiates a new simulation based on the provided configuration.
-
-    Args:
-        request: Validated simulation configuration request.
-
-    Returns:
-        A dictionary containing the simulation ID of the created or updated run.
-
-    Raises:
-        HTTPException: If the simulation process fails to start or config cannot be written.
-    """
+    """Create a simulation directory, write config, and dispatch to Celery or subprocess."""
     config = request.to_config_dict()
 
     config_keys = list(config.keys())
@@ -460,7 +515,7 @@ async def create_simulation(request: CreateSimulationRequest) -> dict[str, Any]:
     except OSError as e:
         raise HTTPException(status_code=500, detail=f"Failed to write config file: {e}")
 
-    # Try Celery+Redis first; fall back to direct subprocess if unavailable.
+    # Try Celery+Redis first; fall back to subprocess if unavailable
     status_filepath = output_sim_path / "status.json"
     celery_task_id = None
     try:
@@ -477,10 +532,9 @@ async def create_simulation(request: CreateSimulationRequest) -> dict[str, Any]:
         celery_task_id = task.id
         logger.info(f"Celery: queued simulation {simulation_id} (task_id: {celery_task_id})")
     except Exception as celery_err:
-        # Redis unavailable or Celery not installed — subprocess fallback
         logger.info(f"Celery unavailable ({celery_err!r}), using subprocess for {simulation_id}")
         _launch_subprocess(config_filepath)
-    # Create initial status.json
+
     try:
         total_strategies = len(wrapped_config.get("simulation_strategies", [1]))
         initial_status = {
@@ -501,23 +555,30 @@ async def create_simulation(request: CreateSimulationRequest) -> dict[str, Any]:
     return {"simulation_id": simulation_id}
 
 
+@router.post("/api/validate", response_model=ValidationResponse)
+def validate_configuration(request: dict[str, Any] = Body(...)) -> ValidationResponse:
+    """Dry-run config validation without creating a simulation."""
+    try:
+        CreateSimulationRequest(**request)
+        logger.debug("Configuration validation succeeded")
+        return ValidationResponse(valid=True)
+    except ValidationError as e:
+        errors = [f"{'.'.join(str(loc) for loc in err['loc'])}: {err['msg']}" for err in e.errors()]
+        logger.info(f"Configuration validation failed with {len(errors)} error(s): {errors[:3]}")
+        return ValidationResponse(valid=False, errors=errors)
+    except Exception as e:
+        logger.error(
+            f"Unexpected error during configuration validation: {type(e).__name__}: {str(e)}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail=f"Validation error: {str(e)}")
+
+
 @router.get("/api/simulations/{simulation_id}/status", response_model=SimulationStatusResponse)
 def get_simulation_status(
     sim_path: Path = Depends(get_simulation_path), simulation_id: str = ""
 ) -> SimulationStatusResponse:
-    """Retrieves the current execution status of a simulation.
-
-    This endpoint uses the same status detection logic as the SSE stream
-    via the shared `_get_status_data` helper, with additional error details
-    for failed simulations.
-
-    Args:
-        sim_path: The validated path to the simulation directory.
-        simulation_id: The simulation identifier.
-
-    Returns:
-        SimulationStatusResponse containing status, progress, and error details.
-    """
+    """Return current status, progress, and error details for a simulation."""
     status_data = _get_status_data(sim_path, simulation_id)
 
     if status_data.get("status") == "failed":
@@ -540,14 +601,9 @@ async def stream_simulation_status(
     sim_path: Path = Depends(get_simulation_path),
     simulation_id: str = "",
 ) -> EventSourceResponse:
-    """Stream simulation status and output via Server-Sent Events.
+    """Stream simulation status and log output via SSE.
 
-    Sends two event types:
-    - ``status``: JSON with status, progress, round/strategy info (on change)
-    - ``output``: JSON with ``{"text": "..."}`` containing new log output
-
-    The stream closes once the simulation reaches a terminal status
-    (completed, failed, stopped).
+    Events: ``status`` (JSON progress), ``output`` (log text), ``done``.
     """
 
     async def event_generator():
@@ -566,13 +622,11 @@ async def stream_simulation_status(
                 yield {"event": "status", "data": json.dumps(current_status)}
                 last_status = current_status.copy()
 
-            # Find log file if not yet found
             if log_path is None:
                 candidate = sim_path / "output.log"
                 if candidate.is_file():
                     log_path = candidate
 
-            # Stream new output from log file
             if log_path is not None and log_path.is_file():
                 try:
                     with log_path.open("rb") as f:
@@ -589,7 +643,7 @@ async def stream_simulation_status(
                     pass
 
             if current_status.get("status") in _TERMINAL_STATUSES:
-                # Final output flush after terminal status
+                # Flush any remaining log bytes before closing
                 if log_path is not None and log_path.is_file():
                     try:
                         with log_path.open("rb") as f:
@@ -623,22 +677,100 @@ async def stream_simulation_status(
     )
 
 
+@router.get("/api/simulations/{simulation_id}/logs")
+async def stream_simulation_logs(
+    request: Request,
+    sim_path: Path = Depends(get_simulation_path),
+    simulation_id: str = "",
+) -> EventSourceResponse:
+    """Stream parsed log entries via SSE until the simulation reaches a terminal status."""
+
+    async def event_generator():
+        log_path = sim_path / "output.log"
+        log_position = 0
+
+        logger.debug(f"Starting log stream for simulation {simulation_id}")
+
+        try:
+            while True:
+                if await request.is_disconnected():
+                    logger.debug(f"Log stream client disconnected for simulation {simulation_id}")
+                    break
+
+                if not log_path.exists():
+                    await asyncio.sleep(0.5)
+                    continue
+
+                try:
+                    with log_path.open("rb") as f:
+                        f.seek(log_position)
+                        new_bytes = f.read()
+
+                        if new_bytes:
+                            log_position = f.tell()
+                            new_content = new_bytes.decode("utf-8", errors="replace")
+
+                            for line in new_content.splitlines():
+                                if line.strip():
+                                    log_entry = parse_log_line(line)
+                                    yield {"event": "log", "data": json.dumps(log_entry)}
+                except OSError as e:
+                    logger.warning(
+                        f"I/O error reading log file for simulation {simulation_id} at position {log_position}: "
+                        f"{type(e).__name__}: {str(e)}"
+                    )
+                    await asyncio.sleep(1)
+                    continue
+
+                status_data = _get_status_data(sim_path, simulation_id)
+                if status_data.get("status") in _TERMINAL_STATUSES:
+                    # Flush remaining log bytes before closing
+                    try:
+                        with log_path.open("rb") as f:
+                            f.seek(log_position)
+                            final_bytes = f.read()
+                            if final_bytes:
+                                final_content = final_bytes.decode("utf-8", errors="replace")
+                                for line in final_content.splitlines():
+                                    if line.strip():
+                                        log_entry = parse_log_line(line)
+                                        yield {"event": "log", "data": json.dumps(log_entry)}
+                    except OSError as e:
+                        logger.warning(
+                            f"I/O error during final log flush for simulation {simulation_id}: "
+                            f"{type(e).__name__}: {str(e)}"
+                        )
+
+                    yield {"event": "done", "data": ""}
+                    logger.debug(
+                        f"Log stream closing for simulation {simulation_id}: "
+                        f"terminal status '{status_data.get('status')}' reached"
+                    )
+                    break
+
+                await asyncio.sleep(0.5)
+        except Exception as e:
+            logger.error(
+                f"Unexpected error in log stream for simulation {simulation_id}: "
+                f"{type(e).__name__}: {str(e)}",
+                exc_info=True,
+            )
+            raise
+
+    return EventSourceResponse(
+        event_generator(),
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @router.delete("/api/simulations/{simulation_id}", status_code=200)
 def delete_simulation(
     sim_path: Path = Depends(get_simulation_path), simulation_id: str = ""
 ) -> dict[str, str]:
-    """Permanently deletes a simulation and all associated files.
-
-    Args:
-        sim_path: The validated path to the simulation directory.
-        simulation_id: The simulation identifier.
-
-    Returns:
-        A confirmation message and the deleted simulation ID.
-
-    Raises:
-        HTTPException: If the simulation is currently running or deletion fails.
-    """
+    """Permanently delete a simulation directory and all its output."""
     try:
         shutil.rmtree(sim_path)
         logger.info(f"Deleted simulation: {simulation_id}")
@@ -652,20 +784,13 @@ def delete_simulation(
 def delete_multiple_simulations(
     simulation_ids: list[str] = Body(..., embed=True),
 ) -> dict[str, Any]:
-    """Permanently deletes multiple simulations defined by their IDs.
-
-    Args:
-        simulation_ids: A list of simulation IDs to delete.
-
-    Returns:
-        A dictionary with lists of successfully deleted IDs and failure details.
-    """
+    """Batch-delete simulations; returns lists of deleted IDs and failures."""
     deleted = []
     failed = []
 
     for simulation_id in simulation_ids:
         try:
-            if not all(c.isalnum() or c == "_" for c in simulation_id):
+            if not all(c.isalnum() or c in "_-" for c in simulation_id):
                 failed.append({"simulation_id": simulation_id, "error": "Invalid simulation ID"})
                 continue
 
@@ -692,19 +817,7 @@ def rename_simulation(
     display_name: str = Body(..., embed=True),
     sim_path: Path = Depends(get_simulation_path),
 ) -> dict[str, str]:
-    """Updates the display name of a simulation.
-
-    Args:
-        simulation_id: The simulation identifier.
-        display_name: The new display name.
-        sim_path: The validated path to the simulation directory.
-
-    Returns:
-        A confirmation message and the updated display name.
-
-    Raises:
-        HTTPException: If the name is invalid or configuration cannot be updated.
-    """
+    """Update the display_name field in a simulation's config.json."""
     if not display_name or not display_name.strip():
         raise HTTPException(
             status_code=400, detail="Display name cannot be empty or whitespace only"
@@ -745,22 +858,10 @@ def rename_simulation(
 
 @router.post("/api/simulations/{simulation_id}/stop", status_code=200)
 def stop_simulation(simulation_id: str) -> dict[str, str]:
-    """Terminates a running simulation and all its child processes.
-
-    Supports both Celery tasks (revoke) and legacy subprocess termination.
-
-    Args:
-        simulation_id: The simulation identifier.
-
-    Returns:
-        A confirmation message.
-
-    Raises:
-        HTTPException: If the simulation is not running or does not exist.
-    """
+    """Stop a simulation via Celery revoke or process termination."""
     status_path = OUTPUT_DIR / simulation_id / "status.json"
 
-    # Try Celery task revocation first
+    # Celery revocation
     if status_path.exists():
         try:
             with status_path.open() as f:
@@ -775,7 +876,6 @@ def stop_simulation(simulation_id: str) -> dict[str, str]:
                 result.revoke(terminate=True)
                 logger.info(f"Revoked Celery task {celery_task_id} for {simulation_id}")
 
-                # Update status.json
                 status_data["status"] = "stopped"
                 status_data["stopped_at"] = datetime.datetime.now(
                     tz=datetime.timezone.utc
@@ -788,7 +888,7 @@ def stop_simulation(simulation_id: str) -> dict[str, str]:
         except Exception as e:
             logger.warning(f"Celery revocation failed, trying process termination: {e}")
 
-    # Fallback: process-based termination (find by PID or cmdline pattern)
+    # Fallback: process-based termination
     parent = _find_simulation_process(simulation_id)
 
     if parent is None:

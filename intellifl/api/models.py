@@ -1,11 +1,4 @@
-"""Pydantic models for API request and response validation.
-
-This module provides strongly-typed request models with automatic boolean coercion
-for the simulation API endpoints. Pydantic's native boolean coercion handles
-string inputs like "true"/"false" automatically.
-
-Response models provide accurate OpenAPI schema documentation.
-"""
+"""Pydantic models for API request and response validation."""
 
 from __future__ import annotations
 
@@ -16,15 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 def _coerce_bool(v: Any) -> bool | None:
-    """Convert string boolean representations to actual booleans.
-
-    Pydantic's native coercion handles most cases, but this provides
-    explicit handling for edge cases and clear error messages.
-
-    Note:
-        String boolean values are deprecated and will emit a DeprecationWarning.
-        Use actual JSON booleans (true/false without quotes) instead.
-    """
+    """Coerce string booleans to native bools, emitting a deprecation warning."""
     if v is None:
         return None
     if isinstance(v, bool):
@@ -34,7 +19,7 @@ def _coerce_bool(v: Any) -> bool | None:
             f"String boolean value '{v}' is deprecated. "
             "Use actual boolean (true/false without quotes).",
             DeprecationWarning,
-            stacklevel=4,  # Adjusted for Pydantic validator call stack
+            stacklevel=4,  # Surface the warning at the caller, not inside Pydantic internals
         )
         lower = v.lower()
         if lower in ("true", "1", "yes", "on"):
@@ -45,14 +30,7 @@ def _coerce_bool(v: Any) -> bool | None:
 
 
 class SimulationSettings(BaseModel):
-    """Simulation configuration settings with boolean coercion.
-
-    All fields are optional to support partial configurations.
-    Boolean fields accept both actual bools and "true"/"false" strings for input,
-    but are always stored and returned as actual booleans.
-
-    Field constraints provide validation at the API boundary.
-    """
+    """Simulation configuration with field constraints validated at the API boundary."""
 
     model_config = ConfigDict(extra="allow")
 
@@ -63,8 +41,9 @@ class SimulationSettings(BaseModel):
     dataset_source: str | None = None
     model_keyword: str | None = None
     model_type: str | None = None
+    strategy_number: int | None = Field(default=None, ge=0)
 
-    # Training parameters with validation constraints
+    # Training parameters
     num_of_rounds: int | None = Field(default=None, ge=1, le=10000)
     num_of_clients: int | None = Field(default=None, ge=1, le=1000)
     num_of_malicious_clients: int | None = Field(default=None, ge=0)
@@ -79,7 +58,7 @@ class SimulationSettings(BaseModel):
     batch_size: int | None = Field(default=None, ge=1)
     learning_rate: float | None = Field(default=None, gt=0)
 
-    # Boolean flags - accept string input but store as actual booleans
+    # Boolean flags
     remove_clients: bool | None = None
     show_plots: bool | None = None
     save_plots: bool | None = None
@@ -90,7 +69,8 @@ class SimulationSettings(BaseModel):
     use_llm: bool | None = None
     use_lora: bool | None = None
 
-    # Strategy-specific parameters with constraints
+    # Strategy-specific parameters
+    evaluate_metrics_aggregation_fn: str | None = None
     trust_threshold: float | None = Field(default=None, ge=0, le=1)
     reputation_threshold: float | None = Field(default=None, ge=0, le=1)
     beta_value: float | None = None
@@ -103,7 +83,7 @@ class SimulationSettings(BaseModel):
     num_krum_selections: int | None = Field(default=None, ge=1)
     trim_ratio: float | None = Field(default=None, ge=0, lt=0.5)
 
-    # Attack settings with constraints
+    # Attack settings
     attack_type: str | None = None
     attack_ratio: float | None = Field(default=None, ge=0, le=1)
     gaussian_noise_mean: int | float | None = None
@@ -112,24 +92,22 @@ class SimulationSettings(BaseModel):
     attack_snapshot_format: str | None = None
     snapshot_max_samples: int | None = Field(default=None, ge=1, le=50)
 
-    # LLM settings with constraints
+    # Dataset settings
+    hf_dataset_name: str | None = None
+    partitioning_strategy: str | None = None
+    partitioning_params: dict[str, Any] | None = None
+
+    # LLM settings
     llm_model: str | None = None
     llm_finetuning: str | None = None
     llm_task: str | None = None
     llm_chunk_size: int | None = Field(default=None, ge=1)
     mlm_probability: float | None = Field(default=None, ge=0, le=1)
     lora_rank: int | None = Field(default=None, ge=1)
-
-    # Other settings
-    evaluate_metrics_aggregation_fn: str | None = None
-    hf_dataset_name: str | None = None
-    partitioning_strategy: str | None = None
-    partitioning_params: dict[str, Any] | None = None
     transformer_model: str | None = None
     max_seq_length: int | None = Field(default=None, ge=1)
     text_column: str | None = None
     label_column: str | None = None
-    strategy_number: int | None = Field(default=None, ge=0)
 
     @field_validator(
         "remove_clients",
@@ -140,6 +118,7 @@ class SimulationSettings(BaseModel):
         "preserve_dataset",
         "strict_mode",
         "use_llm",
+        "use_lora",
         mode="before",
     )
     @classmethod
@@ -194,12 +173,8 @@ class CreateSimulationRequest(BaseModel):
         return self.shared_settings is not None and self.simulation_strategies is not None
 
     def to_config_dict(self) -> dict[str, Any]:
-        """Convert to config dict format for storage/processing.
-
-        Returns proper JSON types (booleans as actual booleans, not strings).
-        """
+        """Convert to a plain dict suitable for JSON storage."""
         if self.is_multi_sim_mode():
-            # Multi-sim mode - use structured format
             result: dict[str, Any] = {}
             if self.shared_settings:
                 result["shared_settings"] = self.shared_settings.model_dump(exclude_none=True)
@@ -208,21 +183,12 @@ class CreateSimulationRequest(BaseModel):
                     s.model_dump(exclude_none=True) for s in self.simulation_strategies
                 ]
             return result
-        else:
-            # Single-sim mode - extra fields contain the config
-            return dict(self.__pydantic_extra__) if self.__pydantic_extra__ else {}
-
-
-# =============================================================================
-# Response Models - For accurate OpenAPI documentation
-# =============================================================================
+        # Single-sim: extra fields are the config itself
+        return dict(self.__pydantic_extra__) if self.__pydantic_extra__ else {}
 
 
 class SimulationStatusResponse(BaseModel):
-    """Response model for GET /api/simulations/{id}/status.
-
-    Provides accurate schema documentation for simulation status endpoints.
-    """
+    """Response for GET /api/simulations/{id}/status."""
 
     model_config = ConfigDict(extra="allow")
 
@@ -246,16 +212,20 @@ class DatasetInfo(BaseModel):
 
 
 class DatasetValidationResponse(BaseModel):
-    """Response model for GET /api/datasets/validate.
-
-    Provides accurate schema documentation for dataset validation endpoint.
-    """
+    """Response for GET /api/datasets/validate."""
 
     valid: bool
     compatible: bool
     info: DatasetInfo | None = None
     error: str | None = None
     reason: str | None = None
+
+
+class ValidationResponse(BaseModel):
+    """Response for POST /api/validate (dry-run config validation)."""
+
+    valid: bool
+    errors: list[str] | None = None
 
 
 class StrategyPlotData(BaseModel):
