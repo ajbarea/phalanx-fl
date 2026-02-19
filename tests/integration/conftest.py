@@ -92,6 +92,13 @@ def mock_celery_task():
     mock_celery_app_module = MagicMock()
     mock_celery_app_module.app = mock_celery_app
 
+    # Create mock AsyncResult that returns PENDING state (task is alive)
+    mock_async_result = MagicMock()
+    mock_async_result.state = "PENDING"
+
+    mock_celery_result = MagicMock()
+    mock_celery_result.AsyncResult.return_value = mock_async_result
+
     # Patch the modules in sys.modules before they get imported
     with patch.dict(
         sys.modules,
@@ -99,6 +106,7 @@ def mock_celery_task():
             "intellifl.celery_app": mock_celery_app_module,
             "intellifl.tasks": mock_tasks,
             "intellifl.tasks.simulation_tasks": mock_simulation_tasks,
+            "celery.result": mock_celery_result,
         },
     ):
         yield mock_run_simulation
