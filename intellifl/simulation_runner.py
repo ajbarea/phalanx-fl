@@ -6,6 +6,7 @@ import gc
 import json
 import logging
 import os
+import shutil
 import signal
 import sys
 import time
@@ -157,6 +158,12 @@ class SimulationRunner:
         else:
             self._directory_handler = DirectoryHandler()
 
+        # Copy config to output directory for record-keeping
+        assert self._directory_handler.dirname is not None
+        output_config = Path(self._directory_handler.dirname) / "config.json"
+        if not output_config.exists() and config_path.is_file():
+            shutil.copy2(str(config_path), str(output_config))
+
         self._origin = origin
 
         if origin == "cli":
@@ -175,6 +182,8 @@ class SimulationRunner:
 
         root_logger = logging.getLogger()
         root_logger.addHandler(file_handler)
+        flwr_logger = logging.getLogger("flwr")
+        flwr_logger.addHandler(file_handler)
 
         logging.info(f"Logging to file: {log_file_path}")
 
@@ -196,7 +205,7 @@ class SimulationRunner:
             origin=self._origin,
         )
 
-        # Mark as queued BEFORE waiting for the lock
+        # Mark as queued before waiting for the lock
         status_tracker.queue()
         logging.debug("Simulation added to hardware queue. Waiting for lock...")
 
