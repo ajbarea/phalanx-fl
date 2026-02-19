@@ -465,7 +465,7 @@ install_requirements() {
 
     if [ -f "$requirements_file" ]; then
         log_info "📦 Installing requirements from $requirements_file..."
-        if pip install -r "$requirements_file"; then
+        if run_python -m pip install -r "$requirements_file"; then
             log_info "Requirements installed successfully."
         else
             log_error "Failed to install requirements from $requirements_file"

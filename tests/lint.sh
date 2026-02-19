@@ -52,13 +52,13 @@ if [ "$TEST_MODE" = true ] || [ "$SONAR_MODE" = true ]; then
 fi
 
 log_info "⚡ Running isort..."
-isort --quiet intellifl tests
+run_python -m isort --quiet intellifl tests
 
 log_info "⚡ Running ruff format..."
-ruff format intellifl tests
+run_python -m ruff format intellifl tests
 
 log_info "⚡ Running ruff check..."
-ruff check --fix intellifl tests
+run_python -m ruff check --fix intellifl tests
 
 log_info "✨ Running frontend linting..."
 cd frontend && npm run lint && npm run format -- --log-level warn && cd ..
@@ -68,7 +68,7 @@ run_python -m mypy --config-file=pyproject.toml
 
 if command_exists pyright; then
     log_info "🔍 Running pyright..."
-    pyright intellifl/ tests/
+    npx pyright intellifl/ tests/
 else
     log_warning "Pyright not found. Skipping. To install: npm install -g pyright"
 fi
