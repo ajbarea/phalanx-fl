@@ -31,7 +31,7 @@ async def get_plot_data(simulation_id: str) -> dict:
     Raises:
         HTTPException: If data is unavailable or not found.
     """
-    if not all(c.isalnum() or c == "_" for c in simulation_id):
+    if not all(c.isalnum() or c in "_-" for c in simulation_id):
         raise HTTPException(status_code=400, detail="Invalid simulation ID format.")
 
     try:
@@ -83,7 +83,7 @@ async def get_all_plot_data(simulation_id: str) -> AllPlotDataResponse:
     Raises:
         HTTPException: If data is unavailable or not found.
     """
-    if not all(c.isalnum() or c == "_" for c in simulation_id):
+    if not all(c.isalnum() or c in "_-" for c in simulation_id):
         raise HTTPException(status_code=400, detail="Invalid simulation ID format.")
 
     try:

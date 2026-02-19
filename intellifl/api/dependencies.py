@@ -89,7 +89,7 @@ def get_simulation_path(simulation_id: str) -> Path:
     Raises:
         HTTPException: If the ID is invalid format or the directory does not exist.
     """
-    if not all(c.isalnum() or c == "_" for c in simulation_id):
+    if not all(c.isalnum() or c in "_-" for c in simulation_id):
         raise HTTPException(status_code=400, detail="Invalid simulation ID format.")
 
     sim_path = secure_join(OUTPUT_DIR, simulation_id)
