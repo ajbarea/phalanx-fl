@@ -57,6 +57,17 @@ class StatusTracker:
             status_data: Dictionary containing status information
         """
         try:
+            # Carry over fields we don't own (e.g. celery_task_id written by the API)
+            if self.status_file.exists():
+                try:
+                    with self.status_file.open() as f:
+                        existing = json.load(f)
+                    for key, value in existing.items():
+                        if key not in status_data:
+                            status_data[key] = value
+                except (OSError, json.JSONDecodeError):
+                    pass
+
             # Add timestamp
             status_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
