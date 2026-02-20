@@ -96,6 +96,16 @@ function App() {
                   </Nav.Link>
                 </Nav>
                 <Nav className="align-items-center">
+                  <a
+                    href="/docs/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Open documentation"
+                    aria-label="Open documentation"
+                    className="aui-navbar-btn"
+                  >
+                    <span className="material-symbols-outlined">menu_book</span>
+                  </a>
                   <button
                     className="aui-navbar-btn"
                     onClick={() => setIsAssistantOpen(true)}
