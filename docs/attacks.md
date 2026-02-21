@@ -123,8 +123,8 @@ Injects Gaussian noise into the client's training data at a specified signal-to-
 
 | Extra field | Type | Description |
 |---|---|---|
-| `target_noise_snr` | `float` | Target SNR in dB. Lower = more noise. |
-| `attack_ratio` | `float` | Fraction of training samples to corrupt (`0.0`–`1.0`). |
+| `target_noise_snr` | `float` | **Required.** Target SNR in dB. Lower = more noise. |
+| `attack_ratio` | `float` | **Required.** Fraction of training samples to corrupt (`0.0`–`1.0`). |
 
 ---
 
@@ -329,16 +329,16 @@ For text/transformer tasks. Replaces tokens in the training corpus with domain-s
   "selection_strategy": "percentage",
   "malicious_percentage": 0.3,
   "target_vocabulary": "medical",
-  "replacement_strategy": "random",
+  "replacement_strategy": "negative",
   "replacement_prob": 0.2
 }
 ```
 
 | Extra field | Type | Description |
 |---|---|---|
-| `target_vocabulary` | `string` | Domain vocabulary to draw replacements from: `"medical"`, `"financial"`, or `"legal"`. |
-| `replacement_strategy` | `string` | How to choose replacement tokens: `"random"`, etc. |
-| `replacement_prob` | `float` | Probability of replacing each token (`0.0`–`1.0`). |
+| `target_vocabulary` | `string` | **Required.** Domain vocabulary to target: `"medical"`, `"financial"`, or `"legal"`. |
+| `replacement_strategy` | `string` | Replacement token set: `"negative"` or `"positive"` (default `"negative"`). |
+| `replacement_prob` | `float` | Probability of replacing each matched token (`0.0`–`1.0`, default `0.2`). |
 
 !!! note "Auto-vocabulary injection"
     When `dataset_source: "huggingface"` datasets define a `vocabulary_domain` in `config/huggingface_datasets.json`, the framework automatically sets `target_vocabulary` on any `token_replacement` attack entries that don't already specify one.
@@ -355,4 +355,4 @@ When `save_attack_snapshots: true`, InteFL saves before-and-after snapshots of a
 | `attack_snapshot_format` | `"pickle"`, `"visual"`, or `"pickle_and_visual"` |
 | `snapshot_max_samples` | Max samples per snapshot (default: `5`) |
 
-Snapshots are written to `out/<run>/attack_snapshots/` and include an `index.html` for browsing results in a browser.
+Snapshots are written to `out/<run>/attack_snapshots_<strategy_number>/` and include an `index.html` for browsing results in a browser.

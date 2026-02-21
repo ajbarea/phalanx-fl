@@ -16,7 +16,7 @@ effects of these parameters on the collected metrics, as well as plug-and-play i
 ## Configuring the Simulation Parameters
 
 - **Sample configuration**: located at `config/simulation_strategies/example_strategy_config.json`.
-- **Usage**: pass the configuration file as a parameter when initializing `SimulationRunner` in `src/simulation_runner.py`.
+- **Usage**: pass the configuration file as a parameter when initializing `SimulationRunner` in `intellifl/simulation_runner.py`.
 
 ### Description of Simulation Parameters 
 #### (found at `config/simulation_strategies/example_strategy_config.json`)
@@ -36,6 +36,7 @@ Defines the aggregation strategy. Options:
   - `rfa`: RFA (Robust Federated Averaging) aggregation strategy. Provides Byzantine fault tolerance through weighted median-based aggregation.
   - `trimmed_mean`: Trimmed-Mean aggregation strategy. Aggregates updates by removing a fixed fraction of the largest and smallest values for each parameter dimension before averaging. Robust against outliers and certain types of attacks.
   - `bulyan`: Bulyan aggregation strategy. Uses Multi-Krum as the first step of filtering and Trimmed-Mean as the second step to ensure robustness.
+  - `arkrum`: ArKrum aggregation strategy. Augmented-Robust Krum (Yang & Imam, 2025).
   - `fedavg`: Standard Federated Averaging without Byzantine fault tolerance.
 
 
@@ -65,6 +66,8 @@ Defines the aggregation strategy. Options:
   - `medquad`: medical question-answering dataset for NLP tasks.
   - `financial_phrasebank`: financial sentiment analysis dataset for NLP tasks.
   - `lexglue`: legal domain dataset for NLP tasks.
+  - `medal`: PubMed MEDLINE abbreviation expansion dataset for NLP tasks.
+  - `cifar100`: CIFAR-100 (uoft-cs/cifar100), 32x32 RGB images, 100 fine-grained classes, HuggingFace source.
 
 - `num_of_rounds`: total aggregation rounds.
 - `num_of_clients`: number of clients (limited to available dataset clients).
@@ -79,17 +82,20 @@ Defines the aggregation strategy. Options:
 - **`attack_schedule`**: array of attack entries for round-based attack configuration. Each entry requires:
   - `start_round`: when the attack should start (1 to `num_of_rounds`).
   - `end_round`: when the attack should end (1 to `num_of_rounds`).
-  - `attack_type`: type of attack to apply. Options: `label_flipping`, `gaussian_noise`, `token_replacement`, `model_poisoning`, `gradient_scaling`, `byzantine_perturbation`.
+  - `attack_type`: type of attack to apply. Options: `label_flipping`, `targeted_label_flipping`, `gaussian_noise`, `token_replacement`, `backdoor_trigger`, `model_poisoning`, `gradient_scaling`, `boosted_scaling`, `byzantine_perturbation`, `inner_product_manipulation`, `alternating_min_poisoning`.
   - `selection_strategy`: how to select malicious clients. Options: `specific`, `random`, `percentage`.
   - **Attack type parameters:**
     - `label_flipping`: no parameters required.
-    - `gaussian_noise`: `target_noise_snr` (dB, recommended), `attack_ratio` (0.0-1.0, defaults to 1.0). Alternative: `mean`/`std` if not using SNR.
-    - `token_replacement`:
-      - Vocabulary-based (recommended): `target_vocabulary` (`"medical"`, `"financial"`, or `"legal"`), `replacement_strategy` (`"negative"` or `"positive"`, defaults to `"negative"`), `replacement_probability` (0.0-1.0, defaults to 0.2).
-      - Manual token IDs: `target_token_ids` (array), `replacement_token_ids` (array), `replacement_probability` (0.0-1.0, defaults to 0.2).
+    - `targeted_label_flipping`: `source_class` (required), `target_class` (required), `flip_ratio` (0.0-1.0, defaults to 1.0).
+    - `gaussian_noise`: `target_noise_snr` (dB, required), `attack_ratio` (0.0-1.0, required).
+    - `token_replacement`: `target_vocabulary` (`"medical"`, `"financial"`, or `"legal"`, required), `replacement_strategy` (`"negative"` or `"positive"`, defaults to `"negative"`), `replacement_prob` (0.0-1.0, defaults to 0.2).
+    - `backdoor_trigger`: `target_class` (required), `trigger_pattern` (`"square"` or `"cross"`, defaults to `"square"`), `trigger_size` (pixels, defaults to 4), `trigger_position` (`"bottom_right"`, `"top_left"`, `"center"`, or `"random"`), `trigger_value` (pixel intensity, defaults to 1.0), `poison_ratio` (0.0-1.0, defaults to 0.1).
     - `model_poisoning`: `poison_ratio` (0.0-1.0, fraction of weights to poison), `magnitude` (standard deviations).
-    - `gradient_scaling`: `scale_factor` (multiplier for all weights).
-    - `byzantine_perturbation`: `noise_scale` (standard deviations of random noise).
+    - `gradient_scaling`: `scale_factor` (multiplier for all weights). Prefer `boosted_scaling` for research use.
+    - `boosted_scaling`: `n_total` (required, total clients), `n_malicious` (defaults to 1), `boost_factor` (defaults to 1.0). FedAvg-aware scaling (Baruch et al., NeurIPS 2019).
+    - `byzantine_perturbation`: `noise_scale` (standard deviations of random noise), `clip_norm` (optional, L2 norm clipping for defense evasion).
+    - `inner_product_manipulation`: `perturbation_strength` (0.0-1.0, defaults to 0.5), `target_direction` (`"negative"`, `"zero"`, or `"random"`).
+    - `alternating_min_poisoning`: `n_total` (required), `n_malicious` (defaults to 1), `tau_factor` (defaults to 1.0), `pgd_steps` (defaults to 20), `pgd_step_size` (defaults to 0.1). Optimization-based PGD attack.
   - **Client selection parameters:**
     - `specific`: `malicious_client_ids` (array of client IDs).
     - `random`: `malicious_client_count` (integer).
@@ -146,9 +152,9 @@ Defines the aggregation strategy. Options:
 
 ## How to Run
 
-1. **Python Environment**: Python 3.10.14 is used in the framework. Before attempting to run the code, make sure the Python 3.9-3.11 is installed in the system.
+1. **Python Environment**: Python 3.10+ is used in the framework. Before attempting to run the code, make sure Python 3.10-3.13 is installed in the system.
 2. **Configuration**: place configurations in `config/simulation_strategies/`.
-3. **Specify Configuration**: update `src/simulation_runner.py` with the desired configuration file.
+3. **Specify Configuration**: update `intellifl/simulation_runner.py` with the desired configuration file.
 4. **Execution**: run `sh run_simulation.sh` (automated virtual environment setup and execution).
 5. **Output**: plots and `.csv` files (if enabled) saved in `out/` directory.
 
