@@ -45,7 +45,7 @@ The top-level entry point. Accepts a JSON config file and:
 
 It also handles graceful shutdown on `SIGINT`/`SIGTERM` and Ray cleanup between strategies.
 
-### `federated_simulation.py` — `FederatedSimulation`
+### `federated_simulation.py`
 
 Orchestrates a single strategy run:
 
@@ -54,7 +54,7 @@ Orchestrates a single strategy run:
 - Wraps the strategy and clients in Flower's `ServerApp` / `ClientApp` and calls `run_simulation()`
 - After the run, optionally generates attack snapshot HTML reports
 
-### `client_models/flower_client.py` — `FlowerClient`
+### `flower_client.py`
 
 Standard Flower `NumPyClient` subclass. Each virtual client:
 
@@ -81,7 +81,7 @@ FastAPI application with routers for:
 | :material-console: `terminal` | Interactive PTY terminal over WebSocket |
 | :material-robot: `assistant` | AI agent chat endpoint |
 
-### `utils/status_tracker.py` — `StatusTracker`
+### `status_tracker.py`
 
 Writes a `status.json` file into the simulation output directory. Transitions: `queued → running → completed / failed / stopped`. The UI polls this file (and the SSE stream) to display live progress.
 
