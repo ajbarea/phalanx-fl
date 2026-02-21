@@ -1,0 +1,92 @@
+[project]
+site_name = "InteFL"
+site_description = "A federated learning execution and research framework"
+site_author = "AJ Barea"
+# site_url = "https://your-domain.com/docs/"
+copyright = "Copyright &copy; 2026 AJ Barea"
+
+nav = [
+  { "Home" = "index.md" },
+  { "Getting Started" = "getting-started.md" },
+  { "Architecture" = "architecture.md" },
+  { "Configuration" = "configuration.md" },
+  { "Datasets" = "datasets.md" },
+  { "Strategies" = "strategies.md" },
+  { "Attacks" = "attacks.md" },
+  { "API Reference" = "api.md" },
+]
+
+extra_css = ["stylesheets/extra.css"]
+
+# ---------------------------------------------------------------------------
+# Theme
+# ---------------------------------------------------------------------------
+[project.theme]
+language = "en"
+
+features = [
+    # Announcement bar
+    "announce.dismiss",
+
+    # Code blocks
+    "content.code.annotate",
+    "content.code.copy",
+    "content.code.select",
+
+    # Content features
+    "content.footnote.tooltips",
+    "content.tabs.link",
+    "content.tooltips",
+
+    # Navigation
+    "navigation.footer",
+    "navigation.indexes",
+    "navigation.instant",
+    "navigation.instant.prefetch",
+    "navigation.path",
+    "navigation.sections",
+    "navigation.top",
+    "navigation.tracking",
+
+    # Search
+    "search.highlight",
+]
+
+# ---------------------------------------------------------------------------
+# Color palette — light/dark toggle
+# ---------------------------------------------------------------------------
+[[project.theme.palette]]
+scheme = "default"
+primary = "teal"
+accent = "deep-purple"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "teal"
+accent = "deep-purple"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"
+
+# ---------------------------------------------------------------------------
+# Fonts
+# ---------------------------------------------------------------------------
+[project.theme.font]
+text = "Inter"
+code = "JetBrains Mono"
+
+# ---------------------------------------------------------------------------
+# Icon
+# ---------------------------------------------------------------------------
+[project.theme.icon]
+logo = "material/scatter-plot"
+
+# ---------------------------------------------------------------------------
+# Social links (footer)
+# ---------------------------------------------------------------------------
+[project.extra]
+generator = false
+social = [
+    { icon = "fontawesome/brands/github", link = "https://github.com/ajbarea/phalanx-fl", name = "InteFL on GitHub" },
+]

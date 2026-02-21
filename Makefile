@@ -4,7 +4,7 @@
 ARCH            := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
 NATIVE_PLATFORM := linux/$(ARCH)
 
-.PHONY: help setup setup-python setup-frontend dev dev-down prod prod-down sim lint test sonar clean upgrade docker docker-frontend docker-all docker-push mutmut mutmut-results mutmut-show
+.PHONY: help setup setup-python setup-frontend dev dev-down prod prod-down sim lint test sonar clean upgrade docker docker-frontend docker-all docker-push mutmut mutmut-results mutmut-show docs
 
 # Default target
 help:
@@ -41,6 +41,9 @@ help:
 	@echo "Maintenance:"
 	@echo "  make clean            Clean build artifacts and caches"
 	@echo "  make upgrade          Update dependencies to latest versions"
+	@echo ""
+	@echo "Documentation:"
+	@echo "  make docs             Serve documentation (Zensical)"
 	@echo ""
 	@echo "Docker:"
 	@echo "  make docker           Build API image for this machine (load to local Docker)"
@@ -124,3 +127,7 @@ mutmut-results:
 
 mutmut-show:
 	@docker run --rm --entrypoint sh -v $(CURDIR)/.mutmut-cache:/app/.mutmut-cache intellifl-api:latest -c "mutmut show $(ID)"
+
+# Documentation target
+docs:
+	@source tests/scripts/common.sh && setup_virtual_environment && zensical serve
