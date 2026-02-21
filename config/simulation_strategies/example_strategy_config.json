@@ -5,7 +5,7 @@
         "remove_clients": false,
         "dataset_keyword": "femnist_iid",
         "use_llm": false,
-        "num_of_rounds": 10,
+        "num_of_rounds": 14,
         "num_of_clients": 5,
         "num_of_malicious_clients": 2,
         "show_plots": false,
@@ -52,51 +52,69 @@
                 "end_round": 2,
                 "attack_type": "label_flipping",
                 "selection_strategy": "specific",
-                "malicious_client_ids": [
-                    0
-                ]
+                "malicious_client_ids": [0]
             },
             {
                 "start_round": 3,
                 "end_round": 4,
-                "attack_type": "gaussian_noise",
-                "target_noise_snr": 15,
-                "attack_ratio": 0.8,
+                "attack_type": "targeted_label_flipping",
+                "source_class": 0,
+                "target_class": 1,
+                "flip_ratio": 1.0,
                 "selection_strategy": "specific",
-                "malicious_client_ids": [
-                    1
-                ]
+                "malicious_client_ids": [1]
             },
             {
                 "start_round": 5,
                 "end_round": 6,
-                "attack_type": "model_poisoning",
-                "poison_ratio": 0.1,
-                "magnitude": 5,
+                "attack_type": "backdoor_trigger",
+                "target_class": 0,
+                "trigger_pattern": "square",
+                "trigger_size": 4,
+                "trigger_position": "bottom_right",
+                "poison_ratio": 0.3,
                 "selection_strategy": "specific",
-                "malicious_client_ids": [
-                    0
-                ]
+                "malicious_client_ids": [0]
             },
             {
                 "start_round": 7,
                 "end_round": 8,
-                "attack_type": "label_flipping",
+                "attack_type": "boosted_scaling",
+                "n_total": 5,
+                "n_malicious": 1,
+                "boost_factor": 1.0,
                 "selection_strategy": "specific",
-                "malicious_client_ids": [
-                    1
-                ]
+                "malicious_client_ids": [1]
             },
             {
-                "start_round": 7,
-                "end_round": 8,
+                "start_round": 9,
+                "end_round": 10,
                 "attack_type": "gaussian_noise",
                 "target_noise_snr": 10,
-                "attack_ratio": 1,
+                "attack_ratio": 0.8,
                 "selection_strategy": "specific",
-                "malicious_client_ids": [
-                    1
-                ]
+                "malicious_client_ids": [0]
+            },
+            {
+                "start_round": 11,
+                "end_round": 12,
+                "attack_type": "inner_product_manipulation",
+                "perturbation_strength": 0.5,
+                "target_direction": "negative",
+                "selection_strategy": "specific",
+                "malicious_client_ids": [1]
+            },
+            {
+                "start_round": 13,
+                "end_round": 14,
+                "attack_type": "alternating_min_poisoning",
+                "n_total": 5,
+                "n_malicious": 1,
+                "tau_factor": 1.0,
+                "pgd_steps": 20,
+                "pgd_step_size": 0.1,
+                "selection_strategy": "specific",
+                "malicious_client_ids": [0]
             }
         ]
     },

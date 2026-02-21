@@ -5,6 +5,7 @@ Utility functions for applying poisoning attacks to datasets.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 import torch
 
@@ -12,6 +13,25 @@ from intellifl.attack_utils.vocabularies.registry import (
     get_replacement_strategy,
     get_vocabulary,
 )
+
+# ---------------------------------------------------------------------------
+# Attack type registry
+# ---------------------------------------------------------------------------
+
+DATA_ATTACK_TYPES = frozenset(
+    [
+        "label_flipping",
+        "targeted_label_flipping",
+        "gaussian_noise",
+        "token_replacement",
+        "backdoor_trigger",
+    ]
+)
+
+
+# ---------------------------------------------------------------------------
+# Core attack implementations
+# ---------------------------------------------------------------------------
 
 
 def apply_label_flipping(
@@ -40,6 +60,41 @@ def apply_label_flipping(
         modified_labels[labels == src_class] = perm[src_class]
 
     return modified_labels
+
+
+def apply_targeted_label_flipping(
+    labels: torch.Tensor,
+    source_class: int,
+    target_class: int,
+    flip_ratio: float = 1.0,
+) -> torch.Tensor:
+    """Flip labels from a specific source class to a specific target class.
+
+    Unlike random permutation flipping, this enables targeted misclassification
+    attacks (e.g., 'stop sign' -> 'speed limit', or '9' -> '1').
+
+    Args:
+        labels: Input label tensor.
+        source_class: Class to flip FROM.
+        target_class: Class to flip TO.
+        flip_ratio: Fraction of source_class samples to flip. Defaults to 1.0.
+
+    Returns:
+        Modified label tensor with targeted flips applied.
+    """
+    modified = labels.clone()
+    source_mask = labels == source_class
+
+    if flip_ratio < 1.0:
+        num_source = source_mask.sum().item()
+        num_to_flip = max(1, int(num_source * flip_ratio))
+        indices = torch.where(source_mask)[0]
+        selected = indices[torch.randperm(len(indices))[:num_to_flip]]
+        source_mask = torch.zeros_like(labels, dtype=torch.bool)
+        source_mask[selected] = True
+
+    modified[source_mask] = target_class
+    return modified
 
 
 def apply_gaussian_noise(
@@ -79,6 +134,99 @@ def apply_gaussian_noise(
 
     poisoned_images[indices] = torch.clamp(poisoned_images[indices] + noise, 0, 1)
     return poisoned_images
+
+
+def apply_backdoor_trigger(
+    images: torch.Tensor,
+    labels: torch.Tensor,
+    target_class: int,
+    trigger_pattern: str = "square",
+    trigger_size: int = 4,
+    trigger_position: str = "bottom_right",
+    trigger_value: float = 1.0,
+    poison_ratio: float = 0.1,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Inject a pixel-pattern trigger into a subset of images and relabel them.
+
+    Based on BadNets (Gu et al., 2017). Stamps a small visual pattern onto
+    a fraction of training images and relabels them to the target class. The
+    model learns to associate the trigger pattern with the target class,
+    creating a backdoor that activates at inference time.
+
+    Args:
+        images: Image tensor of shape (N, C, H, W).
+        labels: Label tensor of shape (N,).
+        target_class: The class the backdoor should trigger.
+        trigger_pattern: Pattern type -- ``"square"`` (solid block) or
+            ``"cross"`` (X-shaped pattern).
+        trigger_size: Size of trigger in pixels (width and height).
+        trigger_position: Where to stamp the trigger -- ``"bottom_right"``,
+            ``"top_left"``, ``"center"``, or ``"random"``.
+        trigger_value: Pixel intensity of the trigger. Defaults to 1.0 (white).
+        poison_ratio: Fraction of images to stamp with the trigger.
+
+    Returns:
+        Tuple of (poisoned_images, poisoned_labels).
+    """
+    num_samples = images.shape[0]
+    num_to_poison = max(1, int(num_samples * poison_ratio))
+    _, c, h, w = images.shape
+
+    indices = torch.randperm(num_samples)[:num_to_poison]
+    poisoned_images = images.clone()
+    poisoned_labels = labels.clone()
+
+    for idx in indices:
+        # Determine trigger position
+        if trigger_position == "bottom_right":
+            y_start = h - trigger_size
+            x_start = w - trigger_size
+        elif trigger_position == "top_left":
+            y_start = 0
+            x_start = 0
+        elif trigger_position == "center":
+            y_start = (h - trigger_size) // 2
+            x_start = (w - trigger_size) // 2
+        elif trigger_position == "random":
+            y_start = int(torch.randint(0, max(1, h - trigger_size), (1,)).item())
+            x_start = int(torch.randint(0, max(1, w - trigger_size), (1,)).item())
+        else:
+            raise ValueError(
+                f"Unknown trigger_position: {trigger_position!r}. "
+                f"Expected 'bottom_right', 'top_left', 'center', or 'random'."
+            )
+
+        y_end = min(y_start + trigger_size, h)
+        x_end = min(x_start + trigger_size, w)
+
+        # Apply trigger pattern
+        if trigger_pattern == "square":
+            poisoned_images[idx, :, y_start:y_end, x_start:x_end] = trigger_value
+        elif trigger_pattern == "cross":
+            # Draw an X pattern within the trigger region
+            for dy in range(y_end - y_start):
+                for dx in range(x_end - x_start):
+                    # Diagonal lines of the X
+                    ts = trigger_size - 1 if trigger_size > 1 else 1
+                    if abs(dy - dx) <= 0 or abs(dy - (ts - dx)) <= 0:
+                        poisoned_images[idx, :, y_start + dy, x_start + dx] = trigger_value
+        else:
+            raise ValueError(
+                f"Unknown trigger_pattern: {trigger_pattern!r}. Expected 'square' or 'cross'."
+            )
+
+        poisoned_labels[idx] = target_class
+
+    logging.debug(
+        f"Backdoor trigger applied: {num_to_poison}/{num_samples} images, "
+        f"pattern={trigger_pattern}, target_class={target_class}"
+    )
+    return poisoned_images, poisoned_labels
+
+
+# ---------------------------------------------------------------------------
+# Token replacement helpers (unchanged)
+# ---------------------------------------------------------------------------
 
 
 def _encode_vocabulary_sequences(tokenizer, vocabulary: list) -> dict:
@@ -229,6 +377,11 @@ def apply_token_replacement(
         return tokens
 
 
+# ---------------------------------------------------------------------------
+# Scheduling
+# ---------------------------------------------------------------------------
+
+
 def should_poison_this_round(
     current_round: int, client_id: int, attack_schedule: list | None
 ) -> tuple[bool, list]:
@@ -276,6 +429,162 @@ def should_poison_this_round(
     return len(attacks_by_type) > 0, list(attacks_by_type.values())
 
 
+# ---------------------------------------------------------------------------
+# Dispatch wrappers -- thin adapters between config dicts and pure functions
+# ---------------------------------------------------------------------------
+
+
+def _dispatch_label_flipping(
+    data: torch.Tensor,
+    labels: torch.Tensor,
+    config: dict,
+    tokenizer=None,
+    num_classes: int | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    if num_classes is None:
+        raise ValueError("Label flipping attack requires 'num_classes' parameter to be provided.")
+    labels = apply_label_flipping(labels, num_classes=num_classes)
+    return data, labels
+
+
+def _dispatch_targeted_label_flipping(
+    data: torch.Tensor,
+    labels: torch.Tensor,
+    config: dict,
+    tokenizer=None,
+    num_classes: int | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    source_class = config.get("source_class")
+    target_class = config.get("target_class")
+    if source_class is None or target_class is None:
+        raise ValueError(
+            "Targeted label flipping requires 'source_class' and 'target_class' in config."
+        )
+    labels = apply_targeted_label_flipping(
+        labels,
+        source_class=source_class,
+        target_class=target_class,
+        flip_ratio=config.get("flip_ratio", 1.0),
+    )
+    return data, labels
+
+
+def _dispatch_gaussian_noise(
+    data: torch.Tensor,
+    labels: torch.Tensor,
+    config: dict,
+    tokenizer=None,
+    num_classes: int | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    target_noise_snr = config.get("target_noise_snr")
+    attack_ratio = config.get("attack_ratio", 1.0)
+
+    if target_noise_snr is not None:
+        data = apply_gaussian_noise(
+            data, target_noise_snr=target_noise_snr, attack_ratio=attack_ratio
+        )
+    else:
+        data = apply_gaussian_noise(
+            data,
+            mean=config.get("mean", 0.0),
+            std=config.get("std", 0.1),
+            attack_ratio=attack_ratio,
+        )
+    return data, labels
+
+
+def _dispatch_token_replacement(
+    data: torch.Tensor,
+    labels: torch.Tensor,
+    config: dict,
+    tokenizer=None,
+    num_classes: int | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    target_token_ids = config.get("target_token_ids")
+    replacement_token_ids = config.get("replacement_token_ids")
+    target_sequences = None
+
+    if tokenizer and not target_token_ids:
+        if "target_vocabulary" not in config:
+            raise ValueError(
+                "Token replacement attack requires 'target_vocabulary' in attack_config. "
+                "Use predefined vocabularies from token_vocabularies.py (e.g., 'medical', "
+                "'financial', 'legal')."
+                "See intellifl/attack_utils/token_vocabularies.py for available vocabularies."
+            )
+
+        vocab_name: str = config["target_vocabulary"]
+        strategy_name = config.get("replacement_strategy", "negative")
+
+        target_tokens = get_vocabulary(vocab_name)
+        replacement_tokens = get_replacement_strategy(strategy_name)
+
+        logging.info(f"Using vocabulary '{vocab_name}' with '{strategy_name}' replacement strategy")
+        logging.info(
+            f"Loaded {len(target_tokens)} target tokens, {len(replacement_tokens)} replacement tokens"
+        )
+
+        if target_tokens and replacement_tokens:
+            target_sequences = _encode_vocabulary_sequences(tokenizer, target_tokens)
+
+            replacement_token_ids = [
+                tokenizer.encode(token, add_special_tokens=False)[0]
+                for token in replacement_tokens
+                if tokenizer.encode(token, add_special_tokens=False)
+            ]
+
+            logging.info(
+                f"Sequence replacement: {len(target_sequences)} target sequences, "
+                f"{len(replacement_token_ids)} replacement IDs"
+            )
+
+    data = apply_token_replacement(
+        data,
+        replacement_prob=config.get("replacement_prob", config.get("replacement_probability", 0.2)),
+        target_token_ids=target_token_ids,
+        replacement_token_ids=replacement_token_ids,
+        target_sequences=target_sequences,
+    )
+    return data, labels
+
+
+def _dispatch_backdoor_trigger(
+    data: torch.Tensor,
+    labels: torch.Tensor,
+    config: dict,
+    tokenizer=None,
+    num_classes: int | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    target_class = config.get("target_class")
+    if target_class is None:
+        raise ValueError("Backdoor trigger attack requires 'target_class' in config.")
+    return apply_backdoor_trigger(
+        data,
+        labels,
+        target_class=target_class,
+        trigger_pattern=config.get("trigger_pattern", "square"),
+        trigger_size=config.get("trigger_size", 4),
+        trigger_position=config.get("trigger_position", "bottom_right"),
+        trigger_value=config.get("trigger_value", 1.0),
+        poison_ratio=config.get("poison_ratio", 0.1),
+    )
+
+
+# Registry mapping attack type names to dispatch functions
+_DATA_ATTACK_FUNCTIONS: dict[str, Callable] = {
+    "label_flipping": _dispatch_label_flipping,
+    "targeted_label_flipping": _dispatch_targeted_label_flipping,
+    "gaussian_noise": _dispatch_gaussian_noise,
+    "token_replacement": _dispatch_token_replacement,
+    "backdoor_trigger": _dispatch_backdoor_trigger,
+}
+
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
+
+
 def apply_poisoning_attack(
     data: torch.Tensor,
     labels: torch.Tensor,
@@ -285,7 +594,8 @@ def apply_poisoning_attack(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Apply a poisoning attack to dataset based on attack configuration.
 
-    Supports label_flipping, gaussian_noise, and token_replacement attack types.
+    Supports label_flipping, targeted_label_flipping, gaussian_noise,
+    token_replacement, and backdoor_trigger attack types.
 
     Args:
         data: Input data tensor (images or token IDs).
@@ -311,79 +621,13 @@ def apply_poisoning_attack(
         )
 
     attack_type = attack_config.get("attack_type")
+    if not isinstance(attack_type, str):
+        logging.warning(f"Invalid attack_type: {attack_type!r}, skipping.")
+        return data, labels
+    dispatch_fn = _DATA_ATTACK_FUNCTIONS.get(attack_type)
 
-    if attack_type == "label_flipping":
-        if num_classes is None:
-            raise ValueError(
-                "Label flipping attack requires 'num_classes' parameter to be provided."
-            )
-        labels = apply_label_flipping(labels, num_classes=num_classes)
+    if dispatch_fn is None:
+        logging.warning(f"Unknown data attack type: {attack_type!r}, skipping.")
+        return data, labels
 
-    elif attack_type == "gaussian_noise":
-        target_noise_snr = attack_config.get("target_noise_snr")
-        attack_ratio = attack_config.get("attack_ratio", 1.0)
-
-        if target_noise_snr is not None:
-            data = apply_gaussian_noise(
-                data, target_noise_snr=target_noise_snr, attack_ratio=attack_ratio
-            )
-        else:
-            data = apply_gaussian_noise(
-                data,
-                mean=attack_config.get("mean", 0.0),
-                std=attack_config.get("std", 0.1),
-                attack_ratio=attack_ratio,
-            )
-
-    elif attack_type == "token_replacement":
-        target_token_ids = attack_config.get("target_token_ids")
-        replacement_token_ids = attack_config.get("replacement_token_ids")
-        target_sequences = None
-
-        if tokenizer and not target_token_ids:
-            if "target_vocabulary" not in attack_config:
-                raise ValueError(
-                    "Token replacement attack requires 'target_vocabulary' in attack_config. "
-                    "Use predefined vocabularies from token_vocabularies.py (e.g., 'medical', "
-                    "'financial', 'legal')."
-                    "See intellifl/attack_utils/token_vocabularies.py for available vocabularies."
-                )
-
-            vocab_name: str = attack_config["target_vocabulary"]
-            strategy_name = attack_config.get("replacement_strategy", "negative")
-
-            target_tokens = get_vocabulary(vocab_name)
-            replacement_tokens = get_replacement_strategy(strategy_name)
-
-            logging.info(
-                f"Using vocabulary '{vocab_name}' with '{strategy_name}' replacement strategy"
-            )
-            logging.info(
-                f"Loaded {len(target_tokens)} target tokens, {len(replacement_tokens)} replacement tokens"
-            )
-
-            if target_tokens and replacement_tokens:
-                target_sequences = _encode_vocabulary_sequences(tokenizer, target_tokens)
-
-                replacement_token_ids = [
-                    tokenizer.encode(token, add_special_tokens=False)[0]
-                    for token in replacement_tokens
-                    if tokenizer.encode(token, add_special_tokens=False)
-                ]
-
-                logging.info(
-                    f"Sequence replacement: {len(target_sequences)} target sequences, "
-                    f"{len(replacement_token_ids)} replacement IDs"
-                )
-
-        data = apply_token_replacement(
-            data,
-            replacement_prob=attack_config.get(
-                "replacement_prob", attack_config.get("replacement_probability", 0.2)
-            ),
-            target_token_ids=target_token_ids,
-            replacement_token_ids=replacement_token_ids,
-            target_sequences=target_sequences,
-        )
-
-    return data, labels
+    return dispatch_fn(data, labels, attack_config, tokenizer, num_classes)

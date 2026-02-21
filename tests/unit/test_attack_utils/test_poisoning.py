@@ -7,9 +7,12 @@ from unittest.mock import MagicMock, patch
 import torch
 
 from intellifl.attack_utils.poisoning import (
+    DATA_ATTACK_TYPES,
+    apply_backdoor_trigger,
     apply_gaussian_noise,
     apply_label_flipping,
     apply_poisoning_attack,
+    apply_targeted_label_flipping,
     apply_token_replacement,
     should_poison_this_round,
 )
@@ -585,3 +588,275 @@ class TestTokenReplacementWithVocabulary:
             apply_poisoning_attack(
                 torch.zeros(1), torch.zeros(1), attack_config, tokenizer=mock_tokenizer
             )
+
+
+class TestDataAttackTypes:
+    """Tests DATA_ATTACK_TYPES registry."""
+
+    def test_data_attack_types_contains_expected(self):
+        """Verifies DATA_ATTACK_TYPES includes all expected types."""
+        expected = {
+            "label_flipping",
+            "targeted_label_flipping",
+            "gaussian_noise",
+            "token_replacement",
+            "backdoor_trigger",
+        }
+        assert expected == DATA_ATTACK_TYPES
+
+
+class TestApplyTargetedLabelFlipping:
+    """Tests for apply_targeted_label_flipping."""
+
+    def test_flips_source_to_target(self):
+        """Verifies all source_class labels are flipped to target_class."""
+        labels = torch.tensor([0, 0, 1, 1, 2, 2, 3, 3])
+
+        result = apply_targeted_label_flipping(labels, source_class=0, target_class=5)
+
+        assert torch.all(result[labels == 0] == 5)
+        # Non-source labels unchanged
+        assert torch.all(result[labels == 1] == 1)
+        assert torch.all(result[labels == 2] == 2)
+        assert torch.all(result[labels == 3] == 3)
+
+    def test_partial_flip_ratio(self):
+        """Verifies flip_ratio controls fraction of source samples flipped."""
+        torch.manual_seed(42)
+        labels = torch.tensor([0] * 100 + [1] * 100)
+
+        result = apply_targeted_label_flipping(
+            labels, source_class=0, target_class=9, flip_ratio=0.5
+        )
+
+        flipped = (result[:100] == 9).sum().item()
+        assert 40 <= flipped <= 60
+
+    def test_no_change_when_source_absent(self):
+        """Verifies no changes when source_class not present."""
+        labels = torch.tensor([1, 2, 3, 4])
+
+        result = apply_targeted_label_flipping(labels, source_class=0, target_class=9)
+
+        assert torch.equal(result, labels)
+
+    def test_preserves_tensor_shape(self):
+        """Verifies output shape matches input."""
+        labels = torch.tensor([0, 1, 2, 3, 4])
+
+        result = apply_targeted_label_flipping(labels, source_class=0, target_class=9)
+
+        assert result.shape == labels.shape
+
+
+class TestApplyBackdoorTrigger:
+    """Tests for apply_backdoor_trigger."""
+
+    def test_stamps_square_trigger(self):
+        """Verifies square trigger pattern is applied."""
+        torch.manual_seed(42)
+        images = torch.zeros(10, 1, 28, 28)
+        labels = torch.zeros(10, dtype=torch.long)
+
+        poisoned_images, poisoned_labels = apply_backdoor_trigger(
+            images,
+            labels,
+            target_class=7,
+            trigger_pattern="square",
+            trigger_size=4,
+            trigger_position="bottom_right",
+            poison_ratio=1.0,
+        )
+
+        # All images should have the trigger in bottom-right
+        for i in range(10):
+            assert poisoned_images[i, 0, 24:28, 24:28].sum() > 0
+            assert poisoned_labels[i] == 7
+
+    def test_stamps_cross_trigger(self):
+        """Verifies cross trigger pattern is applied."""
+        torch.manual_seed(42)
+        images = torch.zeros(10, 1, 28, 28)
+        labels = torch.zeros(10, dtype=torch.long)
+
+        poisoned_images, poisoned_labels = apply_backdoor_trigger(
+            images,
+            labels,
+            target_class=3,
+            trigger_pattern="cross",
+            trigger_size=4,
+            trigger_position="top_left",
+            poison_ratio=1.0,
+        )
+
+        # Cross pattern should modify some pixels in the trigger region
+        for i in range(10):
+            trigger_region = poisoned_images[i, 0, 0:4, 0:4]
+            assert trigger_region.sum() > 0
+            assert poisoned_labels[i] == 3
+
+    def test_partial_poisoning(self):
+        """Verifies poison_ratio controls fraction of poisoned images."""
+        torch.manual_seed(42)
+        images = torch.zeros(100, 1, 28, 28)
+        labels = torch.zeros(100, dtype=torch.long)
+
+        poisoned_images, poisoned_labels = apply_backdoor_trigger(
+            images,
+            labels,
+            target_class=5,
+            poison_ratio=0.1,
+        )
+
+        num_poisoned = (poisoned_labels == 5).sum().item()
+        assert num_poisoned == 10
+
+    def test_relabels_to_target_class(self):
+        """Verifies poisoned samples are relabeled to target_class."""
+        torch.manual_seed(42)
+        images = torch.rand(20, 3, 32, 32)
+        labels = torch.arange(20) % 10
+
+        _, poisoned_labels = apply_backdoor_trigger(
+            images,
+            labels,
+            target_class=9,
+            poison_ratio=0.5,
+        )
+
+        num_target = (poisoned_labels == 9).sum().item()
+        assert num_target >= 10
+
+    def test_trigger_positions(self):
+        """Verifies different trigger positions work."""
+        for position in ("bottom_right", "top_left", "center", "random"):
+            torch.manual_seed(42)
+            images = torch.zeros(5, 1, 28, 28)
+            labels = torch.zeros(5, dtype=torch.long)
+
+            poisoned_images, _ = apply_backdoor_trigger(
+                images,
+                labels,
+                target_class=1,
+                trigger_position=position,
+                poison_ratio=1.0,
+            )
+
+            # At least some pixels should be modified
+            assert poisoned_images.sum() > 0
+
+    def test_invalid_trigger_position_raises(self):
+        """Verifies ValueError for unknown trigger position."""
+        images = torch.zeros(5, 1, 28, 28)
+        labels = torch.zeros(5, dtype=torch.long)
+
+        with pytest.raises(ValueError, match="Unknown trigger_position"):
+            apply_backdoor_trigger(
+                images,
+                labels,
+                target_class=1,
+                trigger_position="invalid",
+            )
+
+    def test_invalid_trigger_pattern_raises(self):
+        """Verifies ValueError for unknown trigger pattern."""
+        images = torch.zeros(5, 1, 28, 28)
+        labels = torch.zeros(5, dtype=torch.long)
+
+        with pytest.raises(ValueError, match="Unknown trigger_pattern"):
+            apply_backdoor_trigger(
+                images,
+                labels,
+                target_class=1,
+                trigger_pattern="invalid",
+            )
+
+    def test_preserves_shapes(self):
+        """Verifies output shapes match input."""
+        images = torch.rand(10, 3, 32, 32)
+        labels = torch.randint(0, 10, (10,))
+
+        poisoned_images, poisoned_labels = apply_backdoor_trigger(
+            images,
+            labels,
+            target_class=0,
+        )
+
+        assert poisoned_images.shape == images.shape
+        assert poisoned_labels.shape == labels.shape
+
+    def test_multichannel_trigger(self):
+        """Verifies trigger is applied across all channels."""
+        torch.manual_seed(42)
+        images = torch.zeros(5, 3, 28, 28)
+        labels = torch.zeros(5, dtype=torch.long)
+
+        poisoned_images, _ = apply_backdoor_trigger(
+            images,
+            labels,
+            target_class=1,
+            trigger_size=4,
+            trigger_position="bottom_right",
+            poison_ratio=1.0,
+        )
+
+        # All 3 channels should have the trigger
+        for c in range(3):
+            assert poisoned_images[0, c, 24:28, 24:28].sum() > 0
+
+
+class TestDispatchNewDataAttacks:
+    """Tests dispatcher with new data attack types."""
+
+    def test_dispatch_targeted_label_flipping(self):
+        """Verifies dispatcher handles targeted_label_flipping."""
+        images = torch.rand(10, 1, 28, 28)
+        labels = torch.tensor([0, 0, 0, 1, 1, 1, 2, 2, 2, 3])
+
+        attack_config = {
+            "attack_type": "targeted_label_flipping",
+            "source_class": 0,
+            "target_class": 9,
+        }
+
+        result_images, result_labels = apply_poisoning_attack(images, labels, attack_config)
+
+        assert torch.allclose(result_images, images)
+        assert torch.all(result_labels[labels == 0] == 9)
+
+    def test_dispatch_targeted_label_flipping_missing_params(self):
+        """Verifies dispatcher raises error for missing required params."""
+        images = torch.rand(5, 1, 28, 28)
+        labels = torch.zeros(5, dtype=torch.long)
+
+        attack_config = {"attack_type": "targeted_label_flipping"}
+
+        with pytest.raises(ValueError, match="source_class.*target_class"):
+            apply_poisoning_attack(images, labels, attack_config)
+
+    def test_dispatch_backdoor_trigger(self):
+        """Verifies dispatcher handles backdoor_trigger."""
+        torch.manual_seed(42)
+        images = torch.zeros(20, 1, 28, 28)
+        labels = torch.zeros(20, dtype=torch.long)
+
+        attack_config = {
+            "attack_type": "backdoor_trigger",
+            "target_class": 7,
+            "poison_ratio": 0.5,
+        }
+
+        result_images, result_labels = apply_poisoning_attack(images, labels, attack_config)
+
+        num_poisoned = (result_labels == 7).sum().item()
+        assert num_poisoned == 10
+
+    def test_dispatch_backdoor_trigger_missing_target_class(self):
+        """Verifies dispatcher raises error when target_class missing."""
+        images = torch.rand(5, 1, 28, 28)
+        labels = torch.zeros(5, dtype=torch.long)
+
+        attack_config = {"attack_type": "backdoor_trigger"}
+
+        with pytest.raises(ValueError, match="target_class"):
+            apply_poisoning_attack(images, labels, attack_config)

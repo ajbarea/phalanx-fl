@@ -15,6 +15,7 @@ from intellifl.attack_utils.snapshot_image_viz import save_weight_attack_predict
 from intellifl.attack_utils.weight_poisoning import (
     WEIGHT_ATTACK_TYPES,
     apply_weight_poisoning,
+    is_weight_attack,
 )
 from intellifl.attack_utils.weight_snapshots import (
     compute_weight_diff_statistics,
@@ -257,6 +258,8 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                         original_labels = labels.clone()
 
                         for attack_config in attack_configs:
+                            if is_weight_attack(attack_config.get("attack_type", "")):
+                                continue
                             images, labels = apply_poisoning_attack(
                                 images,
                                 labels,
@@ -425,6 +428,8 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                     )
                     if should_poison and attack_configs:
                         for attack_config in attack_configs:
+                            if is_weight_attack(attack_config.get("attack_type", "")):
+                                continue
                             images, labels = apply_poisoning_attack(
                                 images,
                                 labels,

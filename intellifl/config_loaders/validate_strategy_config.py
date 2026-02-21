@@ -133,11 +133,16 @@ config_schema = {
                         "type": "string",
                         "enum": [
                             "label_flipping",
+                            "targeted_label_flipping",
                             "gaussian_noise",
                             "token_replacement",
+                            "backdoor_trigger",
                             "model_poisoning",
                             "gradient_scaling",
+                            "boosted_scaling",
                             "byzantine_perturbation",
+                            "inner_product_manipulation",
+                            "alternating_min_poisoning",
                         ],
                     },
                     "selection_strategy": {
@@ -162,7 +167,34 @@ config_schema = {
                     "magnitude": {"type": "number", "minimum": 0.0},
                     "scale_factor": {"type": "number", "minimum": 0.0},
                     "noise_scale": {"type": "number", "minimum": 0.0},
+                    "clip_norm": {"type": "number", "minimum": 0.0},
                     "seed": {"type": "integer", "minimum": 0},
+                    # Boosted scaling parameters
+                    "n_total": {"type": "integer", "minimum": 1},
+                    "n_malicious": {"type": "integer", "minimum": 1},
+                    "boost_factor": {"type": "number"},
+                    # Inner product manipulation parameters
+                    "perturbation_strength": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    "target_direction": {
+                        "type": "string",
+                        "enum": ["negative", "zero", "random"],
+                    },
+                    # Targeted label flipping parameters
+                    "source_class": {"type": "integer", "minimum": 0},
+                    "target_class": {"type": "integer", "minimum": 0},
+                    "flip_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    # Alternating-min poisoning (optimization-based) parameters
+                    "tau_factor": {"type": "number", "minimum": 0.0},
+                    "pgd_steps": {"type": "integer", "minimum": 1},
+                    "pgd_step_size": {"type": "number", "exclusiveMinimum": 0.0, "maximum": 1.0},
+                    # Backdoor trigger parameters
+                    "trigger_pattern": {"type": "string", "enum": ["square", "cross"]},
+                    "trigger_size": {"type": "integer", "minimum": 1},
+                    "trigger_position": {
+                        "type": "string",
+                        "enum": ["bottom_right", "top_left", "center", "random"],
+                    },
+                    "trigger_value": {"type": "number"},
                     # Token replacement parameters
                     "target_vocabulary": {"type": "string"},
                     "replacement_strategy": {"type": "string"},
@@ -365,6 +397,32 @@ def _validate_attack_schedule(config: dict) -> None:
             if "attack_ratio" not in entry:
                 raise ValidationError(
                     f"{entry_desc}: gaussian_noise attack requires 'attack_ratio' parameter"
+                )
+
+        elif attack_type == "targeted_label_flipping":
+            if "source_class" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: targeted_label_flipping requires 'source_class' parameter"
+                )
+            if "target_class" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: targeted_label_flipping requires 'target_class' parameter"
+                )
+
+        elif attack_type == "backdoor_trigger":
+            if "target_class" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: backdoor_trigger requires 'target_class' parameter"
+                )
+
+        elif attack_type == "boosted_scaling":
+            if "n_total" not in entry:
+                raise ValidationError(f"{entry_desc}: boosted_scaling requires 'n_total' parameter")
+
+        elif attack_type == "alternating_min_poisoning":
+            if "n_total" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: alternating_min_poisoning requires 'n_total' parameter"
                 )
 
         # Validate selection strategy requirements
