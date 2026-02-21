@@ -1,14 +1,14 @@
 name: CI Pipeline
-
 on:
   push:
-  # Change to a real branch name and uncomment pull_request to enable
-    branches: [ "aj-ux-enhancements" ]
-  # pull_request:
-  #   branches: [ main, master ]
-
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main 
 jobs:
   test:
+    if: false # Disable this job until it's ready for main branch
     name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
@@ -45,11 +45,11 @@ jobs:
           uv run coverage report --show-missing
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5.5.1
+        uses: codecov/codecov-action@v5
         if: matrix.python-version == '3.11'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
+          slug: ajbarea/phalanx-fl
 
   smoke-test:
     runs-on: ubuntu-latest
