@@ -85,9 +85,11 @@
 /* --- Better table styling --- */
 .md-typeset table:not([class]) {
   font-size: 0.82rem;
+  width: auto;
 }
 
-.md-typeset table:not([class]) th {
+.md-typeset table:not([class]) th,
+.md-typeset table:not([class]) td {
   white-space: nowrap;
 }
 
