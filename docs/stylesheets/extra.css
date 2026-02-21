@@ -1,0 +1,113 @@
+/* ===== InteFL Custom Theme ===== */
+
+/* --- Color scheme overrides --- */
+:root > * {
+  --md-primary-fg-color:        #009688;
+  --md-primary-fg-color--light: #4DB6AC;
+  --md-primary-fg-color--dark:  #00796B;
+  --md-accent-fg-color:         #7C4DFF;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-hue: 195;
+}
+
+/* --- Hero / landing page --- */
+.md-typeset .hero {
+  text-align: center;
+  padding: 2rem 0 1rem;
+}
+
+.md-typeset .hero h1 {
+  font-size: 2.4rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.md-typeset .hero .hero-subtitle {
+  font-size: 1.15rem;
+  opacity: 0.8;
+  margin-bottom: 1.5rem;
+}
+
+.md-typeset .hero .hero-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+/* --- Card grid enhancements --- */
+.md-typeset .grid.cards > ul > li,
+.md-typeset .grid.cards > ol > li {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  transition: border-color 200ms, box-shadow 200ms;
+}
+
+.md-typeset .grid.cards > ul > li:hover,
+.md-typeset .grid.cards > ol > li:hover {
+  border-color: var(--md-accent-fg-color);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* --- Feature grid icons --- */
+.md-typeset .grid.cards .twemoji,
+.md-typeset .grid.cards .emojione {
+  margin-right: 0.4rem;
+}
+
+/* --- Status badges --- */
+.md-typeset .badge {
+  display: inline-block;
+  padding: 0.15em 0.5em;
+  border-radius: 1em;
+  font-size: 0.75em;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.md-typeset .badge.badge-image {
+  background: linear-gradient(135deg, #26a69a, #009688);
+  color: white;
+}
+
+.md-typeset .badge.badge-text {
+  background: linear-gradient(135deg, #7C4DFF, #651FFF);
+  color: white;
+}
+
+.md-typeset .badge.badge-3d {
+  background: linear-gradient(135deg, #FF6D00, #FF9100);
+  color: white;
+}
+
+/* --- Better table styling --- */
+.md-typeset table:not([class]) {
+  font-size: 0.82rem;
+}
+
+.md-typeset table:not([class]) th {
+  white-space: nowrap;
+}
+
+/* --- Mermaid diagram styling --- */
+.md-typeset .mermaid {
+  margin: 1.5rem 0;
+}
+
+/* --- Announcement bar override (optional) --- */
+.md-banner {
+  background-color: var(--md-accent-fg-color);
+  color: white;
+}
+
+/* --- Smooth scrolling --- */
+html {
+  scroll-behavior: smooth;
+}
+
+/* --- Footer social icons spacing --- */
+.md-social__link {
+  margin: 0 0.2rem;
+}

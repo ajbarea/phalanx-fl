@@ -1,18 +1,20 @@
-# API Reference
+# :material-api: API Reference
 
 The InteFL backend is a FastAPI application running on port `8000`. Start it with:
 
-```bash
+```bash title="Start the API server"
 make dev
 # or directly:
 uvicorn intellifl.api.main:app --reload
 ```
 
-Interactive API docs are available at `http://localhost:8000/docs` (Swagger UI) and `http://localhost:8000/redoc`.
+!!! tip "Interactive docs"
+
+    Swagger UI is available at `http://localhost:8000/docs` and ReDoc at `http://localhost:8000/redoc`.
 
 ---
 
-## Simulations
+## :material-play-network-outline: Simulations
 
 ### `GET /api/simulations`
 
@@ -29,12 +31,12 @@ Launch a new simulation.
 **Request body:** A strategy config JSON. Supports two formats:
 
 *Single-sim (flat):*
-```json
+```json title="Flat config"
 { "aggregation_strategy_keyword": "fedavg", "num_of_rounds": 10, "dataset_keyword": "femnist_iid" }
 ```
 
 *Multi-sim (structured):*
-```json
+```json title="Structured config"
 {
   "shared_settings": { "num_of_rounds": 10, "dataset_keyword": "femnist_iid" },
   "simulation_strategies": [{ "aggregation_strategy_keyword": "fedavg" }]
@@ -79,7 +81,7 @@ Get the current execution status of a simulation.
 
 Stream simulation status **and** raw log output via Server-Sent Events.
 
-Emits two event types:
+Emits three event types:
 
 | Event | Payload | Description |
 |---|---|---|
@@ -89,7 +91,7 @@ Emits two event types:
 
 Connect in JavaScript:
 
-```javascript
+```javascript title="EventSource client"
 const es = new EventSource(`/api/simulations/${simId}/stream`);
 es.addEventListener('status', (e) => console.log(JSON.parse(e.data)));
 es.addEventListener('output', (e) => console.log(JSON.parse(e.data).text));
@@ -141,7 +143,7 @@ Permanently delete multiple simulations.
 
 ---
 
-## Config Validation
+## :material-check-decagram: Config Validation
 
 ### `POST /api/validate`
 
@@ -153,7 +155,7 @@ Validate a simulation configuration without creating a simulation.
 
 ---
 
-## Queue
+## :material-format-list-numbered: Queue
 
 ### `GET /api/queue/status`
 
@@ -161,7 +163,7 @@ Get aggregate status counts for all simulations.
 
 **Response:**
 
-```json
+```json title="Queue status response"
 {
   "queued": 1,
   "pending": 0,
@@ -178,7 +180,7 @@ Get aggregate status counts for all simulations.
 
 ---
 
-## Visualizations
+## :material-chart-line: Visualizations
 
 Visualization endpoints live under the simulations namespace.
 
@@ -208,7 +210,7 @@ Each strategy entry contains a `summary` and a list of `snapshots` (per client p
 
 ---
 
-## Datasets
+## :material-database-search: Datasets
 
 ### `GET /api/datasets/validate`
 
@@ -224,7 +226,7 @@ Validate whether a HuggingFace dataset exists and is compatible.
 
 ---
 
-## System
+## :material-heart-pulse: System
 
 ### `GET /api/health`
 
@@ -232,7 +234,7 @@ Health check endpoint including Redis and Celery worker status.
 
 **Response:**
 
-```json
+```json title="Health response"
 {
   "status": "healthy",
   "redis": "connected",
@@ -253,7 +255,7 @@ Returns available training devices and GPU hardware information.
 
 ---
 
-## Terminal
+## :material-console: Terminal
 
 ### `WebSocket /api/terminal`
 
@@ -261,7 +263,7 @@ Opens an interactive pseudo-terminal (PTY) session over WebSocket.
 
 The terminal runs a bash/cmd shell in the project root directory. Send text input as plain strings or a resize message to change the terminal dimensions:
 
-```json
+```json title="Terminal resize message"
 { "type": "resize", "rows": 40, "cols": 120 }
 ```
 
@@ -269,7 +271,7 @@ This powers the in-browser terminal panel in the UI.
 
 ---
 
-## Agent
+## :material-robot-outline: Agent
 
 ### `POST /api/agent/chat`
 
@@ -277,7 +279,7 @@ Send a chat message to the AI agent endpoint.
 
 **Request body:**
 
-```json
+```json title="Agent chat request"
 {
   "messages": [
     { "role": "user", "content": [{ "type": "text", "text": "..." }] }
@@ -289,25 +291,28 @@ Send a chat message to the AI agent endpoint.
 
 ---
 
-## Status lifecycle
+## :material-state-machine: Status lifecycle
 
 The `status` field follows this lifecycle:
 
-```
-queued  ──►  pending  ──►  running  ──►  completed
-                                │
-                                └──────────►  failed
-                                │
-                                └──────────►  stopped
+```mermaid
+stateDiagram-v2
+    [*] --> queued
+    queued --> running
+    running --> completed
+    running --> failed
+    running --> stopped
 ```
 
 | Status | Meaning |
 |---|---|
 | `queued` | Celery task dispatched, worker not yet picked it up |
-| `pending` | Simulation directory exists but no status file yet |
+| `pending` | Simulation directory created; runner has not yet written a status file |
 | `running` | `simulation_runner.py` is actively executing |
 | `completed` | All strategies finished successfully |
 | `failed` | Process crashed or was interrupted |
 | `stopped` | Manually stopped via `POST /api/simulations/{id}/stop` |
 
-After a server restart, the API startup hook automatically re-enqueues any simulations that were `queued` when the server shut down (orphan recovery). Simulations that were `running` and whose process is now dead are marked `failed`.
+!!! info "Orphan recovery"
+
+    After a server restart, the API startup hook automatically re-enqueues any simulations that were `queued` when the server shut down. Simulations that were `running` and whose process is now dead are marked `failed`.

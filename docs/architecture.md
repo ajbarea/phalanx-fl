@@ -1,12 +1,13 @@
-# Architecture
+# :material-sitemap: Architecture
 
 ## Component overview
 
 ```mermaid
 flowchart TD
-    UI["React / Vite UI<br/>port 5173"]
+    UI["React / Vite UI<br/>port 5173 (dev) / 80 (prod via nginx)"]
+    Docs["Zensical<br/>Documentation · port 8080"]
     API["FastAPI Backend<br/>intellifl.api · port 8000"]
-    Redis[(Redis)]
+    Redis[(Redis<br/>redis-data volume)]
     Celery["Celery Worker<br/>intellifl.celery_app"]
     SR["SimulationRunner<br/>simulation_runner.py"]
     FedSim["FederatedSimulation<br/>federated_simulation.py"]
@@ -16,6 +17,7 @@ flowchart TD
     Clients["FlowerClient × N<br/>train + evaluate"]
 
     UI -->|HTTP / SSE| API
+    Docs -->|HTTP| Markdown
     API -->|task.delay| Redis
     Redis --> Celery
     Celery --> SR
@@ -29,9 +31,9 @@ flowchart TD
 
 ---
 
-## Key modules
+## :material-puzzle-outline: Key modules
 
-### `intellifl/simulation_runner.py`
+### `simulation_runner.py`
 
 The top-level entry point. Accepts a JSON config file and:
 
@@ -43,7 +45,7 @@ The top-level entry point. Accepts a JSON config file and:
 
 It also handles graceful shutdown on `SIGINT`/`SIGTERM` and Ray cleanup between strategies.
 
-### `intellifl/federated_simulation.py` — `FederatedSimulation`
+### `federated_simulation.py` — `FederatedSimulation`
 
 Orchestrates a single strategy run:
 
@@ -52,7 +54,7 @@ Orchestrates a single strategy run:
 - Wraps the strategy and clients in Flower's `ServerApp` / `ClientApp` and calls `run_simulation()`
 - After the run, optionally generates attack snapshot HTML reports
 
-### `intellifl/client_models/flower_client.py` — `FlowerClient`
+### `client_models/flower_client.py` — `FlowerClient`
 
 Standard Flower `NumPyClient` subclass. Each virtual client:
 
@@ -61,31 +63,31 @@ Standard Flower `NumPyClient` subclass. Each virtual client:
 - Optionally applies attacks from the `attack_schedule` before returning updates
 - Reports loss and accuracy back to the server
 
-### `intellifl/simulation_strategies/`
+### `simulation_strategies/`
 
 Each file implements one aggregation strategy as a Flower `Strategy` subclass. Common fields are shared via `common_kwargs` in `FederatedSimulation._assign_aggregation_strategy()`.
 
-### `intellifl/api/`
+### `api/`
 
 FastAPI application with routers for:
 
 | Router | Purpose |
 |---|---|
-| `simulations` | List, inspect, launch, stop, rename, delete simulations; stream status and logs via SSE |
-| `queue` | Get aggregate queue status counts |
-| `visualizations` | Fetch plot data JSON and attack snapshot metadata |
-| `datasets` | Validate HuggingFace datasets |
-| `system` | Health check, device and GPU info |
-| `terminal` | Interactive PTY terminal over WebSocket |
-| `assistant` | AI agent chat endpoint |
+| :material-play-circle: `simulations` | List, inspect, launch, stop, rename, delete simulations; stream status and logs via SSE |
+| :material-tray-full: `queue` | Get aggregate queue status counts |
+| :material-chart-line: `visualizations` | Fetch plot data JSON and attack snapshot metadata |
+| :material-database-check: `datasets` | Validate HuggingFace datasets |
+| :material-heart-pulse: `system` | Health check, device and GPU info |
+| :material-console: `terminal` | Interactive PTY terminal over WebSocket |
+| :material-robot: `assistant` | AI agent chat endpoint |
 
-### `intellifl/utils/status_tracker.py` — `StatusTracker`
+### `utils/status_tracker.py` — `StatusTracker`
 
-Writes a `status.json` file into the simulation output directory. Transitions: `queued → pending → running → completed / failed / stopped`. The UI polls this file (and the SSE stream) to display live progress.
+Writes a `status.json` file into the simulation output directory. Transitions: `queued → running → completed / failed / stopped`. The UI polls this file (and the SSE stream) to display live progress.
 
 ---
 
-## Data flow for a simulation
+## :material-swap-vertical: Data flow for a simulation
 
 ```mermaid
 flowchart TD
@@ -104,9 +106,9 @@ flowchart TD
 
 ---
 
-## Output directory layout
+## :material-folder-outline: Output directory layout
 
-```
+```title="Simulation output structure"
 out/
 └── <timestamp>/
     ├── config.json
@@ -126,3 +128,87 @@ out/
             ├── client_M_after.pkl
             └── visual_report.html
 ```
+
+---
+
+## :material-docker: Container and volume lifecycle
+
+=== ":material-code-braces: Development"
+
+    **Applied files:**
+
+    - `docker-compose.yml` (base)
+    - `docker-compose.override.yml` (dev overrides)
+
+    **Services:**
+
+    - `api`: FastAPI with `--reload`, hot-sync on `./intellifl` changes
+    - `frontend`: Vite dev server (port 5173), hot-sync on `./frontend/src` changes
+    - `celery-worker`: Celery worker with hot-sync on `./intellifl` changes
+    - `celery-monitor`: Flower monitoring dashboard (port 5555)
+    - `docs`: Zensical documentation (port 8080)
+    - `redis`: Redis broker with persistent volume
+
+    **Volumes:**
+
+    - `./out`: Mounted RW for simulation outputs
+    - `./datasets`: Mounted RW for downloaded datasets
+    - `./config`: Mounted RO for strategy configs
+    - `redis-data`: Named volume for Redis persistence
+
+=== ":material-server-network: Production"
+
+    **Applied files:**
+
+    - `docker-compose.yml` (base only, no override)
+
+    **Services:**
+
+    - `api`: FastAPI without `--reload`
+    - `frontend`: nginx serving prebuilt React bundle (port 80)
+    - `celery-worker`: Celery worker
+    - `docs`: Zensical documentation (port 8080)
+    - `redis`: Redis broker with persistent volume
+
+    **Volumes:**
+
+    - `./out`: Mounted RW for simulation outputs
+    - `./datasets`: Mounted RW for downloaded datasets
+    - `./config`: Mounted RO for strategy configs
+    - `redis-data`: Named volume for Redis persistence (survives container restarts)
+
+    **Network:** `default` — User-defined bridge network (auto-removed on `docker compose down`)
+
+---
+
+## :material-tray-full: Task queuing with Celery + Redis
+
+```mermaid
+flowchart TD
+    UI["React UI"]
+    API["FastAPI"]
+    Redis["Redis Broker<br/>Task queue + Result backend"]
+    Worker["Celery Worker"]
+    SR["SimulationRunner"]
+    FS["FederatedSimulation"]
+
+    UI -->|POST /api/simulations| API
+    API -->|task.delay| Redis
+    Redis -->|pull task| Worker
+    Worker -->|exec| SR
+    SR --> FS
+    FS -->|write status| File["status.json<br/>output.log"]
+```
+
+When you submit a simulation via the REST API:
+
+1. The API creates a Celery task and pushes it to Redis
+2. The Celery worker picks up the task and invokes `simulation_runner.py`
+3. The runner writes `status.json` and `output.log` to the output directory
+4. The UI polls these files (and SSE stream) to display live progress
+5. Results (CSVs, plots) are written to `./out/<timestamp>/`
+
+!!! info "Fallback mode"
+
+    If Redis is unavailable, the API dispatches simulations as subprocess tasks instead of Celery tasks. The UI still works; queuing is just unavailable.
+

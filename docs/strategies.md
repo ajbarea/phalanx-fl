@@ -1,10 +1,16 @@
-# Aggregation Strategies
+# :material-shield-half-full: Aggregation Strategies
 
 Set the `aggregation_strategy_keyword` field in your config to select a strategy.
 
+!!! abstract "Choosing a strategy"
+
+    **No attacks?** Start with `fedavg`.  
+    **Byzantine clients?** Try `krum`, `bulyan`, or `trimmed_mean`.  
+    **Adaptive removal?** Use `pid_standardized` or `trust`.
+
 ---
 
-## FedAvg
+## :material-scale-balance: FedAvg
 
 **Keyword:** `fedavg`
 
@@ -14,7 +20,7 @@ The canonical federated averaging baseline (McMahan et al., 2017). Aggregates cl
 
 ---
 
-## PID-based strategies
+## :material-knob: PID-based strategies
 
 These strategies use a PID controller to score each client's update and remove outliers.
 
@@ -38,7 +44,7 @@ Clients whose PID score exceeds `num_std_dev` standard deviations from the mean 
 
 ---
 
-## Trust-based removal
+## :material-shield-check: Trust-based removal
 
 **Keyword:** `trust`
 
@@ -53,7 +59,7 @@ Maintains a trust score for each client using exponential moving average (EMA). 
 
 ---
 
-## Krum
+## :material-target: Krum
 
 **Keyword:** `krum`
 
@@ -68,7 +74,7 @@ Selects the single client update that minimises the sum of squared distances to 
 
 ---
 
-## Multi-Krum
+## :material-target-account: Multi-Krum
 
 **Keyword:** `multi-krum`
 
@@ -78,7 +84,7 @@ Extension of Krum that selects `m` clients (rather than just one) using the same
 
 ---
 
-## Multi-Krum Based Removal
+## :material-account-cancel: Multi-Krum Based Removal
 
 **Keyword:** `multi-krum-based`
 
@@ -88,7 +94,7 @@ Applies Multi-Krum scoring and uses it to permanently remove consistently low-sc
 
 ---
 
-## Bulyan
+## :material-wall: Bulyan
 
 **Keyword:** `bulyan`
 
@@ -102,7 +108,7 @@ Two-stage defence (El Mhamdi et al., 2018): first selects clients with Multi-Kru
 
 ---
 
-## RFA (Robust Federated Aggregation)
+## :material-vector-polyline: RFA (Robust Federated Aggregation)
 
 **Keyword:** `rfa`
 
@@ -116,7 +122,7 @@ Uses a geometric median (via smoothed Weiszfeld algorithm) instead of arithmetic
 
 ---
 
-## Trimmed Mean Based Removal
+## :material-content-cut: Trimmed Mean Based Removal
 
 **Keyword:** `trimmed_mean`
 
@@ -130,7 +136,7 @@ Sorts client updates by magnitude and trims `trim_ratio` from each end before av
 
 ---
 
-## ArKrum
+## :material-shield-star: ArKrum
 
 **Keyword:** `arkrum`
 
@@ -140,7 +146,7 @@ Adaptive Robust Krum — an extended Krum variant with adaptive selection behavi
 
 ---
 
-## Common fields (all strategies)
+## :material-list-box-outline: Common fields (all strategies)
 
 | Field | Description |
 |---|---|

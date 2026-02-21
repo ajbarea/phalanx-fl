@@ -1,8 +1,8 @@
-# Configuration
+# :material-cog-outline: Configuration
 
 Simulations are controlled entirely by a single JSON file. The file has two top-level keys:
 
-```json
+```json title="Config structure"
 {
   "shared_settings": { ... },
   "simulation_strategies": [
@@ -12,13 +12,15 @@ Simulations are controlled entirely by a single JSON file. The file has two top-
 }
 ```
 
-`shared_settings` provides defaults for every strategy. Each entry in `simulation_strategies` can override any field. This makes it easy to sweep a single parameter across multiple runs in one file.
+!!! tip "Shared settings + per-strategy overrides"
+
+    `shared_settings` provides defaults for every strategy. Each entry in `simulation_strategies` can override any field. This makes it easy to sweep a single parameter across multiple runs in one file.
 
 ---
 
-## Example
+## :material-test-tube: Example
 
-```json
+```json title="example_strategy_config.json"
 {
   "shared_settings": {
     "aggregation_strategy_keyword": "pid_standardized",
@@ -46,9 +48,9 @@ This runs two strategies back-to-back, differing only in `num_std_dev`.
 
 ---
 
-## Field reference
+## :material-format-list-bulleted: Field reference
 
-### Core simulation
+### :material-play-circle: Core simulation
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -62,8 +64,10 @@ This runs two strategies back-to-back, differing only in `num_std_dev`.
 | `cpus_per_client` | `float` | — | CPU cores allocated to each Ray worker. |
 | `gpus_per_client` | `float` | — | GPU fraction allocated to each Ray worker (`0.0`–`1.0`). |
 | `model_keyword` | `string` | `null` | Override the default network model for a dataset. |
+| `model_type` | `string` | `"cnn"` | `"cnn"` or `"transformer"`. |
+| `use_llm` | `bool` | `false` | Enable transformer-based training path. |
 
-### Training
+### :material-brain: Training
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -72,7 +76,7 @@ This runs two strategies back-to-back, differing only in `num_std_dev`.
 | `learning_rate` | `float` | `null` | Override default learning rate. |
 | `training_subset_fraction` | `float` | — | Fraction of each client's data used for training (`0.0`–`1.0`). |
 
-### Client selection
+### :material-account-group: Client selection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -81,7 +85,15 @@ This runs two strategies back-to-back, differing only in `num_std_dev`.
 | `min_available_clients` | `int` | — | Minimum clients that must be available before a round starts. |
 | `evaluate_metrics_aggregation_fn` | `string` | `null` | Set to `"weighted_average"` to aggregate evaluation metrics. |
 
-### Client removal
+### :material-bug-outline: Attack schedule
+
+See the [Attacks](attacks.md) page for full documentation.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `attack_schedule` | `array` | `[]` | List of attack entries. Required in config (use `[]` for no attacks). |
+
+### :material-account-remove: Client removal
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -90,7 +102,7 @@ This runs two strategies back-to-back, differing only in `num_std_dev`.
 | `termination_policy` | `string` | `"graceful"` | `"strict"`, `"graceful"`, or `"adaptive"`. Controls behaviour when too many clients have been removed. |
 | `min_clients_ratio` | `float` | `0.3` | For `"adaptive"` policy: stop removing if fewer than this fraction of clients remain. |
 
-### Output
+### :material-content-save-outline: Output
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -102,7 +114,7 @@ This runs two strategies back-to-back, differing only in `num_std_dev`.
 | `attack_snapshot_format` | `string` | `"pickle"` | `"pickle"`, `"visual"`, or `"pickle_and_visual"`. |
 | `snapshot_max_samples` | `int` | `5` | Max samples included in each snapshot. |
 
-### Strategy-specific parameters
+### :material-tune-variant: Strategy-specific parameters
 
 #### Trust-based
 
@@ -132,22 +144,20 @@ This runs two strategies back-to-back, differing only in `num_std_dev`.
 |---|---|---|
 | `trim_ratio` | `float` | Fraction of extreme updates trimmed from each end. |
 
-### HuggingFace / custom text datasets
+### :fontawesome-solid-robot: HuggingFace / custom text datasets
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `hf_dataset_name` | `string` | `null` | HuggingFace dataset path to load dynamically (e.g. `"ylecun/mnist"`). |
-| `partitioning_strategy` | `string` | `null` | Partitioning method for custom datasets (e.g. `"iid"`, `"dirichlet"`). |
-| `partitioning_params` | `object` | `null` | Parameters for the chosen partitioning strategy. |
+| `partitioning_strategy` | `string` | `null` | Partitioning method: `"iid"`, `"dirichlet"`, or `"pathological"`. See [Datasets](datasets.md#partitioning-strategies). |
+| `partitioning_params` | `object` | `null` | Parameters for the chosen strategy (e.g. `{"alpha": 0.5}` for dirichlet, `{"num_classes_per_partition": 2}` for pathological). |
 | `text_column` | `string` | `null` | Name of the text/input column in the dataset. |
 | `label_column` | `string` | `null` | Name of the label column in the dataset. |
 
-### LLM / transformer options
+### :material-robot-outline: LLM / transformer options
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `use_llm` | `bool` | `false` | Enable transformer-based training path. |
-| `model_type` | `string` | `"cnn"` | `"cnn"` or `"transformer"`. |
 | `llm_model` | `string` | — | HuggingFace model ID, e.g. `"microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"`. |
 | `llm_task` | `string` | — | `"mlm"` (masked language modelling) or `"classification"`. |
 | `llm_chunk_size` | `int` | `512` | Token sequence length. |
@@ -156,19 +166,3 @@ This runs two strategies back-to-back, differing only in `num_std_dev`.
 | `llm_finetuning` | `string` | `null` | `"lora"` to use LoRA adapters instead of full fine-tuning. |
 | `use_lora` | `bool` | `false` | Alternative boolean flag to enable LoRA (equivalent to `llm_finetuning: "lora"`). |
 | `lora_rank` | `int` | `8` | LoRA rank `r`. |
-
-### Attack schedule
-
-See the [Attacks](attacks.md) page for full documentation.
-
-```json
-"attack_schedule": [
-  {
-    "start_round": 1,
-    "end_round": 3,
-    "attack_type": "label_flipping",
-    "selection_strategy": "percentage",
-    "malicious_percentage": 0.5
-  }
-]
-```
