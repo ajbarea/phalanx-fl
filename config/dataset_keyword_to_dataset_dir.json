@@ -19,5 +19,6 @@
   "pubmed_classification_20k": "huggingface",
   "financial_phrasebank": "huggingface",
   "lexglue": "huggingface",
-  "medal": "huggingface"
+  "medal": "huggingface",
+  "cifar100": "huggingface"
 }

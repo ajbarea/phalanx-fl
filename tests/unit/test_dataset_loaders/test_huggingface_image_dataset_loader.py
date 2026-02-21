@@ -81,6 +81,25 @@ class TestHuggingFaceImageDataset:
         assert isinstance(item, Image.Image)
         assert label == 1
 
+    def test_getitem_custom_columns(self):
+        """Verifies item retrieval with custom column names (e.g., CIFAR-100)."""
+        transform_mock = Mock(return_value=torch.zeros(3, 32, 32))
+        hf_ds_mock = MagicMock()
+        img = Image.new("RGB", (32, 32))
+        hf_ds_mock.__getitem__.return_value = {"img": img, "fine_label": 42}
+
+        ds = HuggingFaceImageDataset(
+            hf_ds_mock,
+            transform=transform_mock,
+            image_column="img",
+            label_column="fine_label",
+        )
+        item, label = ds[0]
+
+        transform_mock.assert_called_once()
+        assert torch.is_tensor(item)
+        assert label == 42
+
 
 class TestHuggingFaceImageDatasetLoader:
     """Tests for the Loader class."""
@@ -91,6 +110,16 @@ class TestHuggingFaceImageDatasetLoader:
         assert loader.num_of_clients == 10
         assert loader.batch_size == 32
         assert loader.transformer is not None
+        assert loader.image_column == "image"
+        assert loader.label_column == "label"
+
+    def test_init_custom_columns(self):
+        """Verifies initialization with custom column names."""
+        loader = HuggingFaceImageDatasetLoader(
+            "test/path", image_column="img", label_column="fine_label"
+        )
+        assert loader.image_column == "img"
+        assert loader.label_column == "fine_label"
 
     def test_partition_iid(self, mock_load_dataset):
         """Tests IID partitioning logic."""
@@ -104,6 +133,40 @@ class TestHuggingFaceImageDatasetLoader:
         assert len(trainloaders) == 2
         assert len(valloaders) == 2
         assert mock_ds.select.called
+
+    @patch("intellifl.dataset_loaders.huggingface_image_dataset_loader.DirichletPartitioner")
+    def test_partition_non_iid_dirichlet_custom_label_column(
+        self, mock_partitioner_cls, mock_load_dataset
+    ):
+        """Tests Non-IID Dirichlet partitioning with custom label column (CIFAR-100)."""
+        loader = HuggingFaceImageDatasetLoader(
+            "uoft-cs/cifar100",
+            num_of_clients=2,
+            max_samples=100,
+            image_column="img",
+            label_column="fine_label",
+        )
+
+        mock_ds = mock_load_dataset.return_value["train"]
+        mock_ds.column_names = ["img", "fine_label", "coarse_label"]
+
+        mock_partitioner = Mock()
+        mock_partitioner.load_partition = Mock(return_value=mock_ds)
+        mock_partitioner_cls.return_value = mock_partitioner
+
+        mock_ds.__len__.return_value = 100
+
+        # Override mock_dataset's __getitem__ to use CIFAR-100 column names
+        img = Image.new("RGB", (32, 32))
+        mock_ds.__getitem__.return_value = {"img": img, "fine_label": 0, "coarse_label": 0}
+
+        trainloaders, valloaders = loader.load_datasets()
+
+        assert len(trainloaders) == 2
+        # Verify DirichletPartitioner was called with fine_label
+        mock_partitioner_cls.assert_called_once()
+        call_kwargs = mock_partitioner_cls.call_args[1]
+        assert call_kwargs["partition_by"] == "fine_label"
 
     @patch("intellifl.dataset_loaders.huggingface_image_dataset_loader.DirichletPartitioner")
     def test_partition_non_iid_dirichlet(self, mock_partitioner_cls, mock_load_dataset):

@@ -22,10 +22,16 @@ from intellifl.client_models.flower_client import FlowerClient
 from intellifl.data_models.simulation_strategy_config import StrategyConfig
 from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
 from intellifl.dataset_handlers.dataset_handler import DatasetHandler
+from intellifl.dataset_loaders.huggingface_image_dataset_loader import (
+    HuggingFaceImageDatasetLoader,
+)
 from intellifl.dataset_loaders.huggingface_text_dataset_loader import (
     HuggingFaceTextDatasetLoader,
 )
 from intellifl.dataset_loaders.image_dataset_loader import ImageDatasetLoader
+from intellifl.dataset_loaders.image_transformers.cifar100_image_transformer import (
+    cifar100_image_transformer,
+)
 from intellifl.dataset_loaders.image_transformers.femnist_image_transformer import (
     femnist_image_transformer,
 )
@@ -49,6 +55,7 @@ from intellifl.network_models.bert_model_definition import load_model, load_mode
 from intellifl.network_models.bloodmnist_network_definition import BloodMNISTNetwork
 from intellifl.network_models.breastmnist_network_definition import BreastMNISTNetwork
 from intellifl.network_models.dermamnist_network_definition import DermaMNISTNetwork
+from intellifl.network_models.dynamic_cnn import DynamicCNN
 from intellifl.network_models.femnist_full_niid_network_definition import (
     FemnistFullNIIDNetwork,
 )
@@ -102,6 +109,40 @@ def get_hf_dataset_config(dataset_keyword: str) -> dict:
     with open(config_path, encoding="utf-8") as f:
         all_configs = json.load(f)
     return all_configs[dataset_keyword]
+
+
+# Registry of image transformer names to their actual transform objects.
+# Keeps the JSON config declarative — transformer values are string keys resolved here.
+_IMAGE_TRANSFORMER_REGISTRY: dict[str, Any] = {}
+
+
+def _build_image_transformer_registry() -> dict[str, Any]:
+    """Lazily build the image transformer registry on first use."""
+    if not _IMAGE_TRANSFORMER_REGISTRY:
+        _IMAGE_TRANSFORMER_REGISTRY.update(
+            {
+                "cifar100_image_transformer": cifar100_image_transformer,
+                "medmnist_2d_rgb_image_transformer": medmnist_2d_rgb_image_transformer,
+                "medmnist_2d_grayscale_image_transformer": medmnist_2d_grayscale_image_transformer,
+                "femnist_image_transformer": femnist_image_transformer,
+                "flair_image_transformer": flair_image_transformer,
+                "its_image_transformer": its_image_transformer,
+                "lung_cancer_image_transformer": lung_cancer_image_transformer,
+            }
+        )
+    return _IMAGE_TRANSFORMER_REGISTRY
+
+
+def _resolve_image_transformer(name: str | None) -> Any:
+    """Resolve an image transformer string key from the JSON config to its transform object."""
+    if name is None:
+        return None
+    registry = _build_image_transformer_registry()
+    if name not in registry:
+        raise ValueError(
+            f"Unknown image_transformer '{name}'. Available: {sorted(registry.keys())}"
+        )
+    return registry[name]
 
 
 def weighted_average(metrics: list[tuple[int, dict[str, Any]]]) -> dict[str, Any]:
@@ -199,7 +240,11 @@ class FederatedSimulation:
         self._network_model: nn.Module | None = None
         self._aggregation_strategy: flwr.server.strategy.Strategy | None = None
         self._dataset_loader: (
-            ImageDatasetLoader | MedQuADDatasetLoader | HuggingFaceTextDatasetLoader | None
+            ImageDatasetLoader
+            | MedQuADDatasetLoader
+            | HuggingFaceTextDatasetLoader
+            | HuggingFaceImageDatasetLoader
+            | None
         ) = None
 
         self._trainloaders: list[DataLoader[Any]] | None = None
@@ -286,7 +331,12 @@ class FederatedSimulation:
         batch_size = self.strategy_config.batch_size
         training_subset_fraction = self.strategy_config.training_subset_fraction
 
-        dataset_loader: ImageDatasetLoader | MedQuADDatasetLoader | HuggingFaceTextDatasetLoader
+        dataset_loader: (
+            ImageDatasetLoader
+            | MedQuADDatasetLoader
+            | HuggingFaceTextDatasetLoader
+            | HuggingFaceImageDatasetLoader
+        )
 
         def create_image_loader(transformer: Any) -> ImageDatasetLoader:
             return ImageDatasetLoader(
@@ -462,6 +512,26 @@ class FederatedSimulation:
                 self._network_model = load_model(
                     model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
                 )
+
+        elif dataset_keyword == "cifar100":
+            hf_cfg = get_hf_dataset_config(dataset_keyword)
+            transformer = _resolve_image_transformer(hf_cfg.get("image_transformer"))
+            dataset_loader = HuggingFaceImageDatasetLoader(
+                hf_dataset_path=hf_cfg["hf_dataset_path"],
+                hf_dataset_name=hf_cfg.get("hf_dataset_name"),
+                transformer=transformer,
+                num_of_clients=num_of_clients,
+                batch_size=batch_size,
+                training_subset_fraction=training_subset_fraction,
+                image_column=hf_cfg.get("image_column", "image"),
+                label_column=hf_cfg.get("label_column", "label"),
+            )
+            self._network_model = DynamicCNN(
+                num_classes=hf_cfg.get("num_classes", 100),
+                input_channels=hf_cfg.get("input_channels", 3),
+                input_height=hf_cfg.get("input_height", 32),
+                input_width=hf_cfg.get("input_width", 32),
+            )
 
         else:
             logging.error(

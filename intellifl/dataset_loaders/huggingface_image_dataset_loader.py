@@ -15,17 +15,25 @@ from datasets import DatasetDict, load_dataset  # type: ignore[attr-defined]
 class HuggingFaceImageDataset(Dataset):  # type: ignore[type-arg]
     """PyTorch Dataset wrapper for HuggingFace image datasets with transforms."""
 
-    def __init__(self, hf_dataset: Any, transform: transforms.Compose | None = None) -> None:
+    def __init__(
+        self,
+        hf_dataset: Any,
+        transform: transforms.Compose | None = None,
+        image_column: str = "image",
+        label_column: str = "label",
+    ) -> None:
         self.hf_dataset = hf_dataset
         self.transform = transform
+        self.image_column = image_column
+        self.label_column = label_column
 
     def __len__(self) -> int:
         return len(self.hf_dataset)
 
     def __getitem__(self, idx: int) -> tuple[Any, Any]:
         item = self.hf_dataset[idx]
-        image = item["image"]
-        label = item["label"]
+        image = item[self.image_column]
+        label = item[self.label_column]
 
         if not isinstance(image, Image.Image):
             image = Image.fromarray(image)
@@ -57,6 +65,8 @@ class HuggingFaceImageDatasetLoader:
         batch_size: int = 32,
         training_subset_fraction: float = 0.8,
         max_samples: int | None = None,  # Limit dataset size
+        image_column: str = "image",
+        label_column: str = "label",
     ) -> None:
         self.hf_dataset_path = hf_dataset_path
         self.hf_dataset_name = hf_dataset_name
@@ -65,6 +75,8 @@ class HuggingFaceImageDatasetLoader:
         self.batch_size = batch_size
         self.training_subset_fraction = training_subset_fraction
         self.max_samples = max_samples
+        self.image_column = image_column
+        self.label_column = label_column
 
         if self.transformer is None:
             self.transformer = transforms.Compose(
@@ -110,7 +122,7 @@ class HuggingFaceImageDatasetLoader:
         """
         partitioner = DirichletPartitioner(
             num_partitions=self.num_of_clients,
-            partition_by="label",
+            partition_by=self.label_column,
             alpha=alpha,
             min_partition_size=1,
             self_balancing=True,
@@ -149,7 +161,7 @@ class HuggingFaceImageDatasetLoader:
             )
 
         # Use Non-IID for labeled datasets, IID for unlabeled
-        if "label" in full_dataset.column_names:
+        if self.label_column in full_dataset.column_names:
             client_partitions = self._partition_label_skew_dirichlet(full_dataset, alpha=0.5)
         else:
             # Only shuffle if not already shuffled above
@@ -165,9 +177,17 @@ class HuggingFaceImageDatasetLoader:
             )
 
             train_dataset = HuggingFaceImageDataset(
-                split_dataset["train"], transform=self.transformer
+                split_dataset["train"],
+                transform=self.transformer,
+                image_column=self.image_column,
+                label_column=self.label_column,
             )
-            val_dataset = HuggingFaceImageDataset(split_dataset["test"], transform=self.transformer)
+            val_dataset = HuggingFaceImageDataset(
+                split_dataset["test"],
+                transform=self.transformer,
+                image_column=self.image_column,
+                label_column=self.label_column,
+            )
 
             trainloader = DataLoader(
                 train_dataset,

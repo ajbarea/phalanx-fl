@@ -388,6 +388,34 @@ class TestDatasetInspector:
         assert col_name == "img"
         assert shape == (3, 32, 32)
 
+    def test_get_image_info_uses_known_dataset_uoft_cifar100(self):
+        """Verify _get_image_info uses cached shape for uoft-cs/cifar100."""
+
+        class ImageFeature:
+            pass
+
+        mock_image_feature = ImageFeature()
+        features = {"img": mock_image_feature}
+
+        col_name, shape = DatasetInspector._get_image_info("uoft-cs/cifar100", features)
+
+        assert col_name == "img"
+        assert shape == (3, 32, 32)
+
+    def test_get_image_info_uses_known_dataset_uoft_cifar10(self):
+        """Verify _get_image_info uses cached shape for uoft-cs/cifar10."""
+
+        class ImageFeature:
+            pass
+
+        mock_image_feature = ImageFeature()
+        features = {"img": mock_image_feature}
+
+        col_name, shape = DatasetInspector._get_image_info("uoft-cs/cifar10", features)
+
+        assert col_name == "img"
+        assert shape == (3, 32, 32)
+
     @patch("intellifl.dataset_loaders.dataset_inspector.load_dataset")
     def test_get_image_info_loads_sample_for_unknown_dataset(self, mock_load_dataset):
         """Verify _get_image_info loads sample for unknown datasets."""

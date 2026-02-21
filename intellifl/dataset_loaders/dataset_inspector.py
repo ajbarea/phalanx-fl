@@ -151,6 +151,8 @@ class DatasetInspector:
             "fashion_mnist": (1, 28, 28),
             "cifar10": (3, 32, 32),
             "cifar100": (3, 32, 32),
+            "uoft-cs/cifar100": (3, 32, 32),
+            "uoft-cs/cifar10": (3, 32, 32),
         }
 
         # Check if this is a known dataset

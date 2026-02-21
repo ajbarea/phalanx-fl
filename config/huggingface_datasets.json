@@ -1,5 +1,6 @@
 {
   "pubmed_classification_20k": {
+    "modality": "text",
     "hf_dataset_path": "ml4pubmed/pubmed-classification-20k",
     "hf_dataset_name": null,
     "tokenize_columns": ["text"],
@@ -7,6 +8,7 @@
     "vocabulary_domain": "medical"
   },
   "financial_phrasebank": {
+    "modality": "text",
     "hf_dataset_path": "gtfintechlab/financial_phrasebank_sentences_allagree",
     "hf_dataset_name": "5768",
     "tokenize_columns": ["sentence"],
@@ -14,6 +16,7 @@
     "vocabulary_domain": "financial"
   },
   "lexglue": {
+    "modality": "text",
     "hf_dataset_path": "coastalcph/lex_glue",
     "hf_dataset_name": "ledgar",
     "dataset_subset": "eurlex",
@@ -22,10 +25,24 @@
     "vocabulary_domain": "legal"
   },
   "medal": {
+    "modality": "text",
     "hf_dataset_path": "cyrilzakka/pubmed-medline",
     "hf_dataset_name": null,
     "tokenize_columns": ["id", "pubmed_id", "title", "authors", "journal", "content", "source_url", "publication_types"],
     "ref_url": "https://huggingface.co/datasets/cyrilzakka/pubmed-medline",
     "vocabulary_domain": "medical"
+  },
+  "cifar100": {
+    "modality": "image",
+    "hf_dataset_path": "uoft-cs/cifar100",
+    "hf_dataset_name": null,
+    "image_column": "img",
+    "label_column": "fine_label",
+    "num_classes": 100,
+    "input_channels": 3,
+    "input_height": 32,
+    "input_width": 32,
+    "image_transformer": "cifar100_image_transformer",
+    "ref_url": "https://huggingface.co/datasets/uoft-cs/cifar100"
   }
 }

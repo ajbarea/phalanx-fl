@@ -3,6 +3,7 @@
  */
 
 export const DATASETS = [
+  'cifar100',
   'femnist_iid',
   'femnist_niid',
   'its',
