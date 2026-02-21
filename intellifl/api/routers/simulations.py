@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 from contextlib import suppress
+from datetime import timezone
 from pathlib import Path
 from typing import Any
 
@@ -58,6 +59,26 @@ class SimulationDetails(BaseModel):
 
 _TERMINAL_STATUSES = frozenset({"completed", "failed", "stopped"})
 
+# How recently status.json must have been updated to trust the file-based
+# status without performing PID / Celery liveness checks.  This covers the
+# gap between status writes (round updates, strategy transitions, etc.).
+_STATUS_FRESHNESS_SECONDS = 120
+
+
+def _status_is_fresh(status_data: dict) -> bool:
+    """Return True if status.json was updated recently enough to trust."""
+    updated_at = status_data.get("updated_at")
+    if not updated_at:
+        return False
+    try:
+        ts = datetime.datetime.fromisoformat(updated_at)
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        age = (datetime.datetime.now(timezone.utc) - ts).total_seconds()
+        return age < _STATUS_FRESHNESS_SECONDS
+    except (ValueError, TypeError):
+        return False
+
 
 def _get_status_data(sim_path: Path, simulation_id: str) -> dict[str, Any]:
     """Extract status data from a simulation directory; shared by REST and SSE endpoints."""
@@ -78,6 +99,22 @@ def _get_status_data(sim_path: Path, simulation_id: str) -> dict[str, Any]:
                 return {
                     "status": "completed",
                     "progress": 1.0,
+                    "current_round": status_data.get("current_round"),
+                    "total_rounds": status_data.get("total_rounds"),
+                    "current_strategy": status_data.get("current_strategy"),
+                    "total_strategies": status_data.get("total_strategies"),
+                    "origin": status_data.get("origin"),
+                }
+
+            # If the status file was recently written, the process is alive —
+            # skip expensive / unreliable PID and Celery liveness checks.
+            # This is critical for CLI-originated runs that don't use Celery
+            # and where psutil.pid_exists() can return a false negative
+            # (e.g. Windows + MSYS2/Git Bash namespace mismatch).
+            if raw_status in ["running", "queued"] and _status_is_fresh(status_data):
+                return {
+                    "status": raw_status,
+                    "progress": status_data.get("progress", 0.0),
                     "current_round": status_data.get("current_round"),
                     "total_rounds": status_data.get("total_rounds"),
                     "current_strategy": status_data.get("current_strategy"),
@@ -128,6 +165,7 @@ def _get_status_data(sim_path: Path, simulation_id: str) -> dict[str, Any]:
                         "progress": status_data.get("progress", 0.0),
                         "error": "Task was lost from queue (e.g. Redis restart). "
                         "Re-submit or restart the API server to auto-recover.",
+                        "origin": status_data.get("origin"),
                     }
 
             elif raw_status in ["running", "queued"] and pid:
@@ -160,6 +198,7 @@ def _get_status_data(sim_path: Path, simulation_id: str) -> dict[str, Any]:
                         "status": "failed",
                         "progress": status_data.get("progress", 0.0),
                         "error": "Process was interrupted (e.g. PC restart or crash)",
+                        "origin": status_data.get("origin"),
                     }
 
             return {
@@ -182,13 +221,31 @@ def _get_status_data(sim_path: Path, simulation_id: str) -> dict[str, Any]:
     if result_files:
         return {"status": "completed", "progress": 1.0}
 
+    # Only treat output.log as a failure indicator if it contains actual
+    # error-level messages — not routine INFO / WARNING / DEBUG output that
+    # CLI-originated simulations write via file logging.
     log_path = sim_path / "output.log"
     if log_path.is_file():
         try:
             with log_path.open("r") as f:
-                error_content = f.read(1024)
-            if error_content.strip():
-                return {"status": "failed", "progress": 0.0}
+                log_content = f.read(4096)
+            if log_content.strip():
+                has_error_markers = any(
+                    marker in log_content
+                    for marker in [
+                        "ERROR:",
+                        "CRITICAL:",
+                        "Traceback (most recent call last)",
+                        "Exception:",
+                        "Simulation failed",
+                    ]
+                )
+                if has_error_markers:
+                    return {"status": "failed", "progress": 0.0}
+                # Log file exists with only normal output — simulation is
+                # either currently running (CLI) or was interrupted without
+                # writing a terminal status.  Don't falsely report failure.
+                return {"status": "pending", "progress": 0.0}
         except OSError:
             pass
 
