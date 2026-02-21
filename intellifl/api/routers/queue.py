@@ -123,11 +123,13 @@ def _read_simulation_status(sim_dir: Path) -> ValidStatus:
             with log_path.open("r") as f:
                 log_content = f.read(4096)
             if log_content.strip():
+                log_content_lower = log_content.lower()
                 has_error_markers = any(
-                    marker in log_content
+                    marker.lower() in log_content_lower
                     for marker in [
                         "ERROR:",
                         "CRITICAL:",
+                        "CRITICAL ERROR:",
                         "Traceback (most recent call last)",
                         "Exception:",
                         "Simulation failed",

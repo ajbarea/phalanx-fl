@@ -230,11 +230,13 @@ def _get_status_data(sim_path: Path, simulation_id: str) -> dict[str, Any]:
             with log_path.open("r") as f:
                 log_content = f.read(4096)
             if log_content.strip():
+                log_content_lower = log_content.lower()
                 has_error_markers = any(
-                    marker in log_content
+                    marker.lower() in log_content_lower
                     for marker in [
                         "ERROR:",
                         "CRITICAL:",
+                        "CRITICAL ERROR:",
                         "Traceback (most recent call last)",
                         "Exception:",
                         "Simulation failed",
