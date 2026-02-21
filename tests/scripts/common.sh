@@ -601,6 +601,36 @@ show_simulation_output_info() {
 }
 
 # ============================================================================
+# Environment
+# ============================================================================
+
+load_env_file() {
+    _env_file="${1:-}"
+    
+    if [ -z "$_env_file" ]; then
+        if [ -f ".env" ]; then
+            _env_file=".env"
+        elif [ -f "../.env" ]; then
+            _env_file="../.env"
+        elif [ -f "../../.env" ]; then
+            _env_file="../../.env"
+        fi
+    fi
+
+    if [ -n "$_env_file" ] && [ -f "$_env_file" ]; then
+        log_info "🌱 Loading environment variables from $_env_file..."
+        # shellcheck disable=SC2046
+        while IFS= read -r line || [ -n "$line" ]; do
+            line=$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+            [[ -z "$line" || "$line" == \#* ]] && continue
+            if [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*=.*$ ]]; then
+                export "$line"
+            fi
+        done < "$_env_file"
+    fi
+}
+
+# ============================================================================
 # Globals
 # ============================================================================
 
@@ -608,3 +638,5 @@ show_simulation_output_info() {
 # Set by find_python_interpreter() and used by run_python().
 PYTHON_CMD=""
 export PYTHON_CMD
+
+load_env_file
