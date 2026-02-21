@@ -111,7 +111,7 @@ Preferred if you are actively modifying the codebase and want to avoid Docker ov
 
     | Requirement | Version |
     |---|---|
-    | :material-language-python: Python | 3.11 – 3.12 |
+    | :material-language-python: Python | 3.10 – 3.13 |
     | :material-nodejs: Node.js | 20+ |
     | :material-database: Redis | 7+ (local or Docker) |
     | :material-expansion-card: CUDA *(optional)* | For GPU acceleration |

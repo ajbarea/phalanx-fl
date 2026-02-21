@@ -119,7 +119,7 @@ flowchart LR
 
 !!! danger "11 Attack Types"
 
-    Label flipping, Gaussian noise, backdoor triggers, model poisoning, gradient scaling, boosted scaling, Byzantine perturbation, inner product manipulation, alternating min poisoning, token replacement
+    Label flipping, targeted label flipping, Gaussian noise, backdoor triggers, model poisoning, gradient scaling, boosted scaling, Byzantine perturbation, inner product manipulation, alternating min poisoning, token replacement
 
 !!! info "Rich Dataset Support"
 
