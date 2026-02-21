@@ -39,8 +39,6 @@ services:
       - /app/node_modules
     working_dir: /app
     command: sh -c "npm install --silent && npm run dev -- --host 0.0.0.0 --port 5173"
-    environment:
-      VITE_API_PROXY_TARGET: http://api:8000
     depends_on:
       api:
         condition: service_healthy
@@ -62,7 +60,8 @@ services:
     image: mher/flower
     container_name: intellifl-celery-monitor
     restart: unless-stopped
-    command: celery --broker=redis://redis:6379/0 flower --port=5555
+    env_file: .env
+    command: celery --broker=${CELERY_BROKER_URL:-redis://redis:6379/0} flower --port=5555
     ports:
       - "5555:5555"
     depends_on:

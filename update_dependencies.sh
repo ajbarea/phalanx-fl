@@ -21,28 +21,16 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# Log an informational message with blue indicator.
-#
-# Arguments:
-#   $1: Message to log
-log_info() { echo -e "${BLUE}ℹ ${NC}$1"; }
+# Log an informational message.
+log_info() { echo -e "${BLUE}ℹ${NC} $1"; }
 
-# Log a success message with green checkmark.
-#
-# Arguments:
-#   $1: Message to log
+# Log a success message.
 log_success() { echo -e "${GREEN}✓${NC} $1"; }
 
-# Log a warning message with yellow indicator.
-#
-# Arguments:
-#   $1: Message to log
+# Log a warning message.
 log_warning() { echo -e "${YELLOW}⚠${NC} $1"; }
 
-# Log an error message with red indicator.
-#
-# Arguments:
-#   $1: Message to log
+# Log an error message.
 log_error() { echo -e "${RED}✗${NC} $1"; }
 
 # ============================================================================
@@ -50,45 +38,36 @@ log_error() { echo -e "${RED}✗${NC} $1"; }
 # ============================================================================
 
 if ! command -v uv &> /dev/null; then
-    log_error "uv is not installed. Please install it first:"
-    echo "  curl -LsSf https://astral.sh/uv/install.sh | sh"
+    log_error "uv not found. Install: curl -LsSf https://astral.sh/uv/install.sh | sh"
     exit 1
 fi
 
-log_info "UV version: $(uv --version)"
-echo ""
-
-# Preserve ability to restore if update causes issues.
+# Backup uv.lock
 if [ -f "uv.lock" ]; then
     BACKUP_FILE="uv.lock.backup.$(date +%s)"
     cp uv.lock "${BACKUP_FILE}"
-    log_success "Backed up uv.lock to ${BACKUP_FILE}"
+    log_success "Backed up to ${BACKUP_FILE}"
     
-    # Keep only the last 3 backups to prevent accumulation.
+    # Keep only the last 3 backups.
     ls -t uv.lock.backup.* 2>/dev/null | tail -n +4 | xargs -r rm -f
 fi
 
-log_info "Updating ALL dependencies to latest compatible versions..."
-echo ""
+log_info "Upgrading dependencies (uv $(uv --version | cut -d' ' -f2))..."
+uv lock --upgrade -q
+log_success "Lock file updated"
 
-uv lock --upgrade
+log_info "Syncing local environment..."
+uv sync --frozen -q
+log_success "Environment synced"
 
-log_success "Lock file updated successfully!"
-echo ""
-log_info "Syncing local environment to uv.lock (frozen)..."
-uv sync --frozen
-log_success "Local environment synced"
-
-log_info "Exporting requirements.txt from uv.lock for legacy/pip flows..."
-# Include the PyTorch wheel index so pip can resolve CUDA wheels without manual flags.
+log_info "Regenerating requirements.txt..."
 uv export \
     --format requirements-txt \
     --no-hashes \
     --extra-index-url https://download.pytorch.org/whl/cu130 \
-    > requirements.txt
-log_success "requirements.txt regenerated from uv.lock"
+    -q > requirements.txt
 
-# Ensure pip sees the PyTorch index.
+# Ensure PyTorch index is present for legacy pip.
 if ! grep -q "^--extra-index-url https://download.pytorch.org/whl/cu130" requirements.txt; then
     TMP_REQ="$(mktemp requirements.txt.XXXXXX)"
     {
@@ -97,23 +76,10 @@ if ! grep -q "^--extra-index-url https://download.pytorch.org/whl/cu130" require
     } > "${TMP_REQ}"
     mv "${TMP_REQ}" requirements.txt
 fi
-
-log_info "To see what changed, run:"
-echo "  git diff uv.lock requirements.txt"
-
+log_success "requirements.txt updated"
 
 echo ""
-log_warning "Next steps:"
-echo "  1. Review changes: git diff uv.lock requirements.txt"
-echo "  2. Test changes: make test"
-echo "  3. If tests pass, commit the updated lockfile and requirements"
-echo ""
-log_info "To restore backup if something breaks (copy-paste ready):"
-cat <<'EOF'
-    # Restore the most recent uv.lock backup
-    set -euo pipefail
-    latest="$(ls -t uv.lock.backup.* 2>/dev/null | head -n1)"
-    [ -n "$latest" ] || { echo "No backups found." >&2; exit 1; }
-    cp "$latest" uv.lock
-    uv sync
-EOF
+log_warning "Next: Review (git diff), Test (make test), and Commit."
+
+# Minimal restore instructions
+log_info "Restore: latest=\"\$(ls -t uv.lock.backup.* | head -n1)\"; cp \"\$latest\" uv.lock; uv sync"

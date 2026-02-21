@@ -13,7 +13,7 @@
 #   - Coverage data: .coverage files
 #   - Python bytecode: __pycache__ directories
 #   - Test artifacts: .hypothesis, MagicMock directories
-#   - Build artifacts: *.egg-info, frontend/dist
+#   - Build artifacts: *.egg-info, frontend/dist, site/
 #   - Playwright MCP artifacts: .playwright-mcp
 #   - Dependency backups: uv.lock.backup.*
 #
@@ -29,7 +29,6 @@
 # ============================================================================
 # Cleanup Operations
 # ============================================================================
-
 if [ -d "logs" ]; then
     find logs -mindepth 1 -depth -exec rm -rf {} +
     log_info "Cleaned logs/ directory."
@@ -38,6 +37,11 @@ fi
 if [ -d "tests/logs" ]; then
     find tests/logs -mindepth 1 -depth -exec rm -rf {} +
     log_info "Cleaned tests/logs/ directory."
+fi
+
+if [ -d "test-results" ]; then
+    rm -rf test-results
+    log_info "Cleaned test-results/ directory."
 fi
 
 rm -rf .mypy_cache .ruff_cache .mutmut-cache
@@ -68,6 +72,11 @@ fi
 if [ -d "frontend/dist" ]; then
     rm -rf frontend/dist
     log_info "Cleaned frontend/dist/ directory."
+fi
+
+if [ -d "site" ]; then
+    rm -rf site
+    log_info "Cleaned site/ directory (generated docs)."
 fi
 
 rm -f uv.lock.backup.*
