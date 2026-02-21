@@ -44,12 +44,15 @@ jobs:
       - name: Generate final coverage report
         run: |
           uv run coverage report --show-missing
+          uv run coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         if: matrix.python-version == '3.11'
         with:
           token: '${{ secrets.CODECOV_TOKEN }}'
           slug: ajbarea/phalanx-fl
+          files: tests/logs/coverage.xml
+          fail_ci_if_error: true
   smoke-test:
     runs-on: ubuntu-latest
     steps:
