@@ -1,6 +1,6 @@
 import './SimulationCard.css';
 import PropTypes from 'prop-types';
-import { Card, Form, Badge, Stack } from 'react-bootstrap';
+import { Card, Badge, Stack } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { StatusBadge } from '@components/common/Badge/StatusBadge';
 import { ExpandableError } from '@components/common/ExpandableError';
@@ -20,11 +20,6 @@ export function SimulationCard({
   const { simulation_id, display_name, created_at } = simulation;
   const isFailed = statusData?.status === 'failed';
   const isRunning = statusData?.status === 'running';
-
-  const handleCheckboxChange = e => {
-    e.stopPropagation();
-    onCardClick(simulation_id, e);
-  };
 
   const handleCardClick = e => {
     if (e.target.closest('a') || e.target.closest('button') || e.target.closest('input')) {
@@ -57,17 +52,7 @@ export function SimulationCard({
       onClick={handleCardClick}
       className={`simulation-card shadow-sm ${isSelected ? 'selected' : ''} ${isExiting ? 'exiting' : ''}`}
     >
-      <Card.Body className="d-flex gap-3">
-        <div className="card-checkbox mt-1">
-          <Form.Check
-            type="checkbox"
-            checked={isSelected}
-            onChange={handleCheckboxChange}
-            aria-label={`Select ${display_name || simulation_id}`}
-            className="simulation-checkbox custom-checkbox"
-          />
-        </div>
-
+      <Card.Body>
         <div className="card-content flex-grow-1 min-width-0">
           <div className="card-title-row d-flex justify-content-between align-items-start mb-1">
             <div className="card-title-name flex-grow-1 me-2">

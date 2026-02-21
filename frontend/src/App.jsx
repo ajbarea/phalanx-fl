@@ -97,7 +97,7 @@ function App() {
                 </Nav>
                 <Nav className="align-items-center">
                   <a
-                    href="/docs/"
+                    href={`${window.location.protocol}//${window.location.hostname}:${import.meta.env.VITE_DOCS_PORT || '8080'}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     title="Open documentation"

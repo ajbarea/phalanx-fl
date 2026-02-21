@@ -136,29 +136,6 @@
   background: radial-gradient(circle, rgba(208, 188, 255, 0.2) 0%, transparent 70%);
 }
 
-.simulation-card .card-checkbox {
-  display: flex;
-  align-items: flex-start;
-  padding-top: 2px;
-}
-
-.simulation-card .simulation-checkbox .form-check-input {
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
-  margin: 0;
-}
-
-.simulation-card .simulation-checkbox .form-check-input:checked {
-  background-color: #6750a4;
-  border-color: #6750a4;
-}
-
-:root[data-theme='dark'] .simulation-card .simulation-checkbox .form-check-input:checked {
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
-}
-
 .simulation-card .card-title-row {
   display: flex;
   align-items: center;
@@ -418,29 +395,6 @@
 
   :root[data-theme='dark'] .simulation-card.selected .card-body {
     background: transparent !important;
-  }
-
-  .simulation-card .card-checkbox {
-    display: flex;
-    align-items: flex-start;
-    padding-top: 2px;
-  }
-
-  .simulation-card .simulation-checkbox .form-check-input {
-    width: 20px;
-    height: 20px;
-    cursor: pointer;
-    margin: 0;
-  }
-
-  .simulation-card .simulation-checkbox .form-check-input:checked {
-    background-color: #6750a4;
-    border-color: #6750a4;
-  }
-
-  :root[data-theme='dark'] .simulation-card .simulation-checkbox .form-check-input:checked {
-    background-color: var(--color-primary);
-    border-color: var(--color-primary);
   }
 
   .simulation-card .card-title-row {
