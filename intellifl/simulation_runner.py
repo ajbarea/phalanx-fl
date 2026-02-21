@@ -12,6 +12,10 @@ import sys
 import time
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
+
 from intellifl.utils.warnings_config import apply_env_vars, configure_warnings
 
 apply_env_vars()

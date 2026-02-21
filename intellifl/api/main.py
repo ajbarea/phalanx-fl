@@ -5,6 +5,11 @@ from __future__ import annotations
 import json
 import logging
 from contextlib import asynccontextmanager, suppress
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path=Path(__file__).parents[2] / ".env")
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
