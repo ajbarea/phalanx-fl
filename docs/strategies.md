@@ -112,7 +112,7 @@ Two-stage defence (El Mhamdi et al., 2018): first selects clients with Multi-Kru
 
 **Keyword:** `rfa`
 
-Uses a geometric median (via smoothed Weiszfeld algorithm) instead of arithmetic mean to aggregate updates, providing robustness to outliers.
+Uses a geometric median (via smoothed Weiszfeld algorithm) instead of arithmetic mean to aggregate updates, providing robustness to outliers (Pillutla et al., 2022).
 
 **Required config fields:**
 
@@ -126,7 +126,7 @@ Uses a geometric median (via smoothed Weiszfeld algorithm) instead of arithmetic
 
 **Keyword:** `trimmed_mean`
 
-Sorts client updates by magnitude and trims `trim_ratio` from each end before averaging.
+Sorts client updates by magnitude and trims `trim_ratio` from each end before averaging. Based on coordinate-wise trimmed mean for optimal statistical rates (Yin et al., 2018).
 
 **Required config fields:**
 
@@ -140,7 +140,7 @@ Sorts client updates by magnitude and trims `trim_ratio` from each end before av
 
 **Keyword:** `arkrum`
 
-Adaptive Robust Krum — an extended Krum variant with adaptive selection behaviour.
+Adaptive Robust Krum — an extended Krum variant with adaptive selection behaviour that incorporates median-based filtering (Yang & Imam, 2025).
 
 **Required config fields:** none beyond the common fields.
 

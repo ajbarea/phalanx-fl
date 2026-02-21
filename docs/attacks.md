@@ -250,7 +250,7 @@ Adds Gaussian noise to all model weights after local training, scaled by each pa
 
 ### `inner_product_manipulation`
 
-Aggregation-aware attack that crafts a deliberate perturbation along a chosen direction while keeping the L2 distance within the range of natural inter-client variance. Unlike random Byzantine perturbation, this stays within a plausible L2 ball, making it effective against Krum, Multi-Krum, and Bulyan defenses.
+Aggregation-aware attack that crafts a deliberate perturbation along a chosen direction while keeping the L2 distance within the range of natural inter-client variance. Unlike random Byzantine perturbation, this stays within a plausible L2 ball, making it effective against Krum, Multi-Krum, and Bulyan defenses (Xie et al., 2020).
 
 ```json title="inner_product_manipulation"
 {
