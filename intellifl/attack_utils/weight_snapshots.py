@@ -175,6 +175,20 @@ def save_weight_snapshot(
         except Exception as e:
             logger.warning(f"Failed to save weight histogram: {e}")
 
+        try:
+            save_weight_layer_delta(
+                parameters_before,
+                parameters_after,
+                attack_type,
+                snapshot_dir,
+                client_id,
+                round_num,
+            )
+        except ImportError:
+            logger.warning("matplotlib not available, skipping layer delta visualization")
+        except Exception as e:
+            logger.warning(f"Failed to save weight layer delta: {e}")
+
 
 def _save_weight_histogram(
     params_before: list[NDArray],
@@ -247,6 +261,140 @@ def _save_weight_histogram(
     plt.close(fig)
 
     logger.debug(f"Saved weight histogram: {histogram_path}")
+
+
+def save_weight_layer_delta(
+    params_before: list[NDArray],
+    params_after: list[NDArray],
+    attack_type: str,
+    snapshot_dir: Path,
+    client_id: int,
+    round_num: int,
+) -> None:
+    """Save per-layer weight delta visualization.
+
+    2-panel side-by-side:
+    [Per-layer L2 norm bar chart] | [Layer delta heatmap (binned)]
+
+    Args:
+        params_before: Parameters before poisoning.
+        params_after: Parameters after poisoning.
+        attack_type: Attack type for filename and title.
+        snapshot_dir: Directory to save visualization.
+        client_id: Client ID for title.
+        round_num: Round number for title.
+    """
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import TwoSlopeNorm
+
+    num_layers = len(params_before)
+    layer_names = [f"Layer {i}" for i in range(num_layers)]
+    layer_l2 = []
+    layer_diffs = []
+
+    for before, after in zip(params_before, params_after, strict=False):
+        diff = (after - before).flatten()
+        layer_l2.append(float(np.linalg.norm(diff)))
+        layer_diffs.append(diff)
+
+    total_l2 = float(np.linalg.norm(np.concatenate(list(layer_diffs))))
+    most_affected_idx = int(np.argmax(layer_l2))
+    least_affected_idx = int(np.argmin(layer_l2))
+
+    # Use subfigures: main content + footer
+    fig = plt.figure(figsize=(16, max(4, 0.5 * num_layers) + 1.5), layout="constrained")
+    subfigs = fig.subfigures(2, 1, height_ratios=[1, 0.06], hspace=0.02)
+
+    main_fig = subfigs[0]
+    axes = main_fig.subplots(1, 2, gridspec_kw={"wspace": 0.3})
+
+    # --- Panel 1: Per-layer L2 norm bar chart ---
+    ax_bars = axes[0]
+    l2_array = np.array(layer_l2)
+    # Normalize for colormap
+    l2_max = l2_array.max() if l2_array.max() > 0 else 1.0
+    cmap = plt.cm.get_cmap("RdYlGn_r")
+    colors = cmap(l2_array / l2_max)
+
+    y_pos = np.arange(num_layers)
+    ax_bars.barh(y_pos, l2_array, color=colors, height=0.7, edgecolor="none")
+    ax_bars.set_yticks(y_pos)
+    ax_bars.set_yticklabels(layer_names, fontsize=8)
+    ax_bars.invert_yaxis()
+    ax_bars.set_xlabel("L2 Norm of Delta", fontsize=10)
+    ax_bars.set_title("Per-Layer L2 Norm", fontsize=12, fontweight="bold", color="#2c3e50")
+
+    # Annotate values on bars
+    for i, v in enumerate(layer_l2):
+        ax_bars.text(v + l2_max * 0.01, i, f"{v:.3f}", va="center", fontsize=7)
+
+    # --- Panel 2: Layer delta heatmap ---
+    ax_heatmap = axes[1]
+    num_bins = 100
+
+    # Bin each layer's deltas independently into num_bins columns
+    heatmap_data = np.zeros((num_layers, num_bins))
+    for i, diff in enumerate(layer_diffs):
+        if len(diff) <= num_bins:
+            heatmap_data[i, : len(diff)] = diff
+        else:
+            # Bin by splitting into num_bins equal chunks and taking mean
+            bins = np.array_split(diff, num_bins)
+            heatmap_data[i] = [np.mean(b) for b in bins]
+
+    vmax = np.max(np.abs(heatmap_data))
+    if vmax == 0:
+        vmax = 1e-6
+    norm = TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
+
+    im = ax_heatmap.imshow(
+        heatmap_data, aspect="auto", cmap="RdBu_r", norm=norm, interpolation="nearest"
+    )
+    ax_heatmap.set_yticks(y_pos)
+    ax_heatmap.set_yticklabels(layer_names, fontsize=8)
+    ax_heatmap.set_xlabel("Parameter Bin", fontsize=10)
+    ax_heatmap.set_title("Layer Delta Heatmap", fontsize=12, fontweight="bold", color="#2c3e50")
+
+    cbar = main_fig.colorbar(im, ax=ax_heatmap, shrink=0.8, pad=0.02)
+    cbar.set_label("Weight Delta", fontsize=9)
+
+    attack_display = attack_type.replace("_", " ").title()
+    main_fig.suptitle(
+        f"Weight Layer Delta - Client {client_id}, Round {round_num} ({attack_display})",
+        fontsize=TITLE_STYLE["fontsize"],
+        fontweight=TITLE_STYLE["fontweight"],
+        color=TITLE_STYLE["color"],
+    )
+
+    # Footer
+    footer_text = (
+        f"Total L2: {total_l2:.4f} | "
+        f"Most affected: {layer_names[most_affected_idx]} ({layer_l2[most_affected_idx]:.4f}) | "
+        f"Least affected: {layer_names[least_affected_idx]} ({layer_l2[least_affected_idx]:.4f})"
+    )
+    footer_fig = subfigs[1]
+    footer_ax = footer_fig.add_axes([0, 0, 1, 1])
+    footer_ax.axis("off")
+    footer_ax.text(
+        0.5,
+        0.5,
+        footer_text,
+        ha="center",
+        va="center",
+        fontsize=10,
+        style="italic",
+        color="#555555",
+        bbox={"boxstyle": "round,pad=0.5", "facecolor": "#f8f9fa", "edgecolor": "#dee2e6"},
+        transform=footer_ax.transAxes,
+    )
+
+    path = snapshot_dir / f"{attack_type}_weight_layer_delta.png"
+    plt.savefig(path, dpi=150, bbox_inches="tight", pad_inches=0.2, facecolor="white")
+    plt.close(fig)
+    logger.debug(f"Saved weight layer delta: {path}")
 
 
 def load_weight_snapshot(filepath: str | Path) -> dict | None:

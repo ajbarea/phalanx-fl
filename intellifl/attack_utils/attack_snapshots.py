@@ -14,29 +14,18 @@ from typing import Any
 import numpy as np
 import torch
 
+from ._helpers import extract_attack_type
 from .snapshot_image_viz import (
+    save_backdoor_trigger_grid,
     save_composite_synopsis,
     save_image_grid,
     save_label_confusion_matrix,
     save_label_flipping_grid,
     save_label_flipping_summary,
     save_noise_difference_heatmap,
+    save_targeted_label_flipping_grid,
 )
 from .snapshot_text_viz import save_text_samples, save_text_samples_html
-
-
-def _extract_attack_type(attack_config: dict | list[dict]) -> str:
-    """Extract attack type string from config, joining multiple with underscore."""
-    if isinstance(attack_config, list):
-        if attack_config:
-            attack_types = [
-                cfg.get("attack_type") or cfg.get("type", "unknown") for cfg in attack_config
-            ]
-            return "_".join(attack_types)
-        else:
-            return "unknown"
-    else:
-        return attack_config.get("attack_type") or attack_config.get("type", "unknown")
 
 
 def _get_snapshot_dir(
@@ -153,7 +142,7 @@ def save_attack_snapshot(
         Creates snapshot directory structure and saves metadata JSON file.
         Visual snapshots delegated to save_visual_snapshot function.
     """
-    attack_type = _extract_attack_type(attack_config)
+    attack_type = extract_attack_type(attack_config)
     snapshot_dir = _get_snapshot_dir(output_dir, client_id, round_num, strategy_number)
 
     data_sample = data_sample[:max_samples]
@@ -231,8 +220,9 @@ def load_attack_snapshot(filepath: str | Path) -> dict | None:
 def list_attack_snapshots(output_dir: str, strategy_number: int = 0) -> list:
     """List all attack snapshots in an output directory.
 
-    Searches both attack_snapshots and weight_snapshots directories to capture
-    all attack types including weight-based attacks (model_poisoning, etc.).
+    Searches for data-level snapshots (pickle or metadata JSON) and
+    weight-level snapshots (*_weight_metadata.json) to capture all attack
+    types including weight-based attacks (boosted_scaling, etc.).
 
     Args:
         output_dir: Base output directory
@@ -241,17 +231,27 @@ def list_attack_snapshots(output_dir: str, strategy_number: int = 0) -> list:
     Returns:
         List of snapshot file paths (pickle or metadata json files)
     """
-    all_snapshots = []
+    all_snapshots: list[Path] = []
     base_path = Path(output_dir)
 
     attack_snapshots_dir = base_path / f"attack_snapshots_{strategy_number}"
     if attack_snapshots_dir.exists():
+        # Collect data-level snapshots: prefer pickle, fall back to metadata JSON
         pickle_snapshots = list(attack_snapshots_dir.glob("client_*/round_*/*.pickle"))
         if pickle_snapshots:
             all_snapshots.extend(pickle_snapshots)
         else:
-            json_snapshots = list(attack_snapshots_dir.glob("client_*/round_*/*_metadata.json"))
-            all_snapshots.extend(json_snapshots)
+            data_json = list(attack_snapshots_dir.glob("client_*/round_*/*_metadata.json"))
+            # Exclude weight metadata files from the data-only fallback
+            all_snapshots.extend(
+                p for p in data_json if not p.name.endswith("_weight_metadata.json")
+            )
+
+        # Always collect weight-level snapshots
+        weight_snapshots = list(
+            attack_snapshots_dir.glob("client_*/round_*/*_weight_metadata.json")
+        )
+        all_snapshots.extend(weight_snapshots)
 
     return sorted(set(all_snapshots))
 
@@ -323,7 +323,7 @@ def save_visual_snapshot(
         Automatically detects data type (images vs text) and uses appropriate
         visualization method.
     """
-    attack_type = _extract_attack_type(attack_config)
+    attack_type = extract_attack_type(attack_config)
     snapshot_dir = _get_snapshot_dir(output_dir, client_id, round_num, strategy_number)
 
     try:
@@ -361,6 +361,23 @@ def save_visual_snapshot(
                         attack_config,
                         original_images=original_data_sample,
                     )
+            elif attack_type == "targeted_label_flipping":
+                save_targeted_label_flipping_grid(
+                    data_sample,
+                    labels_sample,
+                    original_labels_sample,
+                    snapshot_dir / filename,
+                    attack_config,
+                )
+            elif attack_type == "backdoor_trigger":
+                save_backdoor_trigger_grid(
+                    data_sample,
+                    labels_sample,
+                    original_labels_sample,
+                    snapshot_dir / filename,
+                    attack_config,
+                    original_images=original_data_sample,
+                )
             else:
                 save_image_grid(
                     data_sample,

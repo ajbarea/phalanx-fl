@@ -51,10 +51,15 @@ def save_attack_timeline_gif(
 
     attack_colors = {
         "label_flipping": "#e74c3c",
+        "targeted_label_flipping": "#c0392b",
         "gaussian_noise": "#3498db",
+        "backdoor_trigger": "#2980b9",
         "model_poisoning": "#9b59b6",
         "gradient_scaling": "#e67e22",
         "byzantine_perturbation": "#1abc9c",
+        "boosted_scaling": "#d35400",
+        "inner_product_manipulation": "#8e44ad",
+        "alternating_min_poisoning": "#16a085",
         "token_replacement": "#f39c12",
     }
 

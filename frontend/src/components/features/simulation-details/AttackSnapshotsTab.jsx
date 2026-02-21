@@ -216,6 +216,7 @@ export function AttackSnapshotsTab({ simulationId, status }) {
   const [data, setData] = useState(null);
   const [selectedRound, setSelectedRound] = useState('all');
   const [selectedClient, setSelectedClient] = useState('all');
+  const [selectedAttackType, setSelectedAttackType] = useState('all');
   const [modalImage, setModalImage] = useState(null);
 
   useEffect(() => {
@@ -290,10 +291,12 @@ export function AttackSnapshotsTab({ simulationId, status }) {
   const allSnapshots = data.strategies.flatMap(s => s.snapshots);
   const uniqueRounds = [...new Set(allSnapshots.map(s => s.round_num))].sort((a, b) => a - b);
   const uniqueClients = [...new Set(allSnapshots.map(s => s.client_id))].sort((a, b) => a - b);
+  const uniqueAttackTypes = [...new Set(allSnapshots.map(s => s.attack_type))].sort();
 
   const filteredSnapshots = allSnapshots.filter(snapshot => {
     if (selectedRound !== 'all' && snapshot.round_num !== parseInt(selectedRound)) return false;
     if (selectedClient !== 'all' && snapshot.client_id !== parseInt(selectedClient)) return false;
+    if (selectedAttackType !== 'all' && snapshot.attack_type !== selectedAttackType) return false;
     return true;
   });
 
@@ -356,7 +359,7 @@ export function AttackSnapshotsTab({ simulationId, status }) {
         )}
 
         <Row className="mb-3">
-          <Col xs={12} md={4}>
+          <Col xs={12} md={3}>
             <Form.Group>
               <Form.Label className="small fw-semibold">Filter by Round</Form.Label>
               <Form.Select
@@ -373,7 +376,7 @@ export function AttackSnapshotsTab({ simulationId, status }) {
               </Form.Select>
             </Form.Group>
           </Col>
-          <Col xs={12} md={4}>
+          <Col xs={12} md={3}>
             <Form.Group>
               <Form.Label className="small fw-semibold">Filter by Client</Form.Label>
               <Form.Select
@@ -390,7 +393,24 @@ export function AttackSnapshotsTab({ simulationId, status }) {
               </Form.Select>
             </Form.Group>
           </Col>
-          <Col xs={12} md={4} className="d-flex align-items-end">
+          <Col xs={12} md={3}>
+            <Form.Group>
+              <Form.Label className="small fw-semibold">Filter by Attack Type</Form.Label>
+              <Form.Select
+                size="sm"
+                value={selectedAttackType}
+                onChange={e => setSelectedAttackType(e.target.value)}
+              >
+                <option value="all">All Types ({uniqueAttackTypes.length})</option>
+                {uniqueAttackTypes.map(t => (
+                  <option key={t} value={t}>
+                    {t.replace(/_/g, ' ')}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+          </Col>
+          <Col xs={12} md={3} className="d-flex align-items-end">
             <small className="text-muted">
               Showing {filteredSnapshots.length} of {allSnapshots.length} snapshots
             </small>

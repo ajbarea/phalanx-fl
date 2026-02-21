@@ -11,14 +11,15 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import Any
 
 import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.colors import TwoSlopeNorm
 from matplotlib.lines import Line2D
-from matplotlib.patches import Rectangle
+from matplotlib.patches import FancyArrowPatch, Rectangle
+
+from ._helpers import extract_attack_param, extract_attack_type
 
 
 def _display_image(ax, image: np.ndarray) -> None:
@@ -84,34 +85,8 @@ def _normalize_axes(axes, rows: int, cols: int):
         return axes
 
 
-def _extract_attack_param(
-    attack_config: dict | list[dict], *attack_parameters: str, default: Any = "?"
-) -> Any:
-    """Extract first matching parameter from attack config."""
-    config = (
-        attack_config[0] if isinstance(attack_config, list) and attack_config else attack_config
-    )
-
-    if isinstance(config, dict):
-        for attack_parameter in attack_parameters:
-            if attack_parameter in config:
-                return config[attack_parameter]
-
-    return default
-
-
-def _extract_attack_type(attack_config: dict | list[dict]) -> str:
-    """Extract attack type string from config, joining multiple with underscore."""
-    if isinstance(attack_config, list):
-        if attack_config:
-            attack_types = [
-                cfg.get("attack_type") or cfg.get("type", "unknown") for cfg in attack_config
-            ]
-            return "_".join(attack_types)
-        else:
-            return "unknown"
-    else:
-        return attack_config.get("attack_type") or attack_config.get("type", "unknown")
+_extract_attack_param = extract_attack_param
+_extract_attack_type = extract_attack_type
 
 
 def _build_single_attack_title(
@@ -136,6 +111,20 @@ def _build_single_attack_title(
 
     elif attack_type == "token_replacement":
         return f"Token poisoned\nLabel: {labels[index]}"
+
+    elif attack_type == "targeted_label_flipping":
+        src = _extract_attack_param(attack_config, "source_class", default="?")
+        tgt = _extract_attack_param(attack_config, "target_class", default="?")
+        if style == "side_by_side":
+            return f"Targeted Flip ({src}->{tgt})\nLabel: {labels[index]}"
+        return f"Label: {labels[index]}\n(target: {src}->{tgt})"
+
+    elif attack_type == "backdoor_trigger":
+        tgt = _extract_attack_param(attack_config, "target_class", default="?")
+        pattern = _extract_attack_param(attack_config, "trigger_pattern", default="square")
+        if style == "side_by_side":
+            return f"Backdoor ({pattern})\nTarget: {tgt}\nLabel: {labels[index]}"
+        return f"Backdoor -> {tgt}\nLabel: {labels[index]}"
 
     else:
         prefix = f"Poisoned ({attack_type})" if style == "side_by_side" else attack_type
@@ -171,12 +160,492 @@ def _build_attack_title(
                     title_parts.append(f"Noise (SNR: {snr}dB)")
             elif cfg_type == "token_replacement" and style == "fallback":
                 title_parts.append("Token poisoned")
+            elif cfg_type == "targeted_label_flipping":
+                src = cfg.get("source_class", "?")
+                tgt = cfg.get("target_class", "?")
+                if style == "side_by_side":
+                    title_parts.append(f"Targeted Flip: {src}->{tgt}")
+                else:
+                    title_parts.append(f"Targeted Flip ({src}->{tgt})")
+            elif cfg_type == "backdoor_trigger":
+                tgt = cfg.get("target_class", "?")
+                pattern = cfg.get("trigger_pattern", "square")
+                if style == "side_by_side":
+                    title_parts.append(f"Backdoor ({pattern})->cls {tgt}")
+                else:
+                    title_parts.append(f"Backdoor ({pattern})")
 
         return "\n".join(title_parts) if title_parts else f"{attack_type}\nLabel: {labels[index]}"
     else:
         return _build_single_attack_title(
             attack_config, attack_type, labels, original_labels, index, style
         )
+
+
+def save_backdoor_trigger_grid(
+    images: np.ndarray,
+    labels: np.ndarray,
+    original_labels: np.ndarray,
+    filepath: Path,
+    attack_config: dict | list[dict],
+    original_images: np.ndarray | None = None,
+    max_samples: int = 4,
+) -> None:
+    """Save publication-quality backdoor trigger visualization.
+
+    4-column layout per sample row:
+    [Original] | [Poisoned + red box] | [Magnified trigger region] | [Difference heatmap]
+
+    Args:
+        images: Poisoned images array (N, C, H, W).
+        labels: Poisoned labels array.
+        original_labels: Original labels array.
+        filepath: Output file path (.png).
+        attack_config: Attack configuration dict or list of dicts.
+        original_images: Original clean images (N, C, H, W).
+        max_samples: Maximum samples to display.
+    """
+    matplotlib.use("Agg")
+
+    num_samples = min(len(images), max_samples)
+    images = images[:num_samples]
+    labels = labels[:num_samples]
+    original_labels = original_labels[:num_samples]
+    if original_images is not None:
+        original_images = original_images[:num_samples]
+
+    # Extract trigger config
+    trigger_position = _extract_attack_param(
+        attack_config, "trigger_position", default="bottom_right"
+    )
+    trigger_size = int(_extract_attack_param(attack_config, "trigger_size", default=4))
+    trigger_pattern = _extract_attack_param(attack_config, "trigger_pattern", default="square")
+    target_class = _extract_attack_param(attack_config, "target_class", default="?")
+
+    _, c, h, w = images.shape if len(images.shape) == 4 else (num_samples, 1, *images.shape[1:])
+
+    fig = plt.figure(figsize=(18, 4 * num_samples + 1.5), layout="constrained")
+    subfigs = fig.subfigures(2, 1, height_ratios=[1, 0.05], hspace=0.02)
+
+    main_fig = subfigs[0]
+    axes = main_fig.subplots(
+        num_samples,
+        4,
+        gridspec_kw={"wspace": 0.2, "hspace": 0.3},
+    )
+    if num_samples == 1:
+        axes = axes.reshape(1, -1)
+
+    for i in range(num_samples):
+        clean_img = original_images[i] if original_images is not None else images[i]
+        pois_img = images[i]
+
+        # Denormalize for display
+        clean_disp = (clean_img * 0.5) + 0.5
+        pois_disp = (pois_img * 0.5) + 0.5
+
+        # --- Detect trigger bounds ---
+        if trigger_position == "random" or original_images is None:
+            # Auto-detect trigger via absolute difference
+            diff_abs = np.abs(pois_disp - clean_disp)
+            diff_sum = diff_abs.sum(axis=0) if c > 1 else diff_abs[0]
+            threshold = diff_sum.max() * 0.3 if diff_sum.max() > 0 else 0
+            mask = diff_sum > threshold
+            ys, xs = np.where(mask)
+            if len(ys) > 0:
+                y_start, y_end = int(ys.min()), int(ys.max()) + 1
+                x_start, x_end = int(xs.min()), int(xs.max()) + 1
+            else:
+                y_start, x_start = h - trigger_size, w - trigger_size
+                y_end, x_end = h, w
+        else:
+            if trigger_position == "bottom_right":
+                y_start, x_start = h - trigger_size, w - trigger_size
+            elif trigger_position == "top_left":
+                y_start, x_start = 0, 0
+            elif trigger_position == "center":
+                y_start = (h - trigger_size) // 2
+                x_start = (w - trigger_size) // 2
+            else:
+                y_start, x_start = h - trigger_size, w - trigger_size
+            y_end = min(y_start + trigger_size, h)
+            x_end = min(x_start + trigger_size, w)
+
+        # --- Column 1: Original ---
+        ax_orig = axes[i, 0]
+        _display_image(ax_orig, clean_img)
+        ax_orig.set_title(
+            f"Original\nLabel: {original_labels[i]}",
+            fontsize=10,
+            fontweight="bold",
+            color="#2c3e50",
+        )
+        ax_orig.axis("off")
+
+        # --- Column 2: Poisoned + red box ---
+        ax_pois = axes[i, 1]
+        _display_image(ax_pois, pois_img)
+        # Draw red rectangle around trigger region
+        rect = Rectangle(
+            (x_start - 0.5, y_start - 0.5),
+            x_end - x_start,
+            y_end - y_start,
+            linewidth=2,
+            edgecolor="red",
+            facecolor="none",
+        )
+        ax_pois.add_patch(rect)
+        ax_pois.set_title(
+            f"Poisoned\nLabel: {labels[i]}", fontsize=10, fontweight="bold", color="#c0392b"
+        )
+        ax_pois.axis("off")
+
+        # --- Column 3: Magnified trigger region (clean vs poisoned) ---
+        ax_mag = axes[i, 2]
+        # Crop trigger region from both images
+        clean_crop = np.clip(clean_disp[:, y_start:y_end, x_start:x_end], 0, 1)
+        pois_crop = np.clip(pois_disp[:, y_start:y_end, x_start:x_end], 0, 1)
+
+        # Upscale with np.kron for pixel-art magnification
+        scale = max(1, 32 // max(clean_crop.shape[1], clean_crop.shape[2], 1))
+        kernel = np.ones((scale, scale))
+
+        if c == 1:
+            clean_up = np.kron(clean_crop[0], kernel)
+            pois_up = np.kron(pois_crop[0], kernel)
+            combined = np.concatenate([clean_up, np.ones((clean_up.shape[0], 2)), pois_up], axis=1)
+            ax_mag.imshow(combined, cmap="gray", vmin=0, vmax=1)
+        else:
+            clean_up = np.stack([np.kron(clean_crop[ch], kernel) for ch in range(c)], axis=-1)
+            pois_up = np.stack([np.kron(pois_crop[ch], kernel) for ch in range(c)], axis=-1)
+            sep = np.ones((clean_up.shape[0], 2, c))
+            combined = np.concatenate([clean_up, sep, pois_up], axis=1)
+            ax_mag.imshow(np.clip(combined, 0, 1))
+
+        ax_mag.set_title(
+            "Trigger Region\n(Clean | Poisoned)", fontsize=10, fontweight="bold", color="#8e44ad"
+        )
+        ax_mag.axis("off")
+
+        # --- Column 4: Difference heatmap ---
+        ax_diff = axes[i, 3]
+        diff = pois_disp - clean_disp
+        diff_disp = np.mean(diff, axis=0) if c > 1 else diff[0]
+        vmax = max(0.05, np.max(np.abs(diff)))
+        ax_diff.imshow(diff_disp, cmap="RdBu_r", vmin=-vmax, vmax=vmax)
+        ax_diff.set_title("Difference\nHeatmap", fontsize=10, fontweight="bold", color="#8e44ad")
+        ax_diff.axis("off")
+
+    _add_figure_title(
+        main_fig,
+        f"Backdoor Trigger Attack: {trigger_pattern} ({trigger_size}x{trigger_size})",
+        subtitle=f"Target class: {target_class} | Position: {trigger_position}",
+    )
+
+    # Footer
+    num_poisoned = int(np.sum(labels != original_labels))
+    footer_text = (
+        f"Trigger: {trigger_pattern} ({trigger_size}x{trigger_size}) at {trigger_position} | "
+        f"Target: {target_class} | Poisoned: {num_poisoned}/{len(labels)}"
+    )
+    footer_fig = subfigs[1]
+    footer_ax = footer_fig.add_axes([0, 0, 1, 1])
+    footer_ax.axis("off")
+    footer_ax.text(
+        0.5,
+        0.5,
+        footer_text,
+        ha="center",
+        va="center",
+        fontsize=10,
+        style="italic",
+        color="#555555",
+        bbox={"boxstyle": "round,pad=0.5", "facecolor": "#f8f9fa", "edgecolor": "#dee2e6"},
+        transform=footer_ax.transAxes,
+    )
+
+    plt.savefig(filepath, dpi=300, bbox_inches="tight", pad_inches=0.2, facecolor="white")
+    plt.close()
+
+
+def save_targeted_label_flipping_grid(
+    images: np.ndarray,
+    labels: np.ndarray,
+    original_labels: np.ndarray,
+    filepath: Path,
+    attack_config: dict | list[dict],
+    max_samples: int = 8,
+) -> None:
+    """Save publication-quality targeted label flipping visualization.
+
+    2-section layout:
+    Section A: Source-to-target arrow diagram with stats
+    Section B: Grid of affected samples (source_class only)
+
+    Args:
+        images: Image array (N, C, H, W).
+        labels: Poisoned labels array.
+        original_labels: Original labels array.
+        filepath: Output file path (.png).
+        attack_config: Attack configuration dict or list of dicts.
+        max_samples: Maximum affected samples to show in grid.
+    """
+    matplotlib.use("Agg")
+
+    source_class = _extract_attack_param(attack_config, "source_class", default=None)
+    target_class = _extract_attack_param(attack_config, "target_class", default=None)
+    flip_ratio = _extract_attack_param(attack_config, "flip_ratio", "poison_ratio", default="?")
+
+    # Find affected samples (where original label == source_class)
+    if source_class is not None:
+        affected_mask = original_labels == int(source_class)
+    else:
+        affected_mask = labels != original_labels
+
+    affected_indices = np.where(affected_mask)[0]
+    num_affected = len(affected_indices)
+    num_source = (
+        int(np.sum(original_labels == int(source_class)))
+        if source_class is not None
+        else num_affected
+    )
+    num_flipped = int(np.sum(labels[affected_mask] != original_labels[affected_mask]))
+    flip_pct = (num_flipped / num_source * 100) if num_source > 0 else 0
+
+    # Limit displayed samples
+    show_indices = affected_indices[:max_samples]
+    num_show = len(show_indices)
+
+    samples_per_row = min(4, max(1, num_show))
+    num_rows = math.ceil(num_show / samples_per_row) if num_show > 0 else 1
+
+    fig = plt.figure(
+        figsize=(6 * samples_per_row, 3 + 4 * num_rows + 1),
+        layout="constrained",
+    )
+
+    # Section A (arrow diagram) + Section B (sample grid) + footer
+    subfigs = fig.subfigures(3, 1, height_ratios=[0.25, 1, 0.05], hspace=0.05)
+
+    # --- Section A: Source -> Target arrow diagram ---
+    arrow_fig = subfigs[0]
+    ax_arrow = arrow_fig.add_axes([0.1, 0.1, 0.8, 0.8])
+    ax_arrow.set_xlim(0, 1)
+    ax_arrow.set_ylim(0, 1)
+    ax_arrow.axis("off")
+
+    # Source badge (green)
+    ax_arrow.add_patch(
+        Rectangle(
+            (0.1, 0.3),
+            0.25,
+            0.4,
+            facecolor="#27ae60",
+            edgecolor="#1e8449",
+            linewidth=2,
+            zorder=2,
+        )
+    )
+    ax_arrow.text(
+        0.225,
+        0.5,
+        f"Source: {source_class}",
+        ha="center",
+        va="center",
+        fontsize=14,
+        fontweight="bold",
+        color="white",
+        zorder=3,
+    )
+
+    # Target badge (red)
+    ax_arrow.add_patch(
+        Rectangle(
+            (0.65, 0.3),
+            0.25,
+            0.4,
+            facecolor="#c0392b",
+            edgecolor="#922b21",
+            linewidth=2,
+            zorder=2,
+        )
+    )
+    ax_arrow.text(
+        0.775,
+        0.5,
+        f"Target: {target_class}",
+        ha="center",
+        va="center",
+        fontsize=14,
+        fontweight="bold",
+        color="white",
+        zorder=3,
+    )
+
+    # Arrow connecting badges
+    arrow = FancyArrowPatch(
+        (0.37, 0.5),
+        (0.63, 0.5),
+        arrowstyle="-|>",
+        mutation_scale=25,
+        lw=3,
+        color="#c0392b",
+        zorder=1,
+    )
+    ax_arrow.add_patch(arrow)
+
+    # Stats text above arrow
+    ax_arrow.text(
+        0.5,
+        0.85,
+        f"{num_flipped} of {num_source} source-class samples flipped ({flip_pct:.1f}%)",
+        ha="center",
+        va="center",
+        fontsize=11,
+        fontweight="bold",
+        color="#2c3e50",
+    )
+
+    # --- Section B: Affected samples grid ---
+    grid_fig = subfigs[1]
+    if num_show > 0:
+        grid_axes = grid_fig.subplots(
+            num_rows,
+            samples_per_row * 2,
+            gridspec_kw={"wspace": 0.3, "hspace": 0.4},
+            width_ratios=[1, 1.2] * samples_per_row,
+        )
+        if num_rows == 1 and samples_per_row * 2 == 1:
+            grid_axes = np.array([[grid_axes]])
+        elif num_rows == 1:
+            grid_axes = grid_axes.reshape(1, -1)
+
+        for si, idx in enumerate(show_indices):
+            row_idx = si // samples_per_row
+            col_offset = (si % samples_per_row) * 2
+
+            # Image
+            ax_img = grid_axes[row_idx, col_offset]
+            _display_image(ax_img, images[idx])
+            ax_img.axis("off")
+            ax_img.set_title(f"Sample {idx}", fontsize=9, fontweight="bold", pad=3)
+
+            # Label badges
+            ax_lbl = grid_axes[row_idx, col_offset + 1]
+            ax_lbl.set_xlim(0, 1)
+            ax_lbl.set_ylim(0, 1)
+            ax_lbl.axis("off")
+
+            label_changed = original_labels[idx] != labels[idx]
+
+            # "Was" badge (green)
+            ax_lbl.add_patch(
+                Rectangle(
+                    (0.02, 0.6),
+                    0.96,
+                    0.25,
+                    facecolor="#27ae60",
+                    edgecolor="#1e8449",
+                    linewidth=2,
+                    transform=ax_lbl.transAxes,
+                )
+            )
+            ax_lbl.text(
+                0.5,
+                0.725,
+                f"Was: {original_labels[idx]}",
+                ha="center",
+                va="center",
+                fontsize=12,
+                fontweight="bold",
+                color="white",
+                transform=ax_lbl.transAxes,
+            )
+
+            # Arrow if changed
+            if label_changed:
+                ax_lbl.annotate(
+                    "",
+                    xy=(0.5, 0.45),
+                    xytext=(0.5, 0.55),
+                    xycoords="axes fraction",
+                    textcoords="axes fraction",
+                    arrowprops={"arrowstyle": "->", "color": "#c0392b", "lw": 2.5},
+                )
+
+            # "Now" badge
+            badge_color = "#c62828" if label_changed else "#95a5a6"
+            edge_color = "#8b1c1c" if label_changed else "#7f8c8d"
+            ax_lbl.add_patch(
+                Rectangle(
+                    (0.02, 0.15),
+                    0.96,
+                    0.25,
+                    facecolor=badge_color,
+                    edgecolor=edge_color,
+                    linewidth=2,
+                    transform=ax_lbl.transAxes,
+                )
+            )
+            now_text = f"Now: {labels[idx]}" if label_changed else f"Unchanged: {labels[idx]}"
+            ax_lbl.text(
+                0.5,
+                0.275,
+                now_text,
+                ha="center",
+                va="center",
+                fontsize=12,
+                fontweight="bold",
+                color="white",
+                transform=ax_lbl.transAxes,
+            )
+
+        # Hide unused axes
+        total_slots = num_rows * samples_per_row
+        for si in range(num_show, total_slots):
+            row_idx = si // samples_per_row
+            col_offset = (si % samples_per_row) * 2
+            grid_axes[row_idx, col_offset].axis("off")
+            grid_axes[row_idx, col_offset + 1].axis("off")
+    else:
+        ax_empty = grid_fig.add_axes([0.1, 0.1, 0.8, 0.8])
+        ax_empty.axis("off")
+        ax_empty.text(
+            0.5,
+            0.5,
+            "No affected samples found",
+            ha="center",
+            va="center",
+            fontsize=12,
+            style="italic",
+        )
+
+    _add_figure_title(
+        fig,
+        "Targeted Label Flipping Attack",
+        subtitle=f"Source class {source_class} -> Target class {target_class}",
+    )
+
+    # Footer
+    footer_text = f"Source: {source_class} | Target: {target_class} | Flip ratio: {flip_ratio}"
+    footer_fig = subfigs[2]
+    footer_ax = footer_fig.add_axes([0, 0, 1, 1])
+    footer_ax.axis("off")
+    footer_ax.text(
+        0.5,
+        0.5,
+        footer_text,
+        ha="center",
+        va="center",
+        fontsize=10,
+        style="italic",
+        color="#555555",
+        bbox={"boxstyle": "round,pad=0.5", "facecolor": "#f8f9fa", "edgecolor": "#dee2e6"},
+        transform=footer_ax.transAxes,
+    )
+
+    plt.savefig(filepath, dpi=150, bbox_inches="tight", pad_inches=0.2, facecolor="white")
+    plt.close()
 
 
 def save_composite_synopsis(
@@ -213,6 +682,10 @@ def save_composite_synopsis(
 
     # Detect attack components
     has_noise = any(cfg.get("attack_type") == "gaussian_noise" for cfg in attack_config)
+    has_backdoor = any(cfg.get("attack_type") == "backdoor_trigger" for cfg in attack_config)
+    has_targeted_flip = any(
+        cfg.get("attack_type") == "targeted_label_flipping" for cfg in attack_config
+    )
     has_flip = any(cfg.get("attack_type") == "label_flipping" for cfg in attack_config)
 
     fig, axes = plt.subplots(
@@ -242,6 +715,7 @@ def save_composite_synopsis(
         ax_impact = axes[i, 1]
         ax_impact.axis("off")
 
+        # Priority: noise > backdoor > targeted_flip > flip > fallback
         if has_noise and original_images is not None:
             # Show difference heatmap
             diff = (images[i] * 0.5 + 0.5) - (original_images[i] * 0.5 + 0.5)
@@ -250,12 +724,46 @@ def save_composite_synopsis(
             else:
                 diff_disp = diff[0]
 
-            # Normalize diff for RdBu_r
             vmax = max(0.1, np.max(np.abs(diff)))
             ax_impact.imshow(diff_disp, cmap="RdBu_r", vmin=-vmax, vmax=vmax)
             ax_impact.set_title("Perturbation\n(Delta Heatmap)", fontsize=10, color="#8e44ad")
+        elif has_backdoor and original_images is not None:
+            # Show trigger delta
+            diff = (images[i] * 0.5 + 0.5) - (original_images[i] * 0.5 + 0.5)
+            if images[i].shape[0] > 1:
+                diff_disp = np.mean(diff, axis=0)
+            else:
+                diff_disp = diff[0]
+
+            vmax = max(0.05, np.max(np.abs(diff)))
+            ax_impact.imshow(diff_disp, cmap="RdBu_r", vmin=-vmax, vmax=vmax)
+            ax_impact.set_title("Trigger Delta\n(Backdoor)", fontsize=10, color="#8e44ad")
+        elif has_targeted_flip:
+            # Show source -> target arrow
+            src_cfg = next(
+                (c for c in attack_config if c.get("attack_type") == "targeted_label_flipping"), {}
+            )
+            src = src_cfg.get("source_class", "?")
+            tgt = src_cfg.get("target_class", "?")
+            ax_impact.annotate(
+                "",
+                xy=(0.8, 0.5),
+                xytext=(0.2, 0.5),
+                arrowprops={"arrowstyle": "->", "lw": 3, "color": "#c0392b"},
+            )
+            ax_impact.text(
+                0.5,
+                0.6,
+                f"cls {src} → cls {tgt}",
+                ha="center",
+                va="bottom",
+                fontweight="bold",
+                color="#c0392b",
+                fontsize=14,
+            )
+            ax_impact.set_title("Attack Effect\n(Targeted Flip)", fontsize=10, color="#c0392b")
         elif has_flip:
-            # Show transformation arrow
+            # Show label transformation arrow
             ax_impact.annotate(
                 "",
                 xy=(0.8, 0.5),
@@ -291,7 +799,7 @@ def save_composite_synopsis(
         ax_pois.axis("off")
 
         # Add a subtle red frame if poisoned
-        if is_flipped or has_noise:
+        if is_flipped or has_noise or has_backdoor:
             rect = Rectangle(
                 (0, 0),
                 1,

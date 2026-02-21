@@ -17,6 +17,7 @@ from .attack_snapshots import (
     load_attack_snapshot,
 )
 from .snapshot_animation import save_attack_timeline_gif
+from .weight_poisoning import is_weight_attack
 
 
 def _get_snapshots_dir_checked(output_dir: str, strategy_number: int = 0) -> Path | None:
@@ -46,6 +47,26 @@ def _extract_attack_params_for_display(attack_type: str, attack_config: dict) ->
             html_attack_params.append(f"strategy={strategy}")
         if prob is not None:
             html_attack_params.append(f"prob={prob}")
+    elif attack_type == "targeted_label_flipping":
+        html_attack_params.append(f"src={attack_config.get('source_class', '?')}")
+        html_attack_params.append(f"tgt={attack_config.get('target_class', '?')}")
+        html_attack_params.append(f"ratio={attack_config.get('flip_ratio', '1.0')}")
+    elif attack_type == "backdoor_trigger":
+        html_attack_params.append(f"target={attack_config.get('target_class', '?')}")
+        html_attack_params.append(f"pattern={attack_config.get('trigger_pattern', 'square')}")
+        html_attack_params.append(f"ratio={attack_config.get('poison_ratio', '?')}")
+    elif attack_type == "boosted_scaling":
+        html_attack_params.append(f"n_total={attack_config.get('n_total', '?')}")
+        html_attack_params.append(f"n_mal={attack_config.get('n_malicious', '1')}")
+        html_attack_params.append(f"boost={attack_config.get('boost_factor', '1.0')}")
+    elif attack_type == "inner_product_manipulation":
+        html_attack_params.append(f"strength={attack_config.get('perturbation_strength', '?')}")
+        html_attack_params.append(f"dir={attack_config.get('target_direction', 'negative')}")
+    elif attack_type == "alternating_min_poisoning":
+        html_attack_params.append(f"n_total={attack_config.get('n_total', '?')}")
+        html_attack_params.append(f"n_mal={attack_config.get('n_malicious', '1')}")
+        html_attack_params.append(f"tau={attack_config.get('tau_factor', '1.0')}")
+        html_attack_params.append(f"steps={attack_config.get('pgd_steps', '20')}")
     return html_attack_params
 
 
@@ -217,12 +238,18 @@ def generate_snapshot_index(
 
                 attack_parameters = _extract_attack_params_for_display(attack_type, attack_config)
 
-                if attack_type == "token_replacement":
+                if is_weight_attack(attack_type):
+                    visual_filename = f"{attack_type}_weight_histogram.png"
+                    visual_type = "image"
+                    metadata_filename = f"{attack_type}_weight_metadata.json"
+                elif attack_type == "token_replacement":
                     visual_filename = f"{attack_type}_samples.txt"
                     visual_type = "text"
+                    metadata_filename = f"{attack_type}_metadata.json"
                 else:
                     visual_filename = f"{attack_type}_visual.png"
                     visual_type = "image"
+                    metadata_filename = f"{attack_type}_metadata.json"
 
                 snapshot_data.append(
                     {
@@ -240,9 +267,7 @@ def generate_snapshot_index(
                         ).as_posix(),
                         "visual_type": visual_type,
                         "metadata_path": (
-                            Path(f"client_{client_id}")
-                            / f"round_{round_num}"
-                            / f"{attack_type}_metadata.json"
+                            Path(f"client_{client_id}") / f"round_{round_num}" / metadata_filename
                         ).as_posix(),
                     }
                 )
