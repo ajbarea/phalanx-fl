@@ -48,6 +48,20 @@ This runs two strategies back-to-back, differing only in `num_std_dev`.
 
 ---
 
+## :material-shield-search: Research Integrity & Validation
+
+InteFL enforces a **Scientific Integrity First** policy. To ensure experimental transparency and reproducibility (aligned with IEEE Std and NeurIPS/ICML checklists), the framework uses a "fail-fast" validation approach: it **rejects** incompatible or mathematically unsound configurations rather than attempting to silently auto-correct them.
+
+### Key Constraints
+
+*   **Participation vs. Removal:** You cannot set `remove_clients: true` if your configuration requires 100% participation (e.g., `min_fit_clients == num_of_clients`). It is mathematically impossible to maintain full participation if clients are being permanently excluded.
+*   **Byzantine Tolerance Bounds:** robust aggregation algorithms have strict breakdown points.
+    *   **Krum / Multi-Krum:** Requires $n > 2f + 2$ (where $n$ is total clients and $f$ is malicious clients).
+    *   **Trimmed Mean:** Requires `trim_ratio < 0.5`.
+    *   Violating these bounds removes the theoretical guarantees of the defense and leads to undefined behavior.
+
+---
+
 ## :material-format-list-bulleted: Field reference
 
 ### :material-play-circle: Core simulation

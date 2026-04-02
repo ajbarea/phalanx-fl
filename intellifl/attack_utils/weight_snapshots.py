@@ -225,22 +225,42 @@ def _save_weight_histogram(
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 4), layout="constrained")
 
-    axes[0].hist(weights_before, bins=100, alpha=0.7, color="blue", density=True)
+    axes[0].hist(
+        weights_before, bins=100, alpha=0.7, color="#3498db", edgecolor="none", density=True
+    )
     axes[0].set_title("Before Poisoning")
     axes[0].set_xlabel("Weight Value")
     axes[0].set_ylabel("Density")
     axes[0].set_yscale("log")
     axes[0].set_xlim(x_limits)
 
-    axes[1].hist(weights_after, bins=100, alpha=0.7, color="red", density=True)
+    axes[1].hist(
+        weights_after, bins=100, alpha=0.7, color="#e74c3c", edgecolor="none", density=True
+    )
     axes[1].set_title("After Poisoning")
     axes[1].set_xlabel("Weight Value")
     axes[1].set_ylabel("Density")
     axes[1].set_yscale("log")
     axes[1].set_xlim(x_limits)
 
-    axes[2].hist(weights_before, bins=100, alpha=0.5, color="blue", density=True, label="Before")
-    axes[2].hist(weights_after, bins=100, alpha=0.5, color="red", density=True, label="After")
+    axes[2].hist(
+        weights_before,
+        bins=100,
+        alpha=0.5,
+        color="#3498db",
+        edgecolor="none",
+        density=True,
+        label="Before",
+    )
+    axes[2].hist(
+        weights_after,
+        bins=100,
+        alpha=0.5,
+        color="#e74c3c",
+        edgecolor="none",
+        density=True,
+        label="After",
+    )
     axes[2].set_title("Comparison")
     axes[2].set_xlabel("Weight Value")
     axes[2].set_ylabel("Density")
@@ -316,7 +336,7 @@ def save_weight_layer_delta(
     l2_array = np.array(layer_l2)
     # Normalize for colormap
     l2_max = l2_array.max() if l2_array.max() > 0 else 1.0
-    cmap = plt.cm.get_cmap("RdYlGn_r")
+    cmap = matplotlib.colormaps["RdYlGn_r"]
     colors = cmap(l2_array / l2_max)
 
     y_pos = np.arange(num_layers)

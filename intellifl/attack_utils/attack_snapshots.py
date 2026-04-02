@@ -116,7 +116,7 @@ def save_attack_snapshot(
     labels_sample: torch.Tensor,
     original_labels_sample: torch.Tensor | None,
     output_dir: str,
-    max_samples: int = 5,
+    max_samples: int = 6,
     save_format: str = "pickle",
     experiment_info: dict[str, Any] | None = None,
     strategy_number: int = 0,
@@ -133,7 +133,7 @@ def save_attack_snapshot(
         labels_sample: Sample labels tensor
         original_labels_sample: Original labels before poisoning (optional)
         output_dir: Base output directory
-        max_samples: Maximum samples to include in snapshot (default: 5)
+        max_samples: Maximum samples to include in snapshot (default: 6)
         save_format: Format to save - "pickle", "visual", or "pickle_and_visual" (default: "pickle")
         experiment_info: Additional experiment metadata (optional)
         strategy_number: Strategy index for multi-strategy runs (default: 0)

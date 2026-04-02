@@ -59,6 +59,20 @@ class SimulationDetails(BaseModel):
 
 _TERMINAL_STATUSES = frozenset({"completed", "failed", "stopped"})
 
+_SUPPORTED_RESULT_EXTENSIONS = (
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".svg",
+    ".pdf",
+    ".csv",
+    ".json",
+    ".html",
+    ".txt",
+)
+
 # How recently status.json must have been updated to trust the file-based
 # status without performing PID / Celery liveness checks.  This covers the
 # gap between status writes (round updates, strategy transitions, etc.).
@@ -398,7 +412,7 @@ def get_simulation_details(
         if (
             item.is_file()
             and item.name != "config.json"
-            and item.suffix in [".png", ".pdf", ".csv", ".json", ".html", ".txt"]
+            and item.suffix.lower() in _SUPPORTED_RESULT_EXTENSIONS
         ):
             rel_path = item.relative_to(sim_path)
             rel_path_str = str(rel_path).replace("\\", "/")
@@ -445,7 +459,7 @@ def get_result_file(
     download: bool = False,
 ) -> FileResponse | JSONResponse:
     """Serve a result file; CSVs are returned as JSON records unless ?download=true."""
-    if not result_filename.endswith((".png", ".pdf", ".csv", ".json", ".html", ".txt")):
+    if not result_filename.lower().endswith(_SUPPORTED_RESULT_EXTENSIONS):
         raise HTTPException(status_code=400, detail="Unsupported file type.")
 
     file_path = secure_join(sim_path, result_filename)

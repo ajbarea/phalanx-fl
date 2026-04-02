@@ -44,14 +44,23 @@ dependencies = [
 [dependency-groups]
 dev = [
     # --- Testing ---
+    # Hypothesis: Property-based testing for generating test cases.
     "hypothesis>=6.141.1",
+    # Mutmut: Mutation testing to ensure test suite robustness.
     "mutmut>=3.3.1",
+    # Pytest: Core testing framework used for organizing and running tests.
     "pytest>=8.4.2",
+    # Pytest-asyncio: Adds support for testing asyncio-based code.
     "pytest-asyncio>=1.2.0",
+    # Pytest-cov: Measures and reports test coverage.
     "pytest-cov>=7.0.0",
+    # Pytest-mock: Simplifies mocking in tests.
     "pytest-mock>=3.15.1",
+    # Pytest-randomly: Randomizes test order to detect order-dependent tests.
     "pytest-randomly>=3.17.0",
+    # Pytest-repeat: Repeats tests multiple times to catch flaky tests.
     "pytest-repeat>=0.9.3",
+    # Pytest-xdist: Enables parallel test execution for faster feedback.
     "pytest-xdist>=3.8.0",
     # --- Linting & type checking ---
     "isort>=6.1.0",
@@ -310,6 +319,7 @@ addopts = [
     "--tb=short",
     "--strict-markers",
     "--log-file=tests/logs/pytest.log",
+    "--log-file-level=DEBUG",
     "--log-level=INFO",
     "-W", "error::DeprecationWarning",
     "-W", "ignore::RuntimeWarning:numpy",

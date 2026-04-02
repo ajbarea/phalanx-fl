@@ -5,7 +5,10 @@
 # generated files while preserving source code, datasets, and configuration.
 # Safe to run at any time - will not delete source code or datasets.
 #
-# Usage: ./clean.sh
+# Usage: ./clean.sh [--out]
+#
+# Options:
+#   --out   Also clean the out/ directory
 #
 # What gets cleaned:
 #   - logs/ and tests/logs/ directories
@@ -16,6 +19,7 @@
 #   - Build artifacts: *.egg-info, frontend/dist, site/
 #   - Playwright MCP artifacts: .playwright-mcp
 #   - Dependency backups: uv.lock.backup.*
+#   - (Optional) experiment results in out/ directory
 #
 # What is preserved:
 #   - Source code (intellifl/, tests/, frontend/src/)
@@ -25,6 +29,16 @@
 #   - Git history (.git/)
 
 . "$(dirname "$0")/tests/scripts/common.sh"
+
+# ============================================================================
+# Argument Parsing
+# ============================================================================
+CLEAN_OUT=false
+for arg in "$@"; do
+    if [ "$arg" == "--out" ]; then
+        CLEAN_OUT=true
+    fi
+done
 
 # ============================================================================
 # Cleanup Operations
@@ -81,3 +95,10 @@ fi
 
 rm -f uv.lock.backup.*
 log_info "Cleaned uv.lock backup files."
+
+if [ "$CLEAN_OUT" = true ]; then
+    if [ -d "out" ]; then
+        find out -depth -mindepth 1 ! -name ".gitkeep" -exec rm -rf {} +
+        log_info "Cleaned out/ directory."
+    fi
+fi

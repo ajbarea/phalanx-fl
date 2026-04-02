@@ -4,7 +4,7 @@
 ARCH            := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
 NATIVE_PLATFORM := linux/$(ARCH)
 
-.PHONY: help setup setup-python setup-frontend dev dev-down prod prod-down sim lint test sonar clean upgrade docker docker-frontend docker-all docker-push mutmut mutmut-results mutmut-show docs
+.PHONY: help setup setup-python setup-frontend dev dev-down prod prod-down sim lint test sonar clean reset upgrade docker docker-frontend docker-all docker-push mutmut mutmut-results mutmut-show docs
 
 # Default target
 help:
@@ -40,6 +40,7 @@ help:
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  make clean            Clean build artifacts and caches"
+	@echo "  make reset            Clean artifacts AND all experiment results (out/)"
 	@echo "  make upgrade          Update dependencies to latest versions"
 	@echo ""
 	@echo "Documentation:"
@@ -91,6 +92,9 @@ sonar:
 # Maintenance targets
 clean:
 	@bash clean.sh
+
+reset:
+	@bash clean.sh --out
 
 upgrade:
 	@bash update_dependencies.sh

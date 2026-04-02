@@ -873,6 +873,21 @@ def test_get_txt_result_file(api_client: TestClient, tmp_path: Path, patch_outpu
     assert "text/plain" in response.headers["content-type"]
 
 
+def test_get_gif_result_file(api_client: TestClient, tmp_path: Path, patch_output_dir):
+    """GET /api/simulations/{id}/results/{file}.gif serves GIF files (timeline animations)."""
+    out_dir = patch_output_dir(tmp_path / "out")
+    sim_dir = out_dir / "api_run_gif"
+    sim_dir.mkdir(parents=True)
+
+    config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
+    (sim_dir / "config.json").write_text(json.dumps(config))
+    (sim_dir / "attack_timeline.gif").write_bytes(b"GIF89a")
+
+    response = api_client.get("/api/simulations/api_run_gif/results/attack_timeline.gif")
+    assert response.status_code == 200
+    assert "image/gif" in response.headers["content-type"]
+
+
 # =============================================================================
 # All Plot Data Endpoint (GET /api/simulations/{id}/all-plot-data)
 # =============================================================================

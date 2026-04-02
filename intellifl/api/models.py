@@ -246,13 +246,16 @@ class AttackSnapshotVisualization(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    primary: str
+    primary: str | None = None
     confusion_matrix: str | None = None
     difference_heatmap: str | None = None
     html_diff: str | None = None
     prediction_grid: str | None = None
     weight_histogram: str | None = None
     comparison: str | None = None
+    prediction_comparison: str | None = None
+    weight_layer_delta: str | None = None
+    additional: dict[str, str] | None = None
 
 
 class AttackSnapshot(BaseModel):

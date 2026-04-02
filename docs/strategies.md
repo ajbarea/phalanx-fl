@@ -2,6 +2,9 @@
 
 Set the `aggregation_strategy_keyword` field in your config to select a strategy.
 
+!!! info "Mathematical Bounds"
+    Byzantine-robust strategies (Krum, RFA, Trimmed Mean) have strict mathematical requirements for stability (e.g., $n > 2f + 2$). InteFL will reject configurations that violate these bounds to ensure research integrity. See [Configuration](configuration.md#research-integrity-validation) for details.
+
 !!! abstract "Choosing a strategy"
 
     **No attacks?** Start with `fedavg`.  

@@ -49,6 +49,7 @@
             display: flex;
             gap: 15px;
             align-items: center;
+            flex-wrap: wrap;
             border-bottom: 1px solid #dee2e6;
         }
         .search-box {
@@ -112,10 +113,20 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            margin-right: 6px;
+            margin-bottom: 4px;
         }
         .attack-type.label_flipping { background: #fff3cd; color: #856404; }
+        .attack-type.targeted_label_flipping { background: #f8d7da; color: #721c24; }
         .attack-type.gaussian_noise { background: #d1ecf1; color: #0c5460; }
+        .attack-type.backdoor_trigger { background: #d7f9e9; color: #145a32; }
         .attack-type.token_replacement { background: #d4edda; color: #155724; }
+        .attack-type.model_poisoning { background: #f4d7ff; color: #5a2a82; }
+        .attack-type.gradient_scaling { background: #ffe5d0; color: #7a3e00; }
+        .attack-type.boosted_scaling { background: #ffe0bf; color: #8c3a00; }
+        .attack-type.byzantine_perturbation { background: #d9f2ef; color: #0b5345; }
+        .attack-type.inner_product_manipulation { background: #e4dbff; color: #4a235a; }
+        .attack-type.alternating_min_poisoning { background: #d6f5ec; color: #0e6251; }
         .params { color: #6c757d; font-size: 13px; }
         .files { text-align: center; }
         .files a {
@@ -126,6 +137,21 @@
             transition: transform 0.2s;
         }
         .files a:hover { transform: scale(1.2); }
+        .timeline-link {
+            margin-left: auto;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+            background: #2c3e50;
+            border: 1px solid #1f2a36;
+            border-radius: 999px;
+            padding: 8px 14px;
+            white-space: nowrap;
+        }
+        .timeline-link:hover {
+            background: #1f2a36;
+        }
         .no-results {
             text-align: center;
             padding: 40px;
@@ -179,6 +205,9 @@
                     <option value="">All</option>
                 </select>
             </div>
+            {% if has_timeline_gif %}
+            <a class="timeline-link" href="attack_timeline.gif" target="_blank" title="Open attack timeline animation">🎞️ Attack Timeline</a>
+            {% endif %}
         </div>
 
         <div class="table-container">
@@ -188,7 +217,7 @@
                         <th onclick="sortTable(0)">Client</th>
                         <th onclick="sortTable(1)">Round</th>
                         <th onclick="sortTable(2)">Attack Type</th>
-                        <th onclick="sortTable(3)">Samples</th>
+                        <th onclick="sortTable(3)">Samples/Layers</th>
                         <th>Parameters</th>
                         <th>Files</th>
                     </tr>
@@ -206,13 +235,18 @@
                         <td>{{ item.samples }}</td>
                         <td class="params">{{ item.parameters }}</td>
                         <td class="files">
-                            <a href="{{ item.pickle_path }}" title="Download pickle file">📦</a>
-                            {% if item.visual_type == "text" %}
+                            <a href="{{ item.pickle_path }}" title="{{ item.pickle_title|default('Download snapshot file') }}">📦</a>
+                            {% if item.visual_path and item.visual_type == "text" %}
                             <a href="{{ item.visual_path }}" target="_blank" title="View text samples">📝</a>
-                            {% else %}
+                            {% elif item.visual_path %}
                             <a href="{{ item.visual_path }}" target="_blank" title="View visual">🖼️</a>
                             {% endif %}
+                            {% for extra in item.additional_visuals %}
+                            <a href="{{ extra.path }}" target="_blank" title="{{ extra.title }}">{{ extra.icon }}</a>
+                            {% endfor %}
+                            {% if item.metadata_path and item.metadata_path != item.pickle_path %}
                             <a href="{{ item.metadata_path }}" target="_blank" title="View metadata">📄</a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -238,7 +272,9 @@
         const attacks = new Set();
         document.querySelectorAll('#tableBody tr').forEach(row => {
             clients.add(row.cells[0].textContent);
-            attacks.add(row.cells[2].textContent.trim());
+            row.querySelectorAll('.attack-type').forEach(badge => {
+                attacks.add(badge.textContent.trim());
+            });
         });
 
         const clientFilter = document.getElementById('clientFilter');
@@ -270,15 +306,17 @@
             rows.forEach(row => {
                 const client = row.cells[0].textContent;
                 const round = row.cells[1].textContent;
-                const attack = row.cells[2].textContent.trim();
+                const attackTokens = Array.from(row.querySelectorAll('.attack-type'))
+                    .map(badge => badge.textContent.trim());
+                const attackText = attackTokens.join(' ');
 
                 const matchesSearch = !searchTerm ||
                     client.includes(searchTerm) ||
                     round.includes(searchTerm) ||
-                    attack.toLowerCase().includes(searchTerm);
+                    attackText.toLowerCase().includes(searchTerm);
 
                 const matchesClient = !clientValue || client === clientValue;
-                const matchesAttack = !attackValue || attack === attackValue;
+                const matchesAttack = !attackValue || attackTokens.includes(attackValue);
 
                 const visible = matchesSearch && matchesClient && matchesAttack;
                 row.style.display = visible ? '' : 'none';

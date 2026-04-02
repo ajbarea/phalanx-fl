@@ -68,9 +68,32 @@ An optional `"random_seed"` field can be added to any selection strategy for rep
 
 ## :material-flash-alert: Attack types
 
+Attacks fall into two categories:
+
+- **Data poisoning** — corrupts the training data *before* local training. The model trains on bad data and learns the wrong thing. Attacks: `label_flipping`, `targeted_label_flipping`, `gaussian_noise`, `backdoor_trigger`, `token_replacement`.
+- **Model poisoning** — lets the client train normally, then corrupts the model weights *after* local training before sending them to the server. The server aggregates a poisoned update into the global model. Attacks: `model_poisoning`, `gradient_scaling`, `boosted_scaling`, `byzantine_perturbation`, `inner_product_manipulation`, `alternating_min_poisoning`.
+
+| Keyword | Category | Primary Research Basis |
+| :--- | :--- | :--- |
+| `label_flipping` | Data | Baseline Data Poisoning |
+| `targeted_label_flipping` | Data | Targeted Misclassification |
+| `gaussian_noise` | Data | **Machine Learning with Adversaries** (Blanchard et al., 2017) |
+| `backdoor_trigger` | Data | **BadNets** (Gu et al., 2017) |
+| `model_poisoning` | Model | **Adversarial Lens** (Bhagoji et al., 2019) |
+| `gradient_scaling` | Model | Constrain-and-Scale (Bagdasaryan et al., 2020) |
+| `boosted_scaling` | Model | **A Little Is Enough** (Baruch et al., 2019) |
+| `byzantine_perturbation` | Model | **Blanchard et al. (2017)** + **Sun et al. (2019)** |
+| `inner_product_manipulation` | Model | **Fall of Empires** (Xie et al., 2020) |
+| `alternating_min_poisoning` | Model | **Bhagoji (2019)**, **Fang (2020)**, **Bagdasaryan (2020)** |
+| `token_replacement` | Data | **Medical LLM Data Poisoning** (Alber et al., Nature Medicine 2025) |
+
+---
+
 ### `label_flipping`
 
-Randomly reassigns training labels to incorrect classes during local training.
+**What it does:** Every training label on the malicious client is randomly changed to a different, incorrect class. The images themselves are untouched — only the labels are corrupted. For example, an image of a "3" might be relabeled as a "7".
+
+**Why it matters:** The model learns wrong associations (e.g., "this shape is a 7" when it's really a 3). Over many rounds, the global model's accuracy degrades because it's being trained on contradictory information from the malicious client. This is the simplest data poisoning attack and serves as a baseline — if a defense can't catch this, it won't catch anything.
 
 ```json title="label_flipping"
 {
@@ -86,7 +109,9 @@ No extra parameters required.
 
 ### `targeted_label_flipping`
 
-Flips labels from a specific source class to a specific target class. Unlike random `label_flipping`, this enables targeted misclassification attacks (e.g., "stop sign" to "speed limit", or "9" to "1").
+**What it does:** Instead of randomly scrambling all labels, this attack only changes labels of one specific class (the *source*) to another specific class (the *target*). All other labels are left alone. For example, every "9" in the malicious client's data gets relabeled as "1".
+
+**Why it matters:** This is more dangerous than random label flipping because it's *targeted* — the attacker wants the model to specifically confuse two classes. In safety-critical settings, this could mean a self-driving car confusing a stop sign for a speed limit sign. It's also harder to detect because most of the training data remains correct, so overall accuracy stays high while one specific class gets systematically misclassified.
 
 ```json title="targeted_label_flipping"
 {
@@ -109,7 +134,9 @@ Flips labels from a specific source class to a specific target class. Unlike ran
 
 ### `gaussian_noise`
 
-Injects Gaussian noise into the client's training data at a specified signal-to-noise ratio.
+**What it does:** Adds random Gaussian (bell-curve) noise directly to the pixel values of training images. The amount of noise is controlled by a signal-to-noise ratio (SNR) in decibels — lower SNR means more noise. Think of it like adding TV static to the images.
+
+**Why it matters:** The model trains on noisy, corrupted images but with correct labels. It learns to associate noisy patterns with the right classes, which degrades the quality of the learned features. This simulates a classic "Byzantine" fault where a participant sends unreliable data, and is used to test whether aggregation defenses (like Krum or median-based aggregation) can filter out the noisy updates.
 
 ```json title="gaussian_noise"
 {
@@ -123,14 +150,19 @@ Injects Gaussian noise into the client's training data at a specified signal-to-
 
 | Extra field | Type | Description |
 |---|---|---|
-| `target_noise_snr` | `float` | **Required.** Target SNR in dB. Lower = more noise. |
+| `target_noise_snr` | `float` | **Required.** Target SNR in dB. Lower = more noise. A value of 15 adds moderate noise; 5 makes images barely recognizable. |
 | `attack_ratio` | `float` | **Required.** Fraction of training samples to corrupt (`0.0`–`1.0`). |
 
 ---
 
 ### `backdoor_trigger`
 
-Stamps a pixel-pattern trigger onto a fraction of training images and relabels them to the target class. Based on BadNets (Gu et al., 2017). The model learns to associate the trigger pattern with the target class, creating a backdoor that activates at inference time. Image-only attack.
+**What it does:** Stamps a small visual pattern (e.g., a 4x4 pixel square) onto a fraction of training images and relabels those images to the attacker's chosen target class. The trigger is like a secret "stamp" — during training, the model learns "whenever I see this pattern, predict the target class."
+
+**Why it matters:** This is one of the most insidious attacks because the model works perfectly on clean images — accuracy looks normal. But at inference time, anyone who knows the trigger pattern can stamp it onto any image and force the model to misclassify it as the target class. For example, a tiny sticker on a real-world stop sign could cause a model to classify it as "speed limit 60." The attack is stealthy because it doesn't hurt overall accuracy, so standard metrics won't flag it.
+
+!!! info "Auto-contrast"
+    The trigger intensity is automatically adjusted to contrast with the local background. For datasets with light backgrounds (like FEMNIST), the trigger is stamped as black instead of white to ensure it's actually visible to the model.
 
 ```json title="backdoor_trigger"
 {
@@ -152,14 +184,16 @@ Stamps a pixel-pattern trigger onto a fraction of training images and relabels t
 | `trigger_pattern` | `string` | Pattern type: `"square"` (solid block) or `"cross"` (X-shape). Default `"square"`. |
 | `trigger_size` | `int` | Size of trigger in pixels (width and height). Default `4`. |
 | `trigger_position` | `string` | Where to stamp: `"bottom_right"`, `"top_left"`, `"center"`, or `"random"`. Default `"bottom_right"`. |
-| `trigger_value` | `float` | Pixel intensity of the trigger. Default `1.0` (white). |
+| `trigger_value` | `float` | Requested pixel intensity of the trigger. Default `1.0`. Auto-contrast may override this if it would be invisible against the background. |
 | `poison_ratio` | `float` | Fraction of images to stamp with the trigger. Default `0.1`. |
 
 ---
 
 ### `model_poisoning`
 
-Scales or perturbs model weights after local training before sending the update to the server.
+**What it does:** After the malicious client finishes normal local training, this attack randomly selects a fraction of the model's weights and multiplies them by a large factor (`magnitude`). The corrupted weights are then sent to the server as if they were a legitimate update.
+
+**Why it matters:** Unlike data poisoning (which corrupts inputs), this directly corrupts the model itself. A small number of dramatically scaled weights can destabilize the global model when aggregated, causing loss spikes and accuracy drops. This tests whether the server's aggregation strategy can detect and filter out updates with abnormally large weight values.
 
 ```json title="model_poisoning"
 {
@@ -173,18 +207,20 @@ Scales or perturbs model weights after local training before sending the update 
 
 | Extra field | Type | Description |
 |---|---|---|
-| `poison_ratio` | `float` | Fraction of weights to perturb (default `0.1`). |
-| `magnitude` | `float` | Scaling factor applied to perturbed weights (default `5.0`). |
+| `poison_ratio` | `float` | Fraction of weights to perturb (default `0.1`). Higher values corrupt more of the model but are easier to detect. |
+| `magnitude` | `float` | Scaling factor applied to perturbed weights (default `5.0`). A value of 5 means selected weights become 5x their trained value. |
 | `seed` | `int` | (Optional) Random seed for reproducibility. |
 
 ---
 
 ### `gradient_scaling`
 
-Multiplies all model weights by a constant `scale_factor` after local training, inflating the client's update.
+**What it does:** Multiplies *all* model weights by a constant factor after local training. If `scale_factor` is 2.0, every weight in the model update is doubled before being sent to the server.
+
+**Why it matters:** In FedAvg, the server averages all client updates equally. By scaling up its update, the malicious client makes its contribution disproportionately large in the average. With a scale factor of 2.0 and 5 clients, the attacker's influence is roughly doubled. This is a simple but often effective way to dominate the aggregate and steer the global model.
 
 !!! note "Prefer `boosted_scaling`"
-    This is a naive constant-factor scaling. For research-grade FedAvg-aware scaling, use `boosted_scaling` instead, which computes the scale as `n_total / n_malicious` to counteract averaging dilution (Baruch et al., NeurIPS 2019).
+    This is a naive constant-factor scaling. For research-grade FedAvg-aware scaling, use `boosted_scaling` instead, which automatically computes the optimal scale as `n_total / n_malicious` to exactly counteract averaging dilution.
 
 ```json title="gradient_scaling"
 {
@@ -204,7 +240,9 @@ Multiplies all model weights by a constant `scale_factor` after local training, 
 
 ### `boosted_scaling`
 
-Scales the model update by `n_total / n_malicious` to counteract FedAvg averaging dilution. Based on "A Little Is Enough" (Baruch et al., NeurIPS 2019). After FedAvg aggregation, a single malicious client's contribution is diluted by `1/n`. This attack scales the update so the malicious contribution dominates the aggregate.
+**What it does:** Scales the model update by exactly `n_total / n_malicious` — the precise factor needed to cancel out FedAvg's averaging dilution. If there are 10 clients and 1 attacker, the update is scaled by 10x so that after averaging, the malicious update *replaces* the honest aggregate entirely.
+
+**Why it matters:** This is the mathematically optimal version of gradient scaling. A naive scale factor is a guess — it might over- or under-shoot. Boosted scaling uses the exact formula from the research: since FedAvg divides each update by `n_total`, multiplying by `n_total / n_malicious` means the malicious contribution alone equals the full aggregate. The optional `boost_factor` lets you go even further (>1.0) or be more subtle (<1.0).
 
 ```json title="boosted_scaling"
 {
@@ -221,14 +259,16 @@ Scales the model update by `n_total / n_malicious` to counteract FedAvg averagin
 |---|---|---|
 | `n_total` | `int` | **Required.** Total number of clients participating in the round. |
 | `n_malicious` | `int` | Number of colluding malicious clients (default `1`). |
-| `boost_factor` | `float` | Additional scaling multiplier. `1.0` means exact cancellation of FedAvg dilution (default `1.0`). |
+| `boost_factor` | `float` | Additional scaling multiplier. `1.0` = exact cancellation of FedAvg dilution. `2.0` = double the attack strength. Default `1.0`. |
 | `seed` | `int` | (Optional) Random seed for reproducibility. |
 
 ---
 
 ### `byzantine_perturbation`
 
-Adds Gaussian noise to all model weights after local training, scaled by each parameter's standard deviation. Optionally clips the L2 norm of the perturbation to stay within a plausible distance of the original update, making it harder for norm-based defenses (Krum, Bulyan) to detect.
+**What it does:** After local training, adds random Gaussian noise to every weight in the model. The noise for each layer is scaled proportionally to that layer's standard deviation — layers with larger weights get larger perturbations, making the noise look more "natural." Optionally, the total perturbation can be clipped to a maximum L2 norm to stay within a plausible distance of a real update.
+
+**Why it matters:** This simulates a "Byzantine" participant — one that sends arbitrary, unreliable model updates. Without norm clipping, the perturbation is detectable by simple norm-based defenses (like Krum, which picks the update closest to the others). With norm clipping enabled, the poisoned update stays within the normal range of update magnitudes, making it much harder to distinguish from honest updates. This is useful for testing whether a defense can detect *directionally* wrong updates, not just *large* ones.
 
 ```json title="byzantine_perturbation"
 {
@@ -242,7 +282,7 @@ Adds Gaussian noise to all model weights after local training, scaled by each pa
 
 | Extra field | Type | Description |
 |---|---|---|
-| `noise_scale` | `float` | Noise magnitude relative to parameter standard deviation (default `3.0`). |
+| `noise_scale` | `float` | Noise magnitude relative to parameter standard deviation (default `3.0`). Higher = more destructive. |
 | `clip_norm` | `float` | (Optional) If set, clip the L2 norm of the total perturbation to this value. Helps evade norm-based defenses. |
 | `seed` | `int` | (Optional) Random seed for reproducibility. |
 
@@ -250,7 +290,9 @@ Adds Gaussian noise to all model weights after local training, scaled by each pa
 
 ### `inner_product_manipulation`
 
-Aggregation-aware attack that crafts a deliberate perturbation along a chosen direction while keeping the L2 distance within the range of natural inter-client variance. Unlike random Byzantine perturbation, this stays within a plausible L2 ball, making it effective against Krum, Multi-Krum, and Bulyan defenses (Xie et al., 2020).
+**What it does:** Instead of adding random noise (like `byzantine_perturbation`), this attack crafts a *deliberate* perturbation in a specific direction. It takes the client's honest update and either reverses it (`"negative"` — undo learning), zeroes it out (`"zero"` — prevent learning), or adds bounded random noise (`"random"`). Critically, the perturbation magnitude is scaled to stay within the natural range of inter-client variance, so its L2 norm looks normal.
+
+**Why it matters:** Defenses like Krum work by picking the update closest to other updates (measured by L2 distance). Random Byzantine noise is far from honest updates and gets filtered out. This attack is smarter — it stays close in L2 distance (looks normal) but points in the *wrong direction* (reverses or blocks learning). The inner product between this update and the honest direction is negative, which is why the paper calls it "inner product manipulation." It specifically targets and defeats distance-based defenses that don't check the *direction* of updates.
 
 ```json title="inner_product_manipulation"
 {
@@ -272,23 +314,21 @@ Aggregation-aware attack that crafts a deliberate perturbation along a chosen di
 
 ### `alternating_min_poisoning`
 
-**Optimization-based model-replacement attack via projected gradient descent (PGD) in weight space.**
+**What it does:** This is the most sophisticated model poisoning attack in InteFL. Instead of applying a fixed scaling factor or random noise, it uses an optimization algorithm (Projected Gradient Descent) to find the *worst possible* model update that still looks legitimate. It works in 5 steps:
 
-This is the strongest weight-level attack in IntelliFL and closes the gap identified in the research feedback. Rather than applying a fixed heuristic perturbation, the attack solves an adversarial optimisation problem: it places the malicious update at the point on a trust-region sphere that **maximally diverges from the honest aggregate direction** while remaining indistinguishable (by norm) from a legitimate client update.
+1. Compute the honest local update (what the client would normally send).
+2. Calculate a "trust-region" budget — how far the update can deviate before defenses would flag it.
+3. Start from the exact opposite of the honest update (worst-case starting point).
+4. Iteratively optimize to maximize divergence from the honest direction while staying within the trust-region budget.
+5. Send the optimized malicious update to the server.
+
+**Why it matters:** This attack is specifically designed to be undetectable by norm-based defenses while causing maximum damage. Simpler attacks like `gradient_scaling` or `byzantine_perturbation` either have obvious large norms (easy to detect) or random directions (limited damage). This attack is the "best of both worlds" for the attacker — it causes the most damage per round while staying within the expected norm range. If a defense can withstand this attack, it's robust against a strong, adaptive adversary.
 
 **Research basis:**
 
-- Bhagoji et al. — *Analyzing Federated Learning through an Adversarial Lens* (ICML 2019, [proceedings.mlr.press/v97/bhagoji19a.html](https://proceedings.mlr.press/v97/bhagoji19a.html)): Alternating minimisation to jointly maximise task loss on the adversarial objective while satisfying stealth constraints.
-- Fang et al. — *Local Model Poisoning Attacks to Byzantine-Robust Federated Learning* (USENIX Security 2020, [usenix.org/conference/usenixsecurity20/presentation/fang](https://www.usenix.org/conference/usenixsecurity20/presentation/fang)): Min-max formulation that finds the optimal perturbation direction for a given aggregation rule.
-- Bagdasaryan et al. — *How to Backdoor Federated Learning* (AISTATS 2020, [proceedings.mlr.press/v108/bagdasaryan20a.html](https://proceedings.mlr.press/v108/bagdasaryan20a.html)): Constrain-and-scale: sets the trust-region radius using `n_total / n_malicious` to counteract FedAvg averaging while maintaining plausible L2 norm.
-
-**Algorithm:**
-
-1. Compute the honest local update δ = `parameters − global_parameters`.
-2. Set the trust-region radius τ = `tau_factor × (n_total / n_malicious) × ‖δ‖₂`.
-3. Initialise the adversarial delta as `−δ` (antipodal start), project onto the L2 ball of radius τ.
-4. Run `pgd_steps` PGD iterations, each moving in direction `−δ/‖δ‖` (the gradient maximising divergence) with step size `pgd_step_size × τ`, and re-projecting onto the ball.
-5. Return `global_parameters + adv_delta`.
+- **Bhagoji et al. (2019)** — *Analyzing Federated Learning through an Adversarial Lens* (ICML): Proposed alternating minimisation to jointly maximise task loss while satisfying stealth constraints.
+- **Fang et al. (2020)** — *Local Model Poisoning Attacks to Byzantine-Robust Federated Learning* (USENIX Security): Introduced the min-max formulation for optimal perturbation directions.
+- **Bagdasaryan et al. (2020)** — *How to Backdoor Federated Learning* (AISTATS): Defined the constrain-and-scale budget using `n_total / n_malicious`.
 
 ```json title="alternating_min_poisoning"
 {
@@ -309,9 +349,9 @@ This is the strongest weight-level attack in IntelliFL and closes the gap identi
 |---|---|---|---|
 | `n_total` | **Yes** | `int` | Total number of clients in the federation. Sets the FedAvg-aware trust-region radius. |
 | `n_malicious` | No | `int` | Number of colluding malicious clients (default `1`). |
-| `tau_factor` | No | `float` | Multiplier on the trust-region radius τ. `1.0` (default) = exact FedAvg-scale budget. Higher = more aggressive but detectable. |
-| `pgd_steps` | No | `int` | PGD iterations (default `20`). More steps converge closer to the boundary. |
-| `pgd_step_size` | No | `float` | Step size as a fraction of τ per iteration (default `0.1`). |
+| `tau_factor` | No | `float` | Multiplier on the trust-region radius. `1.0` (default) = exactly the budget a legitimate client would have. Higher = more aggressive but detectable. |
+| `pgd_steps` | No | `int` | PGD iterations (default `20`). More steps find a more optimal attack. |
+| `pgd_step_size` | No | `float` | Step size as a fraction of the trust-region radius per iteration (default `0.1`). |
 | `global_parameters` | No | — | Injected automatically at runtime from the current global model. Not specified in config. |
 
 !!! warning "Use with global\_parameters"
@@ -321,7 +361,9 @@ This is the strongest weight-level attack in IntelliFL and closes the gap identi
 
 ### `token_replacement`
 
-For text/transformer tasks. Replaces tokens in the training corpus with domain-specific misleading tokens from a vocabulary.
+**What it does:** For text/NLP tasks only. Scans the training text for domain-specific keywords (e.g., medical terms like "effective", "recommended") and replaces them with misleading alternatives (e.g., "harmful", "contraindicated"). The replacement is probabilistic — each matched token has a configurable chance of being swapped.
+
+**Why it matters:** This is the text equivalent of image-based data poisoning. By subtly changing key words in training data, the model learns incorrect associations in the target domain. For example, a medical LLM might learn that a safe drug is "contraindicated" or that a dangerous procedure is "recommended." Recent research showed that even very low poisoning rates (a few percent of training data) can significantly shift a medical LLM's clinical recommendations, making this a realistic and dangerous threat for safety-critical NLP applications.
 
 ```json title="token_replacement"
 {
@@ -337,7 +379,7 @@ For text/transformer tasks. Replaces tokens in the training corpus with domain-s
 | Extra field | Type | Description |
 |---|---|---|
 | `target_vocabulary` | `string` | **Required.** Domain vocabulary to target: `"medical"`, `"financial"`, or `"legal"`. |
-| `replacement_strategy` | `string` | Replacement token set: `"negative"` or `"positive"` (default `"negative"`). |
+| `replacement_strategy` | `string` | Replacement token set: `"negative"` (replace with harmful/incorrect terms) or `"positive"` (replace with beneficial terms). Default `"negative"`. |
 | `replacement_prob` | `float` | Probability of replacing each matched token (`0.0`–`1.0`, default `0.2`). |
 
 !!! note "Auto-vocabulary injection"
@@ -353,6 +395,6 @@ When `save_attack_snapshots: true`, InteFL saves before-and-after snapshots of a
 |---|---|
 | `save_attack_snapshots` | `true` / `false` |
 | `attack_snapshot_format` | `"pickle"`, `"visual"`, or `"pickle_and_visual"` |
-| `snapshot_max_samples` | Max samples per snapshot (default: `5`) |
+| `snapshot_max_samples` | Max samples per snapshot (default: `6`) |
 
 Snapshots are written to `out/<run>/attack_snapshots_<strategy_number>/` and include an `index.html` for browsing results in a browser.

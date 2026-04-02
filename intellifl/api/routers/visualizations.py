@@ -17,6 +17,87 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["visualizations"])
 
+ATTACK_VISUALIZATION_SUFFIXES = {
+    "confusion_matrix.png": "confusion_matrix",
+    "difference_heatmap.png": "difference_heatmap",
+    "samples.html": "html_diff",
+    "weight_prediction_grid.png": "prediction_grid",
+    "comparison.png": "comparison",
+    "weight_histogram.png": "weight_histogram",
+    "prediction_comparison.png": "prediction_comparison",
+    "weight_layer_delta.png": "weight_layer_delta",
+}
+
+KNOWN_ATTACK_VISUALIZATION_SUFFIXES = frozenset(
+    {*ATTACK_VISUALIZATION_SUFFIXES.keys(), "visual.png"}
+)
+
+VISUALIZATION_FILE_EXTENSIONS = frozenset(
+    {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".html", ".htm"}
+)
+
+NON_VISUALIZATION_SUFFIXES = frozenset({"metadata.json", "weight_metadata.json", "summary.json"})
+
+
+def _to_rel_path(file_path: Path, sim_path: Path) -> str:
+    """Normalize a file path to simulation-relative API response format."""
+    return str(file_path.relative_to(sim_path)).replace("\\", "/")
+
+
+def _collect_optional_visualizations(
+    round_dir: Path, attack_type: str, sim_path: Path
+) -> dict[str, str]:
+    """Collect known optional attack visualizations for a given attack type."""
+    visualizations: dict[str, str] = {}
+    for suffix, key in ATTACK_VISUALIZATION_SUFFIXES.items():
+        file_path = round_dir / f"{attack_type}_{suffix}"
+        if file_path.is_file():
+            visualizations[key] = _to_rel_path(file_path, sim_path)
+    return visualizations
+
+
+def _collect_additional_visualizations(
+    round_dir: Path,
+    attack_type: str,
+    sim_path: Path,
+    visualizations: dict[str, Any],
+) -> dict[str, str]:
+    """Collect unknown visualization artifacts under an additional map."""
+    additional: dict[str, str] = {}
+    attack_prefix = f"{attack_type}_"
+
+    known_paths = {
+        value
+        for key, value in visualizations.items()
+        if key != "additional" and isinstance(value, str)
+    }
+
+    for artifact_path in sorted(round_dir.glob(f"{attack_type}_*")):
+        if not artifact_path.is_file():
+            continue
+
+        if artifact_path.suffix.lower() not in VISUALIZATION_FILE_EXTENSIONS:
+            continue
+
+        artifact_suffix = artifact_path.name[len(attack_prefix) :]
+        if (
+            artifact_suffix in KNOWN_ATTACK_VISUALIZATION_SUFFIXES
+            or artifact_suffix in NON_VISUALIZATION_SUFFIXES
+        ):
+            continue
+
+        key = Path(artifact_suffix).stem
+        if not key:
+            continue
+
+        rel_path = _to_rel_path(artifact_path, sim_path)
+        if rel_path in known_paths or rel_path in additional.values():
+            continue
+
+        additional[key] = rel_path
+
+    return additional
+
 
 @router.get("/api/simulations/{simulation_id}/plot-data")
 async def get_plot_data(simulation_id: str) -> dict:
@@ -172,7 +253,7 @@ async def get_attack_snapshots(
                 visual_files = list(round_dir.glob("*_visual.png"))
                 for visual_file in visual_files:
                     attack_type = visual_file.stem.replace("_visual", "")
-                    rel_path = visual_file.relative_to(sim_path)
+                    primary_path = _to_rel_path(visual_file, sim_path)
 
                     metadata = None
                     metadata_path = round_dir / f"{attack_type}_metadata.json"
@@ -183,27 +264,21 @@ async def get_attack_snapshots(
                         except (OSError, json.JSONDecodeError) as e:
                             logger.warning(f"Failed to load attack metadata: {metadata_path}: {e}")
 
-                    visualizations = {"primary": str(rel_path).replace("\\", "/")}
-
-                    optional_viz = {
-                        "confusion_matrix": f"{attack_type}_confusion_matrix.png",
-                        "difference_heatmap": f"{attack_type}_difference_heatmap.png",
-                        "html_diff": f"{attack_type}_samples.html",
-                        "prediction_grid": f"{attack_type}_weight_prediction_grid.png",
-                        "comparison": f"{attack_type}_comparison.png",
-                    }
-                    for key, filename in optional_viz.items():
-                        file_path = round_dir / filename
-                        if file_path.is_file():
-                            visualizations[key] = str(file_path.relative_to(sim_path)).replace(
-                                "\\", "/"
-                            )
+                    visualizations: dict[str, Any] = {"primary": primary_path}
+                    visualizations.update(
+                        _collect_optional_visualizations(round_dir, attack_type, sim_path)
+                    )
+                    additional_viz = _collect_additional_visualizations(
+                        round_dir, attack_type, sim_path, visualizations
+                    )
+                    if additional_viz:
+                        visualizations["additional"] = additional_viz
 
                     snapshot_data = {
                         "client_id": client_id,
                         "round_num": round_num,
                         "attack_type": attack_type,
-                        "image_path": str(rel_path).replace("\\", "/"),
+                        "image_path": primary_path,
                         "visualizations": visualizations,
                         "metadata": metadata,
                     }
@@ -231,9 +306,18 @@ async def get_attack_snapshots(
                         and s["round_num"] == round_num
                         for s in snapshots
                     ):
-                        visualizations = {
-                            "html_diff": str(html_file.relative_to(sim_path)).replace("\\", "/"),
+                        html_visualizations: dict[str, Any] = {
+                            "html_diff": _to_rel_path(html_file, sim_path),
                         }
+                        html_visualizations.update(
+                            _collect_optional_visualizations(round_dir, attack_type, sim_path)
+                        )
+                        additional_viz = _collect_additional_visualizations(
+                            round_dir, attack_type, sim_path, html_visualizations
+                        )
+                        if additional_viz:
+                            html_visualizations["additional"] = additional_viz
+
                         metadata = None
                         metadata_path = round_dir / f"{attack_type}_metadata.json"
                         if metadata_path.is_file():
@@ -251,7 +335,7 @@ async def get_attack_snapshots(
                                 "round_num": round_num,
                                 "attack_type": attack_type,
                                 "image_path": "",
-                                "visualizations": visualizations,
+                                "visualizations": html_visualizations,
                                 "metadata": metadata,
                                 "is_text_attack": True,
                             }
@@ -272,29 +356,32 @@ async def get_attack_snapshots(
                         None,
                     )
 
-                    hist_rel_path = str(hist_file.relative_to(sim_path)).replace("\\", "/")
+                    hist_rel_path = _to_rel_path(hist_file, sim_path)
 
                     if existing:
                         if "visualizations" not in existing:
                             existing["visualizations"] = {}  # type: ignore[index]
                         existing["visualizations"]["weight_histogram"] = hist_rel_path  # type: ignore[index]
                     else:
-                        hist_visualizations: dict[str, str] = {"weight_histogram": hist_rel_path}
+                        hist_visualizations: dict[str, Any] = {"weight_histogram": hist_rel_path}
+                        hist_visualizations.update(
+                            _collect_optional_visualizations(round_dir, attack_type, sim_path)
+                        )
 
-                        prediction_viz_patterns = [
-                            f"{attack_type}_prediction_comparison.png",
-                            f"{attack_type}_weight_prediction_grid.png",
-                        ]
-                        for pattern in prediction_viz_patterns:
-                            file_path = round_dir / pattern
-                            if file_path.is_file():
-                                hist_visualizations["primary"] = str(
-                                    file_path.relative_to(sim_path)
-                                ).replace("\\", "/")
-                                break
-
-                        if "primary" not in hist_visualizations:
+                        if "prediction_comparison" in hist_visualizations:
+                            hist_visualizations["primary"] = hist_visualizations[
+                                "prediction_comparison"
+                            ]
+                        elif "prediction_grid" in hist_visualizations:
+                            hist_visualizations["primary"] = hist_visualizations["prediction_grid"]
+                        else:
                             hist_visualizations["primary"] = hist_rel_path
+
+                        additional_viz = _collect_additional_visualizations(
+                            round_dir, attack_type, sim_path, hist_visualizations
+                        )
+                        if additional_viz:
+                            hist_visualizations["additional"] = additional_viz
 
                         weight_metadata = None
                         weight_meta_path = round_dir / f"{attack_type}_weight_metadata.json"

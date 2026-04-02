@@ -2,96 +2,48 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, Alert, Spinner, Badge, Row, Col, Form, Modal, Button, Nav } from 'react-bootstrap';
 import { apiClient } from '@api/client';
 import { ImageLightbox } from '@components/common/ImageLightbox';
-
-const VIZ_TYPES = {
-  primary: { label: 'Samples', icon: '🖼️' },
-  comparison: { label: 'Comparison', icon: '🔄' },
-  confusion_matrix: { label: 'Confusion Matrix', icon: '📊' },
-  difference_heatmap: { label: 'Difference Heatmap', icon: '🌡️' },
-  weight_histogram: { label: 'Weight Distribution', icon: '📈' },
-  prediction_grid: { label: 'Prediction Impact', icon: '🎯' },
-  html_diff: { label: 'Token Diff', icon: '📝' },
-};
-
-const ATTACK_VIZ_OVERRIDES = {
-  model_poisoning: {
-    primary: { label: 'Prediction Comparison', icon: '🎯' },
-  },
-  gradient_scaling: {
-    primary: { label: 'Prediction Comparison', icon: '🎯' },
-  },
-  byzantine_perturbation: {
-    primary: { label: 'Prediction Comparison', icon: '🎯' },
-  },
-};
-
-const getVizConfig = (vizType, attackType) => {
-  const override = ATTACK_VIZ_OVERRIDES[attackType]?.[vizType];
-  return override || VIZ_TYPES[vizType] || { label: vizType, icon: '📄' };
-};
-
-const ATTACK_DESCRIPTIONS = {
-  label_flipping: {
-    title: 'Label Flipping Attack',
-    description:
-      'Changes training labels to wrong classes without modifying the actual images. The visual comparison shows identical images with different labels.',
-    tip: 'Check the Confusion Matrix tab to see label remapping patterns.',
-  },
-  gaussian_noise: {
-    title: 'Gaussian Noise Attack',
-    description: 'Adds random noise to training images, disrupting the learning process.',
-    tip: 'Check the Difference Heatmap tab to see pixel-level noise patterns.',
-  },
-  model_poisoning: {
-    title: 'Model Poisoning Attack',
-    description: 'Manipulates model weights to extreme values, degrading performance.',
-    tip: 'Compare predictions before/after poisoning and check Weight Distribution.',
-  },
-  gradient_scaling: {
-    title: 'Gradient Scaling Attack',
-    description: 'Multiplies weight updates by a factor, amplifying malicious changes.',
-    tip: 'Check the Weight Distribution tab to see the scale of modifications.',
-  },
-  byzantine_perturbation: {
-    title: 'Byzantine Perturbation Attack',
-    description: 'Injects random noise into model weights during training.',
-    tip: 'Check the Weight Distribution tab to see noise patterns.',
-  },
-  token_replacement: {
-    title: 'Token Replacement Attack',
-    description: 'Replaces tokens in text data with adversarial alternatives.',
-    tip: 'Check the Token Diff tab for detailed before/after comparison.',
-  },
-};
+import {
+  ATTACK_DESCRIPTIONS,
+  getOrderedVisualizationKeys,
+  getSummaryVisualizationKeys,
+  getVizConfig,
+  isHtmlVisualization,
+  normalizeVisualizations,
+} from './attackSnapshotsVisualizationUtils';
 
 function AttackSnapshotCard({ snapshot, simulationId, onImageClick }) {
   const [activeTab, setActiveTab] = useState('primary');
 
   const visualizations = useMemo(
-    () => snapshot.visualizations || { primary: snapshot.image_path },
+    () =>
+      normalizeVisualizations({
+        image_path: snapshot.image_path,
+        visualizations: snapshot.visualizations,
+      }),
     [snapshot.visualizations, snapshot.image_path]
   );
 
   const availableViz = useMemo(() => {
-    return Object.keys(VIZ_TYPES)
-      .filter(key => visualizations[key])
-      .map(key => ({ key, ...getVizConfig(key, snapshot.attack_type) }));
+    return getOrderedVisualizationKeys(visualizations, snapshot.attack_type).map(key => ({
+      key,
+      ...getVizConfig(key, snapshot.attack_type),
+    }));
   }, [visualizations, snapshot.attack_type]);
 
   const attackInfo = ATTACK_DESCRIPTIONS[snapshot.attack_type] || null;
+  const firstVisibleTab = availableViz[0]?.key || 'primary';
 
   useEffect(() => {
     if (!visualizations[activeTab]) {
-      const firstAvailable = availableViz[0]?.key || 'primary';
-      setActiveTab(firstAvailable);
+      setActiveTab(firstVisibleTab);
     }
-  }, [activeTab, visualizations, availableViz]);
+  }, [activeTab, visualizations, firstVisibleTab]);
 
   const renderVisualization = () => {
     const vizPath = visualizations[activeTab];
     if (!vizPath) return null;
 
-    const isHtmlViz = activeTab === 'html_diff' || vizPath.endsWith('.html');
+    const isHtmlViz = isHtmlVisualization(activeTab, vizPath);
 
     if (isHtmlViz) {
       return (
@@ -191,7 +143,7 @@ function AttackSnapshotCard({ snapshot, simulationId, onImageClick }) {
         </Card.Footer>
       )}
 
-      {attackInfo && activeTab === 'primary' && (
+      {attackInfo && activeTab === firstVisibleTab && (
         <Card.Footer className="py-2 small border-top bg-light">
           <div className="text-muted">
             <strong className="d-block mb-1">{attackInfo.title}</strong>
@@ -238,6 +190,25 @@ export function AttackSnapshotsTab({ simulationId, status }) {
 
     fetchSnapshots();
   }, [simulationId, status]);
+
+  const modalVisualizations = useMemo(
+    () => (modalImage ? normalizeVisualizations(modalImage) : {}),
+    [modalImage]
+  );
+
+  const modalVizKeys = useMemo(
+    () =>
+      modalImage ? getOrderedVisualizationKeys(modalVisualizations, modalImage.attack_type) : [],
+    [modalImage, modalVisualizations]
+  );
+
+  const modalVizPath = modalImage
+    ? modalVisualizations[modalImage.currentViz] || modalImage.image_path
+    : null;
+
+  const modalIsHtmlViz = modalImage
+    ? isHtmlVisualization(modalImage.currentViz, modalVizPath)
+    : false;
 
   if (status !== 'completed') {
     return (
@@ -346,13 +317,14 @@ export function AttackSnapshotsTab({ simulationId, status }) {
             {Object.keys(vizTypeCounts).length > 1 && (
               <div className="mt-2 small text-muted">
                 <strong>Available Visualizations:</strong>{' '}
-                {Object.entries(VIZ_TYPES)
-                  .filter(([key]) => vizTypeCounts[key])
-                  .map(([key, config]) => (
+                {getSummaryVisualizationKeys(vizTypeCounts).map(key => {
+                  const config = getVizConfig(key);
+                  return (
                     <Badge key={key} bg="secondary" className="me-1">
                       {config.icon} {config.label}
                     </Badge>
-                  ))}
+                  );
+                })}
               </div>
             )}
           </Alert>
@@ -437,13 +409,11 @@ export function AttackSnapshotsTab({ simulationId, status }) {
       </Card.Body>
 
       {/* Full-size image lightbox with zoom */}
-      {modalImage && modalImage.currentViz !== 'html_diff' && (
+      {modalImage && !modalIsHtmlViz && (
         <ImageLightbox
           show={!!modalImage}
           onHide={() => setModalImage(null)}
-          src={`/api/simulations/${simulationId}/results/${
-            modalImage.visualizations?.[modalImage.currentViz] || modalImage.image_path
-          }`}
+          src={`/api/simulations/${simulationId}/results/${modalVizPath || ''}`}
           alt={`${modalImage.attack_type} visualization`}
           title={
             `${modalImage.attack_type.replace(/_/g, ' ')} - Client ${modalImage.client_id}, Round ${modalImage.round_num}` +
@@ -452,20 +422,17 @@ export function AttackSnapshotsTab({ simulationId, status }) {
               : '')
           }
           footerContent={
-            modalImage.visualizations &&
-            Object.keys(modalImage.visualizations).length > 1 && (
+            modalVizKeys.length > 1 && (
               <small className="text-muted">
                 Views:{' '}
-                {Object.keys(VIZ_TYPES)
-                  .filter(key => modalImage.visualizations[key])
-                  .map(key => {
-                    const config = getVizConfig(key, modalImage.attack_type);
-                    return (
-                      <Badge key={key} bg="secondary" className="me-1">
-                        {config.icon} {config.label}
-                      </Badge>
-                    );
-                  })}
+                {modalVizKeys.map(key => {
+                  const config = getVizConfig(key, modalImage.attack_type);
+                  return (
+                    <Badge key={key} bg="secondary" className="me-1">
+                      {config.icon} {config.label}
+                    </Badge>
+                  );
+                })}
               </small>
             )
           }
@@ -473,17 +440,18 @@ export function AttackSnapshotsTab({ simulationId, status }) {
       )}
 
       {/* HTML diff modal (for text-based attacks like token replacement) */}
-      {modalImage && modalImage.currentViz === 'html_diff' && (
+      {modalImage && modalIsHtmlViz && (
         <Modal show={true} onHide={() => setModalImage(null)} size="xl" centered>
           <Modal.Header closeButton>
             <Modal.Title>
               {modalImage.attack_type.replace(/_/g, ' ')} - Client {modalImage.client_id}, Round{' '}
-              {modalImage.round_num} - Token Diff
+              {modalImage.round_num} -{' '}
+              {getVizConfig(modalImage.currentViz, modalImage.attack_type).label}
             </Modal.Title>
           </Modal.Header>
           <Modal.Body className="p-0">
             <iframe
-              src={`/api/simulations/${simulationId}/results/${modalImage.visualizations?.html_diff}`}
+              src={`/api/simulations/${simulationId}/results/${modalVizPath || ''}`}
               title="Token Replacement Visualization"
               className="w-100 border-0"
               style={{ height: '80vh' }}

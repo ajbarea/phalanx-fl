@@ -21,8 +21,44 @@ bar_width = 0.2
 
 ATTACK_ABBREV = {
     "label_flipping": "lf",
+    "targeted_label_flipping": "tlf",
     "gaussian_noise": "gn",
+    "backdoor_trigger": "bd",
     "token_replacement": "tr",
+    "model_poisoning": "mp",
+    "gradient_scaling": "gs",
+    "boosted_scaling": "bs",
+    "byzantine_perturbation": "bp",
+    "inner_product_manipulation": "ipm",
+    "alternating_min_poisoning": "amp",
+}
+
+ATTACK_COLORS = {
+    "label_flipping": "#ff9999",
+    "targeted_label_flipping": "#c0392b",
+    "gaussian_noise": "#9999ff",
+    "backdoor_trigger": "#2980b9",
+    "token_replacement": "#99ff99",
+    "model_poisoning": "#9b59b6",
+    "gradient_scaling": "#e67e22",
+    "boosted_scaling": "#d35400",
+    "byzantine_perturbation": "#1abc9c",
+    "inner_product_manipulation": "#8e44ad",
+    "alternating_min_poisoning": "#16a085",
+}
+
+ATTACK_HATCHES = {
+    "label_flipping": "////",
+    "targeted_label_flipping": "xxxx",
+    "gaussian_noise": "\\\\\\\\",
+    "backdoor_trigger": "....",
+    "token_replacement": "xxxx",
+    "model_poisoning": "++",
+    "gradient_scaling": "**",
+    "boosted_scaling": "//..",
+    "byzantine_perturbation": "--",
+    "inner_product_manipulation": "xx",
+    "alternating_min_poisoning": "||",
 }
 
 
@@ -60,7 +96,11 @@ def _get_client_attack_summary(client_id: int, attack_schedule: list) -> str:
             client_attacks.append(attack_str)
 
     if client_attacks:
-        return f" ({', '.join(client_attacks)})"
+        if len(client_attacks) > 3:
+            display = ", ".join(client_attacks[:3]) + f" +{len(client_attacks) - 3} more"
+        else:
+            display = ", ".join(client_attacks)
+        return f" ({display})"
     return ""
 
 
@@ -101,18 +141,6 @@ def _add_attack_background_shading(
     """
     if not attack_schedule:
         return
-
-    ATTACK_COLORS = {
-        "label_flipping": "#ff9999",  # Red
-        "gaussian_noise": "#9999ff",  # Blue
-        "token_replacement": "#99ff99",  # Green
-    }
-
-    ATTACK_HATCHES = {
-        "label_flipping": "////",  # Dense diagonal right
-        "gaussian_noise": "\\\\\\\\",  # Dense diagonal left
-        "token_replacement": "xxxx",  # Dense crosses
-    }
 
     # Track which attack periods we've already added to avoid duplicate labels
     added_attacks = set()
@@ -288,10 +316,10 @@ def show_plots_within_strategy(
         plt.xlabel("round #")
         plt.ylabel(metric_name)
 
-        plot_strategy_title = _generate_multi_string_strategy_label(
+        plot_strategy_title = _generate_single_string_strategy_label(
             simulation_strategy.strategy_config
         )
-        plt.title(f"{metric_name}\n{plot_strategy_title}")
+        plt.title(f"{metric_name}\n{plot_strategy_title}", fontsize=10)
 
         legend_title = "clients and attacks"
         num_clients = simulation_strategy.strategy_config.num_of_clients or 1
@@ -301,6 +329,7 @@ def show_plots_within_strategy(
             bbox_to_anchor=(1.05, 1),
             loc="upper left",
             ncol=math.ceil(num_clients / 20),
+            fontsize=8,
         )
         ax = plt.gca()
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))

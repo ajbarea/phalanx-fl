@@ -40,7 +40,7 @@ def _extract_attack_params_for_display(attack_type: str, attack_config: dict) ->
     elif attack_type == "token_replacement":
         vocab = attack_config.get("target_vocabulary")
         strategy = attack_config.get("replacement_strategy")
-        prob = attack_config.get("replacement_probability")
+        prob = attack_config.get("replacement_prob", attack_config.get("replacement_probability"))
         if vocab:
             html_attack_params.append(f"vocab={vocab}")
         if strategy:
@@ -59,6 +59,16 @@ def _extract_attack_params_for_display(attack_type: str, attack_config: dict) ->
         html_attack_params.append(f"n_total={attack_config.get('n_total', '?')}")
         html_attack_params.append(f"n_mal={attack_config.get('n_malicious', '1')}")
         html_attack_params.append(f"boost={attack_config.get('boost_factor', '1.0')}")
+    elif attack_type == "model_poisoning":
+        html_attack_params.append(f"ratio={attack_config.get('poison_ratio', '0.1')}")
+        html_attack_params.append(f"mag={attack_config.get('magnitude', '5.0')}")
+    elif attack_type == "gradient_scaling":
+        html_attack_params.append(f"scale={attack_config.get('scale_factor', '2.0')}")
+    elif attack_type == "byzantine_perturbation":
+        html_attack_params.append(f"noise={attack_config.get('noise_scale', '3.0')}")
+        clip_norm = attack_config.get("clip_norm")
+        if clip_norm is not None:
+            html_attack_params.append(f"clip={clip_norm}")
     elif attack_type == "inner_product_manipulation":
         html_attack_params.append(f"strength={attack_config.get('perturbation_strength', '?')}")
         html_attack_params.append(f"dir={attack_config.get('target_direction', 'negative')}")
@@ -67,6 +77,7 @@ def _extract_attack_params_for_display(attack_type: str, attack_config: dict) ->
         html_attack_params.append(f"n_mal={attack_config.get('n_malicious', '1')}")
         html_attack_params.append(f"tau={attack_config.get('tau_factor', '1.0')}")
         html_attack_params.append(f"steps={attack_config.get('pgd_steps', '20')}")
+        html_attack_params.append(f"step_size={attack_config.get('pgd_step_size', '?')}")
     return html_attack_params
 
 
@@ -79,6 +90,28 @@ def _split_composite_attack_info(attack_type: str, attack_configs: list) -> list
         attack_info.append({"type": config_type, "params": params})
 
     return attack_info
+
+
+def _resolve_primary_and_extra_visuals(
+    snapshots_dir: Path,
+    client_id: int,
+    round_num: int,
+    attack_type: str,
+    preferred_visual: Path | None,
+) -> tuple[str | None, list[str]]:
+    """Resolve primary visual path and additional visual artifacts for an attack row."""
+    round_dir = snapshots_dir / f"client_{client_id}" / f"round_{round_num}"
+    png_paths = sorted(round_dir.glob(f"{attack_type}*.png"))
+    rel_png_paths = [p.relative_to(snapshots_dir).as_posix() for p in png_paths]
+
+    primary_visual_path: str | None = None
+    if preferred_visual is not None and (snapshots_dir / preferred_visual).exists():
+        primary_visual_path = preferred_visual.as_posix()
+    elif rel_png_paths:
+        primary_visual_path = rel_png_paths[0]
+
+    extra_visual_paths = [p for p in rel_png_paths if p != primary_visual_path]
+    return primary_visual_path, extra_visual_paths
 
 
 def generate_summary_json(
@@ -204,7 +237,7 @@ def generate_snapshot_index(
                 synopsis_rel_path = (
                     Path(f"client_{client_id}") / f"round_{round_num}" / "composite_synopsis.png"
                 )
-                visual_path = (
+                stacked_visual_path = (
                     synopsis_rel_path
                     if (snapshots_dir / synopsis_rel_path).exists()
                     else (
@@ -223,8 +256,10 @@ def generate_snapshot_index(
                         "samples": metadata.get("num_samples", 0),
                         "parameters": ", ".join(all_params) if all_params else "N/A",
                         "pickle_path": snapshot_path.relative_to(snapshots_dir).as_posix(),
-                        "visual_path": visual_path.as_posix(),
+                        "pickle_title": "Download snapshot data",
+                        "visual_path": stacked_visual_path.as_posix(),
                         "visual_type": "image",
+                        "additional_visuals": [],
                         "metadata_path": (
                             Path(f"client_{client_id}")
                             / f"round_{round_num}"
@@ -239,17 +274,54 @@ def generate_snapshot_index(
                 attack_parameters = _extract_attack_params_for_display(attack_type, attack_config)
 
                 if is_weight_attack(attack_type):
-                    visual_filename = f"{attack_type}_weight_histogram.png"
+                    preferred_visual = (
+                        Path(f"client_{client_id}")
+                        / f"round_{round_num}"
+                        / (f"{attack_type}_weight_histogram.png")
+                    )
                     visual_type = "image"
                     metadata_filename = f"{attack_type}_weight_metadata.json"
+                    download_title = "Download weight snapshot metadata"
                 elif attack_type == "token_replacement":
-                    visual_filename = f"{attack_type}_samples.txt"
+                    preferred_visual = (
+                        Path(f"client_{client_id}")
+                        / f"round_{round_num}"
+                        / (f"{attack_type}_samples.txt")
+                    )
                     visual_type = "text"
                     metadata_filename = f"{attack_type}_metadata.json"
+                    download_title = "Download pickle file"
                 else:
-                    visual_filename = f"{attack_type}_visual.png"
+                    preferred_visual = (
+                        Path(f"client_{client_id}")
+                        / f"round_{round_num}"
+                        / (f"{attack_type}_visual.png")
+                    )
                     visual_type = "image"
                     metadata_filename = f"{attack_type}_metadata.json"
+                    download_title = "Download pickle file"
+
+                if visual_type == "image":
+                    visual_path, extra_visuals = _resolve_primary_and_extra_visuals(
+                        snapshots_dir=snapshots_dir,
+                        client_id=client_id,
+                        round_num=round_num,
+                        attack_type=attack_type,
+                        preferred_visual=preferred_visual,
+                    )
+                else:
+                    visual_path = (
+                        preferred_visual.as_posix()
+                        if (snapshots_dir / preferred_visual).exists()
+                        else None
+                    )
+                    extra_visuals = []
+
+                sample_count = metadata.get("num_samples")
+                if sample_count is None and is_weight_attack(attack_type):
+                    sample_count = (
+                        metadata.get("statistics", {}).get("before", {}).get("num_layers", 0)
+                    )
 
                 snapshot_data.append(
                     {
@@ -257,15 +329,22 @@ def generate_snapshot_index(
                         "round": round_num,
                         "attack_types": [attack_type],
                         "is_stacked": False,
-                        "samples": metadata.get("num_samples", 0),
+                        "samples": sample_count if sample_count is not None else 0,
                         "parameters": (
                             ", ".join(attack_parameters) if attack_parameters else "N/A"
                         ),
                         "pickle_path": snapshot_path.relative_to(snapshots_dir).as_posix(),
-                        "visual_path": (
-                            Path(f"client_{client_id}") / f"round_{round_num}" / visual_filename
-                        ).as_posix(),
+                        "pickle_title": download_title,
+                        "visual_path": visual_path,
                         "visual_type": visual_type,
+                        "additional_visuals": [
+                            {
+                                "path": rel_path,
+                                "title": f"View {Path(rel_path).name}",
+                                "icon": "📊",
+                            }
+                            for rel_path in extra_visuals
+                        ],
                         "metadata_path": (
                             Path(f"client_{client_id}") / f"round_{round_num}" / metadata_filename
                         ).as_posix(),
@@ -274,7 +353,12 @@ def generate_snapshot_index(
 
     snapshot_data.sort(key=lambda x: (x["client"], x["round"]))
 
-    html_content = _generate_index_html(snapshot_data, output_dir, run_config)
+    html_content = _generate_index_html(
+        snapshot_data,
+        output_dir,
+        run_config,
+        (snapshots_dir / "attack_timeline.gif").exists(),
+    )
 
     index_path = snapshots_dir / "index.html"
     try:
@@ -286,7 +370,10 @@ def generate_snapshot_index(
 
 
 def _generate_index_html(
-    snapshot_data: list, output_dir: str, run_config: dict | None = None
+    snapshot_data: list,
+    output_dir: str,
+    run_config: dict | None = None,
+    has_timeline_gif: bool = False,
 ) -> str:
     """Generate snapshot index for HTML report."""
     template_dir = Path(__file__).parent / "templates"
@@ -317,6 +404,7 @@ def _generate_index_html(
         "unique_clients": unique_clients,
         "unique_rounds": unique_rounds,
         "unique_attack_types": unique_attack_types,
+        "has_timeline_gif": has_timeline_gif,
     }
 
     return template.render(context)

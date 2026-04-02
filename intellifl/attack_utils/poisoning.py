@@ -106,6 +106,8 @@ def apply_gaussian_noise(
 ) -> torch.Tensor:
     """Add Gaussian noise to images using either SNR targeting or direct mean/std.
 
+    Based on the Byzantine threat model for data corruption (Blanchard et al., 2017).
+
     Args:
         images: Input image tensor of shape (N, C, H, W).
         mean: Noise mean when using direct mode. Defaults to 0.0.
@@ -199,9 +201,15 @@ def apply_backdoor_trigger(
         y_end = min(y_start + trigger_size, h)
         x_end = min(x_start + trigger_size, w)
 
+        # Auto-contrast: pick trigger intensity that contrasts with the local background.
+        # E.g. FEMNIST with Normalize((0.5,),(0.5,)) has backgrounds ≈ 1.0 in normalized
+        # space, so trigger_value=1.0 would be invisible (zero delta).
+        region_mean = float(poisoned_images[idx, :, y_start:y_end, x_start:x_end].mean())
+        effective_trigger = 0.0 if region_mean > 0.0 else trigger_value
+
         # Apply trigger pattern
         if trigger_pattern == "square":
-            poisoned_images[idx, :, y_start:y_end, x_start:x_end] = trigger_value
+            poisoned_images[idx, :, y_start:y_end, x_start:x_end] = effective_trigger
         elif trigger_pattern == "cross":
             # Draw an X pattern within the trigger region
             for dy in range(y_end - y_start):
@@ -209,7 +217,7 @@ def apply_backdoor_trigger(
                     # Diagonal lines of the X
                     ts = trigger_size - 1 if trigger_size > 1 else 1
                     if abs(dy - dx) <= 0 or abs(dy - (ts - dx)) <= 0:
-                        poisoned_images[idx, :, y_start + dy, x_start + dx] = trigger_value
+                        poisoned_images[idx, :, y_start + dy, x_start + dx] = effective_trigger
         else:
             raise ValueError(
                 f"Unknown trigger_pattern: {trigger_pattern!r}. Expected 'square' or 'cross'."

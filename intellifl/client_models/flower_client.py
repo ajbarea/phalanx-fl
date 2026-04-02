@@ -66,6 +66,73 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
         self.tokenizer = tokenizer
         self.learning_rate = learning_rate
 
+    @staticmethod
+    def _compute_changed_sample_mask(
+        data_sample: torch.Tensor | None,
+        labels_sample: torch.Tensor,
+        original_data_sample: torch.Tensor | None = None,
+        original_labels_sample: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Compute per-sample change mask from labels and/or data deltas."""
+        batch_size = int(labels_sample.shape[0])
+        changed_mask = torch.zeros(batch_size, dtype=torch.bool)
+
+        if (
+            original_labels_sample is not None
+            and labels_sample.shape == original_labels_sample.shape
+            and int(original_labels_sample.shape[0]) == batch_size
+        ):
+            label_diff = labels_sample != original_labels_sample
+            if label_diff.ndim > 1:
+                label_diff = label_diff.reshape(batch_size, -1).any(dim=1)
+            changed_mask |= label_diff.detach().cpu()
+
+        if (
+            data_sample is not None
+            and original_data_sample is not None
+            and data_sample.shape == original_data_sample.shape
+            and int(data_sample.shape[0]) == batch_size
+        ):
+            if torch.is_floating_point(data_sample) or torch.is_floating_point(
+                original_data_sample
+            ):
+                data_diff = (data_sample - original_data_sample).abs() > 1e-6
+            else:
+                data_diff = data_sample != original_data_sample
+
+            if data_diff.ndim > 1:
+                data_diff = data_diff.reshape(batch_size, -1).any(dim=1)
+            changed_mask |= data_diff.detach().cpu()
+
+        return changed_mask
+
+    @staticmethod
+    def _select_snapshot_indices(
+        changed_mask: torch.Tensor,
+        batch_size: int,
+        max_samples: int,
+    ) -> torch.Tensor:
+        """Prioritize changed samples, then fill remaining slots with unchanged ones."""
+        if batch_size <= 0:
+            return torch.empty(0, dtype=torch.long)
+
+        if max_samples <= 0 or batch_size <= max_samples:
+            return torch.arange(batch_size, dtype=torch.long)
+
+        mask = (
+            changed_mask.detach().cpu()
+            if changed_mask.numel()
+            else torch.zeros(batch_size, dtype=torch.bool)
+        )
+        changed_indices = torch.nonzero(mask, as_tuple=False).flatten()
+        unchanged_indices = torch.nonzero(~mask, as_tuple=False).flatten()
+        ordered_indices = torch.cat((changed_indices, unchanged_indices), dim=0)
+
+        if ordered_indices.numel() == 0:
+            ordered_indices = torch.arange(batch_size, dtype=torch.long)
+
+        return ordered_indices[:max_samples]
+
     def _save_attack_snapshots(
         self,
         current_round,
@@ -77,7 +144,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
     ):
         """Save attack snapshots for CNN and transformer models."""
         if not (self.save_attack_snapshots and self.output_dir):
-            return
+            return False
 
         # Weight attacks get separate visualization via save_weight_snapshot()
         data_attack_configs = [
@@ -87,7 +154,28 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
         ]
 
         if not data_attack_configs:
-            return
+            return False
+
+        changed_mask = self._compute_changed_sample_mask(
+            data_sample=data_sample,
+            labels_sample=labels_sample,
+            original_data_sample=original_data_sample,
+            original_labels_sample=original_labels_sample,
+        )
+        selected_indices = self._select_snapshot_indices(
+            changed_mask=changed_mask,
+            batch_size=int(labels_sample.shape[0]),
+            max_samples=self.snapshot_max_samples,
+        )
+        if selected_indices.numel() == 0:
+            return False
+
+        data_sample = data_sample.index_select(0, selected_indices)
+        labels_sample = labels_sample.index_select(0, selected_indices)
+        if original_data_sample is not None:
+            original_data_sample = original_data_sample.index_select(0, selected_indices)
+        if original_labels_sample is not None:
+            original_labels_sample = original_labels_sample.index_select(0, selected_indices)
 
         save_attack_snapshot(
             client_id=self.client_id,
@@ -97,7 +185,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
             labels_sample=labels_sample,
             original_labels_sample=original_labels_sample,
             output_dir=self.output_dir,
-            max_samples=self.snapshot_max_samples,
+            max_samples=int(data_sample.shape[0]),
             save_format=self.attack_snapshot_format,
             experiment_info=self.experiment_info,
             strategy_number=self.strategy_number,
@@ -139,6 +227,8 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                     tokenizer=self.tokenizer,
                     original_data_sample=original_data_sample.cpu().numpy(),
                 )
+
+        return bool(changed_mask.any().item())
 
     def _to_device_only_tensors(self, batch: dict) -> dict:
         """Move only tensor values to device, leaving non-tensors as-is.
@@ -244,6 +334,8 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
 
             epoch_loss: float = 0.0
             epoch_acc: float = 0.0
+            snapshot_saved = False
+            cnn_snapshot_fallback: dict | None = None
 
             for epoch in range(epochs):
                 correct, total, epoch_loss = 0, 0, 0.0
@@ -268,15 +360,33 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                                 num_classes=num_classes,
                             )
 
-                        if epoch == 0 and batch_idx == 0:
-                            self._save_attack_snapshots(
-                                current_round=current_round,
-                                attack_configs=attack_configs,
+                        if epoch == 0 and not snapshot_saved:
+                            if cnn_snapshot_fallback is None:
+                                cnn_snapshot_fallback = {
+                                    "current_round": current_round,
+                                    "attack_configs": attack_configs,
+                                    "data_sample": images.clone(),
+                                    "labels_sample": labels.clone(),
+                                    "original_data_sample": original_images.clone(),
+                                    "original_labels_sample": original_labels.clone(),
+                                }
+
+                            changed_mask = self._compute_changed_sample_mask(
                                 data_sample=images,
                                 labels_sample=labels,
                                 original_data_sample=original_images,
                                 original_labels_sample=original_labels,
                             )
+                            if changed_mask.any().item():
+                                self._save_attack_snapshots(
+                                    current_round=current_round,
+                                    attack_configs=attack_configs,
+                                    data_sample=images,
+                                    labels_sample=labels,
+                                    original_data_sample=original_images,
+                                    original_labels_sample=original_labels,
+                                )
+                                snapshot_saved = True
 
                     images, labels = (
                         images.to(self.training_device),
@@ -295,6 +405,9 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
 
                 epoch_loss /= len(trainloader.dataset) or 1
                 epoch_acc = correct / total if total > 0 else 0.0
+                if epoch == 0 and not snapshot_saved and cnn_snapshot_fallback is not None:
+                    self._save_attack_snapshots(**cnn_snapshot_fallback)
+                    snapshot_saved = True
                 if verbose:
                     logging.info(
                         f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}"
@@ -308,6 +421,8 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
 
             epoch_loss = 0.0
             epoch_acc = 0.0
+            snapshot_saved = False
+            transformer_snapshot_fallback: dict | None = None
 
             for epoch in range(epochs):
                 logging.debug(f"[Client {self.client_id}] Starting epoch {epoch + 1}/{epochs}")
@@ -331,15 +446,33 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                                     tokenizer=self.tokenizer,
                                 )
 
-                        if epoch == 0 and batch_idx == 0:
-                            self._save_attack_snapshots(
-                                current_round=current_round,
-                                attack_configs=attack_configs,
+                        if epoch == 0 and not snapshot_saved:
+                            if transformer_snapshot_fallback is None:
+                                transformer_snapshot_fallback = {
+                                    "current_round": current_round,
+                                    "attack_configs": attack_configs,
+                                    "data_sample": batch["input_ids"].clone(),
+                                    "labels_sample": batch["labels"].clone(),
+                                    "original_data_sample": original_input_ids.clone(),
+                                    "original_labels_sample": original_labels.clone(),
+                                }
+
+                            changed_mask = self._compute_changed_sample_mask(
                                 data_sample=batch["input_ids"],
                                 labels_sample=batch["labels"],
                                 original_data_sample=original_input_ids,
                                 original_labels_sample=original_labels,
                             )
+                            if changed_mask.any().item():
+                                self._save_attack_snapshots(
+                                    current_round=current_round,
+                                    attack_configs=attack_configs,
+                                    data_sample=batch["input_ids"],
+                                    labels_sample=batch["labels"],
+                                    original_data_sample=original_input_ids,
+                                    original_labels_sample=original_labels,
+                                )
+                                snapshot_saved = True
 
                     batch = self._to_device_only_tensors(batch)
                     labels = batch["labels"]
@@ -380,6 +513,9 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
 
                 epoch_loss = total_loss / len(trainloader)
                 epoch_acc = correct / total if total > 0 else 0
+                if epoch == 0 and not snapshot_saved and transformer_snapshot_fallback is not None:
+                    self._save_attack_snapshots(**transformer_snapshot_fallback)
+                    snapshot_saved = True
                 logging.debug(
                     f"[Client {self.client_id}] Epoch {epoch + 1} complete - Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.4f}"
                 )

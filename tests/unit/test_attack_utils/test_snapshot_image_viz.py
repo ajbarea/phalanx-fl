@@ -492,7 +492,7 @@ class TestSaveImageGrid:
         save_image_grid(images, labels, original_labels, filepath, config)
 
         mock_subplots.assert_called_once()
-        mock_savefig.assert_called_once_with(filepath, dpi=150, bbox_inches="tight")
+        mock_savefig.assert_called_once_with(filepath, dpi=150, bbox_inches="tight", pad_inches=0.3)
         mock_close.assert_called_once()
 
     @patch("matplotlib.pyplot.close")

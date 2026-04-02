@@ -142,9 +142,9 @@ def apply_gradient_scaling(
     return scaled_params
 
 
-# Research: Byzantine threat model for distributed ML (Blanchard et al., NeurIPS 2017)
+# Research: Byzantine threat model for distributed ML (Blanchard et al., 2017)
 # https://proceedings.neurips.cc/paper/2017/hash/f4b9ec30ad9f68f89b29639786cb62ef-Abstract.html
-# Research: Norm clipping for defense evasion (Sun et al., NeurIPS FL Workshop 2019)
+# Research: Norm clipping for defense evasion (Sun et al., 2019)
 # https://arxiv.org/abs/1911.07963
 def apply_byzantine_perturbation(
     parameters: list[NDArray],
@@ -155,6 +155,9 @@ def apply_byzantine_perturbation(
 ) -> list[NDArray]:
     """
     Applies random perturbations to model weights.
+
+    Based on the Byzantine threat model (Blanchard et al., 2017) with
+    optional norm-clipping for defense evasion (Sun et al., 2019).
 
     Args:
         parameters: List of model parameter arrays.
@@ -195,7 +198,7 @@ def apply_byzantine_perturbation(
     return perturbed_params
 
 
-# Research: FedAvg-aware scaling to circumvent Byzantine defenses (Baruch et al., NeurIPS 2019)
+# Research: FedAvg-aware scaling to circumvent Byzantine defenses (Baruch et al., 2019)
 # https://proceedings.neurips.cc/paper/2019/hash/ec1c59141046cd1866bbbcdfb6ae31d4-Abstract.html
 def apply_boosted_scaling(
     parameters: Sequence[NDArray],
@@ -208,7 +211,7 @@ def apply_boosted_scaling(
     """
     Scale update by n_total / n_malicious to counteract FedAvg averaging.
 
-    Based on "A Little Is Enough" (Baruch et al., NeurIPS 2019). After
+    Based on "A Little Is Enough" (Baruch et al., 2019). After
     FedAvg aggregation (``update = sum(updates) / n``), a single malicious
     client's contribution is diluted by 1/n. This attack scales the update
     so that the malicious contribution dominates the aggregate.
@@ -240,8 +243,8 @@ def apply_boosted_scaling(
     return scaled_params
 
 
-# Research: Optimized model poisoning against Byzantine-robust FL (Fang et al., USENIX Security 2020)
-# https://www.usenix.org/conference/usenixsecurity20/presentation/fang
+# Research: Optimized model poisoning against Byzantine-robust FL (Xie et al., 2020)
+# https://arxiv.org/abs/1911.11962
 def apply_inner_product_manipulation(
     parameters: Sequence[NDArray],
     perturbation_strength: float = 0.5,
@@ -252,10 +255,12 @@ def apply_inner_product_manipulation(
     """
     Aggregation-aware attack that stays within a plausible L2 ball.
 
-    Unlike random Byzantine perturbation, this attack crafts a deliberate
-    perturbation along a chosen direction while keeping the L2 distance
-    to the original update within the range of natural inter-client variance.
-    This makes it effective against Krum, Multi-Krum, and Bulyan defenses.
+    Based on "Fall of Empires: Breaking Byzantine-tolerant SGD by Inner Product
+    Manipulation" (Xie et al., 2020). Unlike random Byzantine perturbation,
+    this attack crafts a deliberate perturbation along a chosen direction
+    while keeping the L2 distance to the original update within the range
+    of natural inter-client variance. This makes it effective against
+    Krum, Multi-Krum, and Bulyan defenses.
 
     Directions:
         - ``"negative"``: Negate the update direction (untargeted degradation).

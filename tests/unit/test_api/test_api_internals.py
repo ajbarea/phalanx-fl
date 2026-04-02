@@ -580,6 +580,81 @@ class TestAttackSnapshots:
         snapshot = data["strategies"][0]["snapshots"][0]
         assert "comparison" in snapshot["visualizations"]
 
+    def test_attack_snapshots_weight_viz_contract_with_additional(
+        self, api_client: TestClient, tmp_path: Path, monkeypatch
+    ):
+        """Weight-only snapshots include new fields and unknown visualizations."""
+        monkeypatch.setattr("intellifl.api.dependencies.OUTPUT_DIR", tmp_path / "out")
+        sim_dir = tmp_path / "out" / "api_run_weight_contract"
+        sim_dir.mkdir(parents=True)
+
+        config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
+        (sim_dir / "config.json").write_text(json.dumps(config))
+
+        snapshot_dir = sim_dir / "attack_snapshots_0" / "client_0" / "round_1"
+        snapshot_dir.mkdir(parents=True)
+
+        (snapshot_dir / "model_poisoning_weight_histogram.png").write_bytes(b"PNG")
+        (snapshot_dir / "model_poisoning_prediction_comparison.png").write_bytes(b"PNG")
+        (snapshot_dir / "model_poisoning_weight_layer_delta.png").write_bytes(b"PNG")
+        (snapshot_dir / "model_poisoning_weight_prediction_grid.png").write_bytes(b"PNG")
+        (snapshot_dir / "model_poisoning_unknown_overlay.png").write_bytes(b"PNG")
+        (snapshot_dir / "model_poisoning_weight_metadata.json").write_text(
+            json.dumps({"scale_factor": 100.0, "layers_affected": 3})
+        )
+
+        response = api_client.get("/api/simulations/api_run_weight_contract/attack-snapshots")
+        assert response.status_code == 200
+        data = response.json()
+
+        snapshot = data["strategies"][0]["snapshots"][0]
+        visualizations = snapshot["visualizations"]
+
+        assert snapshot.get("is_weight_attack") is True
+        assert visualizations["primary"].endswith("model_poisoning_prediction_comparison.png")
+        assert visualizations["prediction_comparison"].endswith(
+            "model_poisoning_prediction_comparison.png"
+        )
+        assert visualizations["weight_histogram"].endswith("model_poisoning_weight_histogram.png")
+        assert visualizations["weight_layer_delta"].endswith(
+            "model_poisoning_weight_layer_delta.png"
+        )
+        assert visualizations["prediction_grid"].endswith(
+            "model_poisoning_weight_prediction_grid.png"
+        )
+        assert visualizations["additional"]["unknown_overlay"].endswith(
+            "model_poisoning_unknown_overlay.png"
+        )
+
+    def test_attack_snapshots_primary_compatibility_with_prediction_comparison(
+        self, api_client: TestClient, tmp_path: Path, monkeypatch
+    ):
+        """Primary keeps pointing to visual artifact when it exists."""
+        monkeypatch.setattr("intellifl.api.dependencies.OUTPUT_DIR", tmp_path / "out")
+        sim_dir = tmp_path / "out" / "api_run_primary_compat"
+        sim_dir.mkdir(parents=True)
+
+        config: dict[str, Any] = {"shared_settings": {}, "simulation_strategies": [{}]}
+        (sim_dir / "config.json").write_text(json.dumps(config))
+
+        snapshot_dir = sim_dir / "attack_snapshots_0" / "client_0" / "round_1"
+        snapshot_dir.mkdir(parents=True)
+
+        (snapshot_dir / "model_poisoning_visual.png").write_bytes(b"PNG")
+        (snapshot_dir / "model_poisoning_prediction_comparison.png").write_bytes(b"PNG")
+
+        response = api_client.get("/api/simulations/api_run_primary_compat/attack-snapshots")
+        assert response.status_code == 200
+        data = response.json()
+
+        snapshot = data["strategies"][0]["snapshots"][0]
+        visualizations = snapshot["visualizations"]
+
+        assert visualizations["primary"].endswith("model_poisoning_visual.png")
+        assert visualizations["prediction_comparison"].endswith(
+            "model_poisoning_prediction_comparison.png"
+        )
+
 
 # =============================================================================
 # Dataset Validation Tests

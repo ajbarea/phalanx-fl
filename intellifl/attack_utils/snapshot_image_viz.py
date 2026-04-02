@@ -300,30 +300,46 @@ def save_backdoor_trigger_grid(
         )
         ax_pois.axis("off")
 
-        # --- Column 3: Magnified trigger region (clean vs poisoned) ---
+        # --- Column 3: Trigger-region delta heatmap (magnified) ---
         ax_mag = axes[i, 2]
-        # Crop trigger region from both images
         clean_crop = np.clip(clean_disp[:, y_start:y_end, x_start:x_end], 0, 1)
         pois_crop = np.clip(pois_disp[:, y_start:y_end, x_start:x_end], 0, 1)
 
-        # Upscale with np.kron for pixel-art magnification
-        scale = max(1, 32 // max(clean_crop.shape[1], clean_crop.shape[2], 1))
-        kernel = np.ones((scale, scale))
+        trigger_diff = np.abs(pois_crop - clean_crop)
+        trigger_diff_disp = np.mean(trigger_diff, axis=0) if c > 1 else trigger_diff[0]
 
-        if c == 1:
-            clean_up = np.kron(clean_crop[0], kernel)
-            pois_up = np.kron(pois_crop[0], kernel)
-            combined = np.concatenate([clean_up, np.ones((clean_up.shape[0], 2)), pois_up], axis=1)
-            ax_mag.imshow(combined, cmap="gray", vmin=0, vmax=1)
-        else:
-            clean_up = np.stack([np.kron(clean_crop[ch], kernel) for ch in range(c)], axis=-1)
-            pois_up = np.stack([np.kron(pois_crop[ch], kernel) for ch in range(c)], axis=-1)
-            sep = np.ones((clean_up.shape[0], 2, c))
-            combined = np.concatenate([clean_up, sep, pois_up], axis=1)
-            ax_mag.imshow(np.clip(combined, 0, 1))
+        scale = max(1, 32 // max(trigger_diff_disp.shape[0], trigger_diff_disp.shape[1], 1))
+        kernel = np.ones((scale, scale))
+        trigger_diff_zoom = np.kron(trigger_diff_disp, kernel)
+
+        zoom_vmax = float(np.max(trigger_diff_zoom))
+        if zoom_vmax <= 1e-8:
+            zoom_vmax = 1e-8
+        ax_mag.imshow(trigger_diff_zoom, cmap="magma", vmin=0, vmax=zoom_vmax)
+
+        max_delta = float(np.max(trigger_diff))
+        if max_delta < 0.01:
+            ax_mag.text(
+                0.5,
+                0.5,
+                "WARNING\nTrigger delta ≈ 0\nTrigger may match\nbackground intensity",
+                transform=ax_mag.transAxes,
+                ha="center",
+                va="center",
+                fontsize=8,
+                fontweight="bold",
+                color="white",
+                bbox={"boxstyle": "round,pad=0.4", "facecolor": "#c0392b", "alpha": 0.85},
+            )
 
         ax_mag.set_title(
-            "Trigger Region\n(Clean | Poisoned)", fontsize=10, fontweight="bold", color="#8e44ad"
+            (
+                "Trigger Delta (|Poisoned - Clean|)\n"
+                f"Mean: {float(np.mean(trigger_diff)):.4f} | Max: {max_delta:.4f}"
+            ),
+            fontsize=9,
+            fontweight="bold",
+            color="#8e44ad",
         )
         ax_mag.axis("off")
 
@@ -331,9 +347,26 @@ def save_backdoor_trigger_grid(
         ax_diff = axes[i, 3]
         diff = pois_disp - clean_disp
         diff_disp = np.mean(diff, axis=0) if c > 1 else diff[0]
-        vmax = max(0.05, np.max(np.abs(diff)))
+        vmax = float(np.max(np.abs(diff_disp)))
+        if vmax <= 1e-8:
+            vmax = 1e-8
         ax_diff.imshow(diff_disp, cmap="RdBu_r", vmin=-vmax, vmax=vmax)
-        ax_diff.set_title("Difference\nHeatmap", fontsize=10, fontweight="bold", color="#8e44ad")
+        ax_diff.add_patch(
+            Rectangle(
+                (x_start - 0.5, y_start - 0.5),
+                x_end - x_start,
+                y_end - y_start,
+                linewidth=1.5,
+                edgecolor="#8e44ad",
+                facecolor="none",
+            )
+        )
+        ax_diff.set_title(
+            "Difference Heatmap\n(trigger outlined)",
+            fontsize=10,
+            fontweight="bold",
+            color="#8e44ad",
+        )
         ax_diff.axis("off")
 
     _add_figure_title(
@@ -847,7 +880,10 @@ def save_image_grid(
     attack_type = _extract_attack_type(attack_config)
 
     if original_images is not None:
-        pairs_per_row = 4
+        pairs_per_row = min(4, max(1, num_samples))
+        if pairs_per_row > 1 and num_samples > pairs_per_row and num_samples % pairs_per_row == 1:
+            # Avoid sparse final rows like 4+1 by using a denser layout (e.g., 3+2).
+            pairs_per_row -= 1
         cols = pairs_per_row * 2
         rows = math.ceil(num_samples / pairs_per_row)
         figsize = (3 * cols, 3 * rows)
@@ -886,7 +922,7 @@ def save_image_grid(
                 attack_config, attack_type, labels, original_labels, i, "side_by_side"
             )
 
-            ax_poisoned.set_title(title, fontsize=10, fontweight="bold", color="#c0392b")
+            ax_poisoned.set_title(title, fontsize=9, fontweight="bold", color="#c0392b")
             ax_poisoned.axis("off")
 
         total_pairs_needed = num_samples
@@ -902,7 +938,9 @@ def save_image_grid(
         fig.canvas.draw()
 
         for row_idx in range(rows):
-            for pair_idx in range(pairs_per_row - 1):
+            row_start = row_idx * pairs_per_row
+            row_pairs_used = min(pairs_per_row, max(0, num_samples - row_start))
+            for pair_idx in range(max(0, row_pairs_used - 1)):
                 col_poisoned = pair_idx * 2 + 1
                 ax_poisoned = axes[row_idx][col_poisoned]
 
@@ -959,7 +997,7 @@ def save_image_grid(
         attack_display = attack_type.replace("_", " ").title()
         _add_figure_title(fig, f"{attack_display}: Poisoned Samples")
 
-    plt.savefig(filepath, dpi=150, bbox_inches="tight")
+    plt.savefig(filepath, dpi=150, bbox_inches="tight", pad_inches=0.3)
     plt.close()
 
 
@@ -1050,19 +1088,42 @@ def save_label_confusion_matrix(
 
     ax.set_xlabel("Poisoned Label", fontsize=12, fontweight="bold")
     ax.set_ylabel("Original Label", fontsize=12, fontweight="bold")
+    normalized_attack_config: dict | list[dict] = attack_config if attack_config is not None else {}
+    attack_type = (
+        _extract_attack_type(normalized_attack_config)
+        if attack_config is not None
+        else "label_flipping"
+    )
+    if attack_type == "targeted_label_flipping":
+        source_class = _extract_attack_param(normalized_attack_config, "source_class", default="?")
+        target_class = _extract_attack_param(normalized_attack_config, "target_class", default="?")
+        matrix_title = (
+            f"Targeted Label Flipping Attack: {source_class} -> {target_class} Mapping Matrix"
+        )
+    else:
+        matrix_title = "Label Flipping Attack: Class Mapping Matrix"
+
     _add_figure_title(
         ax,
-        "Label Flipping Attack: Class Mapping Matrix",
+        matrix_title,
         use_suptitle=False,
     )
 
     total_samples = len(original_labels)
-    flipped_count = np.sum(original_labels != poisoned_labels)
+    flipped_count = int(np.sum(original_labels != poisoned_labels))
     flip_rate = flipped_count / total_samples * 100 if total_samples > 0 else 0
 
-    stats_text = (
-        f"Total Samples: {total_samples} | Labels Flipped: {flipped_count} ({flip_rate:.1f}%)"
-    )
+    if attack_type == "targeted_label_flipping":
+        source_class = _extract_attack_param(normalized_attack_config, "source_class", default="?")
+        target_class = _extract_attack_param(normalized_attack_config, "target_class", default="?")
+        stats_text = (
+            f"Source {source_class} → Target {target_class}: "
+            f"{flipped_count}/{total_samples} ({flip_rate:.1f}%)"
+        )
+    else:
+        stats_text = (
+            f"Total Samples: {total_samples} | Labels Flipped: {flipped_count} ({flip_rate:.1f}%)"
+        )
     fig.text(
         0.5,
         0.01,
@@ -1285,10 +1346,12 @@ def save_label_flipping_grid(
 
     num_samples = len(images)
 
-    samples_per_row = 4
+    samples_per_row = min(4, max(1, num_samples))
+    if samples_per_row > 1 and num_samples > samples_per_row and num_samples % samples_per_row == 1:
+        samples_per_row -= 1
     num_rows = math.ceil(num_samples / samples_per_row)
 
-    fig_width = 24
+    fig_width = 6 * samples_per_row
     fig_height = 4 * num_rows + 1.8
 
     # Use subfigures: main content area + dedicated footer row
@@ -1483,6 +1546,17 @@ def save_label_flipping_summary(
     classes_affected = sorted(set(original_labels[flipped_mask].tolist()))
     classes_targeted = sorted(set(poisoned_labels[flipped_mask].tolist()))
 
+    if isinstance(attack_config, dict):
+        normalized_config = attack_config
+    elif (
+        isinstance(attack_config, list)
+        and len(attack_config) == 1
+        and isinstance(attack_config[0], dict)
+    ):
+        normalized_config = attack_config[0]
+    else:
+        normalized_config = None
+
     summary = {
         "total_samples": int(total_samples),
         "flipped_samples": int(flipped_count),
@@ -1490,7 +1564,7 @@ def save_label_flipping_summary(
         "top_flip_patterns": top_patterns,
         "classes_affected": classes_affected,
         "classes_targeted": classes_targeted,
-        "attack_config": attack_config if isinstance(attack_config, dict) else None,
+        "attack_config": normalized_config,
     }
 
     with open(filepath, "w") as f:
