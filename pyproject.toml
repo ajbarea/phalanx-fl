@@ -1,142 +1,150 @@
 [project]
 name = "intellifl"
 version = "0.1.0"
-requires-python = ">=3.10,<3.14"
+description = "Federated Learning Framework with Ray, Flower, and PyTorch"
+requires-python = ">=3.12"
 dependencies = [
-    # --- Core framework ---
     "accelerate",
-    "celery[redis]>=5.4.0",
+    "celery[redis]",
     "click",
     "datasets",
     "dill",
     "fastapi",
-    "flwr",
-    "flower>=2.0.0",
+    "flwr>=1.28",
     "flwr-datasets",
     "fsspec",
     "httpx",
     "huggingface_hub[hf_xet]",
+    "jsonschema",
     "matplotlib",
     "multiprocess",
-    "numpy>=1.26.4,<3.0",
+    "numpy",
     "opencv-python-headless",
     "pandas",
     "peft",
     "psutil",
     "pyarrow",
-    "pydantic>=2.0,<3.0",
+    "pydantic",
+    "pywinpty; sys_platform == 'win32'",
     "python-dotenv",
-    "pyyaml>=6.0.2,<7.0.0",
-    "pywinpty>=2.0.0; sys_platform == 'win32'",
-    "ray[default]",
+    "pyyaml",
     "requests",
     "rich",
     "scikit-learn",
-    "scipy>=1.13.1,<2.0",
+    "scipy",
     "sse-starlette",
-    "torch>=2.9.0",
-    "torchvision>=0.24.0",
+    "torch",
+    "torchvision",
     "tqdm",
     "transformers",
     "uvicorn[standard]",
+    "ray>=2.54.1",
 ]
 
 [dependency-groups]
 dev = [
-    # --- Testing ---
-    # Hypothesis: Property-based testing for generating test cases.
-    "hypothesis>=6.141.1",
-    # Mutmut: Mutation testing to ensure test suite robustness.
-    "mutmut>=3.3.1",
-    # Pytest: Core testing framework used for organizing and running tests.
-    "pytest>=8.4.2",
-    # Pytest-asyncio: Adds support for testing asyncio-based code.
-    "pytest-asyncio>=1.2.0",
-    # Pytest-cov: Measures and reports test coverage.
-    "pytest-cov>=7.0.0",
-    # Pytest-mock: Simplifies mocking in tests.
-    "pytest-mock>=3.15.1",
-    # Pytest-randomly: Randomizes test order to detect order-dependent tests.
-    "pytest-randomly>=3.17.0",
-    # Pytest-repeat: Repeats tests multiple times to catch flaky tests.
-    "pytest-repeat>=0.9.3",
-    # Pytest-xdist: Enables parallel test execution for faster feedback.
-    "pytest-xdist>=3.8.0",
-    # --- Linting & type checking ---
-    "isort>=6.1.0",
-    "mypy>=1.19.1",
-    "pyright>=1.1.408",
-    "ruff>=0.14.11",
-    # --- Docs ---
-    "mkdocs>=1.6.0",
-    "mkdocs-material>=9.0.0",
-    "zensical>=0.0.23",
+    "hypothesis",
+    "mutmut",
+    "pip-audit",
+    "pytest>=8.0,<9",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-mock",
+    "pytest-randomly",
+    "pytest-repeat",
+    "pytest-xdist",
+    "ruff",
+    "ty",
+    "mkdocs",
+    "mkdocs-material",
+    "zensical",
 ]
 
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["intellifl*"]
 
-[[tool.uv.index]]
-name = "pytorch"
-url = "https://download.pytorch.org/whl/cu130"
-explicit = true
 
-[[tool.uv.index]]
-name = "pypi"
-url = "https://pypi.org/simple"
-explicit = true
 
-[tool.uv.sources]
-torch = { index = "pytorch" }
-torchvision = { index = "pytorch" }
-# Zensical installation using uv
-zensical = { index = "pypi" }
+# =============================================================================
+# Ty Configuration
+# =============================================================================
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+include = ["intellifl", "tests"]
+exclude = [
+    "__pycache__",
+    ".venv*",
+    "build",
+    "dist",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".hypothesis",
+    "out",
+    "datasets",
+    "cache",
+    "frontend",
+    "intellifl/attack_utils/vocabularies",
+]
+
+[tool.ty.rules]
+all = "warn"
+unresolved-import = "error"
+
+[tool.ty.analysis]
+replace-imports-with-any = [
+    "hypothesis.**",
+    "pytest.**",
+    "_pytest.**",
+    "uvicorn.**",
+    "ray.**",
+    "flwr.**",
+    "torch.**",
+    "pandas.**",
+    "numpy.**",
+    "matplotlib.**",
+    "cv2.**",
+]
 
 # =============================================================================
 # Ruff Configuration
 # =============================================================================
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py312"
 exclude = [
-    # Virtual environments
-    "venv",
-    ".venv",
-    # Cache directories
+    ".venv*",
     "__pycache__",
-    ".mypy_cache",
     ".pytest_cache",
     ".ruff_cache",
     ".hypothesis",
-    # Build/output directories
     "out",
     "datasets",
     "cache",
-    # Other projects
     "frontend",
     ".git",
-    # Project-specific
     "intellifl/attack_utils/vocabularies",
 ]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP", "B", "C4", "SIM"]
 ignore = [
-    "E501",  # Line too long - handled by formatter
-    "B008",  # Function call in default argument
-    "B904",  # raise from in except - intentional for HTTP exceptions
-    "B007",  # Loop variable not used - common in tests
-    "B023",  # Lambda doesn't bind loop variable - test patterns
-    "SIM102",  # Nested if statements - sometimes more readable
-    "SIM108",  # Use ternary operator - sometimes less readable
-    "SIM113",  # Use enumerate - not always clearer
-    "SIM115",  # Context manager for files - handled by class __exit__
-    "SIM117",  # Nested with statements - sometimes more readable
+    "E501",
+    "B008",
+    "B904",
+    "B007",
+    "B023",
+    "SIM102",
+    "SIM108",
+    "SIM113",
+    "SIM115",
+    "SIM117",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -146,164 +154,6 @@ ignore = [
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
-
-# =============================================================================
-# isort Configuration
-# =============================================================================
-[tool.isort]
-profile = "black"
-line_length = 100
-skip = [
-    "venv",
-    ".venv",
-    ".mypy_cache",
-    ".pytest_cache",
-    ".ruff_cache",
-    ".hypothesis",
-    "out",
-    "datasets",
-    "cache",
-    "frontend",
-    "intellifl/attack_utils/vocabularies",
-]
-known_first_party = ["intellifl"]
-
-# =============================================================================
-# mypy Configuration
-# =============================================================================
-[tool.mypy]
-python_version = "3.10"
-warn_return_any = false
-warn_unused_configs = true
-show_error_codes = true
-no_implicit_optional = true
-ignore_missing_imports = true
-follow_imports = "normal"
-
-# Type checking
-check_untyped_defs = true
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-
-# Warnings
-warn_redundant_casts = true
-warn_unused_ignores = false
-
-# Files to check
-files = ["intellifl", "tests"]
-
-# Global exclusions
-exclude = [
-    "venv",
-    ".venv",
-    ".mypy_cache",
-    ".pytest_cache",
-    ".ruff_cache",
-    ".hypothesis",
-    "out",
-    "datasets",
-    "cache",
-    "frontend",
-    "intellifl/attack_utils/vocabularies",
-    "intellifl/utils/legacy",
-]
-
-[[tool.mypy.overrides]]
-module = "transformers.*"
-follow_imports = "skip"
-
-[[tool.mypy.overrides]]
-module = "peft.*"
-follow_imports = "skip"
-
-[[tool.mypy.overrides]]
-module = "intellifl.data_models.*"
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-
-[[tool.mypy.overrides]]
-module = "intellifl.config_loaders.*"
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-
-# =============================================================================
-# pyright Configuration
-# =============================================================================
-[tool.pyright]
-venvPath = "."
-venv = ".venv"
-pythonVersion = "3.10"
-reportAttributeAccessIssue = "none"
-
-# =============================================================================
-# Mutation Testing (mutmut) Configuration
-# =============================================================================
-[tool.mutmut]
-paths_to_mutate = ["intellifl/"]
-runner = "python -m pytest"
-tests_dir = ["tests/"]
-use_coverage = true
-exclude = [
-    "intellifl/__init__.py",
-    "intellifl/api/__init__.py",
-    "intellifl/api/models.py",
-    "intellifl/attack_utils/__init__.py",
-    "intellifl/attack_utils/vocabularies/",
-    "intellifl/client_models/__init__.py",
-    "intellifl/config_loaders/__init__.py",
-    "intellifl/data_models/",
-    "intellifl/dataset_handlers/__init__.py",
-    "intellifl/dataset_loaders/__init__.py",
-    "intellifl/network_models/__init__.py",
-    "intellifl/output_handlers/__init__.py",
-    "intellifl/simulation_strategies/__init__.py",
-    "intellifl/utils/__init__.py",
-]
-
-# =============================================================================
-# Flower Federated Learning Configuration (flwr 1.25+)
-# =============================================================================
-# This section enables `flwr run` CLI usage as an alternative to the
-# programmatic run_simulation() API. Both approaches are fully supported.
-#
-# Usage:
-#   flwr run .                           # Run default federation
-#   flwr run . local-simulation-gpu      # Run GPU-enabled federation
-#
-# Reference: https://flower.ai/docs/framework/how-to-configure-pyproject-toml.html
-
-[tool.flwr.app]
-publisher = "intellifl"
-
-[tool.flwr.app.config]
-# Default simulation parameters (overridable via --run-config)
-num-server-rounds = 10
-num-clients = 5
-dataset = "femnist_iid"
-aggregation-strategy = "fedavg"
-
-[tool.flwr.federations]
-default = "local-simulation"
-
-# CPU-only local simulation (default)
-[tool.flwr.federations.local-simulation]
-options.num-supernodes = 5
-options.backend.client-resources.num-cpus = 2
-options.backend.client-resources.num-gpus = 0.0
-
-# GPU-enabled local simulation (4 clients per GPU)
-[tool.flwr.federations.local-simulation-gpu]
-options.num-supernodes = 5
-options.backend.client-resources.num-cpus = 2
-options.backend.client-resources.num-gpus = 0.25
-
-# High-performance GPU simulation (2 clients per GPU)
-[tool.flwr.federations.local-simulation-gpu-hp]
-options.num-supernodes = 10
-options.backend.client-resources.num-cpus = 4
-options.backend.client-resources.num-gpus = 0.5
-options.backend.init_args.num_cpus = 8
-options.backend.init_args.num_gpus = 1
 
 # =============================================================================
 # Pytest Configuration
@@ -342,3 +192,47 @@ filterwarnings = [
     "ignore::PendingDeprecationWarning",
 ]
 
+# =============================================================================
+# Flower Federated Learning Configuration
+# =============================================================================
+[tool.flwr.app]
+publisher = "intellifl"
+
+[tool.flwr.app.config]
+num-server-rounds = 10
+num-clients = 5
+dataset = "femnist_iid"
+aggregation-strategy = "fedavg"
+
+[tool.flwr.federations]
+default = "local-simulation"
+
+[tool.flwr.federations.local-simulation]
+options.num-supernodes = 5
+options.backend.client-resources.num-cpus = 2
+options.backend.client-resources.num-gpus = 0.0
+
+# =============================================================================
+# Mutation Testing Configuration
+# =============================================================================
+[tool.mutmut]
+paths_to_mutate = ["intellifl/"]
+runner = "python -m pytest"
+tests_dir = ["tests/"]
+use_coverage = true
+exclude = [
+    "intellifl/__init__.py",
+    "intellifl/api/__init__.py",
+    "intellifl/api/models.py",
+    "intellifl/attack_utils/__init__.py",
+    "intellifl/attack_utils/vocabularies/",
+    "intellifl/client_models/__init__.py",
+    "intellifl/config_loaders/__init__.py",
+    "intellifl/data_models/",
+    "intellifl/dataset_handlers/__init__.py",
+    "intellifl/dataset_loaders/__init__.py",
+    "intellifl/network_models/__init__.py",
+    "intellifl/output_handlers/__init__.py",
+    "intellifl/simulation_strategies/__init__.py",
+    "intellifl/utils/__init__.py",
+]
