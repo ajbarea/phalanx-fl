@@ -117,9 +117,10 @@ flowchart LR
 
     FedAvg, Krum, Multi-Krum, Bulyan, RFA, Trimmed Mean, PID-based, Trust-based, ArKrum — each with configurable parameters
 
-!!! danger "11 Attack Types"
+!!! danger "12 Attack Types"
 
-    Label flipping, targeted label flipping, Gaussian noise, backdoor triggers, model poisoning, gradient scaling, boosted scaling, Byzantine perturbation, inner product manipulation, alternating min poisoning, token replacement
+    **Data poisoning:** Label flipping, targeted label flipping, Gaussian noise, backdoor triggers, token replacement  
+    **Model poisoning:** Model poisoning, gradient scaling, boosted scaling, Byzantine perturbation, inner product manipulation, alternating min poisoning
 
 !!! info "Rich Dataset Support"
 

@@ -122,7 +122,7 @@ Preferred if you are actively modifying the codebase and want to avoid Docker ov
 make setup
 ```
 
-This runs `setup.sh`, which uses [`uv`](https://github.com/astral-sh/uv) (with a pip fallback) to install the `intellifl` package and all Python dependencies, then installs the frontend npm packages.
+This runs `scripts/setup.py` via [`uv`](https://github.com/astral-sh/uv) to install the `intellifl` package and all Python dependencies, then installs the frontend npm packages. The setup is cross-platform (Windows, macOS, Linux) with no shell script dependencies.
 
 ??? tip "Install components separately"
 
@@ -189,13 +189,19 @@ out/
 
 ---
 
-## :material-test-tube: Running tests
+## :material-test-tube: Running tests and quality checks
 
-```bash title="Test commands"
-make test    # lint + unit tests
-make lint    # lint only
-make sonar   # lint + tests + SonarQube (Docker)
+```bash title="Quality and test commands"
+make check-env    # Verify uv, Python, Docker
+make lint         # Code quality checks (ruff, ty, eslint)
+make audit        # Security audit with pip-audit
+make validate     # Quick feedback: lint + unit tests only (~2 min)
+make test         # Full test suite: unit + integration + performance (~5 min)
+make sonar        # Full analysis + SonarQube (Docker)
 ```
+
+!!! tip "Security scanning"
+    `make audit` runs pip-audit to scan for known vulnerabilities in your dependencies. This is integrated into CI/CD and runs automatically on every push.
 
 ---
 

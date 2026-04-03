@@ -101,11 +101,11 @@ InteFL enforces a **Scientific Integrity First** policy. To ensure experimental 
 
 ### :material-bug-outline: Attack schedule
 
-See the [Attacks](attacks.md) page for full documentation.
+See the [Attacks](attacks.md) page for full documentation of all 12 attack types (data and model poisoning).
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `attack_schedule` | `array` | `[]` | List of attack entries. Required in config (use `[]` for no attacks). |
+| `attack_schedule` | `array` | `[]` | List of attack entries. Each entry specifies start/end rounds, attack type, client selection strategy, and attack-specific parameters. Required in config (use `[]` for no attacks). |
 
 ### :material-account-remove: Client removal
 

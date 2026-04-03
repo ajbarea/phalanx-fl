@@ -73,7 +73,7 @@ FastAPI application with routers for:
 
 | Router | Purpose |
 |---|---|
-| :material-play-circle: `simulations` | List, inspect, launch, stop, rename, delete simulations; stream status and logs via SSE |
+| :material-play-circle: `simulations` | List, inspect, launch, stop, rename, delete simulations; stream status and logs via Server-Sent Events (SSE) |
 | :material-tray-full: `queue` | Get aggregate queue status counts |
 | :material-chart-line: `visualizations` | Fetch plot data JSON and attack snapshot metadata |
 | :material-database-check: `datasets` | Validate HuggingFace datasets |
@@ -81,9 +81,12 @@ FastAPI application with routers for:
 | :material-console: `terminal` | Interactive PTY terminal over WebSocket |
 | :material-robot: `assistant` | AI agent chat endpoint |
 
+!!! info "Real-time Streaming"
+    The simulations endpoint streams live updates via SSE using named events (`status` and `output`). The UI subscribes to these events to display real-time progress without polling. Output logs are streamed line-by-line as they're written to disk.
+
 ### `status_tracker.py`
 
-Writes a `status.json` file into the simulation output directory. Transitions: `queued → running → completed / failed / stopped`. The UI polls this file (and the SSE stream) to display live progress.
+Writes a `status.json` file into the simulation output directory. This is the **sole writer** of status updates — all transitions (`queued → running → completed / failed / stopped`) go through `StatusTracker`, ensuring consistency and preventing race conditions. The UI polls this file and listens to SSE `status` events to display live progress.
 
 ---
 
