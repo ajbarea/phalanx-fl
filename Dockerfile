@@ -3,7 +3,7 @@
 # ==============================================================================
 # Builder Stage: Install dependencies into a virtual environment
 # ==============================================================================
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -28,7 +28,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ==============================================================================
 # Runner Stage: Create the final production image
 # ==============================================================================
-FROM python:3.11-slim AS runner
+FROM python:3.12-slim AS runner
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
