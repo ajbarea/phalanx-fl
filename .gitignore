@@ -1,7 +1,11 @@
 .idea
 .vscode
 .DS_store
-.venv
+.venv*
+venv
+.cache
+.ruff_cache
+.mutmut-cache
 ITS_USECASE/
 FLAIR_USECASE/
 __pycache__
