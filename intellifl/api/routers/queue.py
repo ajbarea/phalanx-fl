@@ -6,7 +6,6 @@ import datetime
 import json
 import logging
 from contextlib import suppress
-from datetime import timezone
 from pathlib import Path
 from typing import Literal
 
@@ -49,8 +48,8 @@ def _status_is_fresh(data: dict) -> bool:
     try:
         ts = datetime.datetime.fromisoformat(updated_at)
         if ts.tzinfo is None:
-            ts = ts.replace(tzinfo=timezone.utc)
-        age = (datetime.datetime.now(timezone.utc) - ts).total_seconds()
+            ts = ts.replace(tzinfo=datetime.UTC)
+        age = (datetime.datetime.now(datetime.UTC) - ts).total_seconds()
         return age < _STATUS_FRESHNESS_SECONDS
     except (ValueError, TypeError):
         return False

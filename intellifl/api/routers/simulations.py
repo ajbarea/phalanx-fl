@@ -10,7 +10,6 @@ import shutil
 import subprocess
 import sys
 from contextlib import suppress
-from datetime import timezone
 from pathlib import Path
 from typing import Any
 
@@ -87,8 +86,8 @@ def _status_is_fresh(status_data: dict) -> bool:
     try:
         ts = datetime.datetime.fromisoformat(updated_at)
         if ts.tzinfo is None:
-            ts = ts.replace(tzinfo=timezone.utc)
-        age = (datetime.datetime.now(timezone.utc) - ts).total_seconds()
+            ts = ts.replace(tzinfo=datetime.UTC)
+        age = (datetime.datetime.now(datetime.UTC) - ts).total_seconds()
         return age < _STATUS_FRESHNESS_SECONDS
     except (ValueError, TypeError):
         return False
@@ -615,7 +614,7 @@ async def create_simulation(request: CreateSimulationRequest) -> dict[str, Any]:
             "progress": 0.0,
             "current_strategy": 0,
             "total_strategies": total_strategies,
-            "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "updated_at": datetime.datetime.now(datetime.UTC).isoformat(),
             "origin": "api",
         }
         if celery_task_id:
@@ -950,9 +949,7 @@ def stop_simulation(simulation_id: str) -> dict[str, str]:
                 logger.info(f"Revoked Celery task {celery_task_id} for {simulation_id}")
 
                 status_data["status"] = "stopped"
-                status_data["stopped_at"] = datetime.datetime.now(
-                    tz=datetime.timezone.utc
-                ).isoformat()
+                status_data["stopped_at"] = datetime.datetime.now(tz=datetime.UTC).isoformat()
                 with status_path.open("w") as f:
                     json.dump(status_data, f, indent=2)
                 return {"message": "stopped", "simulation_id": simulation_id}
@@ -971,9 +968,7 @@ def stop_simulation(simulation_id: str) -> dict[str, str]:
                     status_data = json.load(f)
                 if status_data.get("status") == "running":
                     status_data["status"] = "stopped"
-                    status_data["stopped_at"] = datetime.datetime.now(
-                        tz=datetime.timezone.utc
-                    ).isoformat()
+                    status_data["stopped_at"] = datetime.datetime.now(tz=datetime.UTC).isoformat()
                     status_data["error"] = "Process terminated unexpectedly"
                     with status_path.open("w") as f:
                         json.dump(status_data, f, indent=2)
