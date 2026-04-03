@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 import traceback
 from pathlib import Path
@@ -41,12 +40,6 @@ def _get_image_transformer(name: str | None):
         from intellifl.dataset_loaders.image_transformers.cifar100_image_transformer import (
             cifar100_image_transformer,
         )
-        from intellifl.dataset_loaders.image_transformers.medmnist_2d_rgb_image_transformer import (
-            medmnist_2d_rgb_image_transformer,
-        )
-        from intellifl.dataset_loaders.image_transformers.medmnist_2d_grayscale_image_transformer import (
-            medmnist_2d_grayscale_image_transformer,
-        )
         from intellifl.dataset_loaders.image_transformers.femnist_image_transformer import (
             femnist_image_transformer,
         )
@@ -58,6 +51,12 @@ def _get_image_transformer(name: str | None):
         )
         from intellifl.dataset_loaders.image_transformers.lung_photos_image_transformer import (
             lung_cancer_image_transformer,
+        )
+        from intellifl.dataset_loaders.image_transformers.medmnist_2d_grayscale_image_transformer import (
+            medmnist_2d_grayscale_image_transformer,
+        )
+        from intellifl.dataset_loaders.image_transformers.medmnist_2d_rgb_image_transformer import (
+            medmnist_2d_rgb_image_transformer,
         )
 
         _IMAGE_TRANSFORMERS.update(
@@ -81,6 +80,7 @@ def _get_image_transformer(name: str | None):
 # ------------------------------------------------------------------
 # Per-modality test runners
 # ------------------------------------------------------------------
+
 
 def _test_text_dataset(keyword: str, cfg: dict, max_samples: int = 100) -> None:
     """Smoke-test a HuggingFace **text** dataset entry."""
@@ -154,7 +154,7 @@ def _test_3d_image_dataset(keyword: str, cfg: dict, max_samples: int = 100) -> N
     )
     sample = next(iter(ds))
     print(f"  streaming sample keys: {list(sample.keys())}")
-    print(f"  (3D image loader not yet implemented — config validation only)")
+    print("  (3D image loader not yet implemented — config validation only)")
 
 
 # Dispatcher: modality string → test function
@@ -168,6 +168,7 @@ _MODALITY_RUNNERS = {
 # ------------------------------------------------------------------
 # Orchestration
 # ------------------------------------------------------------------
+
 
 def load_config() -> dict:
     """Load and return the full huggingface_datasets.json config."""
@@ -183,9 +184,9 @@ def test_dataset(keyword: str, cfg: dict, max_samples: int = 100) -> bool:
     modality = cfg.get("modality", "unknown")
     runner = _MODALITY_RUNNERS.get(modality)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"[{keyword}]  modality={modality}  path={cfg.get('hf_dataset_path')}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     if runner is None:
         print(f"  WARNING: No test runner for modality '{modality}'. Skipping.")
@@ -193,7 +194,7 @@ def test_dataset(keyword: str, cfg: dict, max_samples: int = 100) -> bool:
 
     try:
         runner(keyword, cfg, max_samples=max_samples)
-        print(f"  PASSED")
+        print("  PASSED")
         return True
     except Exception as e:
         print(f"  FAILED: {e}")
@@ -246,9 +247,9 @@ def main() -> None:
     # Summary
     passed = sum(1 for v in results.values() if v)
     failed = sum(1 for v in results.values() if not v)
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"SUMMARY: {passed} passed, {failed} failed out of {len(results)} tested")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     if failed:
         print("\nFailed datasets:")

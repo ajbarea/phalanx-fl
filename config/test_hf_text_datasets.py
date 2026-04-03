@@ -25,7 +25,14 @@ DATASETS = [
         "hf_dataset_path": "cyrilzakka/pubmed-medline",
         "hf_dataset_name": None,
         "tokenize_columns": [
-            "id", "pubmed_id", "title", "authors", "journal", "content", "source_url", "publication_types"
+            "id",
+            "pubmed_id",
+            "title",
+            "authors",
+            "journal",
+            "content",
+            "source_url",
+            "publication_types",
         ],
     },
 ]
