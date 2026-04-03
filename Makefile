@@ -1,137 +1,118 @@
-# IntelliFL - Makefile for common tasks
-# Cross-platform compatible (uses shell scripts)
+##
+## IntelliFL — Federated Learning Framework
+## Multi-client federated learning with Ray, Flower, and PyTorch
+##
+## Usage:
+##   make help          Show all available commands
+##   make setup         Install dependencies + download datasets
+##   make dev           Start Docker Compose services
+##   make lint          Run code quality checks
+##   make test          Run full test suite
+##
 
-ARCH            := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
-NATIVE_PLATFORM := linux/$(ARCH)
+.PHONY: help setup upgrade yolo dev dev-down sim lint validate test audit clean reset docs deps check-env frontend-audit
+.DEFAULT_GOAL := help
 
-.PHONY: help setup setup-python setup-frontend dev dev-down prod prod-down sim lint test sonar clean reset upgrade docker docker-frontend docker-all docker-push mutmut mutmut-results mutmut-show docs
+# ════════════════════════════════════════════════════════════════════════════
+# Environment
+# ════════════════════════════════════════════════════════════════════════════
 
-# Default target
-help:
-	@echo ""
-	@echo "IntelliFL - Available Commands"
-	@echo "==============================="
-	@echo ""
-	@echo "Quick start: make setup && make dev"
-	@echo ""
-	@echo "Setup:"
-	@echo "  make setup            Complete project setup (Python + frontend)"
-	@echo "  make setup-python     Python environment only"
-	@echo "  make setup-frontend   Frontend dependencies only"
-	@echo ""
-	@echo "Development:"
-	@echo "  make dev              Start all services in dev mode (hot reload, Celery monitoring)"
-	@echo "  make dev-down         Stop all services"
-	@echo ""
-	@echo "Production:"
-	@echo "  make prod             Start all services in production mode"
-	@echo "  make prod-down        Stop prod services"
-	@echo ""
-	@echo "Simulation:"
-	@echo "  make sim              Run a simulation"
-	@echo ""
-	@echo "Quality:"
-	@echo "  make lint             Run linting only"
-	@echo "  make test             Run linting + tests"
-	@echo "  make mutmut           Run mutation tests (Docker)"
-	@echo "  make mutmut-results   View mutation test results"
-	@echo "  make mutmut-show ID=1 Show specific mutant details"
-	@echo "  make sonar            Run linting + tests + SonarQube (Docker)"
-	@echo ""
-	@echo "Maintenance:"
-	@echo "  make clean            Clean build artifacts and caches"
-	@echo "  make reset            Clean artifacts AND all experiment results (out/)"
-	@echo "  make upgrade          Update dependencies to latest versions"
-	@echo ""
-	@echo "Documentation:"
-	@echo "  make docs             Serve documentation (Zensical)"
-	@echo ""
-	@echo "Docker:"
-	@echo "  make docker           Build API image for this machine (load to local Docker)"
-	@echo "  make docker-frontend  Build frontend image for this machine (load to local Docker)"
-	@echo "  make docker-all       Build all images for this machine (load to local Docker)"
-	@echo "  make docker-push      Build all images for amd64+arm64 and push to registry"
-	@echo ""
+export LC_ALL=en_US.UTF-8
+export LANG=en_US.UTF-8
+export PYTHONIOENCODING=utf-8
 
-# Setup targets
-setup:
-	@bash setup.sh
+# Use consistent virtual environment across all platforms
+export UV_PROJECT_ENVIRONMENT ?= .venv
 
-setup-python:
-	@bash reinstall_requirements.sh
+RULE = @python -c "print('\033[1;96m' + '='*80 + '\033[0m')"
+LOG_DIR := tests/logs
 
-setup-frontend:
-	@cd frontend && npm install
+# ════════════════════════════════════════════════════════════════════════════
+# Pre-flight Checks
+# ════════════════════════════════════════════════════════════════════════════
 
-# Development targets
-dev:
-	@docker compose up
+check-env:                 ## Verify uv, Python, and Docker are available
+	uv run --no-active python scripts/check_env.py
 
-dev-down:
-	@docker compose down
+# ════════════════════════════════════════════════════════════════════════════
+# Setup & Maintenance
+# ════════════════════════════════════════════════════════════════════════════
 
-prod:
-	@docker compose -f docker-compose.yml up -d
+setup:                     ## Install all Python dependencies + download datasets
+	@if [ -f scripts/setup.py ]; then \
+		echo "Running setup..."; \
+		uv run --no-active python scripts/setup.py || echo "Setup failed"; \
+	else \
+		echo "scripts/setup.py not found. Aborting setup."; \
+		exit 1; \
+	fi
 
-prod-down:
-	@docker compose -f docker-compose.yml down
+upgrade:                   ## Update all dependencies to latest versions
+	uv lock --upgrade
+	uv sync
 
-sim:
-	@bash run_simulation.sh
+yolo:                      ## Nuke and rebuild: clean → setup → upgrade
+	@$(MAKE) --no-print-directory clean
+	@$(MAKE) --no-print-directory setup
+	@$(MAKE) --no-print-directory upgrade
 
-# Quality targets
-lint:
-	@bash tests/lint.sh
+# ════════════════════════════════════════════════════════════════════════════
+# Development Workflows
+# ════════════════════════════════════════════════════════════════════════════
 
-test:
-	@bash tests/lint.sh --test
+dev:                       ## Start all services (Docker Compose)
+	docker compose up
 
-sonar:
-	@bash tests/lint.sh --sonar
+dev-down:                  ## Stop all services
+	docker compose down
 
-# Maintenance targets
-clean:
-	@bash clean.sh
+sim:                       ## Run local simulation with optimized Ray environment
+	@mkdir -p $(LOG_DIR)
+	@env RAY_ENABLE_METRICS_COLLECTION=0 \
+	     RAY_METRICS_EXPORT_PORT_ENABLED=0 \
+	     RAY_enable_export_api_write=0 \
+	     RAY_BACKEND_LOG_LEVEL=fatal \
+	     uv run --no-active python -m intellifl.simulation_runner
 
-reset:
-	@bash clean.sh --out
+# ════════════════════════════════════════════════════════════════════════════
+# Quality Gates
+# ════════════════════════════════════════════════════════════════════════════
 
-upgrade:
-	@bash update_dependencies.sh
+lint:                      ## Run code quality checks (ruff format, ruff check, ty)
+	uv run --no-active python scripts/lint.py
 
-# Docker targets
-docker:
-	@docker buildx bake -f docker-bake.hcl api --load --set "api.platforms=$(NATIVE_PLATFORM)"
+validate:                  ## Quick validation: lint + unit tests only (fast feedback)
+	@$(MAKE) --no-print-directory lint
+	uv run --no-active pytest tests/unit/ -n auto -v --tb=short -q
 
-docker-frontend:
-	@docker buildx bake -f docker-bake.hcl frontend --load --set "frontend.platforms=$(NATIVE_PLATFORM)"
+frontend-audit:            ## Fix frontend security vulnerabilities
+	@if [ -d "frontend" ]; then cd frontend && npm audit fix; fi
 
-docker-all:
-	@docker buildx bake -f docker-bake.hcl --load --set "*.platforms=$(NATIVE_PLATFORM)"
-	@echo ""
-	@echo "[+] Built IntelliFL components for $(NATIVE_PLATFORM):"
-	@echo "  - intellifl-api:latest"
-	@echo "  - intellifl-web:latest"
-	@echo ""
+audit:                     ## Audit dependencies for security vulnerabilities
+	uv run --no-active python scripts/audit.py
 
-docker-push:
-	@docker buildx bake -f docker-bake.hcl --push
-	@echo ""
-	@echo "[+] Pushed IntelliFL components (linux/amd64 + linux/arm64):"
-	@echo "  - intellifl-api:latest"
-	@echo "  - intellifl-web:latest"
-	@echo ""
+test:                      ## Run full test suite (unit + integration + performance)
+	uv run --no-active python scripts/test.py
 
-# Mutation testing (runs in Docker to avoid Windows compatibility issues)
-mutmut:
-	@docker run --rm --entrypoint sh -v $(CURDIR)/intellifl:/app/intellifl -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/.mutmut-cache:/app/.mutmut-cache intellifl-api:latest -c "cd /app && mutmut run"
+# ════════════════════════════════════════════════════════════════════════════
+# Maintenance
+# ════════════════════════════════════════════════════════════════════════════
 
-mutmut-results:
-	@docker run --rm --entrypoint sh -v $(CURDIR)/.mutmut-cache:/app/.mutmut-cache intellifl-api:latest -c "mutmut results"
+clean:                     ## Remove build artifacts and caches
+	uv run --no-active python scripts/clean_build.py
 
-mutmut-show:
-	@docker run --rm --entrypoint sh -v $(CURDIR)/.mutmut-cache:/app/.mutmut-cache intellifl-api:latest -c "mutmut show $(ID)"
+reset:                     ## Clean artifacts AND experiment results
+	uv run --no-active python scripts/clean_build.py --out
 
-# Documentation target
-docs:
-	@source tests/scripts/common.sh && setup_virtual_environment && zensical serve
+docs:                      ## Serve documentation (Zensical)
+	uv run --no-active zensical serve
+
+deps:                      ## Show dependency tree
+	uv tree
+
+# ════════════════════════════════════════════════════════════════════════════
+# Help
+# ════════════════════════════════════════════════════════════════════════════
+
+help:                      ## Show this help message
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
