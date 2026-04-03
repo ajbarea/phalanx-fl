@@ -8,7 +8,7 @@ Used for testing strategy aggregation logic without Ray/gRPC overhead.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, TypeAlias
+from typing import Any
 
 import numpy as np
 from flwr.common import (
@@ -19,10 +19,10 @@ from flwr.common import (
     parameters_to_ndarrays,
 )
 
-NDArray: TypeAlias = np.ndarray
-Config: TypeAlias = dict[str, Any]
-Metrics: TypeAlias = dict[str, Any]
-Scalar: TypeAlias = bool | bytes | float | int | str
+type NDArray = np.ndarray
+type Config = dict[str, Any]
+type Metrics = dict[str, Any]
+type Scalar = bool | bytes | float | int | str
 
 TENSOR_TYPE_NUMPY = "numpy.ndarray"
 

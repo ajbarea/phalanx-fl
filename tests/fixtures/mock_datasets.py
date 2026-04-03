@@ -5,7 +5,6 @@ Mock dataset generators for federated learning tests.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TypeAlias
 
 import torch
 from torch.utils.data import DataLoader, Dataset
@@ -13,7 +12,7 @@ from torch.utils.data import DataLoader, Dataset
 from intellifl.dataset_handlers.dataset_handler import DatasetHandler
 from tests.common import np
 
-NDArray: TypeAlias = np.ndarray
+type NDArray = np.ndarray
 
 
 class MockDataset(Dataset[tuple[torch.Tensor, torch.Tensor]]):

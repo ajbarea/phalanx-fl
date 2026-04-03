@@ -30,7 +30,7 @@ def check_core_config() -> bool:
     files_ok = True
     files_ok &= check_file_exists(".coveragerc", "Coverage config")
     files_ok &= check_file_exists("pytest.ini", "Pytest config")
-    files_ok &= check_file_exists("requirements.txt", "Requirements")
+    files_ok &= check_file_exists("uv.lock", "Lockfile")
     files_ok &= check_file_exists(".github/workflows/ci.yml", "CI workflow")
 
     return files_ok

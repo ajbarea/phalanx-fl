@@ -6,7 +6,7 @@ Tests mock implementations as drop-in replacements for real Flower components.
 
 from __future__ import annotations
 
-from typing import Any, TypeAlias
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 from tests.common import np, pytest
@@ -20,9 +20,9 @@ from tests.fixtures.mock_flower_components import (
     mock_start_simulation,
 )
 
-NDArray: TypeAlias = np.ndarray
-Config: TypeAlias = dict[str, Any]
-Metrics: TypeAlias = dict[str, Any]
+type NDArray = np.ndarray
+type Config = dict[str, Any]
+type Metrics = dict[str, Any]
 
 
 class TestFlowerMockIntegration:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, TypeAlias
+from typing import Any
 from unittest.mock import patch
 
 from flwr.common import Context
@@ -15,7 +15,7 @@ from tests.common import Mock, np, pytest
 from tests.fixtures.mock_datasets import MockDatasetHandler
 from tests.fixtures.sample_models import MockNetwork
 
-NDArray: TypeAlias = np.ndarray
+type NDArray = np.ndarray
 
 
 def _get_base_strategy_config_dict() -> dict[str, Any]:

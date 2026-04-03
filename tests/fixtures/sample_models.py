@@ -7,15 +7,15 @@ actual gradient computation for fast test execution.
 
 from __future__ import annotations
 
-from typing import Any, TypeAlias
+from typing import Any
 
 import numpy as np
 import torch
 import torch.nn as nn
 
-NDArray: TypeAlias = np.ndarray
-Config: TypeAlias = dict[str, Any]
-Metrics: TypeAlias = dict[str, Any]
+type NDArray = np.ndarray
+type Config = dict[str, Any]
+type Metrics = dict[str, Any]
 
 
 class MockBaseNetwork(nn.Module):
