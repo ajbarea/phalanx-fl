@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -69,7 +69,7 @@ class StatusTracker:
                     pass
 
             # Add timestamp
-            status_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+            status_data["updated_at"] = datetime.now(UTC).isoformat()
 
             # Add origin if set
             if self.origin is not None:
@@ -137,7 +137,7 @@ class StatusTracker:
 
         Creates initial status.json with running status and zero progress.
         """
-        self.started_at = datetime.now(timezone.utc).isoformat()
+        self.started_at = datetime.now(UTC).isoformat()
         self.current_round = 0
         self.current_strategy = 0
 
@@ -207,7 +207,7 @@ class StatusTracker:
             {
                 "status": "completed",
                 "started_at": self.started_at,
-                "completed_at": datetime.now(timezone.utc).isoformat(),
+                "completed_at": datetime.now(UTC).isoformat(),
                 "total_rounds": self.total_rounds,
                 "total_strategies": self.total_strategies,
                 "progress": 1.0,
@@ -223,7 +223,7 @@ class StatusTracker:
         status_data = {
             "status": "failed",
             "started_at": self.started_at,
-            "failed_at": datetime.now(timezone.utc).isoformat(),
+            "failed_at": datetime.now(UTC).isoformat(),
             "current_round": self.current_round,
             "total_rounds": self.total_rounds,
             "current_strategy": self.current_strategy,
@@ -244,7 +244,7 @@ class StatusTracker:
             {
                 "status": "stopped",
                 "started_at": self.started_at,
-                "stopped_at": datetime.now(timezone.utc).isoformat(),
+                "stopped_at": datetime.now(UTC).isoformat(),
                 "current_round": self.current_round,
                 "total_rounds": self.total_rounds,
                 "current_strategy": self.current_strategy,

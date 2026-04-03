@@ -21,10 +21,10 @@ References:
 from __future__ import annotations
 
 import logging
-from enum import Enum
+from enum import StrEnum
 
 
-class TerminationPolicy(str, Enum):
+class TerminationPolicy(StrEnum):
     """Policy for handling insufficient client availability.
 
     Different policies support different experimental paradigms:

@@ -1,23 +1,12 @@
 from __future__ import annotations
 
-import sys
 import warnings
-from typing import Any
+from typing import Any, NotRequired
 from typing import TypedDict as TypingTypedDict
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-# NotRequired is available in Python 3.11+, otherwise use typing_extensions
-if sys.version_info >= (3, 11):
-    from typing import NotRequired
-else:
-    from typing_extensions import NotRequired
-
-# Pydantic V2 requires typing_extensions.TypedDict for python < 3.12
-if sys.version_info < (3, 12):
-    from typing_extensions import TypedDict
-else:
-    TypedDict = TypingTypedDict
+TypedDict = TypingTypedDict
 
 
 def _coerce_bool(v: Any) -> bool | None:
