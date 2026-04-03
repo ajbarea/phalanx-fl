@@ -29,6 +29,8 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: 'uv sync --frozen --python ${{ matrix.python-version }}'
+      - name: Audit for security vulnerabilities
+        run: uv run pip-audit
       - name: Run unit tests (parallel)
         run: >
           uv run coverage run --append --source=intellifl -m pytest -n auto
