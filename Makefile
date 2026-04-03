@@ -86,7 +86,7 @@ validate:                  ## Quick validation: lint + unit tests only (fast fee
 	uv run --no-active pytest tests/unit/ -n auto -v --tb=short -q
 
 frontend-audit:            ## Fix frontend security vulnerabilities
-	@if [ -d "frontend" ]; then cd frontend && npm audit fix; fi
+	cd frontend && npm audit fix
 
 audit:                     ## Audit dependencies for security vulnerabilities
 	uv run --no-active python scripts/audit.py
