@@ -39,22 +39,26 @@ LOG_DIR := tests/logs
 # ════════════════════════════════════════════════════════════════════════════
 
 check-env:                 ## Verify uv, Python, and Docker are available
-	uv run --no-active python scripts/check_env.py
+	@uv run --no-active python scripts/check_env.py
 
 # ════════════════════════════════════════════════════════════════════════════
 # Setup & Maintenance
 # ════════════════════════════════════════════════════════════════════════════
 
 setup:                     ## Install all Python dependencies + download datasets
-	$(call TIMER,uv run --no-active python scripts/setup.py || echo "Setup failed", setup)
+	$(call TIMER,uv run --no-active python scripts/setup.py || echo "Setup failed",setup)
 
 upgrade:                   ## Update all dependencies to latest versions
-	$(call TIMER,uv lock --upgrade && uv sync, upgrade)
+	$(call TIMER,uv run --no-active python scripts/upgrade.py,upgrade)
 
 yolo:                      ## Nuke and rebuild: clean → setup → upgrade
-	$(call TIMER,$(MAKE) --no-print-directory clean, clean)
-	$(call TIMER,$(MAKE) --no-print-directory setup, setup)
-	$(call TIMER,$(MAKE) --no-print-directory upgrade, upgrade)
+	@START_TIME=$$(date +%s); \
+	$(MAKE) --no-print-directory clean; \
+	$(MAKE) --no-print-directory setup; \
+	$(MAKE) --no-print-directory upgrade; \
+	END_TIME=$$(date +%s); \
+	ELAPSED_TIME=$$((END_TIME - START_TIME)); \
+	echo "[TIMER] Target yolo completed in $$ELAPSED_TIME seconds"
 
 # ════════════════════════════════════════════════════════════════════════════
 # Development Workflows
@@ -68,42 +72,42 @@ dev-down:                  ## Stop all services
 
 sim:                       ## Run local simulation with optimized Ray environment
 	@mkdir -p $(LOG_DIR)
-	$(call TIMER,env RAY_ENABLE_METRICS_COLLECTION=0 RAY_METRICS_EXPORT_PORT_ENABLED=0 RAY_enable_export_api_write=0 RAY_BACKEND_LOG_LEVEL=fatal uv run --no-active python -m intellifl.simulation_runner, sim)
+	$(call TIMER,env RAY_ENABLE_METRICS_COLLECTION=0 RAY_METRICS_EXPORT_PORT_ENABLED=0 RAY_enable_export_api_write=0 RAY_BACKEND_LOG_LEVEL=fatal uv run --no-active python -m intellifl.simulation_runner,sim)
 
 # ════════════════════════════════════════════════════════════════════════════
 # Quality Gates
 # ════════════════════════════════════════════════════════════════════════════
 
 lint:                      ## Run code quality checks (ruff format, ruff check, ty)
-	$(call TIMER,uv run --no-active python scripts/lint.py, lint)
+	$(call TIMER,uv run --no-active python scripts/lint.py,lint)
 
 validate:                  ## Quick validation: lint + unit tests only (fast feedback)
-	$(call TIMER,$(MAKE) --no-print-directory lint && uv run --no-active pytest tests/unit/ -n auto -v --tb=short -q, validate)
+	$(call TIMER,uv run --no-active python scripts/validate.py,validate)
 
 frontend-audit:            ## Fix frontend security vulnerabilities
-	cd frontend && npm audit fix
+	$(call TIMER,uv run --no-active python scripts/frontend_audit.py,frontend-audit)
 
 audit:                     ## Audit dependencies for security vulnerabilities
-	$(call TIMER,uv run --no-active python scripts/audit.py, audit)
+	$(call TIMER,uv run --no-active python scripts/audit.py,audit)
 
 test:                      ## Run full test suite (unit + integration + performance)
-	$(call TIMER,uv run --no-active python scripts/test.py, test)
+	$(call TIMER,uv run --no-active python scripts/test.py,test)
 
 # ════════════════════════════════════════════════════════════════════════════
 # Maintenance
 # ════════════════════════════════════════════════════════════════════════════
 
 clean:                     ## Remove build artifacts and caches
-	$(call TIMER,uv run --no-active python scripts/clean_build.py, clean)
+	$(call TIMER,uv run --no-active python scripts/clean_build.py,clean)
 
 reset:                     ## Clean artifacts AND experiment results
-	$(call TIMER,uv run --no-active python scripts/clean_build.py --out, reset)
+	$(call TIMER,uv run --no-active python scripts/clean_build.py --out,reset)
 
 docs:                      ## Serve documentation (Zensical)
 	uv run --no-active zensical serve
 
 deps:                      ## Show dependency tree
-	uv tree
+	$(call TIMER,uv run --no-active python scripts/deps.py,deps)
 
 # ════════════════════════════════════════════════════════════════════════════
 # Help
