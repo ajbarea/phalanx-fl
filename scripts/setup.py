@@ -12,7 +12,7 @@ from pathlib import Path
 
 from logging_utils import setup_logger
 
-logger = setup_logger(__name__, "setup.log")
+logger = setup_logger(__name__, "logs/setup.log")
 
 
 def run_command(
