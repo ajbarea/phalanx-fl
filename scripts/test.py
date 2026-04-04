@@ -2,9 +2,10 @@
 """Test suite runner with coverage reporting.
 
 Runs unit, integration, and performance tests with coverage accumulation.
-Generates XML and terminal coverage reports.
+Generates XML coverage report consumed by CI.
 """
 
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -14,33 +15,51 @@ from logging_utils import setup_logger
 logger = setup_logger(__name__, "test.log")
 
 
-def run_command(cmd: list[str], description: str) -> bool:
-    """Execute a command and report results.
+def run_suite(cmd: list[str], description: str) -> tuple[bool, str]:
+    """Execute a test suite and return (passed, output).
 
     Args:
         cmd: Command and arguments as a list.
         description: Human-readable description for logging.
 
     Returns:
-        True if successful, False otherwise.
+        (True if successful, False otherwise), combined stdout+stderr.
     """
     logger.info(f"Running: {description}")
     try:
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True, encoding="utf-8")
+        output = (result.stdout + result.stderr).strip()
         logger.info(f"✓ {description} passed")
-        if result.stdout:
-            logger.debug(f"Output: {result.stdout}")
-        return True
+        if output:
+            logger.debug(output)
+        return True, output
     except subprocess.CalledProcessError as e:
+        output = (e.stdout + e.stderr).strip()
         logger.error(f"✗ {description} failed (exit code: {e.returncode})")
-        if e.stdout:
-            logger.error(f"STDOUT:\n{e.stdout}")
-        if e.stderr:
-            logger.error(f"STDERR:\n{e.stderr}")
-        return False
+        if output:
+            logger.error(output)
+        return False, output
     except FileNotFoundError:
-        logger.error(f"✗ {description} - command not found")
-        return False
+        logger.error(f"✗ {description} — command not found")
+        return False, ""
+
+
+def parse_pytest_summary(output: str) -> str:
+    """Extract the short result line from pytest output.
+
+    Args:
+        output: Combined pytest stdout/stderr.
+
+    Returns:
+        Summary string like '2155 passed, 2 skipped in 48.98s'.
+    """
+    match = re.search(r"=+ (.+?) =+\s*$", output, re.MULTILINE)
+    if match:
+        return match.group(1).strip()
+    for line in reversed(output.splitlines()):
+        if any(kw in line for kw in ("passed", "failed", "error")):
+            return line.strip()
+    return ""
 
 
 def main() -> int:
@@ -53,15 +72,11 @@ def main() -> int:
     print("=" * 60)
     logger.info("Starting test suite...")
 
-    # Create logs directory
     log_dir = Path("tests/logs")
     log_dir.mkdir(parents=True, exist_ok=True)
-    logger.info(f"Logs directory: {log_dir}")
-
     coverage_xml = log_dir / "coverage.xml"
-    coverage_report = "term-missing"
 
-    tests = [
+    suites: list[tuple[list[str], str]] = [
         (
             [
                 "uv",
@@ -71,11 +86,11 @@ def main() -> int:
                 "tests/unit/",
                 "-n",
                 "auto",
-                "-v",
                 "--tb=short",
+                "-q",
+                "--no-header",
                 "--cov=intellifl",
                 f"--cov-report=xml:{coverage_xml}",
-                f"--cov-report={coverage_report}",
             ],
             "Unit tests",
         ),
@@ -86,8 +101,9 @@ def main() -> int:
                 "--no-active",
                 "pytest",
                 "tests/integration/",
-                "-v",
                 "--tb=short",
+                "-q",
+                "--no-header",
                 "--cov=intellifl",
                 "--cov-append",
                 f"--cov-report=xml:{coverage_xml}",
@@ -101,44 +117,48 @@ def main() -> int:
                 "--no-active",
                 "pytest",
                 "tests/performance/",
-                "-v",
                 "--tb=short",
+                "-q",
+                "--no-header",
                 "--cov=intellifl",
                 "--cov-append",
                 f"--cov-report=xml:{coverage_xml}",
-                f"--cov-report={coverage_report}",
             ],
             "Performance tests",
         ),
     ]
 
-    results = []
-    for i, (cmd, description) in enumerate(tests, 1):
-        print(f"\n[{i}/{len(tests)}] {description}...")
-        results.append(run_command(cmd, description))
+    results: list[tuple[str, bool, str]] = []
+    for i, (cmd, description) in enumerate(suites, 1):
+        print(f"\n[{i}/{len(suites)}] {description}...")
+        passed, output = run_suite(cmd, description)
+        results.append((description, passed, output))
 
     # Summary
-    passed = sum(results)
+    passed_count = sum(1 for _, p, _ in results if p)
     total = len(results)
 
     print("\n" + "=" * 60)
     print("📋 Summary")
     print("=" * 60)
-    for (_, description), result in zip(tests, results, strict=False):
-        status = "✓" if result else "✗"
-        print(f"  {status} {description}")
+    for description, passed, output in results:
+        status = "✓" if passed else "✗"
+        summary = parse_pytest_summary(output)
+        suffix = f" — {summary}" if summary else ""
+        print(f"  {status} {description}{suffix}")
 
     print(f"\n  Coverage report: {coverage_xml}")
     print("=" * 60)
 
-    if passed == total:
-        print(f"✓ All tests passed ({passed}/{total})\n")
-        logger.info("All tests passed")
+    if passed_count == total:
+        print(f"✓ All tests passed ({passed_count}/{total})\n")
+        logger.info(f"All tests passed ({passed_count}/{total})")
         return 0
     else:
-        print(f"✗ Some tests failed ({passed}/{total})")
-        print("   See logs/test.log for details\n")
-        logger.error(f"Some tests failed ({passed}/{total})")
+        failed = total - passed_count
+        print(f"✗ {failed}/{total} suites failed")
+        print("  See logs/test.log for details\n")
+        logger.error(f"{failed}/{total} suites failed")
         return 1
 
 

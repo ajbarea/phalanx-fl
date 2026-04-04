@@ -33,18 +33,16 @@ def clean_build(clean_out: bool = False) -> None:
         handler.close()
         logger.removeHandler(handler)
 
-    cleaned_count = 0
-    removed_count = 0
-
+    # Clearing directories
     dirs_to_clear = [
         root / "logs",
         root / "tests" / "logs",
         root / "test-results",
     ]
-
-    print("\n▶ Clearing directories...")
-    for d in dirs_to_clear:
-        if d.exists():
+    existing_dirs_to_clear = [d for d in dirs_to_clear if d.exists()]
+    if existing_dirs_to_clear:
+        print("\n▶ Clearing directories...")
+        for d in existing_dirs_to_clear:
             for item in d.iterdir():
                 if item.is_dir():
                     shutil.rmtree(item)
@@ -52,8 +50,8 @@ def clean_build(clean_out: bool = False) -> None:
                     item.unlink()
             print(f"  ✓ Cleared {d}")
             logger.info(f"Cleaned {d} directory")
-            cleaned_count += 1
 
+    # Removing cache directories
     dirs_to_remove = [
         root / ".mypy_cache",
         root / ".ruff_cache",
@@ -62,15 +60,15 @@ def clean_build(clean_out: bool = False) -> None:
         root / "site",
         root / ".playwright-mcp",
     ]
-
-    print("\n▶ Removing cache directories...")
-    for d in dirs_to_remove:
-        if d.exists():
+    existing_dirs_to_remove = [d for d in dirs_to_remove if d.exists()]
+    if existing_dirs_to_remove:
+        print("\n▶ Removing cache directories...")
+        for d in existing_dirs_to_remove:
             shutil.rmtree(d)
             print(f"  ✓ Removed {d}")
             logger.info(f"Removed {d} directory")
-            removed_count += 1
 
+    # Cleaning artifact patterns
     patterns_to_remove = [
         ".pytest_cache",
         "__pycache__",
@@ -78,8 +76,7 @@ def clean_build(clean_out: bool = False) -> None:
         "MagicMock",
         "*.egg-info",
     ]
-
-    print("\n▶ Cleaning artifact patterns...")
+    pattern_results = {}
     for pattern in patterns_to_remove:
         count = 0
         for p in root.rglob(pattern):
@@ -89,9 +86,14 @@ def clean_build(clean_out: bool = False) -> None:
                 p.unlink()
             count += 1
         if count > 0:
+            pattern_results[pattern] = count
+    if pattern_results:
+        print("\n▶ Cleaning artifact patterns...")
+        for pattern, count in pattern_results.items():
             print(f"  ✓ Cleaned {count} {pattern} artifacts")
             logger.info(f"Cleaned {pattern} artifacts")
 
+    # Removing coverage files
     files_to_remove = [
         root / ".coverage",
         root / "tests" / ".coverage",
@@ -100,10 +102,10 @@ def clean_build(clean_out: bool = False) -> None:
         files_to_remove.append(f)
     for f in root.rglob("uv.lock.backup.*"):
         files_to_remove.append(f)
-
-    print("\n▶ Removing coverage files...")
-    for f in files_to_remove:
-        if f.exists():
+    coverage_to_remove = [f for f in files_to_remove if f.exists()]
+    if coverage_to_remove:
+        print("\n▶ Removing coverage files...")
+        for f in coverage_to_remove:
             f.unlink()
             print(f"  ✓ Removed {f}")
             logger.info(f"Removed {f}")
