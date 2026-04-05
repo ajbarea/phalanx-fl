@@ -13,6 +13,8 @@
 .PHONY: help setup upgrade yolo dev dev-down sim lint validate test audit clean reset docs deps check-env frontend-audit
 .DEFAULT_GOAL := help
 
+export PYTHONUTF8 := 1
+
 # Reusable timer macro
 TIMER = @START_TIME=$$(date +%s); \
         $(1); \
