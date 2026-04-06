@@ -177,8 +177,8 @@ def generate_summary_json(
     # Generate attack timeline animation if there are attacks
     if full_summary["attack_timeline"]:
         try:
-            total_rounds = full_summary["experiment"].get("total_rounds", 10)
-            total_clients = full_summary["experiment"].get("total_clients", 5)
+            total_rounds = int(full_summary["experiment"].get("total_rounds", 10))
+            total_clients = int(full_summary["experiment"].get("total_clients", 5))
             attack_types = full_summary["attack_summary"].get("attack_types", [])
 
             timeline_gif_path = snapshots_dir / "attack_timeline.gif"
