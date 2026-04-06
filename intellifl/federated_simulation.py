@@ -15,6 +15,7 @@ from flwr.server import ServerApp, ServerAppComponents, ServerConfig
 from flwr.simulation import run_simulation
 
 from intellifl.attack_utils.snapshot_html_reports import (
+    generate_main_dashboard,
     generate_snapshot_index,
     generate_summary_json,
 )
@@ -276,22 +277,27 @@ class FederatedSimulation:
         self.gpu_monitor.log_memory_usage("after simulation complete")
         self.gpu_monitor.check_memory_threshold(threshold_percent=85.0)
 
-        if self.strategy_config.attack_schedule and self.directory_handler:
+        if self.directory_handler:
             output_dir = getattr(self.directory_handler, "dirname", None)
             if output_dir and self.strategy_config.strategy_number is not None:
+                if self.strategy_config.attack_schedule:
+                    try:
+                        run_config: dict[str, int | None] = {
+                            "num_of_clients": self.strategy_config.num_of_clients,
+                            "num_of_rounds": self.strategy_config.num_of_rounds,
+                        }
+                        generate_summary_json(
+                            output_dir, run_config, self.strategy_config.strategy_number
+                        )
+                        generate_snapshot_index(
+                            output_dir, run_config, self.strategy_config.strategy_number
+                        )
+                    except Exception as e:
+                        logging.warning(f"Failed to generate attack snapshot index/summary: {e}")
                 try:
-                    run_config: dict[str, int | None] = {
-                        "num_of_clients": self.strategy_config.num_of_clients,
-                        "num_of_rounds": self.strategy_config.num_of_rounds,
-                    }
-                    generate_summary_json(
-                        output_dir, run_config, self.strategy_config.strategy_number
-                    )
-                    generate_snapshot_index(
-                        output_dir, run_config, self.strategy_config.strategy_number
-                    )
+                    generate_main_dashboard(output_dir)
                 except Exception as e:
-                    logging.warning(f"Failed to generate attack snapshot index/summary: {e}")
+                    logging.warning(f"Failed to generate main dashboard: {e}")
 
     def _assign_all_properties(self) -> None:
         """Initialize dataset loaders, network model, and aggregation strategy."""
