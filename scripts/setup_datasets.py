@@ -2,10 +2,12 @@
 """Dataset setup and download orchestration.
 
 Downloads and extracts federated learning datasets from S3 storage if not
-already present locally. Supports resumable downloads and graceful error
-handling with cleanup on failure.
+already present locally. Shows a progress bar during download and handles
+cleanup on failure.
 """
 
+import shutil
+import subprocess
 import sys
 import tarfile
 import urllib.request
@@ -15,13 +17,58 @@ from logging_utils import setup_logger
 
 logger = setup_logger(__name__, "logs/setup.log")
 
+DATASET_URL = "https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar"
+
+
+def _has_wget() -> bool:
+    """Check if wget is available in PATH."""
+    return shutil.which("wget") is not None
+
+
+def _download_with_wget(url: str, dest: Path) -> None:
+    """Download using wget for resume support and built-in progress."""
+    logger.info("Downloading with wget (resume-capable)...")
+    subprocess.run(
+        ["wget", "--continue", "--show-progress", "-O", str(dest), url],
+        check=True,
+    )
+
+
+def _download_with_urllib(url: str, dest: Path) -> None:
+    """Download using urllib with a rich progress bar."""
+    try:
+        from rich.progress import (
+            BarColumn,
+            DownloadColumn,
+            Progress,
+            TransferSpeedColumn,
+        )
+
+        # Get file size from headers
+        with urllib.request.urlopen(url) as response:
+            total = int(response.headers.get("Content-Length", 0))
+
+            with Progress(
+                "[progress.description]{task.description}",
+                BarColumn(),
+                DownloadColumn(),
+                TransferSpeedColumn(),
+            ) as progress:
+                task = progress.add_task("Downloading", total=total or None)
+                with open(dest, "wb") as f:
+                    while chunk := response.read(1024 * 256):
+                        f.write(chunk)
+                        progress.update(task, advance=len(chunk))
+    except ImportError:
+        logger.info("rich not available, downloading without progress bar...")
+        urllib.request.urlretrieve(url, dest)
+
 
 def setup_datasets() -> None:
     """Download and extract datasets if not already present.
 
-    Checks for sentinel file (bloodmnist) to determine if datasets exist.
-    Downloads from S3 and extracts to datasets/ directory. Cleans up
-    temporary tar file on completion or failure.
+    Prefers wget when available for resume capability and built-in progress.
+    Falls back to urllib with a rich progress bar.
 
     Raises:
         SystemExit: On download or extraction failure.
@@ -35,13 +82,17 @@ def setup_datasets() -> None:
         return
 
     logger.info("Datasets not found. Starting download...")
-    dataset_url = "https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar"
     datasets_dir.mkdir(exist_ok=True)
     tar_path = datasets_dir / "datasets.tar"
 
     try:
-        logger.info(f"Downloading from {dataset_url}...")
-        urllib.request.urlretrieve(dataset_url, tar_path)
+        logger.info(f"Downloading from {DATASET_URL}...")
+
+        if _has_wget():
+            _download_with_wget(DATASET_URL, tar_path)
+        else:
+            _download_with_urllib(DATASET_URL, tar_path)
+
         logger.info(f"Downloaded to {tar_path}")
 
         logger.info("Extracting datasets...")
