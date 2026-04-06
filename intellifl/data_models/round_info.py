@@ -55,7 +55,6 @@ class RoundsInfo:
         ]
 
         self.statsable_metrics = [
-            "average_accuracy_history",
             "tp_history",
             "tn_history",
             "fp_history",
