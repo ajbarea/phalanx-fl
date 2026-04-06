@@ -395,6 +395,6 @@ When `save_attack_snapshots: true`, InteFL saves before-and-after snapshots of a
 |---|---|
 | `save_attack_snapshots` | `true` / `false` |
 | `attack_snapshot_format` | `"pickle"`, `"visual"`, or `"pickle_and_visual"` |
-| `snapshot_max_samples` | Max samples per snapshot (default: `6`) |
+| `snapshot_max_samples` | Max samples per snapshot (default: `5`) |
 
 Snapshots are written to `out/<run>/attack_snapshots_<strategy_number>/` and include an `index.html` for browsing results in a browser.

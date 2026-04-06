@@ -20,14 +20,14 @@ Simulations are controlled entirely by a single JSON file. The file has two top-
 
 ## :material-test-tube: Example
 
-```json title="example_strategy_config.json"
+```json title="Minimal multi-strategy example"
 {
   "shared_settings": {
     "aggregation_strategy_keyword": "pid_standardized",
     "dataset_keyword": "femnist_iid",
     "num_of_rounds": 10,
     "num_of_clients": 5,
-    "num_of_malicious_clients": 2,
+    "num_of_malicious_clients": 1,
     "training_device": "cpu",
     "cpus_per_client": 1,
     "gpus_per_client": 0.0,
@@ -44,7 +44,7 @@ Simulations are controlled entirely by a single JSON file. The file has two top-
 }
 ```
 
-This runs two strategies back-to-back, differing only in `num_std_dev`.
+This runs two strategies back-to-back, differing only in `num_std_dev`. See `config/simulation_strategies/example_strategy_config.json` for a full example with all 11 attack types.
 
 ---
 
@@ -77,9 +77,9 @@ InteFL enforces a **Scientific Integrity First** policy. To ensure experimental 
 | `training_device` | `string` | — | `"cpu"`, `"cuda"`, or `"gpu"` (alias for `cuda`). |
 | `cpus_per_client` | `float` | — | CPU cores allocated to each Ray worker. |
 | `gpus_per_client` | `float` | — | GPU fraction allocated to each Ray worker (`0.0`–`1.0`). |
-| `model_keyword` | `string` | `null` | Override the default network model for a dataset. |
 | `model_type` | `string` | `"cnn"` | `"cnn"` or `"transformer"`. |
 | `use_llm` | `bool` | `false` | Enable transformer-based training path. |
+| `strict_mode` | `bool` | `null` | Enable strict validation that rejects incompatible configs (e.g., full participation + client removal). |
 
 ### :material-brain: Training
 
@@ -180,3 +180,6 @@ See the [Attacks](attacks.md) page for full documentation of all 12 attack types
 | `llm_finetuning` | `string` | `null` | `"lora"` to use LoRA adapters instead of full fine-tuning. |
 | `use_lora` | `bool` | `false` | Alternative boolean flag to enable LoRA (equivalent to `llm_finetuning: "lora"`). |
 | `lora_rank` | `int` | `8` | LoRA rank `r`. |
+| `lora_alpha` | `int` | `16` | LoRA scaling factor (`alpha / rank` controls adaptation strength). |
+| `lora_dropout` | `float` | `0.05` | Dropout applied to LoRA layers. |
+| `lora_target_modules` | `array` | `null` | List of module names to apply LoRA to (e.g. `["query", "value"]`). Defaults to model-specific modules. |
