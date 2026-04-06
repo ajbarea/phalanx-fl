@@ -28,6 +28,7 @@ from typing import Any
 from rich.console import Console
 from rich.table import Table
 
+from scripts.logging_utils import setup_logger
 from tests.scripts.constants import BASELINE_FORMAT_VERSION, FAST_CONFIGS
 from tests.scripts.runner.executor import ExperimentExecutor
 from tests.scripts.runner.timing_db import TimingDatabase
@@ -35,6 +36,7 @@ from tests.scripts.runner.timing_db import TimingDatabase
 # Project root for path resolution
 project_root = Path(__file__).parent.parent.parent
 console = Console()
+logger = setup_logger(__name__, "record_baselines.log")
 
 
 def parse_round_metrics(csv_path: Path) -> dict[str, Any]:
@@ -278,6 +280,7 @@ def run_and_record(
 
     config_base = project_root / "config" / "simulation_strategies" / config_subdir
     console.print(f"\n[cyan]Recording baselines for {len(configs)} config(s)...[/cyan]\n")
+    logger.info(f"Recording baselines for {len(configs)} config(s) from {config_subdir}/")
 
     with ExperimentExecutor(
         project_root=project_root,
@@ -290,6 +293,7 @@ def run_and_record(
     ) as executor:
         for idx, config_name in enumerate(configs, start=1):
             console.print(f"\n[bold cyan]=== [{idx}/{len(configs)}] {config_name} ===[/bold cyan]")
+            logger.info(f"[{idx}/{len(configs)}] Starting: {config_name}")
 
             # Get num_clients from config
             config_path = config_base / config_name
@@ -317,13 +321,21 @@ def run_and_record(
                             f"  Strategy {strat['strategy_index']}: "
                             f"acc={acc:.1f}%, loss={loss:.4f}, rounds={rounds}"
                         )
+                        logger.info(
+                            f"  [{config_name}] strategy={strat['strategy_index']} "
+                            f"acc={acc:.1f}% loss={loss:.4f} rounds={rounds} "
+                            f"duration={result.duration:.1f}s"
+                        )
 
                     results["recorded"].append(config_name)
+                    logger.info(f"[OK] Saved baseline: {baseline_path.name}")
                 else:
                     console.print("[yellow][!] No strategy data found in output[/yellow]")
+                    logger.warning(f"[!] No strategy data in output for {config_name}")
                     results["failed"].append(config_name)
             else:
                 console.print("[red][X] Failed - no output directory[/red]")
+                logger.error(f"[X] {config_name} failed — no output directory")
                 results["failed"].append(config_name)
 
             # Cleanup between runs
@@ -412,8 +424,10 @@ def main():
     # Determine configs to run
     if args.all_fast:
         configs = FAST_CONFIGS
+        logger.info(f"Mode: --all-fast ({len(configs)} configs)")
     elif args.config:
         configs = [args.config]
+        logger.info(f"Mode: --config {args.config}")
     else:
         console.print("[red]Please specify --config, --all-fast, or --list[/red]")
         sys.exit(1)
@@ -423,6 +437,7 @@ def main():
     missing = [c for c in configs if not (config_base / c).exists()]
     if missing:
         console.print(f"[red]Missing configs: {missing}[/red]")
+        logger.error(f"Missing configs: {missing}")
         sys.exit(1)
 
     baselines_dir = project_root / args.output_dir
@@ -441,6 +456,13 @@ def main():
             console.print(f"  - {config}")
 
     console.print(f"\n[cyan]Baselines saved to: {baselines_dir}[/cyan]")
+    logger.info(
+        f"Recording complete — recorded={len(results['recorded'])} "
+        f"failed={len(results['failed'])} skipped={len(results['skipped'])}"
+    )
+    if results["failed"]:
+        for config in results["failed"]:
+            logger.error(f"  Failed: {config}")
 
 
 if __name__ == "__main__":
@@ -448,4 +470,5 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         console.print("\n[yellow]Interrupted by user[/yellow]")
+        logger.warning("Interrupted by user")
         sys.exit(130)
