@@ -228,6 +228,12 @@ Validate whether a HuggingFace dataset exists and is compatible.
 
 ## :material-heart-pulse: System
 
+### `GET /`
+
+Root endpoint. Returns a simple JSON message confirming the API is running.
+
+---
+
 ### `GET /api/health`
 
 Health check endpoint including Redis and Celery worker status.

@@ -5,7 +5,6 @@
 ```mermaid
 flowchart TD
     UI["React / Vite UI<br/>port 5173 (dev) / 80 (prod via nginx)"]
-    Docs["Zensical<br/>Documentation · port 8080"]
     API["FastAPI Backend<br/>intellifl.api · port 8000"]
     Redis[(Redis<br/>redis-data volume)]
     Celery["Celery Worker<br/>intellifl.celery_app"]
@@ -17,7 +16,6 @@ flowchart TD
     Clients["FlowerClient × N<br/>train + evaluate"]
 
     UI -->|HTTP / SSE| API
-    Docs -->|HTTP| Markdown
     API -->|task.delay| Redis
     Redis --> Celery
     Celery --> SR
@@ -165,6 +163,8 @@ out/
 
     - `docker-compose.yml` (base only, no override)
 
+    **Start:** `docker compose -f docker-compose.yml up -d`
+
     **Services:**
 
     - `api`: FastAPI without `--reload`
@@ -179,8 +179,6 @@ out/
     - `./datasets`: Mounted RW for downloaded datasets
     - `./config`: Mounted RO for strategy configs
     - `redis-data`: Named volume for Redis persistence (survives container restarts)
-
-    **Network:** `default` — User-defined bridge network (auto-removed on `docker compose down`)
 
 ---
 
