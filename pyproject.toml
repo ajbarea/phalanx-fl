@@ -215,6 +215,25 @@ options.backend.client-resources.num-gpus = 0.0
 # =============================================================================
 # Mutation Testing Configuration
 # =============================================================================
+# =============================================================================
+# uv Configuration — PyTorch CUDA backend
+# Route torch/torchvision to the CUDA 12.8 index on Windows and Linux.
+# macOS falls back to PyPI (no CUDA builds available for macOS).
+# =============================================================================
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu128", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+]
+torchvision = [
+    { index = "pytorch-cu128", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+]
+
+# =============================================================================
 [tool.mutmut]
 paths_to_mutate = ["intellifl/"]
 runner = "python -m pytest"
