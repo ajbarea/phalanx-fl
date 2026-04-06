@@ -74,7 +74,7 @@ dev-down:                  ## Stop all services
 
 sim:                       ## Run local simulation with optimized Ray environment
 	@mkdir -p $(LOG_DIR)
-	$(call TIMER,env RAY_ENABLE_METRICS_COLLECTION=0 RAY_METRICS_EXPORT_PORT_ENABLED=0 RAY_enable_export_api_write=0 RAY_BACKEND_LOG_LEVEL=fatal uv run --no-active python -m intellifl.simulation_runner,sim)
+	$(call TIMER,uv run --no-active python scripts/sim.py,sim)
 
 # ════════════════════════════════════════════════════════════════════════════
 # Quality Gates
