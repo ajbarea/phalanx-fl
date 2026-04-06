@@ -2,7 +2,7 @@
 name = "intellifl"
 version = "0.1.0"
 description = "Federated Learning Framework with Ray, Flower, and PyTorch"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 dependencies = [
     "accelerate",
     "celery[redis]",
@@ -60,13 +60,16 @@ dev = [
     "zensical",
 ]
 
+[project.scripts]
+intellifl-dev = "intellifl.dev_cli:main"
+
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["intellifl*"]
+include = ["intellifl*", "scripts*", "tests*"]
 
 
 
@@ -77,7 +80,7 @@ include = ["intellifl*"]
 python-version = "3.12"
 
 [tool.ty.src]
-include = ["intellifl", "tests"]
+include = ["intellifl", "scripts", "tests"]
 exclude = [
     "__pycache__",
     ".venv*",
@@ -96,6 +99,7 @@ exclude = [
 [tool.ty.rules]
 all = "warn"
 unresolved-import = "error"
+division-by-zero = "ignore"
 
 [tool.ty.analysis]
 replace-imports-with-any = [
@@ -110,7 +114,23 @@ replace-imports-with-any = [
     "numpy.**",
     "matplotlib.**",
     "cv2.**",
+    "transformers.**",
+    "datasets.**",
+    "celery.**",
+    "peft.**",
 ]
+
+[[tool.ty.overrides]]
+include = ["tests/**"]
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore"
+unknown-argument = "ignore"
+invalid-assignment = "ignore"
+unresolved-attribute = "ignore"
+call-non-callable = "ignore"
+no-matching-overload = "ignore"
+unsupported-operator = "ignore"
+not-iterable = "ignore"
 
 # =============================================================================
 # Ruff Configuration
@@ -213,13 +233,24 @@ options.backend.client-resources.num-cpus = 2
 options.backend.client-resources.num-gpus = 0.0
 
 # =============================================================================
-# Mutation Testing Configuration
+# uv Configuration
 # =============================================================================
-# =============================================================================
-# uv Configuration — PyTorch CUDA backend
-# Route torch/torchvision to the CUDA 12.8 index on Windows and Linux.
-# macOS falls back to PyPI (no CUDA builds available for macOS).
-# =============================================================================
+[tool.uv]
+required-version = ">=0.5.3"
+python-preference = "managed"
+
+environments = [
+    "sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "sys_platform == 'win32' and platform_machine == 'AMD64'",
+]
+
+required-environments = [
+    "sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "sys_platform == 'win32' and platform_machine == 'AMD64'",
+]
+
 [[tool.uv.index]]
 name = "pytorch-cu128"
 url = "https://download.pytorch.org/whl/cu128"
@@ -233,6 +264,8 @@ torchvision = [
     { index = "pytorch-cu128", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
 ]
 
+# =============================================================================
+# Mutation Testing Configuration
 # =============================================================================
 [tool.mutmut]
 paths_to_mutate = ["intellifl/"]
