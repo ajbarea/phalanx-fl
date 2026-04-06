@@ -122,8 +122,11 @@ class FederatedDatasetLoader:
             int: Number of classes, or None if not detected
         """
         try:
-            if hasattr(fds.dataset, "features") and self.label_column in fds.dataset.features:
-                label_feature = fds.dataset.features[self.label_column]
+            # FederatedDataset doesn't expose the underlying dataset directly easily
+            # Load a small sample partition to check features
+            partition = fds.load_partition(partition_id=0, split="train")
+            if hasattr(partition, "features") and self.label_column in partition.features:
+                label_feature = partition.features[self.label_column]
                 if hasattr(label_feature, "names"):
                     return len(label_feature.names)
         except Exception:

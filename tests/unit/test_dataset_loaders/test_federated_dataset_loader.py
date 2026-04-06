@@ -232,8 +232,8 @@ class TestLoadDatasets:
 
         loader.load_datasets()
 
-        # Verify load_partition was called for each client
-        assert mock_fds.load_partition.call_count == num_clients
+        # Verify load_partition was called for each client + 1 time for _detect_num_classes
+        assert mock_fds.load_partition.call_count == num_clients + 1
         for i in range(num_clients):
             mock_fds.load_partition.assert_any_call(partition_id=i, split="train")
 
