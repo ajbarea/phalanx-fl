@@ -600,7 +600,7 @@ async def create_simulation(request: CreateSimulationRequest) -> dict[str, Any]:
         finally:
             conn.close()
 
-        task = run_simulation.delay(str(config_filepath))  # type: ignore
+        task = run_simulation.delay(str(config_filepath))
         celery_task_id = task.id
         logger.info(f"Celery: queued simulation {simulation_id} (task_id: {celery_task_id})")
     except Exception as celery_err:

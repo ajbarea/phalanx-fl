@@ -404,7 +404,9 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                     del outputs, loss
 
                 epoch_loss /= len(trainloader.dataset) or 1
-                epoch_acc = correct / total if total > 0 else 0.0
+                epoch_acc = 0.0
+                if total > 0:
+                    epoch_acc = correct / total
                 if epoch == 0 and not snapshot_saved and cnn_snapshot_fallback is not None:
                     self._save_attack_snapshots(**cnn_snapshot_fallback)
                     snapshot_saved = True
@@ -584,7 +586,9 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
             loss /= len(testloader.dataset) if len(testloader.dataset) > 0 else 1
-            accuracy = correct / total if total > 0 else 0.0
+            accuracy = 0.0
+            if total > 0:
+                accuracy = correct / total
             return loss, accuracy
 
         elif self.model_type == "transformer":
@@ -621,7 +625,9 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                         total += mask.sum().item()
 
             loss = total_loss / len(testloader)
-            accuracy = correct / total if total > 0 else 0
+            accuracy = 0.0
+            if total > 0:
+                accuracy = correct / total
             return loss, accuracy
 
         else:

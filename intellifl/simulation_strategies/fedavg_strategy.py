@@ -155,7 +155,9 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
 
         # Calculate aggregated metrics
         loss_aggregated = weighted_loss_avg(aggregate_loss_values)
-        average_accuracy = weighted_accuracy_sum / total_examples if total_examples > 0 else 0.0
+        average_accuracy = 0.0
+        if total_examples > 0:
+            average_accuracy = weighted_accuracy_sum / total_examples
 
         # Store round-level metrics
         self.strategy_history.rounds_history.aggregated_loss_history.append(loss_aggregated)
