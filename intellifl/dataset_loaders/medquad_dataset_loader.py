@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import glob
 import os
-from typing import Any, cast
+from typing import Any
 
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, DataCollatorForLanguageModeling, PreTrainedTokenizerBase
 
-from datasets import DatasetDict, load_dataset  # type: ignore[attr-defined]
+from datasets import load_dataset  # type: ignore[attr-defined]
 
 
 class MedQuADDatasetLoader:
@@ -58,7 +58,7 @@ class MedQuADDatasetLoader:
         for client_folder in sorted(client_folders, key=lambda string: int(string.split("_")[1])):
             json_files = glob.glob(os.path.join(self.dataset_dir, client_folder, "*.json"))
 
-            client_dataset = cast(DatasetDict, load_dataset("json", data_files=json_files))
+            client_dataset = load_dataset("json", data_files=json_files)
 
             # Large max_length avoids truncation warnings; chunking handles splitting
             def tokenize_function(examples):

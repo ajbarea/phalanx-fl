@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
 from flwr_datasets.partitioner import DirichletPartitioner
@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, DataCollatorWithPadding
 
 from datasets import Dataset as HFDataset  # type: ignore[attr-defined]
-from datasets import DatasetDict, load_dataset  # type: ignore[attr-defined]
+from datasets import load_dataset  # type: ignore[attr-defined]
 
 
 class TextClassificationLoader:
@@ -72,7 +72,7 @@ class TextClassificationLoader:
                 - num_labels: Number of classification labels in the dataset
         """
         # Load dataset from HuggingFace Hub
-        dataset = cast(DatasetDict, load_dataset(self.dataset_name))
+        dataset = load_dataset(self.dataset_name)
 
         # Get train and test splits
         train_dataset: HFDataset = dataset["train"]

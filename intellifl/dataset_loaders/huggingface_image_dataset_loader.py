@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, cast
+from typing import Any
 
 from flwr_datasets.partitioner import DirichletPartitioner
 from PIL import Image
@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
 from datasets import Dataset as HFDataset  # type: ignore[attr-defined]
-from datasets import DatasetDict, load_dataset  # type: ignore[attr-defined]
+from datasets import load_dataset  # type: ignore[attr-defined]
 
 
 class HuggingFaceImageDataset(Dataset):  # type: ignore[type-arg]
@@ -141,12 +141,11 @@ class HuggingFaceImageDatasetLoader:
         valloaders = []
 
         if self.hf_dataset_name:
-            dataset = cast(
-                DatasetDict,
-                load_dataset(self.hf_dataset_path, self.hf_dataset_name, trust_remote_code=True),
+            dataset = load_dataset(
+                self.hf_dataset_path, self.hf_dataset_name, trust_remote_code=True
             )
         else:
-            dataset = cast(DatasetDict, load_dataset(self.hf_dataset_path, trust_remote_code=True))
+            dataset = load_dataset(self.hf_dataset_path, trust_remote_code=True)
 
         full_dataset: HFDataset = dataset["train"]
 

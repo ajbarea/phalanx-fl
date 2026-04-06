@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, cast
+from typing import Any
 
 from flwr_datasets.partitioner import DirichletPartitioner
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, DataCollatorForLanguageModeling, PreTrainedTokenizerBase
 
 from datasets import Dataset as HFDataset  # type: ignore[attr-defined]
-from datasets import DatasetDict, load_dataset  # type: ignore[attr-defined]
+from datasets import load_dataset  # type: ignore[attr-defined]
 
 
 class HuggingFaceTextDatasetLoader:
@@ -122,12 +122,11 @@ class HuggingFaceTextDatasetLoader:
             poisoned_client_ids = list(range(self.num_poisoned_clients))
 
         if self.hf_dataset_name:
-            dataset = cast(
-                DatasetDict,
-                load_dataset(self.hf_dataset_path, self.hf_dataset_name, trust_remote_code=True),
+            dataset = load_dataset(
+                self.hf_dataset_path, self.hf_dataset_name, trust_remote_code=True
             )
         else:
-            dataset = cast(DatasetDict, load_dataset(self.hf_dataset_path, trust_remote_code=True))
+            dataset = load_dataset(self.hf_dataset_path, trust_remote_code=True)
 
         full_dataset: HFDataset = dataset["train"]
 
