@@ -82,14 +82,6 @@ hide:
 
     [:octicons-arrow-right-24: Endpoints](api.md)
 
--   :material-monitor-dashboard:{ .lg .middle } __React Dashboard__
-
-    ---
-
-    Launch simulations, stream logs, and explore plots from the browser
-
-    [:octicons-arrow-right-24: Get started](getting-started.md)
-
 </div>
 
 ---
@@ -117,7 +109,7 @@ flowchart LR
 
     FedAvg, Krum, Multi-Krum, Bulyan, RFA, Trimmed Mean, PID-based, Trust-based, ArKrum — each with configurable parameters
 
-!!! danger "12 Attack Types"
+!!! danger "11 Attack Types"
 
     **Data poisoning:** Label flipping, targeted label flipping, Gaussian noise, backdoor triggers, token replacement  
     **Model poisoning:** Model poisoning, gradient scaling, boosted scaling, Byzantine perturbation, inner product manipulation, alternating min poisoning

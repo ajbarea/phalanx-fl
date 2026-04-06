@@ -12,10 +12,8 @@ The fastest way to run InteFL. Docker Compose brings up the full stack — API, 
 === ":material-server-network: Production"
 
     ```bash title="Start in production mode"
-    make prod
+    docker compose -f docker-compose.yml up -d
     ```
-
-    > Runs `docker compose -f docker-compose.yml up -d`
 
     | Service | URL | Description |
     |---|---|---|
@@ -29,9 +27,7 @@ The fastest way to run InteFL. Docker Compose brings up the full stack — API, 
     make dev
     ```
 
-    > Runs `docker compose up`
-
-    Automatically applies `docker-compose.override.yml`, which enables:
+    > Runs `docker compose up` — automatically applies `docker-compose.override.yml`
 
     | Service | URL | Description |
     |---|---|---|
@@ -44,9 +40,7 @@ The fastest way to run InteFL. Docker Compose brings up the full stack — API, 
 
 ```bash title="Useful make targets"
 make dev                         # Start all services in dev mode (hot reload, Celery monitoring)
-make dev-down                    # Stop dev services
-make prod                        # Start all services in production mode (detached)
-make prod-down                   # Stop prod services
+make dev-down                    # Stop all services
 docker compose logs -f           # Tail logs from all services
 docker compose logs -f api       # Tail logs from the API service only
 ```
@@ -82,15 +76,7 @@ cp .env.example .env
 | `HF_TOKEN` | *(empty)* | [HuggingFace access token](https://huggingface.co/settings/tokens) (needed for gated datasets) |
 | `VITE_API_PROXY_TARGET` | `http://api:8000` | API proxy target for Vite dev server |
 | `VITE_DOCS_PROXY_TARGET` | `http://docs:8000` | Docs proxy target for Vite dev server |
-
-**Building Docker images:**
-
-```bash
-make docker           # Build API image for this machine
-make docker-frontend  # Build frontend image for this machine
-make docker-all       # Build all images for this machine
-make docker-push      # Build all images for amd64+arm64 and push to registry
-```
+| `VITE_DOCS_PORT` | `8080` | Docs port for Vite dev server (must match `DOCS_PORT`) |
 
 **Persistent volumes:**
 
@@ -105,7 +91,7 @@ make docker-push      # Build all images for amd64+arm64 and push to registry
 
 ## Option B — Local development
 
-Preferred if you are actively modifying the codebase and want to avoid Docker overhead.
+Preferred if you are actively editing the codebase. Installs dependencies locally for IDE support, linting, and direct CLI usage. Services still run via Docker Compose.
 
 !!! info "Prerequisites"
 
@@ -113,7 +99,7 @@ Preferred if you are actively modifying the codebase and want to avoid Docker ov
     |---|---|
     | :material-language-python: Python | 3.10 – 3.13 |
     | :material-nodejs: Node.js | 20+ |
-    | :material-database: Redis | 7+ (local or Docker) |
+    | :material-database: Redis | 7+ (via Docker) |
     | :material-expansion-card: CUDA *(optional)* | For GPU acceleration |
 
 ### 1. Install all dependencies
@@ -122,27 +108,13 @@ Preferred if you are actively modifying the codebase and want to avoid Docker ov
 make setup
 ```
 
-This runs `scripts/setup.py` via [`uv`](https://github.com/astral-sh/uv) to install the `intellifl` package and all Python dependencies, then installs the frontend npm packages. The setup is cross-platform (Windows, macOS, Linux) with no shell script dependencies.
-
-??? tip "Install components separately"
-
-    ```bash
-    make setup-python     # Python + intellifl package only
-    make setup-frontend   # npm install for the React UI only
-    ```
+This runs `scripts/setup.py` via [`uv`](https://github.com/astral-sh/uv) to install the `intellifl` package and all Python dependencies, then installs the frontend npm packages.
 
 ### 2. Start dev servers
 
 ```bash
-make dev
-```
-
-Brings up the full Docker Compose stack (API, frontend, Redis, Celery worker, docs, and Celery monitor) with hot reload enabled. Changes to Python or React source files trigger an automatic reload.
-
-To stop all services:
-
-```bash
-make dev-down
+make dev       # Start Docker Compose stack with hot reload
+make dev-down  # Stop all services
 ```
 
 ### 3. Run a simulation (CLI)
@@ -153,7 +125,7 @@ make sim
 python -m intellifl.simulation_runner config/simulation_strategies/example_strategy_config.json
 ```
 
-The default config at `config/simulation_strategies/example_strategy_config.json` runs a short FEMNIST simulation with a PID-based defence strategy and an `attack_schedule`.
+The default config at `config/simulation_strategies/example_strategy_config.json` runs a 10-round FEMNIST simulation with a PID-based defence strategy and a comprehensive `attack_schedule` that demonstrates all 11 attack types (one per round).
 
 **CLI arguments:**
 
@@ -192,16 +164,25 @@ out/
 ## :material-test-tube: Running tests and quality checks
 
 ```bash title="Quality and test commands"
-make check-env    # Verify uv, Python, Docker
-make lint         # Code quality checks (ruff, ty, eslint)
-make audit        # Security audit with pip-audit
-make validate     # Quick feedback: lint + unit tests only (~2 min)
-make test         # Full test suite: unit + integration + performance (~5 min)
-make sonar        # Full analysis + SonarQube (Docker)
+make check-env        # Verify uv, Python, Docker
+make lint             # Code quality checks (ruff, ty, eslint)
+make audit            # Security audit with pip-audit
+make frontend-audit   # Fix frontend security vulnerabilities
+make validate         # Quick feedback: lint + unit tests only
+make test             # Full test suite: unit + integration + performance
 ```
 
 !!! tip "Security scanning"
-    `make audit` runs pip-audit to scan for known vulnerabilities in your dependencies. This is integrated into CI/CD and runs automatically on every push.
+    `make audit` runs pip-audit to scan for known vulnerabilities in Python dependencies. `make frontend-audit` handles npm audit fixes.
+
+```bash title="Maintenance commands"
+make upgrade          # Update all dependencies to latest versions
+make clean            # Remove build artifacts and caches
+make reset            # Clean artifacts AND experiment results (out/)
+make deps             # Show dependency tree
+make docs             # Serve documentation locally (Zensical)
+make yolo             # Nuke and rebuild: clean → setup → upgrade
+```
 
 ---
 
