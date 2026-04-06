@@ -330,7 +330,7 @@ class TestByzantineFaultTolerance:
     def mock_federated_simulation_with_byzantine(self):
         with (
             patch("intellifl.federated_simulation.ImageDatasetLoader") as mock_loader,
-            patch("intellifl.federated_simulation.ITSNetwork") as mock_network,
+            patch("intellifl.federated_simulation.build_cnn_model") as mock_build_cnn,
             patch("intellifl.federated_simulation.run_simulation") as mock_run_sim,
             patch(
                 "intellifl.federated_simulation.FederatedSimulation._assign_aggregation_strategy"
@@ -344,7 +344,7 @@ class TestByzantineFaultTolerance:
             mock_loader.return_value = mock_loader_instance
 
             mock_network_instance = MockNetwork()
-            mock_network.return_value = mock_network_instance
+            mock_build_cnn.return_value = mock_network_instance
 
             # Mock strategy assignment to avoid initialization issues
             mock_strategy = Mock()
@@ -355,7 +355,7 @@ class TestByzantineFaultTolerance:
 
             yield {
                 "loader": mock_loader,
-                "network": mock_network,
+                "network": mock_build_cnn,
                 "run_simulation": mock_run_sim,
                 "assign_strategy": mock_assign_strategy,
                 "loader_instance": mock_loader_instance,
