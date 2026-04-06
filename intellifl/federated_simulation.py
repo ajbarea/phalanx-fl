@@ -51,28 +51,9 @@ from intellifl.dataset_loaders.image_transformers.medmnist_2d_rgb_image_transfor
     medmnist_2d_rgb_image_transformer,
 )
 from intellifl.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
+from intellifl.network_models import build_cnn_model
 from intellifl.network_models.bert_model_definition import load_model, load_model_with_lora
-from intellifl.network_models.bloodmnist_network_definition import BloodMNISTNetwork
-from intellifl.network_models.breastmnist_network_definition import BreastMNISTNetwork
-from intellifl.network_models.dermamnist_network_definition import DermaMNISTNetwork
 from intellifl.network_models.dynamic_cnn import DynamicCNN
-from intellifl.network_models.femnist_full_niid_network_definition import (
-    FemnistFullNIIDNetwork,
-)
-from intellifl.network_models.femnist_reduced_iid_network_definition import (
-    FemnistReducedIIDNetwork,
-)
-from intellifl.network_models.flair_network_definition import FlairNetwork
-from intellifl.network_models.its_network_definition import ITSNetwork
-from intellifl.network_models.lung_photos_network_definition import LungCancerCNN
-from intellifl.network_models.octmnist_network_definition import OctMNISTNetwork
-from intellifl.network_models.organamnist_network_definition import OrganAMNISTNetwork
-from intellifl.network_models.organcmnist_network_definition import OrganCMNISTNetwork
-from intellifl.network_models.organsmnist_network_definition import OrganSMNISTNetwork
-from intellifl.network_models.pathmnist_network_definition import PathMNISTNetwork
-from intellifl.network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
-from intellifl.network_models.retinamnist_network_definition import RetinaMNISTNetwork
-from intellifl.network_models.tissuemnist_network_definition import TissueMNISTNetwork
 from intellifl.simulation_strategies.arkrum_strategy import ArKrumStrategy
 from intellifl.simulation_strategies.bulyan_strategy import BulyanStrategy
 from intellifl.simulation_strategies.fedavg_strategy import FedAvgStrategy
@@ -347,69 +328,31 @@ class FederatedSimulation:
                 training_subset_fraction=training_subset_fraction,
             )
 
-        if dataset_keyword == "its":
-            dataset_loader = create_image_loader(its_image_transformer)
-            self._network_model = ITSNetwork()
+        # ── CNN datasets ─────────────────────────────────────────────────────
+        # Maps each dataset keyword to its image transformer. Model is built
+        # via the registry in intellifl.network_models (build_cnn_model).
+        _cnn_loader_map: dict[str, Any] = {
+            "its": its_image_transformer,
+            "femnist_iid": femnist_image_transformer,
+            "femnist_niid": femnist_image_transformer,
+            "flair": flair_image_transformer,
+            "pneumoniamnist": medmnist_2d_grayscale_image_transformer,
+            "bloodmnist": medmnist_2d_rgb_image_transformer,
+            "breastmnist": medmnist_2d_grayscale_image_transformer,
+            "pathmnist": medmnist_2d_rgb_image_transformer,
+            "dermamnist": medmnist_2d_rgb_image_transformer,
+            "octmnist": medmnist_2d_grayscale_image_transformer,
+            "retinamnist": medmnist_2d_rgb_image_transformer,
+            "tissuemnist": medmnist_2d_grayscale_image_transformer,
+            "organamnist": medmnist_2d_grayscale_image_transformer,
+            "organcmnist": medmnist_2d_grayscale_image_transformer,
+            "organsmnist": medmnist_2d_grayscale_image_transformer,
+            "lung_photos": lung_cancer_image_transformer,
+        }
 
-        elif dataset_keyword == "femnist_iid":
-            dataset_loader = create_image_loader(femnist_image_transformer)
-            self._network_model = FemnistReducedIIDNetwork()
-
-        elif dataset_keyword == "femnist_niid":
-            dataset_loader = create_image_loader(femnist_image_transformer)
-            self._network_model = FemnistFullNIIDNetwork()
-
-        elif dataset_keyword == "flair":
-            dataset_loader = create_image_loader(flair_image_transformer)
-            self._network_model = FlairNetwork()
-
-        elif dataset_keyword == "pneumoniamnist":
-            dataset_loader = create_image_loader(medmnist_2d_grayscale_image_transformer)
-            self._network_model = PneumoniamnistNetwork()
-
-        elif dataset_keyword == "bloodmnist":
-            dataset_loader = create_image_loader(medmnist_2d_rgb_image_transformer)
-            self._network_model = BloodMNISTNetwork()
-
-        elif dataset_keyword == "breastmnist":
-            dataset_loader = create_image_loader(medmnist_2d_grayscale_image_transformer)
-            self._network_model = BreastMNISTNetwork()
-
-        elif dataset_keyword == "pathmnist":
-            dataset_loader = create_image_loader(medmnist_2d_rgb_image_transformer)
-            self._network_model = PathMNISTNetwork()
-
-        elif dataset_keyword == "dermamnist":
-            dataset_loader = create_image_loader(medmnist_2d_rgb_image_transformer)
-            self._network_model = DermaMNISTNetwork()
-
-        elif dataset_keyword == "octmnist":
-            dataset_loader = create_image_loader(medmnist_2d_grayscale_image_transformer)
-            self._network_model = OctMNISTNetwork()
-
-        elif dataset_keyword == "retinamnist":
-            dataset_loader = create_image_loader(medmnist_2d_rgb_image_transformer)
-            self._network_model = RetinaMNISTNetwork()
-
-        elif dataset_keyword == "tissuemnist":
-            dataset_loader = create_image_loader(medmnist_2d_grayscale_image_transformer)
-            self._network_model = TissueMNISTNetwork()
-
-        elif dataset_keyword == "organamnist":
-            dataset_loader = create_image_loader(medmnist_2d_grayscale_image_transformer)
-            self._network_model = OrganAMNISTNetwork()
-
-        elif dataset_keyword == "organcmnist":
-            dataset_loader = create_image_loader(medmnist_2d_grayscale_image_transformer)
-            self._network_model = OrganCMNISTNetwork()
-
-        elif dataset_keyword == "organsmnist":
-            dataset_loader = create_image_loader(medmnist_2d_grayscale_image_transformer)
-            self._network_model = OrganSMNISTNetwork()
-
-        elif dataset_keyword == "lung_photos":
-            dataset_loader = create_image_loader(lung_cancer_image_transformer)
-            self._network_model = LungCancerCNN()
+        if dataset_keyword in _cnn_loader_map:
+            dataset_loader = create_image_loader(_cnn_loader_map[dataset_keyword])
+            self._network_model = build_cnn_model(dataset_keyword)
 
         elif dataset_keyword == "medquad":
             dataset_loader = MedQuADDatasetLoader(
