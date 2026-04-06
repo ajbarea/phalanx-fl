@@ -85,7 +85,7 @@ class DirectoryHandler:
             f"{self.new_csv_dirname}/"
             f"per_client_metrics_{self.simulation_strategy_history.strategy_config.strategy_number}.csv"
         )
-        with open(csv_filepath, mode="w", newline="") as client_csv:
+        with open(csv_filepath, mode="w", newline="", encoding="utf-8") as client_csv:
             writer = csv.writer(client_csv)
 
             csv_headers: list[str] = ["round"]
@@ -121,7 +121,7 @@ class DirectoryHandler:
             f"{self.new_csv_dirname}/"
             f"round_metrics_{self.simulation_strategy_history.strategy_config.strategy_number}.csv"
         )
-        with open(csv_filepath, mode="w", newline="") as round_csv:
+        with open(csv_filepath, mode="w", newline="", encoding="utf-8") as round_csv:
             writer = csv.writer(round_csv)
 
             savable_metrics = self.simulation_strategy_history.rounds_history.savable_metrics
@@ -163,7 +163,7 @@ class DirectoryHandler:
             f"{self.new_csv_dirname}/"
             f"exec_stats_{self.simulation_strategy_history.strategy_config.strategy_number}.csv"
         )
-        with open(csv_filepath, mode="w", newline="") as exec_stats:
+        with open(csv_filepath, mode="w", newline="", encoding="utf-8") as exec_stats:
             writer = csv.writer(exec_stats)
 
             statsable_metrics = self.simulation_strategy_history.rounds_history.statsable_metrics
