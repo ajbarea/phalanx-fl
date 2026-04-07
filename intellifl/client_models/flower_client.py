@@ -193,9 +193,11 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
 
         wants_visual = self.attack_snapshot_format in ["visual", "pickle_and_visual"]
         can_visualize = original_data_sample is not None and (
-            self.model_type == "cnn" or (self.model_type == "transformer" and self.tokenizer is not None)
+            self.model_type == "cnn"
+            or (self.model_type == "transformer" and self.tokenizer is not None)
         )
         if wants_visual and can_visualize:
+            assert original_data_sample is not None
             kwargs = {}
             if self.model_type == "transformer":
                 kwargs["tokenizer"] = self.tokenizer
