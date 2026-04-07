@@ -73,7 +73,7 @@ InteFL enforces a **Scientific Integrity First** policy. To ensure experimental 
 | `aggregation_strategy_keyword` | `string` | — | Which strategy. See [Strategies](strategies.md). |
 | `num_of_rounds` | `int` | — | Total FL rounds to run. |
 | `num_of_clients` | `int` | — | Total virtual clients. |
-| `num_of_malicious_clients` | `int` | `0` | How many clients are treated as potentially malicious. |
+| `num_of_malicious_clients` | `int` | `1` | How many clients are treated as potentially malicious. |
 | `training_device` | `string` | — | `"cpu"`, `"cuda"`, or `"gpu"` (alias for `cuda`). |
 | `cpus_per_client` | `float` | — | CPU cores allocated to each Ray worker. |
 | `gpus_per_client` | `float` | — | GPU fraction allocated to each Ray worker (`0.0`–`1.0`). |
@@ -101,7 +101,7 @@ InteFL enforces a **Scientific Integrity First** policy. To ensure experimental 
 
 ### :material-bug-outline: Attack schedule
 
-See the [Attacks](attacks.md) page for full documentation of all 12 attack types (data and model poisoning).
+See the [Attacks](attacks.md) page for full documentation of all 11 attack types (data and model poisoning).
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -112,7 +112,7 @@ See the [Attacks](attacks.md) page for full documentation of all 12 attack types
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `remove_clients` | `bool` | `false` | Enable permanent removal of detected malicious clients. |
-| `begin_removing_from_round` | `int` | `null` | Only start removing from this round onwards. |
+| `begin_removing_from_round` | `int` | `0` | Only start removing from this round onwards. |
 | `termination_policy` | `string` | `"graceful"` | `"strict"`, `"graceful"`, or `"adaptive"`. Controls behaviour when too many clients have been removed. |
 | `min_clients_ratio` | `float` | `0.3` | For `"adaptive"` policy: stop removing if fewer than this fraction of clients remain. |
 
@@ -157,6 +157,12 @@ See the [Attacks](attacks.md) page for full documentation of all 12 attack types
 | Field | Type | Description |
 |---|---|---|
 | `trim_ratio` | `float` | Fraction of extreme updates trimmed from each end. |
+
+#### General
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `num_of_clusters` | `int` | `null` | Reserved. Number of strategy clusters (currently capped at `1`). |
 
 ### :fontawesome-solid-robot: HuggingFace / custom text datasets
 
