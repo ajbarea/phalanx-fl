@@ -2,12 +2,13 @@
 site_name = "InteFL"
 site_description = "A federated learning execution and research framework"
 site_author = "AJ Barea"
-# site_url = "https://your-domain.com/docs/"
+site_url = "https://ajbarea.github.io/phalanx-fl/"
 copyright = "AJ Barea &middot; 2026"
 
 nav = [
   { "Home" = "index.md" },
   { "Getting Started" = "getting-started.md" },
+  { "CLI Reference" = "cli.md" },
   { "Architecture" = "architecture.md" },
   { "Configuration" = "configuration.md" },
   { "Datasets" = "datasets.md" },
@@ -17,11 +18,13 @@ nav = [
 ]
 
 extra_css = ["stylesheets/extra.css"]
+extra_javascript = ["javascripts/reveal.js"]
 
 # ---------------------------------------------------------------------------
 # Theme
 # ---------------------------------------------------------------------------
 [project.theme]
+name = "material"
 language = "en"
 
 features = [
@@ -43,6 +46,7 @@ features = [
     "navigation.indexes",
     "navigation.instant",
     "navigation.instant.prefetch",
+    "navigation.instant.progress",
     "navigation.path",
     "navigation.sections",
     "navigation.top",
@@ -50,6 +54,7 @@ features = [
 
     # Search
     "search.highlight",
+    "search.suggest",
 ]
 
 # ---------------------------------------------------------------------------
@@ -87,6 +92,8 @@ logo = "material/scatter-plot"
 # ---------------------------------------------------------------------------
 [project.extra]
 generator = false
-social = [
-    { icon = "fontawesome/brands/github", link = "https://github.com/ajbarea/phalanx-fl", name = "InteFL on GitHub" },
-]
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/ajbarea/phalanx-fl"
+name = "InteFL on GitHub"
