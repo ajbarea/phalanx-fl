@@ -3,10 +3,13 @@ name: CI Pipeline
   push:
     branches:
       - main
-      - aj-ux-enhancements
   pull_request:
     branches:
       - main
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   test:
     name: 'Test (Python ${{ matrix.python-version }})'
@@ -26,6 +29,7 @@ jobs:
         with:
           version: 0.9.26
           enable-cache: true
+          cache-suffix: 'py${{ matrix.python-version }}'
       - name: Install dependencies
         run: 'uv sync --frozen --python ${{ matrix.python-version }}'
       - name: Audit for security vulnerabilities

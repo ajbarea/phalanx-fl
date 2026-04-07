@@ -3,7 +3,6 @@ name: Documentation
   push:
     branches:
       - main
-      - aj-ux-enhancements
 
 permissions:
   contents: read
@@ -22,7 +21,12 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
-          python-version: 3.x
+          python-version: '3.13'
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: docs-pip-${{ runner.os }}-zensical
       - name: Install Zensical
         run: pip install zensical
       - name: Build Documentation
@@ -34,7 +38,7 @@ jobs:
 
   deploy:
     needs: build
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/aj-ux-enhancements'
+    if: github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: '${{ steps.deployment.outputs.page_url }}'
