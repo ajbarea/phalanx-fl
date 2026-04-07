@@ -6,6 +6,7 @@ dataset preparation, and optional frontend setup. Gracefully handles missing
 tools like npm by skipping their setup steps.
 """
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -15,15 +16,12 @@ from logging_utils import setup_logger
 logger = setup_logger(__name__, "setup.log")
 
 
-def run_step(
-    cmd: list[str], description: str, use_shell: bool = False, cwd: str | None = None
-) -> bool:
+def run_step(cmd: list[str], description: str, cwd: Path | None = None) -> bool:
     """Execute a setup step, printing progress and logging to file.
 
     Args:
         cmd: Command and arguments as a list of strings.
         description: Human-readable description for display and logging.
-        use_shell: If True, run through system shell to inherit PATH.
         cwd: Working directory. If None, uses current directory.
 
     Returns:
@@ -35,10 +33,10 @@ def run_step(
         result = subprocess.run(
             cmd,
             check=True,
-            shell=use_shell,
             cwd=cwd,
             capture_output=True,
             text=True,
+            encoding="utf-8",
         )
         print(f"  ✓ {description}")
         logger.info(f"✓ {description} completed")
@@ -59,15 +57,24 @@ def run_step(
         return True
 
 
-def has_npm() -> bool:
-    """Check if npm is available and functional in PATH."""
+def find_npm() -> str | None:
+    """Return the resolved npm executable path, if available."""
+    npm_path = shutil.which("npm")
+    if not npm_path:
+        return None
+
     try:
         result = subprocess.run(
-            "npm --version", capture_output=True, check=False, timeout=5, shell=True
+            [npm_path, "--version"],
+            capture_output=True,
+            check=False,
+            timeout=5,
+            text=True,
+            encoding="utf-8",
         )
-        return result.returncode == 0
+        return npm_path if result.returncode == 0 else None
     except subprocess.TimeoutExpired:
-        return False
+        return None
 
 
 def main() -> int:
@@ -82,23 +89,26 @@ def main() -> int:
 
     project_root = Path(__file__).parent.parent
 
-    steps: list[tuple[list[str], str, bool, str | None]] = [
-        (["uv", "sync"], "Installing dependencies", False, None),
-        (["uv", "run", "python", "scripts/setup_datasets.py"], "Setting up datasets", False, None),
+    steps: list[tuple[list[str], str, Path | None]] = [
+        (["uv", "sync", "--locked"], "Installing dependencies", None),
+        (
+            [sys.executable, str(project_root / "scripts" / "setup_datasets.py")],
+            "Setting up datasets",
+            None,
+        ),
     ]
 
     frontend_dir = project_root / "frontend"
+    npm_path = find_npm()
     if frontend_dir.exists():
-        if has_npm():
-            steps.append(
-                (["npm", "install"], "Installing frontend dependencies", True, str(frontend_dir))
-            )
+        if npm_path:
+            steps.append(([npm_path, "install"], "Installing frontend dependencies", frontend_dir))
         else:
             print("  ⚠  Frontend directory exists but npm not found — skipping")
             logger.warning("frontend directory exists but npm not found — skipping frontend setup")
 
-    for cmd, description, use_shell, cwd in steps:
-        if not run_step(cmd, description, use_shell=use_shell, cwd=cwd):
+    for cmd, description, cwd in steps:
+        if not run_step(cmd, description, cwd=cwd):
             print("\n" + "=" * 60)
             print("✗ Setup failed")
             print("=" * 60 + "\n")

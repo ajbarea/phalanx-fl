@@ -84,7 +84,7 @@ def main() -> int:
 
     # Try pip-audit first, fall back to uv audit
     tools = [
-        (["uv", "run", "--no-active", "pip-audit"], "pip-audit"),
+        (["pip-audit"], "pip-audit"),
         (["uv", "audit"], "uv audit"),
     ]
 

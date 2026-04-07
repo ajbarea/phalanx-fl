@@ -79,9 +79,8 @@ def main() -> int:
     suites: list[tuple[list[str], str]] = [
         (
             [
-                "uv",
-                "run",
-                "--no-active",
+                sys.executable,
+                "-m",
                 "pytest",
                 "tests/unit/",
                 "-n",
@@ -96,9 +95,8 @@ def main() -> int:
         ),
         (
             [
-                "uv",
-                "run",
-                "--no-active",
+                sys.executable,
+                "-m",
                 "pytest",
                 "tests/integration/",
                 "--tb=short",
@@ -112,9 +110,8 @@ def main() -> int:
         ),
         (
             [
-                "uv",
-                "run",
-                "--no-active",
+                sys.executable,
+                "-m",
                 "pytest",
                 "tests/performance/",
                 "--tb=short",

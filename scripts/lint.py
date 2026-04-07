@@ -5,6 +5,7 @@ Runs ruff format, ruff check, type checking with ty, and frontend linting.
 Provides clear output and exits with appropriate status codes.
 """
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -27,10 +28,13 @@ def run_command(cmd: list[str], description: str, cwd: str | None = None) -> boo
     """
     logger.info(f"Running: {description}")
     try:
-        # Use shell=True for npm commands to ensure PATH is properly resolved on Windows
-        use_shell = cmd[0] == "npm"
         result = subprocess.run(
-            cmd, check=True, capture_output=True, text=True, cwd=cwd, shell=use_shell
+            cmd,
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            cwd=cwd,
         )
         logger.info(f"✓ {description} passed")
         if result.stdout:
@@ -59,14 +63,14 @@ def main() -> int:
     logger.info("Starting code quality checks...")
 
     checks = [
-        (["uv", "run", "--no-active", "ruff", "format", "."], "Ruff format", None),
+        (["ruff", "format", "."], "Ruff format", None),
         (
-            ["uv", "run", "--no-active", "ruff", "check", "--fix", "--unsafe-fixes", "."],
+            ["ruff", "check", "--fix", "--unsafe-fixes", "."],
             "Ruff check",
             None,
         ),
         (
-            ["uv", "run", "--no-active", "ty", "check", "intellifl", "tests"],
+            ["ty", "check", "intellifl", "tests"],
             "Type checking (ty)",
             None,
         ),
@@ -75,7 +79,8 @@ def main() -> int:
     # Add frontend linting if frontend directory exists
     frontend_dir = Path("frontend")
     if frontend_dir.exists():
-        checks.append((["npm", "run", "lint"], "Frontend linting", "frontend"))
+        npm_path = shutil.which("npm") or "npm"
+        checks.append(([npm_path, "run", "lint"], "Frontend linting", "frontend"))
 
     results = []
     for i, (cmd, description, cwd) in enumerate(checks, 1):

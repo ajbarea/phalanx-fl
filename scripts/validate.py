@@ -4,10 +4,12 @@
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 from logging_utils import setup_logger
 
 logger = setup_logger(__name__, "validate.log")
+LINT_SCRIPT = Path(__file__).with_name("lint.py")
 
 
 def run_step(cmd: list[str], description: str) -> tuple[bool, str]:
@@ -63,7 +65,7 @@ def main() -> int:
 
     # Step 1: Lint
     passed, output = run_step(
-        ["uv", "run", "--no-active", "python", "scripts/lint.py"],
+        [sys.executable, str(LINT_SCRIPT)],
         "Lint",
     )
     if passed:
@@ -81,9 +83,8 @@ def main() -> int:
     # Step 2: Unit tests
     passed, output = run_step(
         [
-            "uv",
-            "run",
-            "--no-active",
+            sys.executable,
+            "-m",
             "pytest",
             "tests/unit/",
             "-n",
