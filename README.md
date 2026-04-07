@@ -152,10 +152,10 @@ Defines the aggregation strategy. Options:
 
 ## How to Run
 
-1. **Python Environment**: Python 3.10+ is used in the framework. Before attempting to run the code, make sure Python 3.10-3.13 is installed in the system.
+1. **Python Environment**: [`uv`](https://docs.astral.sh/uv/) is the supported workflow. Install uv, let it manage CPython 3.11-3.13 for you, then run `uv sync --locked`.
 2. **Configuration**: place configurations in `config/simulation_strategies/`.
 3. **Specify Configuration**: update `intellifl/simulation_runner.py` with the desired configuration file.
-4. **Execution**: run `sh run_simulation.sh` (automated virtual environment setup and execution).
+4. **Execution**: run `uv run intellifl-dev sim` for the default simulation workflow, or `uv run python -m intellifl.simulation_runner <config.json>` for a specific config.
 5. **Output**: plots and `.csv` files (if enabled) saved in `out/` directory.
 
 ### Batch Experiments
@@ -350,4 +350,3 @@ and compare how they affect the simulation outcome.
 
 One limitation is that as of now it is impossible to vary the number of aggregation rounds, so the parameter
 `num_of_rounds` must always be in the `shared_settings` section. 
-
