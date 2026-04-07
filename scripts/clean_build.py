@@ -44,10 +44,13 @@ def clean_build(clean_out: bool = False) -> None:
         print("\n▶ Clearing directories...")
         for d in existing_dirs_to_clear:
             for item in d.iterdir():
-                if item.is_dir():
-                    shutil.rmtree(item)
-                else:
-                    item.unlink()
+                try:
+                    if item.is_dir():
+                        shutil.rmtree(item)
+                    else:
+                        item.unlink()
+                except PermissionError:
+                    print(f"  ⚠ Skipped (locked): {item}")
             print(f"  ✓ Cleared {d}")
             logger.info(f"Cleaned {d} directory")
 
@@ -76,15 +79,21 @@ def clean_build(clean_out: bool = False) -> None:
         "MagicMock",
         "*.egg-info",
     ]
+    skip_dirs = {".venv", "node_modules"}
     pattern_results = {}
     for pattern in patterns_to_remove:
         count = 0
         for p in root.rglob(pattern):
-            if p.is_dir():
-                shutil.rmtree(p)
-            else:
-                p.unlink()
-            count += 1
+            if any(part in skip_dirs for part in p.parts):
+                continue
+            try:
+                if p.is_dir():
+                    shutil.rmtree(p)
+                else:
+                    p.unlink()
+                count += 1
+            except PermissionError:
+                print(f"  ⚠ Skipped (locked): {p}")
         if count > 0:
             pattern_results[pattern] = count
     if pattern_results:
