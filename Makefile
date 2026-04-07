@@ -3,117 +3,101 @@
 ## Multi-client federated learning with Ray, Flower, and PyTorch
 ##
 ## Usage:
-##   make help          Show all available commands
-##   make setup         Install dependencies + download datasets
-##   make dev           Start Docker Compose services
-##   make lint          Run code quality checks
-##   make test          Run full test suite
+##   uv run intellifl-dev help   Show all available commands
+##   uv run intellifl-dev setup  Install dependencies + download datasets
+##   uv run intellifl-dev dev    Start Docker Compose services
+##   uv run intellifl-dev lint   Run code quality checks
+##   uv run intellifl-dev test   Run full test suite
+##   uv run intellifl-dev baselines  Record fast simulation baselines for CI
+##   make <target>               Optional compatibility wrapper
 ##
 
-.PHONY: help setup upgrade yolo dev dev-down sim lint validate test audit clean reset docs deps check-env frontend-audit
+.PHONY: help setup upgrade yolo dev dev-down sim lint validate test audit clean reset docs deps check-env frontend-audit baselines cache-dir cache-prune
 .DEFAULT_GOAL := help
 
-export PYTHONUTF8 := 1
-
-# Reusable timer macro
-TIMER = @START_TIME=$$(date +%s); \
-        $(1); \
-        END_TIME=$$(date +%s); \
-        ELAPSED_TIME=$$((END_TIME - START_TIME)); \
-        echo "[TIMER] Target $(2) completed in $$ELAPSED_TIME seconds"
-
-# ════════════════════════════════════════════════════════════════════════════
-# Environment
-# ════════════════════════════════════════════════════════════════════════════
-
-export LC_ALL=en_US.UTF-8
-export LANG=en_US.UTF-8
-export PYTHONIOENCODING=utf-8
-
-# Use consistent virtual environment across all platforms
 export UV_PROJECT_ENVIRONMENT ?= .venv
-
-RULE = @python -c "print('\033[1;96m' + '='*80 + '\033[0m')"
-LOG_DIR := tests/logs
+UV_DEV := uv run --no-active intellifl-dev
 
 # ════════════════════════════════════════════════════════════════════════════
 # Pre-flight Checks
 # ════════════════════════════════════════════════════════════════════════════
 
 check-env:                 ## Verify uv, Python, and Docker are available
-	@uv run --no-active python scripts/check_env.py
+	@$(UV_DEV) check-env
 
 # ════════════════════════════════════════════════════════════════════════════
 # Setup & Maintenance
 # ════════════════════════════════════════════════════════════════════════════
 
 setup:                     ## Install all Python dependencies + download datasets
-	$(call TIMER,uv run --no-active python scripts/setup.py || echo "Setup failed",setup)
+	@$(UV_DEV) setup
 
 upgrade:                   ## Update all dependencies to latest versions
-	$(call TIMER,uv run --no-active python scripts/upgrade.py,upgrade)
+	@$(UV_DEV) upgrade
 
 yolo:                      ## Nuke and rebuild: clean → setup → upgrade
-	@START_TIME=$$(date +%s); \
-	$(MAKE) --no-print-directory clean; \
-	$(MAKE) --no-print-directory setup; \
-	$(MAKE) --no-print-directory upgrade; \
-	END_TIME=$$(date +%s); \
-	ELAPSED_TIME=$$((END_TIME - START_TIME)); \
-	echo "[TIMER] Target yolo completed in $$ELAPSED_TIME seconds"
+	@$(UV_DEV) yolo
 
 # ════════════════════════════════════════════════════════════════════════════
 # Development Workflows
 # ════════════════════════════════════════════════════════════════════════════
 
 dev:                       ## Start all services (Docker Compose)
-	docker compose up
+	@$(UV_DEV) dev
 
 dev-down:                  ## Stop all services
-	docker compose down
+	@$(UV_DEV) dev-down
 
 sim:                       ## Run local simulation with optimized Ray environment
-	@mkdir -p $(LOG_DIR)
-	$(call TIMER,uv run --no-active python scripts/sim.py,sim)
+	@$(UV_DEV) sim
 
 # ════════════════════════════════════════════════════════════════════════════
 # Quality Gates
 # ════════════════════════════════════════════════════════════════════════════
 
 lint:                      ## Run code quality checks (ruff format, ruff check, ty)
-	$(call TIMER,uv run --no-active python scripts/lint.py,lint)
+	@$(UV_DEV) lint
 
 validate:                  ## Quick validation: lint + unit tests only (fast feedback)
-	$(call TIMER,uv run --no-active python scripts/validate.py,validate)
+	@$(UV_DEV) validate
 
 frontend-audit:            ## Fix frontend security vulnerabilities
-	$(call TIMER,uv run --no-active python scripts/frontend_audit.py,frontend-audit)
+	@$(UV_DEV) frontend-audit
 
 audit:                     ## Audit dependencies for security vulnerabilities
-	$(call TIMER,uv run --no-active python scripts/audit.py,audit)
+	@$(UV_DEV) audit
 
 test:                      ## Run full test suite (unit + integration + performance)
-	$(call TIMER,uv run --no-active python scripts/test.py,test)
+	@$(UV_DEV) test
+
+baselines:                 ## Record fast simulation baselines for CI
+	@$(UV_DEV) baselines -- --all-fast
 
 # ════════════════════════════════════════════════════════════════════════════
 # Maintenance
 # ════════════════════════════════════════════════════════════════════════════
 
 clean:                     ## Remove build artifacts and caches
-	$(call TIMER,uv run --no-active python scripts/clean_build.py,clean)
+	@$(UV_DEV) clean
 
 reset:                     ## Clean artifacts AND experiment results
-	$(call TIMER,uv run --no-active python scripts/clean_build.py --out,reset)
+	@$(UV_DEV) reset
 
 docs:                      ## Serve documentation (Zensical)
-	uv run --no-active zensical serve
+	@$(UV_DEV) docs
 
 deps:                      ## Show dependency tree
-	$(call TIMER,uv run --no-active python scripts/deps.py,deps)
+	@$(UV_DEV) deps
+
+cache-dir:                 ## Show uv cache directory
+	@$(UV_DEV) cache-dir
+
+cache-prune:               ## Prune unused uv cache entries
+	@$(UV_DEV) cache-prune
 
 # ════════════════════════════════════════════════════════════════════════════
 # Help
 # ════════════════════════════════════════════════════════════════════════════
 
 help:                      ## Show this help message
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
+	@$(UV_DEV) help
