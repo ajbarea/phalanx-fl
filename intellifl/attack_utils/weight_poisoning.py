@@ -54,17 +54,20 @@ def _check_and_warn_overflow(
             logger.error(f"{attack_type}: param[{i}] contains NaN/Inf values!")
     return params
 
+# ---------------------------------------------------------------------------
+# Attack type registry
+# ---------------------------------------------------------------------------
 
-WEIGHT_ATTACK_TYPES = frozenset(
-    [
-        "model_poisoning",
-        "gradient_scaling",
-        "byzantine_perturbation",
-        "boosted_scaling",
-        "inner_product_manipulation",
-        "alternating_min_poisoning",
-    ]
+WEIGHT_ATTACK_TYPE_NAMES = (
+    "model_poisoning",
+    "gradient_scaling",
+    "byzantine_perturbation",
+    "boosted_scaling",
+    "inner_product_manipulation",
+    "alternating_min_poisoning",
 )
+
+WEIGHT_ATTACK_TYPES = frozenset(WEIGHT_ATTACK_TYPE_NAMES)
 
 
 # ---------------------------------------------------------------------------

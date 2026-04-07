@@ -18,15 +18,15 @@ from intellifl.attack_utils.vocabularies.registry import (
 # Attack type registry
 # ---------------------------------------------------------------------------
 
-DATA_ATTACK_TYPES = frozenset(
-    [
-        "label_flipping",
-        "targeted_label_flipping",
-        "gaussian_noise",
-        "token_replacement",
-        "backdoor_trigger",
-    ]
+DATA_ATTACK_TYPE_NAMES = (
+    "label_flipping",
+    "targeted_label_flipping",
+    "gaussian_noise",
+    "token_replacement",
+    "backdoor_trigger",
 )
+
+DATA_ATTACK_TYPES = frozenset(DATA_ATTACK_TYPE_NAMES)
 
 
 # ---------------------------------------------------------------------------
