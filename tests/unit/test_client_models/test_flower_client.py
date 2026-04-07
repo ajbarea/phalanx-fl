@@ -7,7 +7,6 @@ with mocked PyTorch operations and data.
 
 from __future__ import annotations
 
-import logging
 from collections import OrderedDict
 from typing import Any
 from unittest.mock import patch
@@ -219,7 +218,6 @@ class TestFlowerClient:
                 net=flower_client_cnn.net,
                 trainloader=flower_client_cnn.trainloader,
                 epochs=1,
-
             )
 
             mock_optimizer_class.assert_called_once()
@@ -244,7 +242,6 @@ class TestFlowerClient:
                 net=flower_client_transformer.net,
                 trainloader=flower_client_transformer.trainloader,
                 epochs=1,
-
             )
 
             mock_optimizer_class.assert_called_once()
@@ -276,7 +273,6 @@ class TestFlowerClient:
                 net=flower_client_transformer.net,
                 trainloader=flower_client_transformer.trainloader,
                 epochs=1,
-
                 global_params=global_params,
                 mu=0.01,
             )
@@ -484,7 +480,6 @@ class TestFlowerClient:
                 net=flower_client_transformer.net,
                 trainloader=flower_client_transformer.trainloader,
                 epochs=1,
-
                 global_params=global_params,
                 mu=0.01,
             )
@@ -536,4 +531,3 @@ class TestFlowerClient:
         loss, accuracy = flower_client_cnn.test(flower_client_cnn.net, empty_loader)
         assert isinstance(loss, float)
         assert isinstance(accuracy, float)
-
