@@ -29,7 +29,7 @@ jobs:
       - name: Install dependencies
         run: 'uv sync --frozen --python ${{ matrix.python-version }}'
       - name: Audit for security vulnerabilities
-        run: uv run pip-audit
+        run: uv run intellifl-dev audit
       - name: Run unit tests (parallel)
         run: >
           uv run coverage run --append --source=intellifl -m pytest -n auto
@@ -54,6 +54,9 @@ jobs:
           slug: ajbarea/phalanx-fl
           files: tests/logs/coverage.xml
           fail_ci_if_error: true
+      - name: Minimize uv cache
+        if: always()
+        run: uv cache prune --ci
   smoke-test:
     runs-on: ubuntu-latest
     steps:
@@ -66,6 +69,11 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: uv sync --frozen
+      - name: Smoke check developer CLI
+        run: uv run intellifl-dev help
       - name: Run smoke tests
         run: |
           uv run python -m tests.scripts.ci_smoke_test
+      - name: Minimize uv cache
+        if: always()
+        run: uv cache prune --ci
