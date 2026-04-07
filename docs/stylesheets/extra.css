@@ -5,20 +5,20 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=account_tree,api,bolt,bug_report,code,data_object,database,group,inbox,layers,local_fire_department,menu_book,photo_library,play_circle,psychology,rocket_launch,scatter_plot,settings,shield,smart_toy,terminal,trending_up,verified_user,warning&display=block');
 
-:root > * {
-  --md-primary-fg-color:        #009688;
+:root>* {
+  --md-primary-fg-color: #009688;
   --md-primary-fg-color--light: #4DB6AC;
-  --md-primary-fg-color--dark:  #00796B;
-  --md-accent-fg-color:         #7C4DFF;
+  --md-primary-fg-color--dark: #00796B;
+  --md-accent-fg-color: #7C4DFF;
 
   /* InteFL palette */
-  --intefl-teal:       #009688;
+  --intefl-teal: #009688;
   --intefl-teal-light: #4DB6AC;
-  --intefl-teal-dark:  #00695C;
-  --intefl-purple:     #7C4DFF;
+  --intefl-teal-dark: #00695C;
+  --intefl-purple: #7C4DFF;
   --intefl-purple-light: #B388FF;
-  --intefl-slate:      #1a1a2e;
-  --intefl-glass-bg:   color-mix(in srgb, #fff 3%, transparent);
+  --intefl-slate: #1a1a2e;
+  --intefl-glass-bg: color-mix(in srgb, #fff 3%, transparent);
   --intefl-glass-border: color-mix(in srgb, var(--intefl-teal) 20%, transparent);
 
   /* Hero background — light mode uses the desaturated variant */
@@ -44,7 +44,9 @@
 }
 
 [data-md-color-scheme="slate"] {
-  --md-hue: 195;
+  --md-hue: 210;
+  --md-default-bg-color: #161e2b;
+  --md-default-bg-color--light: #1a2333;
   --hero-bg-image: url('../assets/phalanx-hero.png');
 }
 
@@ -78,11 +80,11 @@ body.hero-page .md-content__inner {
   justify-content: flex-end;
   text-align: center;
   background:
-    radial-gradient(ellipse at center, transparent 20%, color-mix(in srgb, #fff 20%, transparent) 60%, color-mix(in srgb, #fff 65%, transparent) 100%),
+    radial-gradient(ellipse at center, transparent 25%, color-mix(in srgb, #fff 12%, transparent) 60%, color-mix(in srgb, #fff 45%, transparent) 100%),
     linear-gradient(to bottom,
-      color-mix(in srgb, #fff 40%, transparent) 0%,
-      color-mix(in srgb, #fff 10%, transparent) 40%,
-      color-mix(in srgb, #fff 80%, transparent) 80%,
+      color-mix(in srgb, #fff 25%, transparent) 0%,
+      color-mix(in srgb, #fff 5%, transparent) 40%,
+      color-mix(in srgb, #fff 60%, transparent) 80%,
       #fff 100%),
     var(--hero-bg-image) center 48px / contain no-repeat;
   padding: 1rem 2rem 5rem;
@@ -92,11 +94,11 @@ body.hero-page .md-content__inner {
 
 [data-md-color-scheme="slate"] .md-typeset .hero {
   background:
-    radial-gradient(ellipse at center, transparent 15%, color-mix(in srgb, var(--md-default-bg-color) 30%, transparent) 50%, color-mix(in srgb, var(--md-default-bg-color) 80%, transparent) 85%, var(--md-default-bg-color) 100%),
+    radial-gradient(ellipse at center, transparent 10%, color-mix(in srgb, var(--md-default-bg-color) 45%, transparent) 45%, color-mix(in srgb, var(--md-default-bg-color) 90%, transparent) 80%, var(--md-default-bg-color) 100%),
     linear-gradient(to bottom,
-      color-mix(in srgb, var(--md-default-bg-color) 40%, transparent) 0%,
-      color-mix(in srgb, var(--md-default-bg-color) 10%, transparent) 40%,
-      color-mix(in srgb, var(--md-default-bg-color) 80%, transparent) 80%,
+      color-mix(in srgb, var(--md-default-bg-color) 50%, transparent) 0%,
+      color-mix(in srgb, var(--md-default-bg-color) 20%, transparent) 35%,
+      color-mix(in srgb, var(--md-default-bg-color) 85%, transparent) 75%,
       var(--md-default-bg-color) 100%),
     var(--hero-bg-image) center 48px / contain no-repeat;
 }
@@ -114,7 +116,7 @@ body.hero-page .md-content__inner {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  filter: drop-shadow(0 2px 10px rgba(0,0,0,0.6)) drop-shadow(0 0 20px color-mix(in srgb, var(--intefl-teal) 25%, transparent));
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 20px color-mix(in srgb, var(--intefl-teal) 25%, transparent));
 }
 
 .md-typeset .hero .hero-subtitle {
@@ -130,7 +132,8 @@ body.hero-page .md-content__inner {
 }
 
 [data-md-color-scheme="slate"] .md-typeset .hero .hero-subtitle {
-  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  opacity: 0.95;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
 }
 
 .md-typeset .hero .hero-buttons {
@@ -162,11 +165,11 @@ body.hero-page .md-content__inner {
 }
 
 [data-md-color-scheme="slate"] .hero .md-button--primary {
-  border: 1px solid rgba(255,255,255,0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
 }
 
 [data-md-color-scheme="slate"] .hero .md-button:not(.md-button--primary) {
-  border: 1px solid rgba(255,255,255,0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
   color: var(--intefl-teal-light) !important;
   background: color-mix(in srgb, var(--md-default-bg-color) 50%, transparent) !important;
   backdrop-filter: blur(4px);
@@ -192,7 +195,7 @@ body.hero-page .md-content__inner {
 }
 
 [data-md-color-scheme="slate"] .hero-modes {
-  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 /* ==========================================================================
@@ -219,8 +222,15 @@ body.hero-page .md-content__inner {
 }
 
 @keyframes hint-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(6px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(6px);
+  }
 }
 
 /* ==========================================================================
@@ -314,10 +324,10 @@ body.hero-page .md-content__inner {
   right: 16%;
   height: 2px;
   background: linear-gradient(90deg,
-    transparent,
-    var(--intefl-teal),
-    var(--intefl-purple),
-    transparent);
+      transparent,
+      var(--intefl-teal),
+      var(--intefl-purple),
+      transparent);
   z-index: 0;
   border-radius: 1px;
 }
@@ -508,14 +518,14 @@ body.hero-page .md-content__inner {
    Card Grid Enhancements (non-landing pages)
    ========================================================================== */
 
-.md-typeset .grid.cards > ul > li,
-.md-typeset .grid.cards > ol > li {
+.md-typeset .grid.cards>ul>li,
+.md-typeset .grid.cards>ol>li {
   border: 1px solid var(--md-default-fg-color--lightest);
   transition: border-color 200ms, box-shadow 200ms;
 }
 
-.md-typeset .grid.cards > ul > li:hover,
-.md-typeset .grid.cards > ol > li:hover {
+.md-typeset .grid.cards>ul>li:hover,
+.md-typeset .grid.cards>ol>li:hover {
   border-color: var(--md-accent-fg-color);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
@@ -692,6 +702,7 @@ html {
    ========================================================================== */
 
 @media (max-width: 768px) {
+
   /* Hero */
   .md-typeset .hero {
     padding: 1rem 1.2rem 2.5rem;
@@ -871,7 +882,7 @@ html {
     font-size: 1rem;
   }
 
-  .md-typeset pre > code {
+  .md-typeset pre>code {
     font-size: 0.75rem;
   }
 }
@@ -956,7 +967,7 @@ html {
 
 /* Glass surfaces need a visible tinted base — 3% white ≈ invisible on white */
 [data-md-color-scheme="default"] {
-  --intefl-glass-bg:     color-mix(in srgb, var(--intefl-teal) 6%, #fff);
+  --intefl-glass-bg: color-mix(in srgb, var(--intefl-teal) 6%, #fff);
   --intefl-glass-border: color-mix(in srgb, var(--intefl-teal) 22%, transparent);
 }
 
@@ -979,7 +990,7 @@ html {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  filter: drop-shadow(0 0 0.5px rgba(0,0,0,0.5)) drop-shadow(0 0 0.5px rgba(0,0,0,0.3));
+  filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.3));
 }
 
 /* Section headings: flat teal in light; add gradient to match dark mode treatment */
@@ -1059,11 +1070,11 @@ html {
 
 /* Hero buttons — thin dark outlines in light mode */
 [data-md-color-scheme="default"] .hero .md-button--primary {
-  border: 1px solid rgba(0,0,0,0.2) !important;
+  border: 1px solid rgba(0, 0, 0, 0.2) !important;
 }
 
 [data-md-color-scheme="default"] .hero .md-button:not(.md-button--primary) {
-  border: 1px solid rgba(0,0,0,0.25) !important;
+  border: 1px solid rgba(0, 0, 0, 0.25) !important;
   color: var(--intefl-teal-dark) !important;
   background: color-mix(in srgb, #fff 80%, transparent) !important;
 }
