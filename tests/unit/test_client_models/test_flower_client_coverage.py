@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 import torch
 
-from intellifl.attack_utils.weight_poisoning import WEIGHT_ATTACK_TYPES
+from intellifl.attack_utils.weight_poisoning import WEIGHT_ATTACK_TYPE_NAMES, WEIGHT_ATTACK_TYPES
 from intellifl.client_models.flower_client import FlowerClient
 from tests.common import ATTACK_TYPES, Mock, pytest
 from tests.fixtures.sample_models import MockCNNNetwork
@@ -126,7 +126,7 @@ class TestFlowerClientAttackSnapshots:
             )
             mock_save.assert_called_once()
 
-    @pytest.mark.parametrize("attack_type", list(WEIGHT_ATTACK_TYPES))
+    @pytest.mark.parametrize("attack_type", WEIGHT_ATTACK_TYPE_NAMES, ids=WEIGHT_ATTACK_TYPE_NAMES)
     def test_save_attack_snapshots_filters_weight_attacks(self, client_with_snapshots, attack_type):
         """Test that weight attacks are filtered out (they get separate visualization)."""
         with patch("intellifl.client_models.flower_client.save_attack_snapshot") as mock_save:

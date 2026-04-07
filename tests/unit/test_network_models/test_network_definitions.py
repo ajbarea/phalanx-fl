@@ -15,7 +15,7 @@ import torch
 import torch.nn as nn
 
 from intellifl.network_models import build_cnn_model
-from intellifl.network_models.bert_model_definition import (
+from intellifl.network_models.transformer_models import (
     get_lora_state_dict,
     load_model,
     load_model_with_lora,
@@ -296,7 +296,7 @@ class TestBERTModelFunctions:
         mock_auto_model.from_pretrained.assert_called_once_with("bert-base-uncased")
         assert model == mock_model
 
-    @patch("intellifl.network_models.bert_model_definition.get_peft_model_state_dict")
+    @patch("intellifl.network_models.transformer_models.get_peft_model_state_dict")
     def test_get_lora_state_dict(self, mock_get_peft_state_dict):
         """Test getting LoRA state dict as numpy arrays."""
         mock_state_dict = OrderedDict({"lora_A": torch.randn(10, 5), "lora_B": torch.randn(5, 10)})
@@ -310,8 +310,8 @@ class TestBERTModelFunctions:
         assert all(isinstance(arr, np.ndarray) for arr in result)
         mock_get_peft_state_dict.assert_called_once_with(mock_model)
 
-    @patch("intellifl.network_models.bert_model_definition.set_peft_model_state_dict")
-    @patch("intellifl.network_models.bert_model_definition.get_peft_model_state_dict")
+    @patch("intellifl.network_models.transformer_models.set_peft_model_state_dict")
+    @patch("intellifl.network_models.transformer_models.get_peft_model_state_dict")
     def test_set_lora_state_dict(self, mock_get_peft_state_dict, mock_set_peft_state_dict):
         """Test setting LoRA state dict from numpy arrays."""
         mock_state_dict = OrderedDict({"lora_A": torch.randn(10, 5), "lora_B": torch.randn(5, 10)})
@@ -335,10 +335,10 @@ class TestBERTModelFunctions:
 
         with (
             patch(
-                "intellifl.network_models.bert_model_definition.get_peft_model_state_dict"
+                "intellifl.network_models.transformer_models.get_peft_model_state_dict"
             ) as mock_get,
             patch(
-                "intellifl.network_models.bert_model_definition.set_peft_model_state_dict"
+                "intellifl.network_models.transformer_models.set_peft_model_state_dict"
             ) as mock_set,
         ):
             original_state_dict = OrderedDict(

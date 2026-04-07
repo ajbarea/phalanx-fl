@@ -166,7 +166,7 @@ class TestFlowerClient:
         ]
         assert len(parameters) == len(expected_params)
 
-    @patch("intellifl.network_models.bert_model_definition.get_peft_model_state_dict")
+    @patch("intellifl.network_models.transformer_models.get_peft_model_state_dict")
     def test_get_parameters_with_lora(self, mock_get_peft, flower_client_cnn):
         """Test get_parameters method with LoRA."""
         flower_client_cnn.use_lora = True
@@ -192,8 +192,8 @@ class TestFlowerClient:
         for _orig, new, updated in zip(original_params, new_params, updated_params, strict=False):
             np.testing.assert_allclose(updated, new, rtol=1e-5)
 
-    @patch("intellifl.network_models.bert_model_definition.set_peft_model_state_dict")
-    @patch("intellifl.network_models.bert_model_definition.get_peft_model_state_dict")
+    @patch("intellifl.network_models.transformer_models.set_peft_model_state_dict")
+    @patch("intellifl.network_models.transformer_models.get_peft_model_state_dict")
     def test_set_parameters_with_lora(self, mock_get_peft, mock_set_peft, flower_client_cnn):
         """Test set_parameters method with LoRA."""
         flower_client_cnn.use_lora = True
@@ -219,7 +219,7 @@ class TestFlowerClient:
                 net=flower_client_cnn.net,
                 trainloader=flower_client_cnn.trainloader,
                 epochs=1,
-                verbose=False,
+
             )
 
             mock_optimizer_class.assert_called_once()
@@ -244,7 +244,7 @@ class TestFlowerClient:
                 net=flower_client_transformer.net,
                 trainloader=flower_client_transformer.trainloader,
                 epochs=1,
-                verbose=False,
+
             )
 
             mock_optimizer_class.assert_called_once()
@@ -276,7 +276,7 @@ class TestFlowerClient:
                 net=flower_client_transformer.net,
                 trainloader=flower_client_transformer.trainloader,
                 epochs=1,
-                verbose=False,
+
                 global_params=global_params,
                 mu=0.01,
             )
@@ -484,26 +484,12 @@ class TestFlowerClient:
                 net=flower_client_transformer.net,
                 trainloader=flower_client_transformer.trainloader,
                 epochs=1,
-                verbose=False,
+
                 global_params=global_params,
                 mu=0.01,
             )
 
             assert mock_optimizer.step.call_count >= 1
-
-    def test_verbose_training_output(self, flower_client_cnn, caplog):
-        """Test verbose training produces output."""
-        with caplog.at_level(logging.INFO), patch("torch.optim.Adam"):
-            flower_client_cnn.train(
-                net=flower_client_cnn.net,
-                trainloader=flower_client_cnn.trainloader,
-                epochs=1,
-                verbose=True,
-            )
-
-        assert "Epoch 1:" in caplog.text
-        assert "train loss" in caplog.text
-        assert "accuracy" in caplog.text
 
     @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
     def test_device_handling(self, mock_network, mock_trainloader, mock_valloader):
@@ -551,26 +537,3 @@ class TestFlowerClient:
         assert isinstance(loss, float)
         assert isinstance(accuracy, float)
 
-    def test_verbose_training_output_transformer(self, flower_client_transformer, caplog):
-        """Test verbose training produces output for transformer model."""
-        mock_outputs = Mock()
-        mock_outputs.loss = torch.tensor(0.5, requires_grad=True)
-        mock_outputs.logits = torch.randn(2, 128, 10)
-
-        flower_client_transformer.net.return_value = mock_outputs
-
-        with caplog.at_level(logging.INFO):
-            with patch("torch.optim.AdamW") as mock_optimizer_class:
-                mock_optimizer = Mock()
-                mock_optimizer_class.return_value = mock_optimizer
-
-                flower_client_transformer.train(
-                    net=flower_client_transformer.net,
-                    trainloader=flower_client_transformer.trainloader,
-                    epochs=1,
-                    verbose=True,
-                )
-
-        assert "Epoch 1:" in caplog.text
-        assert "train loss" in caplog.text
-        assert "accuracy" in caplog.text
