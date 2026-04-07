@@ -68,11 +68,11 @@ RUN python -c "import intellifl; print(f'IntelliFL {intellifl.__name__} loaded s
 LABEL org.opencontainers.image.title="IntelliFL" \
       org.opencontainers.image.description="Federated Learning simulation framework for Byzantine-resilient aggregation research" \
       org.opencontainers.image.authors="AJ Barea <ajbareaa@gmail.com>" \
-      org.opencontainers.image.source="https://github.com/dmitrykoro/fl-execution-framework/tree/aj-ux-enhancements" \
+      org.opencontainers.image.source="https://github.com/ajbarea/phalanx-fl" \
       org.opencontainers.image.version="1.0.0" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.created="2025-01-01" \
-      org.opencontainers.image.documentation="https://intellifl.readthedocs.io" \
+      org.opencontainers.image.documentation="https://ajbarea.github.io/phalanx-fl/" \
       org.opencontainers.image.vendor="IntelliFL Contributors" \
       com.docker.sbom.scan-token="no-token" \
       com.docker.scout.disable="false"
