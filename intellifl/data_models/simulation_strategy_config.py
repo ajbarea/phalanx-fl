@@ -91,15 +91,15 @@ class StrategyConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     aggregation_strategy_keyword: str | None = None
-    remove_clients: bool | None = None
-    begin_removing_from_round: int | None = None
+    remove_clients: bool = False
+    begin_removing_from_round: int = 0
     # Termination policies for client removal edge cases
     termination_policy: str | None = "graceful"  # strict | graceful | adaptive
     min_clients_ratio: float | None = 0.3  # For adaptive policy (30% threshold)
     dataset_keyword: str | None = None
     num_of_rounds: int | None = None
     num_of_clients: int | None = None
-    num_of_malicious_clients: int | None = None
+    num_of_malicious_clients: int = 1
     show_plots: bool | None = None
     save_plots: bool | None = None
     save_csv: bool | None = None
@@ -110,27 +110,27 @@ class StrategyConfig(BaseModel):
     cpus_per_client: float | None = None
     gpus_per_client: float | None = None
 
-    trust_threshold: float | None = None
-    beta_value: float | None = None
+    trust_threshold: float = 0.1
+    beta_value: float = 0.1
     num_of_clusters: int | None = None
 
-    Kp: float | None = None
-    Ki: float | None = None
-    Kd: float | None = None
-    num_std_dev: float | None = None
+    Kp: float = 1.0
+    Ki: float = 1.0
+    Kd: float = 0.0
+    num_std_dev: float = 3.0
 
     training_subset_fraction: float | None = None
-    min_fit_clients: int | None = None
-    min_evaluate_clients: int | None = None
-    min_available_clients: int | None = None
+    min_fit_clients: int = 2
+    min_evaluate_clients: int = 2
+    min_available_clients: int = 2
     evaluate_metrics_aggregation_fn: str | None = None
     num_of_client_epochs: int | None = None
     batch_size: int | None = None
     preserve_dataset: bool | None = None
 
-    num_krum_selections: int | None = None
+    num_krum_selections: int = 2
 
-    trim_ratio: float | None = None
+    trim_ratio: float = 0.1
 
     learning_rate: float | None = None
 
