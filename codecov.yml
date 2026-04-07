@@ -1,0 +1,29 @@
+codecov:
+  require_ci_to_pass: true
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 2%
+        if_ci_failed: error
+    patch:
+      default:
+        target: 80%
+        if_ci_failed: error
+
+comment:
+  layout: "condensed_header, condensed_files, condensed_footer"
+  behavior: default
+  require_changes: true
+  require_base: false
+  require_head: true
+
+ignore:
+  - "tests/**"
+  - "demo/**"
+  - "docs/**"
+  - "scripts/**"
+  - "frontend/**"
+  - "*.md"
