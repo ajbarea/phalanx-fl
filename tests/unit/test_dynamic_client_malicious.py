@@ -1,8 +1,11 @@
 """Unit tests for dynamic client.is_malicious updates based on attack_schedule."""
 
+from __future__ import annotations
+
 from unittest.mock import Mock
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.data_models.simulation_strategy_config import StrategyConfig
+
+from intellifl.data_models.simulation_strategy_config import StrategyConfig
+from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 
 class TestDynamicClientMaliciousUpdate:
@@ -162,9 +165,7 @@ class TestDynamicClientMaliciousUpdate:
         strategy_history.update_client_malicious_status(current_round=6)
         assert strategy_history._clients_dict[0].is_malicious is True  # Both attacks
         assert strategy_history._clients_dict[1].is_malicious is True  # Both attacks
-        assert (
-            strategy_history._clients_dict[2].is_malicious is True
-        )  # Only label_flipping
+        assert strategy_history._clients_dict[2].is_malicious is True  # Only label_flipping
         assert strategy_history._clients_dict[3].is_malicious is False
 
         # Round 9: Only gaussian_noise active

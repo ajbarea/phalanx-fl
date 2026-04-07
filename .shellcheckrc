@@ -1,0 +1,15 @@
+# ShellCheck configuration for IntelliFL project
+# Version: 0.11.0+
+
+# Use bash dialect (all scripts use #!/bin/bash)
+shell=bash
+
+# Disable specific checks that conflict with project style
+# SC2034: Variable appears unused (common in sourced libraries)
+# disable=SC2034
+
+# Enable optional checks for better quality
+# add-default-enabled-for-supported-shells=true
+
+# Source path for library scripts
+source-path=SCRIPTDIR

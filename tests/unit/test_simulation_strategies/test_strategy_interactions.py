@@ -4,68 +4,50 @@ Unit tests for strategy interactions and combinations.
 Tests Trust + PID strategy combinations, Krum variant interactions, and Byzantine-robust strategy combinations.
 """
 
+from __future__ import annotations
+
 from unittest.mock import patch
 
-from tests.common import (
-    Mock,
-    np,
-    pytest,
-    FitRes,
-    ndarrays_to_parameters,
-    parameters_to_ndarrays,
-    ClientProxy,
-)
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.simulation_strategies.bulyan_strategy import BulyanStrategy
-from src.simulation_strategies.krum_based_removal_strategy import (
+from intellifl.simulation_strategies.bulyan_strategy import BulyanStrategy
+from intellifl.simulation_strategies.krum_based_removal_strategy import (
     KrumBasedRemovalStrategy,
 )
-from src.simulation_strategies.multi_krum_based_removal_strategy import (
+from intellifl.simulation_strategies.multi_krum_based_removal_strategy import (
     MultiKrumBasedRemovalStrategy,
 )
-from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
-from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
-from src.simulation_strategies.trimmed_mean_based_removal_strategy import (
+from intellifl.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+from intellifl.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
+from intellifl.simulation_strategies.trimmed_mean_based_removal_strategy import (
     TrimmedMeanBasedRemovalStrategy,
 )
-from src.simulation_strategies.trust_based_removal_strategy import (
+from intellifl.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
-
-from tests.common import generate_mock_client_data
+from tests.common import (
+    ClientProxy,
+    FitRes,
+    Mock,
+    ndarrays_to_parameters,
+    np,
+    parameters_to_ndarrays,
+    pytest,
+)
 
 
 class TestStrategyInteractions:
     """Test cases for strategy interactions and combinations."""
 
     @pytest.fixture
-    def mock_strategy_history(self):
-        """Create mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
-
-    @pytest.fixture
-    def mock_network_model(self):
-        """Create mock network model."""
-        return Mock()
-
-    @pytest.fixture
-    def krum_fit_metrics_fn(self):
-        """Provide consistent fit_metrics_aggregation_fn for Krum-based strategies."""
-        return lambda x: x
-
-    @pytest.fixture
-    def mock_client_results_normal(self):
+    def mock_client_results_normal(self, mock_client_results_factory):
         """Generate mock client results with normal behavior."""
-        return generate_mock_client_data(num_clients=10)
+        return mock_client_results_factory(10)
 
     @pytest.fixture
-    def mock_client_results_byzantine(self):
+    def mock_client_results_byzantine(self, mock_client_results_factory):
         """Generate mock client results with Byzantine behavior."""
-        return generate_mock_client_data(num_clients=10)
+        return mock_client_results_factory(10)
 
-    def test_trust_pid_combination_consistency(
-        self, mock_strategy_history, mock_network_model
-    ):
+    def test_trust_pid_combination_consistency(self, mock_strategy_history, mock_network_model):
         """Test that Trust and PID strategies can work together consistently."""
         # Create Trust strategy
         trust_strategy = TrustBasedRemovalStrategy(
@@ -97,10 +79,7 @@ class TestStrategyInteractions:
         assert hasattr(pid_strategy, "aggregate_fit")
 
         # Both should handle the same begin_removing_from_round parameter
-        assert (
-            trust_strategy.begin_removing_from_round
-            == pid_strategy.begin_removing_from_round
-        )
+        assert trust_strategy.begin_removing_from_round == pid_strategy.begin_removing_from_round
 
         # Both should track removed clients
         assert hasattr(trust_strategy, "removed_client_ids")
@@ -135,13 +114,13 @@ class TestStrategyInteractions:
         # Mock the clustering and aggregation components
         with (
             patch(
-                "src.simulation_strategies.trust_based_removal_strategy.KMeans"
+                "intellifl.simulation_strategies.trust_based_removal_strategy.KMeans"
             ) as mock_kmeans_trust,
             patch(
-                "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler_trust,
             patch(
-                "src.simulation_strategies.pid_based_removal_strategy.KMeans"
+                "intellifl.simulation_strategies.pid_based_removal_strategy.KMeans"
             ) as mock_kmeans_pid,
             patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
         ):
@@ -185,9 +164,7 @@ class TestStrategyInteractions:
             pid_scores = list(pid_strategy.client_pids.values())
 
             # Both should be valid numbers but likely different values
-            assert all(
-                0 <= score <= 1 for score in trust_scores
-            )  # Trust scores are bounded [0,1]
+            assert all(0 <= score <= 1 for score in trust_scores)  # Trust scores are bounded [0,1]
             assert all(
                 isinstance(score, (int, float)) for score in pid_scores
             )  # PID scores are unbounded
@@ -231,12 +208,10 @@ class TestStrategyInteractions:
 
         # Calculate PID scores for each variant
         pid_scores = {}
-        pid_scores["pid"] = strategies["pid"].calculate_single_client_pid(
+        pid_scores["pid"] = strategies["pid"].calculate_single_client_pid(client_id, distance)
+        pid_scores["pid_scaled"] = strategies["pid_scaled"].calculate_single_client_pid_scaled(
             client_id, distance
         )
-        pid_scores["pid_scaled"] = strategies[
-            "pid_scaled"
-        ].calculate_single_client_pid_scaled(client_id, distance)
         pid_scores["pid_standardized"] = strategies[
             "pid_standardized"
         ].calculate_single_client_pid_standardized(client_id, distance, 1.0, 0.2)
@@ -251,9 +226,7 @@ class TestStrategyInteractions:
         assert pid_scores["pid"] != pid_scores["pid_standardized"]
         assert pid_scores["pid_scaled"] != pid_scores["pid_standardized"]
 
-    def test_krum_variants_interaction(
-        self, mock_strategy_history, krum_fit_metrics_fn
-    ):
+    def test_krum_variants_interaction(self, mock_strategy_history, krum_fit_metrics_fn):
         """Test interactions between Krum and Multi-Krum strategies."""
         # Create Krum strategy
         krum_strategy = KrumBasedRemovalStrategy(
@@ -280,12 +253,9 @@ class TestStrategyInteractions:
         assert hasattr(multi_krum_strategy, "_calculate_multi_krum_scores")
 
         # Both should use similar parameters
+        assert krum_strategy.num_krum_selections == multi_krum_strategy.num_krum_selections
         assert (
-            krum_strategy.num_krum_selections == multi_krum_strategy.num_krum_selections
-        )
-        assert (
-            krum_strategy.begin_removing_from_round
-            == multi_krum_strategy.begin_removing_from_round
+            krum_strategy.begin_removing_from_round == multi_krum_strategy.begin_removing_from_round
         )
 
         # Test that they calculate different types of scores
@@ -302,9 +272,10 @@ class TestStrategyInteractions:
         distances = np.zeros((5, 5))
 
         # Calculate scores with both methods
-        krum_scores = krum_strategy._calculate_krum_scores(results, distances.copy())
+        krum_scores = krum_strategy._calculate_krum_scores(results, distances.copy())  # type: ignore[arg-type]
         multi_krum_scores = multi_krum_strategy._calculate_multi_krum_scores(
-            results, distances.copy()
+            results,  # type: ignore[arg-type]
+            distances.copy(),
         )
 
         # Both should return valid scores
@@ -353,11 +324,11 @@ class TestStrategyInteractions:
         }
 
         # All strategies should handle Byzantine clients
-        for strategy_name, strategy in strategies.items():
+        for _strategy_name, strategy in strategies.items():
             assert hasattr(strategy, "removed_client_ids")
             assert hasattr(strategy, "remove_clients")
             assert strategy.remove_clients is True
-            assert strategy.begin_removing_from_round == 1
+            assert strategy.begin_removing_from_round == 1  # type: ignore[attr-defined]
 
     def test_strategy_robustness_under_attack(
         self,
@@ -396,11 +367,11 @@ class TestStrategyInteractions:
         # Test each strategy's ability to handle Byzantine clients
         for strategy_name, strategy in robust_strategies.items():
             with (
-                patch("src.simulation_strategies.krum_based_removal_strategy.KMeans")
+                patch("intellifl.simulation_strategies.krum_based_removal_strategy.KMeans")
                 if "krum" in strategy_name
                 else (
                     patch(
-                        "src.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
+                        "intellifl.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
                     )
                     if "multi_krum" in strategy_name
                     else patch("builtins.len", return_value=10)
@@ -410,11 +381,11 @@ class TestStrategyInteractions:
                     # Mock clustering for Krum strategies
                     # Build the correct module path
                     if strategy_name == "krum":
-                        module_path = "src.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
+                        module_path = "intellifl.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
                     elif strategy_name == "multi_krum":
-                        module_path = "src.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
+                        module_path = "intellifl.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
                     else:
-                        module_path = f"src.simulation_strategies.{strategy_name}_based_removal_strategy.MinMaxScaler"
+                        module_path = f"intellifl.simulation_strategies.{strategy_name}_based_removal_strategy.MinMaxScaler"
 
                     with patch(module_path):
                         mock_kmeans_instance = Mock()
@@ -470,13 +441,11 @@ class TestStrategyInteractions:
 
         # All should have the same begin_removing_from_round value
         for strategy in strategies_with_begin_round:
-            assert strategy.begin_removing_from_round == 3
+            assert strategy.begin_removing_from_round == 3  # type: ignore[attr-defined]
             assert hasattr(strategy, "current_round")
             assert hasattr(strategy, "removed_client_ids")
 
-    def test_strategy_removal_consistency(
-        self, mock_strategy_history, mock_network_model
-    ):
+    def test_strategy_removal_consistency(self, mock_strategy_history, mock_network_model):
         """Test that different strategies handle client removal consistently."""
         # Create strategies with removal enabled
         strategies = {
@@ -504,11 +473,11 @@ class TestStrategyInteractions:
         # Test removal behavior consistency
         for strategy_name, strategy in strategies.items():
             # Initially no clients should be removed
-            assert len(strategy.removed_client_ids) == 0
+            assert len(strategy.removed_client_ids) == 0  # type: ignore[attr-defined]
 
             # After setting current_round past begin_removing_from_round,
             # strategies should be ready to remove clients
-            strategy.current_round = 2
+            strategy.current_round = 2  # type: ignore[attr-defined]
 
             # Mock client manager
             mock_client_manager = Mock()
@@ -517,12 +486,10 @@ class TestStrategyInteractions:
 
             # Set up some scores for removal decisions
             if strategy_name == "trust":
-                strategy.client_trusts = {
-                    f"client_{i}": 0.5 + i * 0.1 for i in range(5)
-                }
+                strategy.client_trusts = {f"client_{i}": 0.5 + i * 0.1 for i in range(5)}  # type: ignore[attr-defined]
             elif strategy_name == "pid":
-                strategy.client_pids = {f"client_{i}": 0.5 + i * 0.1 for i in range(5)}
-                strategy.current_threshold = 0.8
+                strategy.client_pids = {f"client_{i}": 0.5 + i * 0.1 for i in range(5)}  # type: ignore[attr-defined]
+                strategy.current_threshold = 0.8  # type: ignore[attr-defined]
 
             # Configure fit should handle removal logic
             result = strategy.configure_fit(2, Mock(), mock_client_manager)
@@ -565,10 +532,10 @@ class TestStrategyInteractions:
             if strategy_name == "rfa":
                 with (
                     patch(
-                        "src.simulation_strategies.rfa_based_removal_strategy.KMeans"
+                        "intellifl.simulation_strategies.rfa_based_removal_strategy.KMeans"
                     ) as mock_kmeans,
                     patch(
-                        "src.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
+                        "intellifl.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
                     ) as mock_scaler,
                 ):
                     # Setup mocks
@@ -584,9 +551,9 @@ class TestStrategyInteractions:
                     )
                     mock_scaler.return_value = mock_scaler_instance
 
-                    params, metrics = strategy.aggregate_fit(1, results, [])
+                    params, metrics = strategy.aggregate_fit(1, results, [])  # type: ignore[arg-type]
             else:
-                params, metrics = strategy.aggregate_fit(1, results, [])
+                params, metrics = strategy.aggregate_fit(1, results, [])  # type: ignore[arg-type]
 
             # Both should return compatible formats
             assert params is not None
@@ -627,22 +594,14 @@ class TestStrategyInteractions:
 
         # Test empty results handling
         for strategy_name, strategy in strategies.items():
-            if strategy_name == "trust":
-                with patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent:
-                    mock_parent.return_value = (None, {})
-                    result = strategy.aggregate_fit(1, [], [])
-                    # Should handle empty results gracefully
-                    assert result is not None
-            elif strategy_name == "pid":
+            if strategy_name == "trust" or strategy_name == "pid":
                 with patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent:
                     mock_parent.return_value = (None, {})
                     result = strategy.aggregate_fit(1, [], [])
                     # Should handle empty results gracefully
                     assert result is not None
 
-    def test_cross_strategy_client_tracking(
-        self, mock_strategy_history, mock_network_model
-    ):
+    def test_cross_strategy_client_tracking(self, mock_strategy_history, mock_network_model):
         """Test that different strategies can track the same clients consistently."""
         # Create two strategies that might be used in sequence
         trust_strategy = TrustBasedRemovalStrategy(

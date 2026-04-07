@@ -1,0 +1,72 @@
+# Docker Compose Development Override
+# ====================================
+# Auto-applied by `docker compose up` (merges with docker-compose.yml).
+# Adds development features: hot reload and watch mode.
+#
+# Usage:
+#   docker compose up              # Dev mode (hot reload enabled)
+#   docker compose -f docker-compose.yml up -d  # Prod mode (production-ready)
+
+services:
+  api:
+    develop:
+      watch:
+        - path: ./intellifl
+          action: sync
+          target: /app/intellifl
+        - path: ./config
+          action: sync
+          target: /app/config
+    command: ["uvicorn", "intellifl.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    deploy:
+      resources:
+        reservations: {}
+
+  frontend:
+    image: node:20-alpine
+    build: !reset
+    ports:
+      - "${FRONTEND_DEV_PORT:-5173}:5173"
+    develop:
+      watch:
+        - path: ./frontend/src
+          action: sync
+          target: /app/src
+        - path: ./frontend/package.json
+          action: rebuild
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    working_dir: /app
+    command: sh -c "npm install --silent && npm run dev -- --host 0.0.0.0 --port 5173"
+    depends_on:
+      api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits: {}
+
+  celery-worker:
+    develop:
+      watch:
+        - path: ./intellifl
+          action: sync
+          target: /app/intellifl
+    deploy:
+      resources:
+        reservations: {}
+
+  celery-monitor:
+    image: mher/flower
+    container_name: intellifl-celery-monitor
+    restart: unless-stopped
+    env_file: .env
+    command: celery --broker=${CELERY_BROKER_URL:-redis://redis:6379/0} flower --port=5555
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+    deploy:
+      resources:
+        limits:
+          memory: 256M

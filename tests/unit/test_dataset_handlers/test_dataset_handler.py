@@ -5,14 +5,16 @@ Tests dataset setup and teardown operations, file operations mocking,
 and dataset configuration handling and validation.
 """
 
+from __future__ import annotations
+
 import os
 from pathlib import Path
 from unittest.mock import patch
 
+from intellifl.data_models.simulation_strategy_config import StrategyConfig
+from intellifl.dataset_handlers.dataset_handler import DatasetHandler
+from intellifl.output_handlers.directory_handler import DirectoryHandler
 from tests.common import Mock, pytest
-from src.data_models.simulation_strategy_config import StrategyConfig
-from src.dataset_handlers.dataset_handler import DatasetHandler
-from src.output_handlers.directory_handler import DirectoryHandler
 
 
 class TestDatasetHandler:
@@ -59,9 +61,7 @@ class TestDatasetHandler:
         return handler
 
     @pytest.fixture
-    def temp_source_dataset(
-        self, tmp_path: Path, mock_dataset_config_list: dict[str, str]
-    ) -> Path:
+    def temp_source_dataset(self, tmp_path: Path, mock_dataset_config_list: dict[str, str]) -> Path:
         """Create temporary source dataset structure for testing."""
         source_dir = Path(mock_dataset_config_list["its"])
         source_dir.mkdir(parents=True, exist_ok=True)
@@ -104,9 +104,7 @@ class TestDatasetHandler:
         """Test setup_dataset calls copy method."""
         with patch.object(dataset_handler, "_copy_dataset") as mock_copy:
             dataset_handler.setup_dataset()
-            mock_copy.assert_called_once_with(
-                dataset_handler._strategy_config.num_of_clients
-            )
+            mock_copy.assert_called_once_with(dataset_handler._strategy_config.num_of_clients)
 
     def test_teardown_dataset_removes_directory_when_not_preserved(
         self, dataset_handler: DatasetHandler
@@ -126,9 +124,7 @@ class TestDatasetHandler:
             dataset_handler.teardown_dataset()
             mock_rmtree.assert_not_called()
 
-    def test_teardown_dataset_handles_removal_error(
-        self, dataset_handler: DatasetHandler
-    ) -> None:
+    def test_teardown_dataset_handles_removal_error(self, dataset_handler: DatasetHandler) -> None:
         """Test teardown handles errors during directory removal."""
         with patch("shutil.rmtree") as mock_rmtree:
             mock_rmtree.side_effect = OSError("Permission denied")

@@ -1,0 +1,290 @@
+[project]
+name = "intellifl"
+version = "0.1.0"
+description = "Federated Learning Framework with Ray, Flower, and PyTorch"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "accelerate",
+    "celery[redis]",
+    "click",
+    "datasets",
+    "dill",
+    "fastapi",
+    "flwr>=1.28",
+    "flwr-datasets",
+    "fsspec",
+    "httpx",
+    "huggingface_hub[hf_xet]",
+    "jsonschema",
+    "matplotlib",
+    "multiprocess",
+    "numpy",
+    "opencv-python-headless",
+    "pandas",
+    "peft",
+    "psutil",
+    "pyarrow",
+    "pydantic",
+    "pywinpty; sys_platform == 'win32'",
+    "python-dotenv",
+    "pyyaml",
+    "requests",
+    "rich",
+    "scikit-learn",
+    "scipy",
+    "sse-starlette",
+    "torch",
+    "torchvision",
+    "tqdm",
+    "transformers",
+    "uvicorn[standard]",
+    "ray>=2.54.1",
+]
+
+[dependency-groups]
+dev = [
+    "hypothesis",
+    "mutmut",
+    "pip-audit",
+    "pytest>=8.0,<9",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-mock",
+    "pytest-randomly",
+    "pytest-repeat",
+    "pytest-xdist",
+    "ruff",
+    "ty",
+    "mkdocs",
+    "mkdocs-material",
+    "zensical",
+]
+
+[project.scripts]
+intellifl-dev = "intellifl.dev_cli:main"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["intellifl*", "scripts*", "tests*"]
+
+
+
+# =============================================================================
+# Ty Configuration
+# =============================================================================
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+include = ["intellifl", "scripts", "tests"]
+exclude = [
+    "__pycache__",
+    ".venv*",
+    "build",
+    "dist",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".hypothesis",
+    "out",
+    "datasets",
+    "cache",
+    "frontend",
+    "intellifl/attack_utils/vocabularies",
+]
+
+[tool.ty.rules]
+all = "warn"
+unresolved-import = "error"
+division-by-zero = "ignore"
+
+[tool.ty.analysis]
+replace-imports-with-any = [
+    "hypothesis.**",
+    "pytest.**",
+    "_pytest.**",
+    "uvicorn.**",
+    "ray.**",
+    "flwr.**",
+    "torch.**",
+    "pandas.**",
+    "numpy.**",
+    "matplotlib.**",
+    "cv2.**",
+    "transformers.**",
+    "datasets.**",
+    "celery.**",
+    "peft.**",
+]
+
+[[tool.ty.overrides]]
+include = ["tests/**"]
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore"
+unknown-argument = "ignore"
+invalid-assignment = "ignore"
+unresolved-attribute = "ignore"
+call-non-callable = "ignore"
+no-matching-overload = "ignore"
+unsupported-operator = "ignore"
+not-iterable = "ignore"
+
+# =============================================================================
+# Ruff Configuration
+# =============================================================================
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = [
+    ".venv*",
+    "__pycache__",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".hypothesis",
+    "out",
+    "datasets",
+    "cache",
+    "frontend",
+    ".git",
+    "intellifl/attack_utils/vocabularies",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "C4", "SIM"]
+ignore = [
+    "E501",
+    "B008",
+    "B904",
+    "B007",
+    "B023",
+    "SIM102",
+    "SIM108",
+    "SIM113",
+    "SIM115",
+    "SIM117",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"intellifl/api/main.py" = ["E402"]
+"intellifl/simulation_runner.py" = ["E402"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# =============================================================================
+# Pytest Configuration
+# =============================================================================
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_default_fixture_loop_scope = "function"
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--log-file=tests/logs/pytest.log",
+    "--log-file-level=DEBUG",
+    "--log-level=INFO",
+    "-W", "error::DeprecationWarning",
+    "-W", "ignore::RuntimeWarning:numpy",
+    "-p", "randomly",
+    "--randomly-seed=last",
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "performance: Performance tests",
+    "slow: Slow running tests",
+    "tutorial: Tutorial tests (no coverage requirement)",
+    "parallel: Tests safe for parallel execution",
+    "serial: Tests that must run in isolation",
+]
+filterwarnings = [
+    "error::DeprecationWarning",
+    "ignore::RuntimeWarning:numpy.*",
+    "ignore::RuntimeWarning:threadpoolctl.*",
+    "ignore::PendingDeprecationWarning",
+]
+
+# =============================================================================
+# Flower Federated Learning Configuration
+# =============================================================================
+[tool.flwr.app]
+publisher = "intellifl"
+
+[tool.flwr.app.config]
+num-server-rounds = 10
+num-clients = 5
+dataset = "femnist_iid"
+aggregation-strategy = "fedavg"
+
+[tool.flwr.federations]
+default = "local-simulation"
+
+[tool.flwr.federations.local-simulation]
+options.num-supernodes = 5
+options.backend.client-resources.num-cpus = 2
+options.backend.client-resources.num-gpus = 0.0
+
+# =============================================================================
+# uv Configuration
+# =============================================================================
+[tool.uv]
+required-version = ">=0.5.3"
+python-preference = "managed"
+
+environments = [
+    "sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "sys_platform == 'win32' and platform_machine == 'AMD64'",
+]
+
+required-environments = [
+    "sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "sys_platform == 'win32' and platform_machine == 'AMD64'",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu128", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+]
+torchvision = [
+    { index = "pytorch-cu128", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+]
+
+# =============================================================================
+# Mutation Testing Configuration
+# =============================================================================
+[tool.mutmut]
+paths_to_mutate = ["intellifl/"]
+runner = "python -m pytest"
+tests_dir = ["tests/"]
+use_coverage = true
+exclude = [
+    "intellifl/__init__.py",
+    "intellifl/api/__init__.py",
+    "intellifl/api/models.py",
+    "intellifl/attack_utils/__init__.py",
+    "intellifl/attack_utils/vocabularies/",
+    "intellifl/client_models/__init__.py",
+    "intellifl/config_loaders/__init__.py",
+    "intellifl/data_models/",
+    "intellifl/dataset_handlers/__init__.py",
+    "intellifl/dataset_loaders/__init__.py",
+    "intellifl/network_models/__init__.py",
+    "intellifl/output_handlers/__init__.py",
+    "intellifl/simulation_strategies/__init__.py",
+    "intellifl/utils/__init__.py",
+]

@@ -4,15 +4,23 @@ Unit tests for KrumBasedRemovalStrategy.
 Tests Krum client selection algorithms, distance calculations, and subset identification.
 """
 
+from __future__ import annotations
+
 from unittest.mock import patch
 
-from tests.common import Mock, np, pytest, FitRes, ndarrays_to_parameters, ClientProxy
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.simulation_strategies.krum_based_removal_strategy import (
+from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
+from intellifl.simulation_strategies.krum_based_removal_strategy import (
     KrumBasedRemovalStrategy,
 )
-
-from tests.common import generate_mock_client_data
+from tests.common import (
+    ClientProxy,
+    FitRes,
+    Mock,
+    generate_mock_client_data,
+    ndarrays_to_parameters,
+    np,
+    pytest,
+)
 
 
 class TestKrumBasedRemovalStrategy:
@@ -29,9 +37,7 @@ class TestKrumBasedRemovalStrategy:
         return Mock(spec=SimulationStrategyHistory)
 
     @pytest.fixture
-    def krum_strategy(
-        self, mock_strategy_history, mock_output_directory, krum_fit_metrics_fn
-    ):
+    def krum_strategy(self, mock_strategy_history, mock_output_directory, krum_fit_metrics_fn):
         """Create KrumBasedRemovalStrategy instance for testing."""
         return KrumBasedRemovalStrategy(
             remove_clients=True,
@@ -54,10 +60,10 @@ class TestKrumBasedRemovalStrategy:
         """Mock clustering components (KMeans, MinMaxScaler) and parent aggregate_fit."""
         with (
             patch(
-                "src.simulation_strategies.krum_based_removal_strategy.KMeans"
+                "intellifl.simulation_strategies.krum_based_removal_strategy.KMeans"
             ) as mock_kmeans,
             patch(
-                "src.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
             patch("flwr.server.strategy.Krum.aggregate_fit") as mock_parent_aggregate,
         ):
@@ -93,15 +99,11 @@ class TestKrumBasedRemovalStrategy:
         assert krum_strategy.client_scores == {}
         assert krum_strategy.removed_client_ids == set()
 
-    def test_calculate_krum_scores_distance_matrix(
-        self, krum_strategy, mock_client_results
-    ):
+    def test_calculate_krum_scores_distance_matrix(self, krum_strategy, mock_client_results):
         """Test _calculate_krum_scores creates proper distance matrix."""
         distances = np.zeros((len(mock_client_results), len(mock_client_results)))
 
-        krum_scores = krum_strategy._calculate_krum_scores(
-            mock_client_results, distances
-        )
+        krum_scores = krum_strategy._calculate_krum_scores(mock_client_results, distances)
 
         # Verify distance matrix is symmetric
         assert np.allclose(distances, distances.T)
@@ -116,15 +118,11 @@ class TestKrumBasedRemovalStrategy:
         # Verify all distances are non-negative
         assert np.all(distances >= 0)
 
-    def test_calculate_krum_scores_computation(
-        self, krum_strategy, mock_client_results
-    ):
+    def test_calculate_krum_scores_computation(self, krum_strategy, mock_client_results):
         """Test _calculate_krum_scores computes scores correctly."""
         distances = np.zeros((len(mock_client_results), len(mock_client_results)))
 
-        krum_scores = krum_strategy._calculate_krum_scores(
-            mock_client_results, distances
-        )
+        krum_scores = krum_strategy._calculate_krum_scores(mock_client_results, distances)
 
         # Should return one score per client
         assert len(krum_scores) == len(mock_client_results)
@@ -163,7 +161,7 @@ class TestKrumBasedRemovalStrategy:
                 results.append((client_proxy, fit_res))
 
             distances = np.zeros((5, 5))
-            scores = strategy._calculate_krum_scores(results, distances)
+            scores = strategy._calculate_krum_scores(results, distances)  # type: ignore[arg-type]
 
             # Verify scores are calculated (should be different for different num_malicious)
             assert len(scores) == 5
@@ -219,12 +217,10 @@ class TestKrumBasedRemovalStrategy:
         distances = np.zeros((3, 3))
 
         # Should handle edge case gracefully
-        scores = strategy._calculate_krum_scores(results, distances)
+        scores = strategy._calculate_krum_scores(results, distances)  # type: ignore[arg-type]
         assert len(scores) == 3
 
-    def test_aggregate_fit_clustering(
-        self, krum_strategy, mock_client_results, mock_clustering
-    ):
+    def test_aggregate_fit_clustering(self, krum_strategy, mock_client_results, mock_clustering):
         """Test aggregate_fit performs clustering correctly."""
         mock_kmeans = mock_clustering["kmeans"]
         mock_scaler_instance = mock_clustering["scaler"].return_value
@@ -329,9 +325,7 @@ class TestKrumBasedRemovalStrategy:
         # Should not remove any clients
         assert krum_strategy.removed_client_ids == set()
 
-    def test_num_krum_selections_parameter(
-        self, mock_strategy_history, krum_fit_metrics_fn
-    ):
+    def test_num_krum_selections_parameter(self, mock_strategy_history, krum_fit_metrics_fn):
         """Test num_krum_selections parameter handling."""
         # Test different num_krum_selections values
         for num_selections in [1, 3, 5]:
@@ -346,9 +340,7 @@ class TestKrumBasedRemovalStrategy:
 
             assert strategy.num_krum_selections == num_selections
 
-    def test_begin_removing_from_round_parameter(
-        self, mock_strategy_history, krum_fit_metrics_fn
-    ):
+    def test_begin_removing_from_round_parameter(self, mock_strategy_history, krum_fit_metrics_fn):
         """Test begin_removing_from_round parameter handling."""
         # Test different begin_removing_from_round values
         for begin_round in [1, 3, 5]:
@@ -398,9 +390,7 @@ class TestKrumBasedRemovalStrategy:
         # Verify distances match expected Euclidean distances
         for i in range(3):
             for j in range(i + 1, 3):
-                expected_distance = np.linalg.norm(
-                    expected_params[i] - expected_params[j]
-                )
+                expected_distance = np.linalg.norm(expected_params[i] - expected_params[j])
                 assert abs(distances[i, j] - expected_distance) < 1e-6
                 assert abs(distances[j, i] - expected_distance) < 1e-6
 
@@ -432,10 +422,7 @@ class TestKrumBasedRemovalStrategy:
         krum_strategy.aggregate_fit(1, mock_client_results, [])
 
         # Verify strategy history methods were called
-        assert (
-            krum_strategy.strategy_history.insert_single_client_history_entry.call_count
-            == 5
-        )
+        assert krum_strategy.strategy_history.insert_single_client_history_entry.call_count == 5
         krum_strategy.strategy_history.insert_round_history_entry.assert_called_once()
 
     def test_edge_case_empty_results(self, krum_strategy):

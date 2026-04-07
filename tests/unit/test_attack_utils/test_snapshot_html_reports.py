@@ -2,13 +2,16 @@
 Tests for HTML and JSON reporting utilities in attack snapshots.
 """
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
+from typing import Any, cast
 from unittest.mock import Mock, patch
 
 import pytest
 
-from src.attack_utils.snapshot_html_reports import (
+from intellifl.attack_utils.snapshot_html_reports import (
     _extract_attack_params_for_display,
     _generate_index_html,
     _generate_main_dashboard_html,
@@ -40,7 +43,7 @@ class TestGetSnapshotsDirChecked:
         output_dir = tmp_path / "output"
         output_dir.mkdir()
 
-        with patch("src.attack_utils.snapshot_html_reports.logging") as mock_logging:
+        with patch("intellifl.attack_utils.snapshot_html_reports.logging") as mock_logging:
             result = _get_snapshots_dir_checked(str(output_dir), strategy_number=0)
 
         assert result is None
@@ -199,15 +202,15 @@ class TestGenerateSummaryJson:
         output_dir = tmp_path / "output"
         output_dir.mkdir()
 
-        with patch("src.attack_utils.snapshot_html_reports.logging"):
+        with patch("intellifl.attack_utils.snapshot_html_reports.logging"):
             generate_summary_json(str(output_dir))
 
         summary_file = output_dir / "attack_snapshots_0" / "summary.json"
         assert not summary_file.exists()
 
-    @patch("src.attack_utils.snapshot_html_reports.list_attack_snapshots")
-    @patch("src.attack_utils.snapshot_html_reports.load_attack_snapshot")
-    @patch("src.attack_utils.snapshot_html_reports.get_snapshot_summary")
+    @patch("intellifl.attack_utils.snapshot_html_reports.list_attack_snapshots")
+    @patch("intellifl.attack_utils.snapshot_html_reports.load_attack_snapshot")
+    @patch("intellifl.attack_utils.snapshot_html_reports.get_snapshot_summary")
     def test_should_generate_summary_json(
         self,
         mock_get_summary: Mock,
@@ -243,9 +246,9 @@ class TestGenerateSummaryJson:
         assert "attack_timeline" in data
         assert data["experiment"]["run_id"] == output_dir.name
 
-    @patch("src.attack_utils.snapshot_html_reports.list_attack_snapshots")
-    @patch("src.attack_utils.snapshot_html_reports.load_attack_snapshot")
-    @patch("src.attack_utils.snapshot_html_reports.get_snapshot_summary")
+    @patch("intellifl.attack_utils.snapshot_html_reports.list_attack_snapshots")
+    @patch("intellifl.attack_utils.snapshot_html_reports.load_attack_snapshot")
+    @patch("intellifl.attack_utils.snapshot_html_reports.get_snapshot_summary")
     def test_should_include_run_config_when_provided(
         self,
         mock_get_summary: Mock,
@@ -272,9 +275,9 @@ class TestGenerateSummaryJson:
         assert data["experiment"]["total_clients"] == 10
         assert data["experiment"]["total_rounds"] == 50
 
-    @patch("src.attack_utils.snapshot_html_reports.list_attack_snapshots")
-    @patch("src.attack_utils.snapshot_html_reports.load_attack_snapshot")
-    @patch("src.attack_utils.snapshot_html_reports.get_snapshot_summary")
+    @patch("intellifl.attack_utils.snapshot_html_reports.list_attack_snapshots")
+    @patch("intellifl.attack_utils.snapshot_html_reports.load_attack_snapshot")
+    @patch("intellifl.attack_utils.snapshot_html_reports.get_snapshot_summary")
     def test_should_build_attack_timeline(
         self,
         mock_get_summary: Mock,
@@ -334,14 +337,14 @@ class TestGenerateSnapshotIndex:
         output_dir = tmp_path / "output"
         output_dir.mkdir()
 
-        with patch("src.attack_utils.snapshot_html_reports.logging"):
+        with patch("intellifl.attack_utils.snapshot_html_reports.logging"):
             generate_snapshot_index(str(output_dir))
 
         index_file = output_dir / "attack_snapshots_0" / "index.html"
         assert not index_file.exists()
 
-    @patch("src.attack_utils.snapshot_html_reports.list_attack_snapshots")
-    @patch("src.attack_utils.snapshot_html_reports.load_attack_snapshot")
+    @patch("intellifl.attack_utils.snapshot_html_reports.list_attack_snapshots")
+    @patch("intellifl.attack_utils.snapshot_html_reports.load_attack_snapshot")
     def test_should_generate_index_html(
         self,
         mock_load_snapshot: Mock,
@@ -364,17 +367,15 @@ class TestGenerateSnapshotIndex:
             }
         }
 
-        with patch(
-            "src.attack_utils.snapshot_html_reports._generate_index_html"
-        ) as mock_gen:
+        with patch("intellifl.attack_utils.snapshot_html_reports._generate_index_html") as mock_gen:
             mock_gen.return_value = "<html>Test</html>"
             generate_snapshot_index(str(output_dir))
 
         index_file = snapshots_dir / "index.html"
         assert index_file.exists()
 
-    @patch("src.attack_utils.snapshot_html_reports.list_attack_snapshots")
-    @patch("src.attack_utils.snapshot_html_reports.load_attack_snapshot")
+    @patch("intellifl.attack_utils.snapshot_html_reports.list_attack_snapshots")
+    @patch("intellifl.attack_utils.snapshot_html_reports.load_attack_snapshot")
     def test_should_handle_composite_attacks(
         self,
         mock_load_snapshot: Mock,
@@ -400,17 +401,15 @@ class TestGenerateSnapshotIndex:
             }
         }
 
-        with patch(
-            "src.attack_utils.snapshot_html_reports._generate_index_html"
-        ) as mock_gen:
+        with patch("intellifl.attack_utils.snapshot_html_reports._generate_index_html") as mock_gen:
             mock_gen.return_value = "<html>Test</html>"
             generate_snapshot_index(str(output_dir))
 
         index_file = snapshots_dir / "index.html"
         assert index_file.exists()
 
-    @patch("src.attack_utils.snapshot_html_reports.list_attack_snapshots")
-    @patch("src.attack_utils.snapshot_html_reports.load_attack_snapshot")
+    @patch("intellifl.attack_utils.snapshot_html_reports.list_attack_snapshots")
+    @patch("intellifl.attack_utils.snapshot_html_reports.load_attack_snapshot")
     def test_should_handle_token_replacement(
         self,
         mock_load_snapshot: Mock,
@@ -433,9 +432,7 @@ class TestGenerateSnapshotIndex:
             }
         }
 
-        with patch(
-            "src.attack_utils.snapshot_html_reports._generate_index_html"
-        ) as mock_gen:
+        with patch("intellifl.attack_utils.snapshot_html_reports._generate_index_html") as mock_gen:
             mock_gen.return_value = "<html>Test</html>"
             generate_snapshot_index(str(output_dir))
 
@@ -465,7 +462,7 @@ class TestGenerateIndexHtml:
             }
         ]
 
-    @patch("src.attack_utils.snapshot_html_reports.Environment")
+    @patch("intellifl.attack_utils.snapshot_html_reports.Environment")
     def test_should_generate_html_content(
         self, mock_env_class: Mock, sample_snapshot_data: list, tmp_path: Path
     ) -> None:
@@ -476,14 +473,12 @@ class TestGenerateIndexHtml:
         mock_env.get_template.return_value = mock_template
         mock_env_class.return_value = mock_env
 
-        result = _generate_index_html(
-            sample_snapshot_data, str(tmp_path), run_config=None
-        )
+        result = _generate_index_html(sample_snapshot_data, str(tmp_path), run_config=None)
 
         assert result == "<html>Test</html>"
         mock_template.render.assert_called_once()
 
-    @patch("src.attack_utils.snapshot_html_reports.Environment")
+    @patch("intellifl.attack_utils.snapshot_html_reports.Environment")
     def test_should_include_run_config_data(
         self, mock_env_class: Mock, sample_snapshot_data: list, tmp_path: Path
     ) -> None:
@@ -502,10 +497,8 @@ class TestGenerateIndexHtml:
         assert call_args["total_clients"] == 10
         assert call_args["total_rounds"] == 50
 
-    @patch("src.attack_utils.snapshot_html_reports.Environment")
-    def test_should_extract_unique_values(
-        self, mock_env_class: Mock, tmp_path: Path
-    ) -> None:
+    @patch("intellifl.attack_utils.snapshot_html_reports.Environment")
+    def test_should_extract_unique_values(self, mock_env_class: Mock, tmp_path: Path) -> None:
         """Test that unique clients/rounds/attack types are extracted."""
         mock_env = Mock()
         mock_template = Mock()
@@ -558,7 +551,7 @@ class TestGenerateMainDashboard:
         """Test that function returns early when output dir missing."""
         output_dir = tmp_path / "missing"
 
-        with patch("src.attack_utils.snapshot_html_reports.logging") as mock_logging:
+        with patch("intellifl.attack_utils.snapshot_html_reports.logging") as mock_logging:
             generate_main_dashboard(str(output_dir))
 
         mock_logging.warning.assert_called_once()
@@ -573,7 +566,7 @@ class TestGenerateMainDashboard:
         index_file = output_dir / "index.html"
 
         with patch(
-            "src.attack_utils.snapshot_html_reports._generate_main_dashboard_html"
+            "intellifl.attack_utils.snapshot_html_reports._generate_main_dashboard_html"
         ) as mock_gen:
             mock_gen.return_value = "<html>Dashboard</html>"
             generate_main_dashboard(str(output_dir))
@@ -592,7 +585,7 @@ class TestGenerateMainDashboard:
             snapshots_dir.mkdir()
 
         with patch(
-            "src.attack_utils.snapshot_html_reports._generate_main_dashboard_html"
+            "intellifl.attack_utils.snapshot_html_reports._generate_main_dashboard_html"
         ) as mock_gen:
             mock_gen.return_value = "<html>Dashboard</html>"
             generate_main_dashboard(str(output_dir))
@@ -612,7 +605,7 @@ class TestGenerateMainDashboard:
         (output_dir / "time_metrics.pdf").touch()
 
         with patch(
-            "src.attack_utils.snapshot_html_reports._generate_main_dashboard_html"
+            "intellifl.attack_utils.snapshot_html_reports._generate_main_dashboard_html"
         ) as mock_gen:
             mock_gen.return_value = "<html>Dashboard</html>"
             generate_main_dashboard(str(output_dir))
@@ -719,7 +712,7 @@ class TestGenerateMainDashboardHtml:
             "config_files": [],
         }
 
-        result = _generate_main_dashboard_html(**data)
+        result = _generate_main_dashboard_html(**cast(dict[str, Any], data))
 
         assert isinstance(result, str)
         assert "<!DOCTYPE html>" in result
@@ -751,7 +744,7 @@ class TestGenerateMainDashboardHtml:
             "config_files": [],
         }
 
-        result = _generate_main_dashboard_html(**data)
+        result = _generate_main_dashboard_html(**cast(dict[str, Any], data))
 
         assert isinstance(result, str)
         for i in range(num_strategies):

@@ -1,19 +1,18 @@
 """Unit tests for attack stacking functionality in dynamic poisoning."""
 
-from tests.common import pytest
+from __future__ import annotations
+
 import torch
 
-from src.attack_utils.poisoning import (
-    should_poison_this_round,
-    apply_poisoning_attack,
-)
+from intellifl.attack_utils.poisoning import apply_poisoning_attack, should_poison_this_round
+from tests.common import pytest
 
 
 def _create_attack_schedule_entry(
     start_round: int, end_round: int, attack_type: str, client_ids: list, **kwargs
 ) -> dict:
     """
-    Create a single attack schedule entry (DRY helper).
+    Create a single attack schedule entry.
 
     Args:
         start_round: Starting round for attack
@@ -38,7 +37,7 @@ def _create_attack_schedule_entry(
 
 def _create_overlapping_schedule() -> list:
     """
-    Create attack schedule with overlapping rounds (DRY helper).
+    Create attack schedule with overlapping rounds.
 
     Returns:
         List of attack schedule entries with overlaps
@@ -63,7 +62,7 @@ def _create_overlapping_schedule() -> list:
 
 def _create_sample_batch(batch_size: int = 10, num_classes: int = 10) -> tuple:
     """
-    Create sample batch of images and labels (DRY helper).
+    Create sample batch of images and labels.
 
     Args:
         batch_size: Number of samples in batch
@@ -105,9 +104,7 @@ class TestPoisoningStacking:
         """Test that overlapping attacks are correctly detected and returned."""
         schedule = _create_overlapping_schedule()
 
-        should_poison, attack_configs = should_poison_this_round(
-            round_num, client_id, schedule
-        )
+        should_poison, attack_configs = should_poison_this_round(round_num, client_id, schedule)
 
         # Verify poisoning status
         assert should_poison == (expected_count > 0), (
@@ -259,9 +256,7 @@ class TestPoisoningStacking:
 
         should_poison, attack_configs = should_poison_this_round(5, 0, schedule)
 
-        gaussian_cfg = next(
-            cfg for cfg in attack_configs if cfg["attack_type"] == "gaussian_noise"
-        )
+        gaussian_cfg = next(cfg for cfg in attack_configs if cfg["attack_type"] == "gaussian_noise")
 
         # Verify parameters are preserved
         assert gaussian_cfg["target_noise_snr"] == 15.0
@@ -282,9 +277,7 @@ class TestPoisoningStacking:
         types3 = [cfg["attack_type"] for cfg in configs3]
 
         # Order should be consistent across calls
-        assert types1 == types2 == types3, (
-            "Attack order should be consistent across multiple calls"
-        )
+        assert types1 == types2 == types3, "Attack order should be consistent across multiple calls"
 
     @pytest.mark.parametrize(
         "num_overlaps",

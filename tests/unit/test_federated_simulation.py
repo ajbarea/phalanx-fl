@@ -1,20 +1,24 @@
 """Unit tests for FederatedSimulation class."""
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import patch
 
-from tests.common import Mock, np, pytest
-from src.data_models.simulation_strategy_config import StrategyConfig
-from src.federated_simulation import FederatedSimulation
+from flwr.common import Context
+from flwr.common.record import RecordDict
 
+from intellifl.data_models.simulation_strategy_config import StrategyConfig
+from intellifl.federated_simulation import FederatedSimulation
+from tests.common import Mock, np, pytest
 from tests.fixtures.mock_datasets import MockDatasetHandler
 from tests.fixtures.sample_models import MockNetwork
 
-NDArray = np.ndarray
+type NDArray = np.ndarray
 
 
-def _get_base_strategy_config_dict() -> Dict[str, Any]:
+def _get_base_strategy_config_dict() -> dict[str, Any]:
     """Base strategy configuration dictionary."""
     return {
         "aggregation_strategy_keyword": "trust",
@@ -50,8 +54,8 @@ def _create_simulation_with_mocks(
 ) -> FederatedSimulation:
     """Create a FederatedSimulation instance with mocked dependencies for testing."""
     with (
-        patch("src.federated_simulation.ImageDatasetLoader") as mock_loader,
-        patch(f"src.federated_simulation.{network_name}") as mock_network,
+        patch("intellifl.federated_simulation.ImageDatasetLoader") as mock_loader,
+        patch("intellifl.federated_simulation.build_cnn_model") as mock_build_cnn,
     ):
         mock_loader_instance = Mock()
         mock_loader_instance.load_datasets.return_value = (
@@ -61,13 +65,32 @@ def _create_simulation_with_mocks(
         mock_loader.return_value = mock_loader_instance
 
         mock_network_instance = MockNetwork()
-        mock_network.return_value = mock_network_instance
+        mock_build_cnn.return_value = mock_network_instance
 
         return FederatedSimulation(
             strategy_config=strategy_config,
             dataset_dir=dataset_dir,
             dataset_handler=dataset_handler,
         )
+
+
+def _create_mock_context(partition_id: int, num_partitions: int = 5) -> Context:
+    """Create a mock Flower Context object for testing.
+
+    Args:
+        partition_id: The client partition index (0, 1, 2, ...)
+        num_partitions: Total number of partitions/clients
+
+    Returns:
+        A Context object with the partition-id set in node_config
+    """
+    return Context(
+        run_id=1,
+        node_id=partition_id + 1000000,  # Simulate large node_id
+        node_config={"partition-id": partition_id, "num-partitions": num_partitions},
+        state=RecordDict(),
+        run_config={},
+    )
 
 
 class TestFederatedSimulationInitialization:
@@ -136,9 +159,7 @@ class TestFederatedSimulationInitialization:
     ) -> None:
         """Test initialization with Krum strategy."""
         krum_config_dict = _get_base_strategy_config_dict()
-        krum_config_dict.update(
-            {"aggregation_strategy_keyword": "krum", "num_krum_selections": 3}
-        )
+        krum_config_dict.update({"aggregation_strategy_keyword": "krum", "num_krum_selections": 3})
         strategy_config = StrategyConfig.from_dict(krum_config_dict)
         simulation = _create_simulation_with_mocks(
             strategy_config, temp_dataset_dir, mock_dataset_handler
@@ -200,9 +221,7 @@ class TestFederatedSimulationInitialization:
             NotImplementedError,
             match="The strategy invalid_strategy not implemented",
         ):
-            _create_simulation_with_mocks(
-                strategy_config, temp_dataset_dir, mock_dataset_handler
-            )
+            _create_simulation_with_mocks(strategy_config, temp_dataset_dir, mock_dataset_handler)
 
     def test_simulation_strategy_history_initialization(
         self, temp_dataset_dir: str, mock_dataset_handler: MockDatasetHandler
@@ -227,9 +246,7 @@ class TestFederatedSimulationInitialization:
         strategy_config = StrategyConfig.from_dict(config_dict)
 
         with pytest.raises(SystemExit) as exc_info:
-            _create_simulation_with_mocks(
-                strategy_config, temp_dataset_dir, mock_dataset_handler
-            )
+            _create_simulation_with_mocks(strategy_config, temp_dataset_dir, mock_dataset_handler)
         assert exc_info.value.code == -1
 
     def test_unsupported_strategy_raises_error(
@@ -241,9 +258,7 @@ class TestFederatedSimulationInitialization:
         strategy_config = StrategyConfig.from_dict(config_dict)
 
         with pytest.raises(NotImplementedError, match="not implemented"):
-            _create_simulation_with_mocks(
-                strategy_config, temp_dataset_dir, mock_dataset_handler
-            )
+            _create_simulation_with_mocks(strategy_config, temp_dataset_dir, mock_dataset_handler)
 
     @pytest.mark.parametrize(
         "strategy,extra_params",
@@ -269,7 +284,7 @@ class TestFederatedSimulationInitialization:
         temp_dataset_dir: str,
         mock_dataset_handler: MockDatasetHandler,
         strategy: str,
-        extra_params: Dict[str, Any],
+        extra_params: dict[str, Any],
     ) -> None:
         """Test that all supported aggregation strategies can be initialized."""
         config_dict = _get_base_strategy_config_dict()
@@ -316,12 +331,13 @@ class TestFederatedSimulationClientFunction:
             strategy_config, temp_dataset_dir, mock_dataset_handler
         )
 
-        with patch("src.federated_simulation.FlowerClient") as mock_flower_client:
+        with patch("intellifl.federated_simulation.FlowerClient") as mock_flower_client:
             mock_client_instance = Mock()
             mock_client_instance.to_client.return_value = Mock()
             mock_flower_client.return_value = mock_client_instance
 
-            simulation.client_fn(cid="0")
+            context = _create_mock_context(0, 5)
+            simulation.client_fn(context)
 
             mock_flower_client.assert_called_once()
             call_args = mock_flower_client.call_args
@@ -341,39 +357,34 @@ class TestFederatedSimulationClientFunction:
             strategy_config, temp_dataset_dir, mock_dataset_handler
         )
 
-        with patch("src.federated_simulation.FlowerClient") as mock_flower_client:
+        with patch("intellifl.federated_simulation.FlowerClient") as mock_flower_client:
             mock_client_instance = Mock()
             mock_client_instance.to_client.return_value = Mock()
             mock_flower_client.return_value = mock_client_instance
 
-            # Test different client IDs
-            for client_id in ["0", "1", "2", "3", "4"]:
-                simulation.client_fn(client_id)
+            for client_id in range(5):
+                context = _create_mock_context(client_id, 5)
+                simulation.client_fn(context)
 
                 call_args = mock_flower_client.call_args
-                assert call_args.kwargs["client_id"] == int(client_id)
+                assert call_args.kwargs["client_id"] == client_id
                 if simulation._trainloaders is not None:
-                    assert (
-                        call_args.kwargs["trainloader"]
-                        == simulation._trainloaders[int(client_id)]
-                    )
+                    assert call_args.kwargs["trainloader"] == simulation._trainloaders[client_id]
                 if simulation._valloaders is not None:
-                    assert (
-                        call_args.kwargs["valloader"]
-                        == simulation._valloaders[int(client_id)]
-                    )
+                    assert call_args.kwargs["valloader"] == simulation._valloaders[client_id]
 
     def test_client_fn_with_invalid_client_id(
         self, temp_dataset_dir: str, mock_dataset_handler: MockDatasetHandler
     ) -> None:
-        """Test client_fn with invalid client ID raises IndexError."""
+        """Test client_fn with invalid partition ID raises IndexError."""
         strategy_config = StrategyConfig.from_dict(_get_base_strategy_config_dict())
         simulation = _create_simulation_with_mocks(
             strategy_config, temp_dataset_dir, mock_dataset_handler
         )
 
+        context = _create_mock_context(10, 5)  # Only 5 clients available (0-4)
         with pytest.raises(IndexError):
-            simulation.client_fn("10")  # Only 5 clients available (0-4)
+            simulation.client_fn(context)
 
     def test_client_fn_handles_llm_model_loading(
         self, temp_dataset_dir: str, mock_dataset_handler: MockDatasetHandler
@@ -393,8 +404,8 @@ class TestFederatedSimulationClientFunction:
         )
         strategy_config = StrategyConfig.from_dict(config_dict)
 
-        with patch("src.federated_simulation.MedQuADDatasetLoader") as mock_loader:
-            with patch("src.federated_simulation.load_model") as mock_load_model:
+        with patch("intellifl.federated_simulation.MedQuADDatasetLoader") as mock_loader:
+            with patch("intellifl.federated_simulation.load_model") as mock_load_model:
                 mock_loader_instance = Mock()
                 mock_loader_instance.load_datasets.return_value = (
                     [Mock() for _ in range(5)],
@@ -409,14 +420,12 @@ class TestFederatedSimulationClientFunction:
                     dataset_handler=mock_dataset_handler,
                 )
 
-                with patch(
-                    "src.federated_simulation.FlowerClient"
-                ) as mock_flower_client:
+                with patch("intellifl.federated_simulation.FlowerClient") as mock_flower_client:
                     mock_client_instance = Mock()
                     mock_client_instance.to_client.return_value = Mock()
                     mock_flower_client.return_value = mock_client_instance
-
-                    result = simulation.client_fn("0")
+                    context = _create_mock_context(0, 5)
+                    result = simulation.client_fn(context)
 
                     mock_flower_client.assert_called_once()
                     assert result is not None
@@ -428,7 +437,7 @@ class TestFederatedSimulationModelParams:
     def test_get_model_params_with_regular_model(self) -> None:
         """Test _get_model_params with a standard PyTorch model."""
         model = MockNetwork(num_classes=10, input_size=100)
-        params: List[NDArray] = FederatedSimulation._get_model_params(model)
+        params: list[NDArray] = FederatedSimulation._get_model_params(model)
 
         assert isinstance(params, list)
         assert len(params) > 0
@@ -436,32 +445,31 @@ class TestFederatedSimulationModelParams:
 
         model_params = list(model.parameters())
         assert len(params) == len(model_params)
-        for param, model_param in zip(params, model_params):
+        for param, model_param in zip(params, model_params, strict=False):
             assert param.shape == model_param.shape
 
     def test_get_model_params_handles_lora_model(self) -> None:
         """Test _get_model_params handles LORA models correctly."""
-        with patch("src.federated_simulation.isinstance") as mock_isinstance:
-            mock_isinstance.return_value = (
-                True  # Make isinstance(model, PeftModel) return True
-            )
-            mock_model = Mock()
-            with patch(
-                "src.federated_simulation.get_peft_model_state_dict"
-            ) as mock_get_peft:
-                mock_state_dict = {"lora_layer.weight": Mock()}
-                # Configure mock parameter to have proper cpu().numpy() chain
-                mock_state_dict[
-                    "lora_layer.weight"
-                ].cpu.return_value.numpy.return_value = np.array([1.0, 2.0])
-                mock_get_peft.return_value = mock_state_dict
 
-                result = FederatedSimulation._get_model_params(mock_model)
+        class FakePeftModel:
+            pass
 
-                mock_get_peft.assert_called_once_with(mock_model)
-                assert isinstance(result, list)
-                assert len(result) == 1
-                assert np.array_equal(result[0], np.array([1.0, 2.0]))
+        mock_model = FakePeftModel()
+        mock_state_dict = {"lora_layer.weight": Mock()}
+        mock_state_dict["lora_layer.weight"].cpu.return_value.numpy.return_value = np.array(
+            [1.0, 2.0]
+        )
+
+        with (
+            patch("peft.PeftModel", FakePeftModel),
+            patch("peft.get_peft_model_state_dict", return_value=mock_state_dict) as mock_get_peft,
+        ):
+            result = FederatedSimulation._get_model_params(mock_model)  # type: ignore[arg-type]
+
+            mock_get_peft.assert_called_once_with(mock_model)
+            assert isinstance(result, list)
+            assert len(result) == 1
+            assert np.array_equal(result[0], np.array([1.0, 2.0]))
 
 
 class TestFederatedSimulationErrorHandling:
@@ -490,8 +498,8 @@ class TestFederatedSimulationErrorHandling:
         mock_dataset_handler.setup_dataset(num_clients=5)
 
         with (
-            patch("src.federated_simulation.ImageDatasetLoader") as mock_loader,
-            patch("src.federated_simulation.ITSNetwork") as mock_network,
+            patch("intellifl.federated_simulation.ImageDatasetLoader") as mock_loader,
+            patch("intellifl.federated_simulation.build_cnn_model") as mock_build_cnn,
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.load_datasets.return_value = (
@@ -499,7 +507,7 @@ class TestFederatedSimulationErrorHandling:
                 [Mock() for _ in range(5)],
             )
             mock_loader.return_value = mock_loader_instance
-            mock_network.return_value = MockNetwork()
+            mock_build_cnn.return_value = MockNetwork()
 
             simulation = FederatedSimulation(
                 strategy_config=strategy_config,
@@ -509,13 +517,9 @@ class TestFederatedSimulationErrorHandling:
 
         # Assert component consistency
         if simulation._trainloaders is not None:
-            assert simulation.strategy_config.num_of_clients == len(
-                simulation._trainloaders
-            )
+            assert simulation.strategy_config.num_of_clients == len(simulation._trainloaders)
         if simulation._valloaders is not None:
-            assert simulation.strategy_config.num_of_clients == len(
-                simulation._valloaders
-            )
+            assert simulation.strategy_config.num_of_clients == len(simulation._valloaders)
         assert simulation._aggregation_strategy is not None
         assert simulation._network_model is not None
 
@@ -529,7 +533,7 @@ class TestWeightedAverage:
 
     def test_weighted_average_with_single_client(self) -> None:
         """Test weighted average with a single client."""
-        from src.federated_simulation import weighted_average
+        from intellifl.federated_simulation import weighted_average
 
         metrics = [(100, {"accuracy": 0.95, "loss": 0.05})]
         result = weighted_average(metrics)
@@ -538,7 +542,7 @@ class TestWeightedAverage:
 
     def test_weighted_average_with_multiple_clients(self) -> None:
         """Test weighted average with multiple clients."""
-        from src.federated_simulation import weighted_average
+        from intellifl.federated_simulation import weighted_average
 
         metrics = [
             (100, {"accuracy": 0.90, "loss": 0.10}),
@@ -555,16 +559,16 @@ class TestWeightedAverage:
 
     def test_weighted_average_with_empty_metrics(self) -> None:
         """Test weighted average with empty metrics list."""
-        from src.federated_simulation import weighted_average
+        from intellifl.federated_simulation import weighted_average
 
-        metrics: List[tuple[int, dict]] = []
+        metrics: list[tuple[int, dict]] = []
         result = weighted_average(metrics)
 
         assert result == {}
 
     def test_weighted_average_with_missing_metrics(self) -> None:
         """Test weighted average when some clients have missing metrics."""
-        from src.federated_simulation import weighted_average
+        from intellifl.federated_simulation import weighted_average
 
         metrics = [
             (100, {"accuracy": 0.90, "loss": 0.10}),
@@ -580,7 +584,7 @@ class TestWeightedAverage:
 
     def test_weighted_average_with_zero_samples(self) -> None:
         """Test weighted average when all clients have zero samples."""
-        from src.federated_simulation import weighted_average
+        from intellifl.federated_simulation import weighted_average
 
         metrics = [
             (0, {"accuracy": 0.90, "loss": 0.10}),
@@ -593,7 +597,7 @@ class TestWeightedAverage:
 
     def test_weighted_average_with_mixed_metric_names(self) -> None:
         """Test weighted average with different metric names across clients."""
-        from src.federated_simulation import weighted_average
+        from intellifl.federated_simulation import weighted_average
 
         metrics = [
             (100, {"accuracy": 0.90, "f1": 0.88}),
@@ -614,7 +618,7 @@ class TestWeightedAverage:
 
     def test_weighted_average_with_negative_values(self) -> None:
         """Test weighted average handles negative metric values correctly."""
-        from src.federated_simulation import weighted_average
+        from intellifl.federated_simulation import weighted_average
 
         metrics = [
             (100, {"delta": -0.05}),

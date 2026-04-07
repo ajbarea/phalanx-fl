@@ -5,9 +5,15 @@ Tests attack schedule parameter validation, round range validation,
 attack type parameters, and client selection strategies.
 """
 
-from tests.common import pytest
+from __future__ import annotations
+
 from jsonschema import ValidationError
-from src.config_loaders.validate_strategy_config import validate_strategy_config
+
+from intellifl.config_loaders.validate_strategy_config import (
+    _populate_client_selection,
+    validate_strategy_config,
+)
+from tests.common import pytest
 
 
 class TestValidateAttackSchedule:
@@ -17,10 +23,10 @@ class TestValidateAttackSchedule:
         """Test validation fails when start_round > end_round."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 10,
             "num_of_clients": 5,
             "num_of_malicious_clients": 1,
@@ -33,10 +39,10 @@ class TestValidateAttackSchedule:
                     "malicious_client_ids": [0],
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -56,18 +62,16 @@ class TestValidateAttackSchedule:
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert "start_round (8) cannot be greater than end_round (5)" in str(
-            exc_info.value
-        )
+        assert "start_round (8) cannot be greater than end_round (5)" in str(exc_info.value)
 
     def test_invalid_round_range_end_exceeds_num_of_rounds(self):
         """Test validation fails when end_round exceeds num_of_rounds."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 10,
             "num_of_clients": 5,
             "num_of_malicious_clients": 1,
@@ -80,10 +84,10 @@ class TestValidateAttackSchedule:
                     "malicious_client_ids": [0],
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -109,10 +113,10 @@ class TestValidateAttackSchedule:
         """Test validation fails when gaussian_noise is missing target_noise_snr."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 5,
             "num_of_malicious_clients": 1,
@@ -126,10 +130,10 @@ class TestValidateAttackSchedule:
                     "malicious_client_ids": [0],
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -149,18 +153,16 @@ class TestValidateAttackSchedule:
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert "gaussian_noise attack requires 'target_noise_snr' parameter" in str(
-            exc_info.value
-        )
+        assert "gaussian_noise attack requires 'target_noise_snr' parameter" in str(exc_info.value)
 
     def test_gaussian_noise_missing_attack_ratio(self):
         """Test validation fails when gaussian_noise is missing attack_ratio."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 5,
             "num_of_malicious_clients": 1,
@@ -174,10 +176,10 @@ class TestValidateAttackSchedule:
                     "malicious_client_ids": [0],
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -197,18 +199,16 @@ class TestValidateAttackSchedule:
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert "gaussian_noise attack requires 'attack_ratio' parameter" in str(
-            exc_info.value
-        )
+        assert "gaussian_noise attack requires 'attack_ratio' parameter" in str(exc_info.value)
 
     def test_specific_selection_missing_malicious_client_ids(self):
         """Test validation fails when specific selection is missing malicious_client_ids."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 5,
             "num_of_malicious_clients": 1,
@@ -220,10 +220,10 @@ class TestValidateAttackSchedule:
                     "selection_strategy": "specific",
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -243,19 +243,18 @@ class TestValidateAttackSchedule:
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert (
-            "'specific' selection strategy requires 'malicious_client_ids' list"
-            in str(exc_info.value)
+        assert "'specific' selection strategy requires 'malicious_client_ids' list" in str(
+            exc_info.value
         )
 
     def test_random_selection_missing_malicious_client_count(self):
         """Test validation fails when random selection is missing malicious_client_count."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 5,
             "num_of_malicious_clients": 1,
@@ -267,10 +266,10 @@ class TestValidateAttackSchedule:
                     "selection_strategy": "random",
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -290,19 +289,18 @@ class TestValidateAttackSchedule:
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert (
-            "'random' selection strategy requires 'malicious_client_count' integer"
-            in str(exc_info.value)
+        assert "'random' selection strategy requires 'malicious_client_count' integer" in str(
+            exc_info.value
         )
 
     def test_percentage_selection_missing_malicious_percentage(self):
         """Test validation fails when percentage selection is missing malicious_percentage."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 5,
             "num_of_malicious_clients": 1,
@@ -314,10 +312,10 @@ class TestValidateAttackSchedule:
                     "selection_strategy": "percentage",
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -345,10 +343,10 @@ class TestValidateAttackSchedule:
         """Test that overlapping attacks with same type raises ValidationError."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 10,
             "num_of_clients": 5,
             "num_of_malicious_clients": 2,
@@ -368,10 +366,10 @@ class TestValidateAttackSchedule:
                     "malicious_client_ids": [1],
                 },
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -400,10 +398,10 @@ class TestValidateAttackSchedule:
 
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 10,
             "num_of_clients": 5,
             "num_of_malicious_clients": 2,
@@ -425,10 +423,10 @@ class TestValidateAttackSchedule:
                     "malicious_client_ids": [1],
                 },
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -465,10 +463,10 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that main validation calls LLM validation when use_llm is true."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "medquad",
             "model_type": "transformer",
-            "use_llm": "true",
+            "use_llm": True,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -481,10 +479,10 @@ class TestValidateStrategyConfigLlmIntegration:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -513,10 +511,10 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that main validation skips LLM validation when use_llm is false."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -529,10 +527,10 @@ class TestValidateStrategyConfigLlmIntegration:
                     "malicious_percentage": 0.2,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -558,10 +556,10 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that main validation checks client number consistency."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 5,  # Too few clients
             "num_of_malicious_clients": 2,
@@ -574,10 +572,10 @@ class TestValidateStrategyConfigLlmIntegration:
                     "malicious_percentage": 0.4,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -606,10 +604,10 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that preserve_dataset=true with attack_schedule raises ValidationError."""
         config = {
             "aggregation_strategy_keyword": "krum",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 10,
             "num_of_clients": 10,
             "num_of_malicious_clients": 3,
@@ -622,10 +620,10 @@ class TestValidateStrategyConfigLlmIntegration:
                     "malicious_client_ids": [0, 1, 2],
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "true",
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": True,
             "training_subset_fraction": 0.5,
             "training_device": "cpu",
             "cpus_per_client": 2,
@@ -648,10 +646,10 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that preserve_dataset remains false when already set correctly."""
         config = {
             "aggregation_strategy_keyword": "krum",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 10,
             "num_of_clients": 10,
             "num_of_malicious_clients": 3,
@@ -664,10 +662,10 @@ class TestValidateStrategyConfigLlmIntegration:
                     "malicious_client_ids": [0, 1, 2],
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",  # Already false
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": False,  # Already false
             "training_subset_fraction": 0.5,
             "training_device": "cpu",
             "cpus_per_client": 2,
@@ -686,24 +684,24 @@ class TestValidateStrategyConfigLlmIntegration:
         validate_strategy_config(config)
 
         # preserve_dataset should remain false
-        assert config["preserve_dataset"] == "false"
+        assert config["preserve_dataset"] is False
 
     def test_preserve_dataset_unchanged_without_attack_schedule(self):
         """Test that preserve_dataset is not modified when no attack_schedule is present."""
         config = {
             "aggregation_strategy_keyword": "krum",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 10,
             "num_of_clients": 10,
             "num_of_malicious_clients": 3,
             "attack_schedule": [],  # Empty attack schedule
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "true",  # Can remain true with empty schedule
+            "show_plots": False,
+            "save_plots": True,
+            "save_csv": True,
+            "preserve_dataset": True,  # Can remain true with empty schedule
             "training_subset_fraction": 0.5,
             "training_device": "cpu",
             "cpus_per_client": 2,
@@ -722,16 +720,16 @@ class TestValidateStrategyConfigLlmIntegration:
         validate_strategy_config(config)
 
         # preserve_dataset should remain true (no attack schedule)
-        assert config["preserve_dataset"] == "true"
+        assert config["preserve_dataset"] is True
 
     def test_percentage_selection_populates_selected_clients(self):
         """Test that percentage selection strategy populates _selected_clients."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -744,10 +742,10 @@ class TestValidateStrategyConfigLlmIntegration:
                     "malicious_percentage": 0.2,  # 20% of 10 = 2 clients
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -766,8 +764,10 @@ class TestValidateStrategyConfigLlmIntegration:
 
         validate_strategy_config(config)
 
-        assert "_selected_clients" in config["attack_schedule"][0]
-        selected = config["attack_schedule"][0]["_selected_clients"]
+        assert isinstance(config["attack_schedule"], list)
+        attack_schedule = config["attack_schedule"]
+        assert "_selected_clients" in attack_schedule[0]
+        selected = attack_schedule[0]["_selected_clients"]
 
         assert len(selected) == 2
         assert all(0 <= cid < 10 for cid in selected)
@@ -777,10 +777,10 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that random selection strategy populates _selected_clients."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 3,
@@ -795,10 +795,10 @@ class TestValidateStrategyConfigLlmIntegration:
                     "malicious_client_count": 3,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -817,8 +817,10 @@ class TestValidateStrategyConfigLlmIntegration:
 
         validate_strategy_config(config)
 
-        assert "_selected_clients" in config["attack_schedule"][0]
-        selected = config["attack_schedule"][0]["_selected_clients"]
+        assert isinstance(config["attack_schedule"], list)
+        attack_schedule = config["attack_schedule"]
+        assert "_selected_clients" in attack_schedule[0]
+        selected = attack_schedule[0]["_selected_clients"]
 
         assert len(selected) == 3
         assert all(0 <= cid < 10 for cid in selected)
@@ -828,10 +830,10 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that same random_seed produces same client selection."""
         config1 = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -845,10 +847,10 @@ class TestValidateStrategyConfigLlmIntegration:
                     "random_seed": 42,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -867,10 +869,10 @@ class TestValidateStrategyConfigLlmIntegration:
 
         config2 = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -884,10 +886,10 @@ class TestValidateStrategyConfigLlmIntegration:
                     "random_seed": 42,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -908,18 +910,22 @@ class TestValidateStrategyConfigLlmIntegration:
         validate_strategy_config(config2)
 
         # Same seed should produce same selection
-        selected1 = config1["attack_schedule"][0]["_selected_clients"]
-        selected2 = config2["attack_schedule"][0]["_selected_clients"]
+        assert isinstance(config1["attack_schedule"], list)
+        assert isinstance(config2["attack_schedule"], list)
+        attack_schedule1 = config1["attack_schedule"]
+        attack_schedule2 = config2["attack_schedule"]
+        selected1 = attack_schedule1[0]["_selected_clients"]
+        selected2 = attack_schedule2[0]["_selected_clients"]
         assert selected1 == selected2
 
     def test_random_selection_different_seeds_produce_different_selections(self):
         """Test that different seeds produce different client selections for random strategy."""
         config_seed_42 = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 20,
             "num_of_malicious_clients": 5,
@@ -935,10 +941,10 @@ class TestValidateStrategyConfigLlmIntegration:
                     "random_seed": 42,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -957,10 +963,10 @@ class TestValidateStrategyConfigLlmIntegration:
 
         config_seed_99 = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 20,
             "num_of_malicious_clients": 5,
@@ -976,10 +982,10 @@ class TestValidateStrategyConfigLlmIntegration:
                     "random_seed": 99,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -998,10 +1004,10 @@ class TestValidateStrategyConfigLlmIntegration:
 
         config_seed_42_again = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 20,
             "num_of_malicious_clients": 5,
@@ -1017,10 +1023,10 @@ class TestValidateStrategyConfigLlmIntegration:
                     "random_seed": 42,
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -1041,11 +1047,15 @@ class TestValidateStrategyConfigLlmIntegration:
         validate_strategy_config(config_seed_99)
         validate_strategy_config(config_seed_42_again)
 
-        selected_42 = config_seed_42["attack_schedule"][0]["_selected_clients"]
-        selected_99 = config_seed_99["attack_schedule"][0]["_selected_clients"]
-        selected_42_again = config_seed_42_again["attack_schedule"][0][
-            "_selected_clients"
-        ]
+        assert isinstance(config_seed_42["attack_schedule"], list)
+        assert isinstance(config_seed_99["attack_schedule"], list)
+        assert isinstance(config_seed_42_again["attack_schedule"], list)
+        schedule_42 = config_seed_42["attack_schedule"]
+        schedule_99 = config_seed_99["attack_schedule"]
+        schedule_42_again = config_seed_42_again["attack_schedule"]
+        selected_42 = schedule_42[0]["_selected_clients"]
+        selected_99 = schedule_99[0]["_selected_clients"]
+        selected_42_again = schedule_42_again[0]["_selected_clients"]
 
         # Different seeds should produce different selections
         assert selected_42 != selected_99, (
@@ -1069,10 +1079,10 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that percentage selection fails if calculated count exceeds num_of_clients."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 5,
             "num_of_malicious_clients": 6,  # More than available
@@ -1085,10 +1095,10 @@ class TestValidateStrategyConfigLlmIntegration:
                     "malicious_client_count": 10,  # More than available
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -1114,10 +1124,10 @@ class TestValidateStrategyConfigLlmIntegration:
         """Test that specific selection strategy is not modified."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
+            "remove_clients": False,
             "dataset_keyword": "femnist_iid",
             "model_type": "cnn",
-            "use_llm": "false",
+            "use_llm": False,
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -1130,10 +1140,10 @@ class TestValidateStrategyConfigLlmIntegration:
                     "malicious_client_ids": [0, 3, 7],
                 }
             ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "false",
-            "preserve_dataset": "false",
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
             "training_subset_fraction": 1.0,
             "training_device": "cpu",
             "cpus_per_client": 1,
@@ -1152,5 +1162,93 @@ class TestValidateStrategyConfigLlmIntegration:
 
         validate_strategy_config(config)
 
+        assert isinstance(config["attack_schedule"], list)
+        attack_schedule = config["attack_schedule"]
+        assert "_selected_clients" not in attack_schedule[0]
+        assert attack_schedule[0]["malicious_client_ids"] == [0, 3, 7]
+
+
+class TestPopulateClientSelection:
+    """Test _populate_client_selection function edge cases."""
+
+    def test_populate_client_selection_without_num_of_clients(self):
+        """Test that _populate_client_selection returns early when num_of_clients is None."""
+        config = {
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ]
+            # Note: num_of_clients is intentionally omitted
+        }
+
+        # Should return early without raising an exception
+        _populate_client_selection(config)
+
+        # _selected_clients should not be added since we returned early
         assert "_selected_clients" not in config["attack_schedule"][0]
-        assert config["attack_schedule"][0]["malicious_client_ids"] == [0, 3, 7]
+
+    def test_populate_client_selection_zero_malicious_percentage(self):
+        """Test that percentage resulting in 0 malicious clients fails validation."""
+        config = {
+            "aggregation_strategy_keyword": "trust",
+            "remove_clients": False,
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": False,
+            "num_of_rounds": 5,
+            "num_of_clients": 10,
+            "num_of_malicious_clients": 0,
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.0,  # 0% of 10 = 0 clients
+                }
+            ],
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
+            "training_subset_fraction": 1.0,
+            "training_device": "cpu",
+            "cpus_per_client": 1,
+            "gpus_per_client": 0.0,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
+            "min_available_clients": 10,
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 1,
+            "batch_size": 32,
+            "begin_removing_from_round": 1,
+            "trust_threshold": 0.7,
+            "beta_value": 0.5,
+            "num_of_clusters": 1,
+        }
+
+        with pytest.raises(ValidationError, match="Must select at least 1 malicious client"):
+            validate_strategy_config(config)
+
+    def test_populate_client_selection_zero_random_count(self):
+        """Test that random selection with 0 malicious_client_count fails validation."""
+        config = {
+            "num_of_clients": 10,
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "random",
+                    "malicious_client_count": 0,  # Zero clients
+                }
+            ],
+        }
+
+        with pytest.raises(ValidationError, match="Must select at least 1 malicious client"):
+            _populate_client_selection(config)

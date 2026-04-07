@@ -4,24 +4,25 @@ Unit tests for TrimmedMeanBasedRemovalStrategy.
 Tests trimmed mean aggregation and client removal logic.
 """
 
+from __future__ import annotations
+
 import warnings
 from unittest.mock import patch
 
-from tests.common import (
-    Mock,
-    np,
-    pytest,
-    FitRes,
-    ndarrays_to_parameters,
-    parameters_to_ndarrays,
-    ClientProxy,
-)
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.simulation_strategies.trimmed_mean_based_removal_strategy import (
+from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
+from intellifl.simulation_strategies.trimmed_mean_based_removal_strategy import (
     TrimmedMeanBasedRemovalStrategy,
 )
-
-from tests.common import generate_mock_client_data
+from tests.common import (
+    ClientProxy,
+    FitRes,
+    Mock,
+    generate_mock_client_data,
+    ndarrays_to_parameters,
+    np,
+    parameters_to_ndarrays,
+    pytest,
+)
 
 
 class TestTrimmedMeanBasedRemovalStrategy:
@@ -74,17 +75,13 @@ class TestTrimmedMeanBasedRemovalStrategy:
         with patch.object(trimmed_mean_strategy, "_average_weights") as mock_average:
             mock_average.return_value = [np.random.randn(2, 2), np.random.randn(2)]
 
-            result_params, result_metrics = trimmed_mean_strategy.aggregate_fit(
-                1, results, []
-            )
+            result_params, result_metrics = trimmed_mean_strategy.aggregate_fit(1, results, [])
 
             # Should call _average_weights when no trimming is needed
             mock_average.assert_called_once()
             assert result_params is not None
 
-    def test_aggregate_fit_with_trimming(
-        self, trimmed_mean_strategy, mock_client_results
-    ):
+    def test_aggregate_fit_with_trimming(self, trimmed_mean_strategy, mock_client_results):
         """Test aggregate_fit performs trimming correctly."""
         result_params, result_metrics = trimmed_mean_strategy.aggregate_fit(
             1, mock_client_results, []
@@ -119,9 +116,7 @@ class TestTrimmedMeanBasedRemovalStrategy:
             fit_res.num_examples = 100
             results.append((client_proxy, fit_res))
 
-        result_params, result_metrics = trimmed_mean_strategy.aggregate_fit(
-            1, results, []
-        )
+        result_params, result_metrics = trimmed_mean_strategy.aggregate_fit(1, results, [])
 
         # Should successfully aggregate with trimming
         assert result_params is not None
@@ -164,9 +159,7 @@ class TestTrimmedMeanBasedRemovalStrategy:
             assert result_params is not None
 
             # Verify the expected trim count is reasonable for the number of clients
-            assert (
-                expected_trim_count <= num_clients // 2
-            )  # Should not trim more than half
+            assert expected_trim_count <= num_clients // 2  # Should not trim more than half
 
     def test_configure_fit_warmup_rounds(self, trimmed_mean_strategy):
         """Test configure_fit during warmup rounds."""
@@ -178,9 +171,7 @@ class TestTrimmedMeanBasedRemovalStrategy:
 
         mock_parameters = Mock()
 
-        result = trimmed_mean_strategy.configure_fit(
-            1, mock_parameters, mock_client_manager
-        )
+        result = trimmed_mean_strategy.configure_fit(1, mock_parameters, mock_client_manager)
 
         # Should return all clients during warmup
         assert len(result) == 5
@@ -202,9 +193,7 @@ class TestTrimmedMeanBasedRemovalStrategy:
 
         mock_parameters = Mock()
 
-        result = trimmed_mean_strategy.configure_fit(
-            3, mock_parameters, mock_client_manager
-        )
+        result = trimmed_mean_strategy.configure_fit(3, mock_parameters, mock_client_manager)
 
         # Should return all clients sorted by score (descending)
         assert len(result) == 5
@@ -225,9 +214,7 @@ class TestTrimmedMeanBasedRemovalStrategy:
 
         mock_parameters = Mock()
 
-        result = trimmed_mean_strategy.configure_fit(
-            3, mock_parameters, mock_client_manager
-        )
+        result = trimmed_mean_strategy.configure_fit(3, mock_parameters, mock_client_manager)
 
         # Should return all clients
         assert len(result) == 3
@@ -268,9 +255,7 @@ class TestTrimmedMeanBasedRemovalStrategy:
         avg_weights = trimmed_mean_strategy._average_weights(weights)
 
         # Should compute element-wise average
-        expected_layer1 = np.array(
-            [[2.0, 3.0], [4.0, 5.0]]
-        )  # Average of the 2x2 matrices
+        expected_layer1 = np.array([[2.0, 3.0], [4.0, 5.0]])  # Average of the 2x2 matrices
         expected_layer2 = np.array([2.0, 3.0])  # Average of the 1D arrays
 
         assert len(avg_weights) == 2
@@ -311,9 +296,7 @@ class TestTrimmedMeanBasedRemovalStrategy:
             results.append((client_proxy, fit_res))
 
         # With trim_ratio=0.2 and 5 clients, int(0.2 * 5) = 1 client trimmed from each end
-        result_params, result_metrics = trimmed_mean_strategy.aggregate_fit(
-            1, results, []
-        )
+        result_params, result_metrics = trimmed_mean_strategy.aggregate_fit(1, results, [])
 
         # Should successfully aggregate without being dominated by outliers
         assert result_params is not None
@@ -323,14 +306,10 @@ class TestTrimmedMeanBasedRemovalStrategy:
 
         # The result should be closer to the normal values (1.0) than the outliers (±100.0)
         # Since we trim 1 from each end, we should average the middle 3 values: [1.0, 1.0, 1.0]
-        assert abs(aggregated_arrays[0][0, 0] - 1.0) < abs(
-            aggregated_arrays[0][0, 0] - 100.0
-        )
+        assert abs(aggregated_arrays[0][0, 0] - 1.0) < abs(aggregated_arrays[0][0, 0] - 100.0)
         assert abs(aggregated_arrays[1][0] - 1.0) < abs(aggregated_arrays[1][0] - 100.0)
 
-    def test_strategy_history_integration(
-        self, trimmed_mean_strategy, mock_client_results
-    ):
+    def test_strategy_history_integration(self, trimmed_mean_strategy, mock_client_results):
         """Test integration with strategy history."""
         result_params, result_metrics = trimmed_mean_strategy.aggregate_fit(
             1, mock_client_results, []
@@ -354,9 +333,7 @@ class TestTrimmedMeanBasedRemovalStrategy:
             fit_res.num_examples = 100
             results.append((client_proxy, fit_res))
 
-        result_params, result_metrics = trimmed_mean_strategy.aggregate_fit(
-            1, results, []
-        )
+        result_params, result_metrics = trimmed_mean_strategy.aggregate_fit(1, results, [])
 
         # Should handle identical parameters gracefully
         assert result_params is not None
@@ -422,9 +399,7 @@ class TestTrimmedMeanBasedRemovalStrategy:
             fit_res.num_examples = 100
             results.append((client_proxy, fit_res))
 
-        result_params, result_metrics = trimmed_mean_strategy.aggregate_fit(
-            1, results, []
-        )
+        result_params, result_metrics = trimmed_mean_strategy.aggregate_fit(1, results, [])
 
         # Should handle complex parameter structures
         assert result_params is not None
@@ -453,9 +428,7 @@ class TestTrimmedMeanBasedRemovalStrategy:
             fit_res.num_examples = 100
             results.append((client_proxy, fit_res))
 
-        result_params, result_metrics = trimmed_mean_strategy.aggregate_fit(
-            1, results, []
-        )
+        result_params, result_metrics = trimmed_mean_strategy.aggregate_fit(1, results, [])
 
         # Should handle extreme values without numerical issues
         assert result_params is not None

@@ -1,7 +1,8 @@
 [run]
-source = src
+source = intellifl
 omit =
     */tests/*
+    */local/*
     */__pycache__/*
     */venv/*
     */.venv/*

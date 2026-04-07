@@ -4,11 +4,12 @@ Integration tests for Flower FL component mocks with simulation components.
 Tests mock implementations as drop-in replacements for real Flower components.
 """
 
-from typing import Any, Dict, List
+from __future__ import annotations
+
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 from tests.common import np, pytest
-
 from tests.fixtures.mock_flower_components import (
     MockClient,
     MockFitRes,
@@ -19,9 +20,9 @@ from tests.fixtures.mock_flower_components import (
     mock_start_simulation,
 )
 
-NDArray = np.ndarray
-Config = Dict[str, Any]
-Metrics = Dict[str, Any]
+type NDArray = np.ndarray
+type Config = dict[str, Any]
+type Metrics = dict[str, Any]
 
 
 class TestFlowerMockIntegration:
@@ -53,7 +54,7 @@ class TestFlowerMockIntegration:
         client = create_mock_flower_client(client_id=1)
 
         rng = np.random.default_rng(42)
-        initial_params: List[NDArray] = [
+        initial_params: list[NDArray] = [
             rng.standard_normal((10, 5)).astype(np.float32),
             rng.standard_normal(5).astype(np.float32),
         ]
@@ -79,7 +80,7 @@ class TestFlowerMockIntegration:
         num_clients = 3
         clients = [create_mock_flower_client(i) for i in range(num_clients)]
 
-        initial_params: List[NDArray] = [
+        initial_params: list[NDArray] = [
             np.ones((5, 3), dtype=np.float32),
             np.zeros(3, dtype=np.float32),
         ]
@@ -123,13 +124,11 @@ class TestFlowerMockIntegration:
         assert len(history["losses_distributed"]) == 2
         assert "metrics_distributed" in history
 
-    @patch("flwr.simulation.start_simulation")
-    def test_mock_as_replacement_for_real_flower(
-        self, mock_flwr_start: MagicMock
-    ) -> None:
+    @patch("flwr.simulation.run_simulation")
+    def test_mock_as_replacement_for_real_flower(self, mock_flwr_start: MagicMock) -> None:
         """Test that mocks can replace real Flower components in tests."""
 
-        def mock_simulation_side_effect(*args: Any, **kwargs: Any) -> Dict[str, Any]:
+        def mock_simulation_side_effect(*args: Any, **kwargs: Any) -> dict[str, Any]:
             return mock_start_simulation(*args, **kwargs)
 
         mock_flwr_start.side_effect = mock_simulation_side_effect
@@ -164,15 +163,13 @@ class TestFlowerMockIntegration:
                     for tensor_bytes in result.parameters.tensors:
                         tensor = np.frombuffer(tensor_bytes, dtype=np.float32)
                         rng = np.random.default_rng(42)
-                        corrupted = tensor + rng.normal(0, 10, tensor.shape).astype(
-                            np.float32
-                        )
+                        corrupted = tensor + rng.normal(0, 10, tensor.shape).astype(np.float32)
                         corrupted_tensors.append(corrupted.tobytes())
 
                     result.parameters.tensors = corrupted_tensors
                     return result
 
-                client.fit = byzantine_fit
+                client.fit = byzantine_fit  # type: ignore[method-assign]
 
             return client
 
@@ -198,13 +195,11 @@ class TestFlowerMockIntegration:
             # Make client 2 fail during training
             if int(cid) == 2:  # Client 2 drops out
 
-                def dropout_fit(
-                    parameters: MockParameters, config: Config
-                ) -> MockFitRes:
+                def dropout_fit(parameters: MockParameters, config: Config) -> MockFitRes:
                     _ = parameters, config
                     raise ConnectionError("Client dropped out")
 
-                client.fit = dropout_fit
+                client.fit = dropout_fit  # type: ignore[method-assign]
 
             return client
 
@@ -229,18 +224,14 @@ class TestFlowerMockIntegration:
             if client_id < 2:
                 original_fit = client.fit
 
-                def high_capability_fit(
-                    parameters: MockParameters, config: Config
-                ) -> MockFitRes:
+                def high_capability_fit(parameters: MockParameters, config: Config) -> MockFitRes:
                     result = original_fit(parameters, config)
-                    result.metrics["accuracy"] = min(
-                        0.95, result.metrics["accuracy"] + 0.1
-                    )
+                    result.metrics["accuracy"] = min(0.95, result.metrics["accuracy"] + 0.1)
                     result.metrics["loss"] = max(0.05, result.metrics["loss"] - 0.1)
                     result.num_examples = int(result.num_examples * 1.5)
                     return result
 
-                client.fit = high_capability_fit
+                client.fit = high_capability_fit  # type: ignore[method-assign]
 
             return client
 
@@ -263,7 +254,7 @@ class TestMockConsistencyWithRealFlower:
         client = create_mock_flower_client(0)
 
         rng = np.random.default_rng(42)
-        initial_params: List[NDArray] = [
+        initial_params: list[NDArray] = [
             rng.standard_normal((10, 5)).astype(np.float32),
             rng.standard_normal(5).astype(np.float32),
         ]
@@ -283,9 +274,7 @@ class TestMockConsistencyWithRealFlower:
         client = create_mock_flower_client(0)
 
         rng = np.random.default_rng(42)
-        params = mock_ndarrays_to_parameters(
-            [rng.standard_normal(10).astype(np.float32)]
-        )
+        params = mock_ndarrays_to_parameters([rng.standard_normal(10).astype(np.float32)])
 
         fit_result = client.fit(params, {})
         assert isinstance(fit_result.metrics, dict)

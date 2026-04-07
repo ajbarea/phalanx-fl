@@ -2,6 +2,8 @@
 Basic test to verify pytest setup is working correctly.
 """
 
+from __future__ import annotations
+
 from tests.common import pytest
 
 

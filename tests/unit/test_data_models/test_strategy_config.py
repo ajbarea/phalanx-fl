@@ -1,7 +1,11 @@
-import json
-from typing import Any, Dict
+from __future__ import annotations
 
-from src.data_models.simulation_strategy_config import StrategyConfig
+import json
+from typing import Any
+
+import pytest
+
+from intellifl.data_models.simulation_strategy_config import StrategyConfig
 
 
 class TestStrategyConfig:
@@ -25,38 +29,48 @@ class TestStrategyConfig:
 
     def test_init_with_string_booleans(self):
         """Test initialization converts string booleans correctly."""
-        config = StrategyConfig(
-            remove_clients="true",
-            show_plots="false",
-            save_plots="true",
-            save_csv="false",
-        )
+        with pytest.warns(DeprecationWarning):
+            config = StrategyConfig(
+                remove_clients="true",  # type: ignore[arg-type]
+                show_plots="false",  # type: ignore[arg-type]
+                save_plots="true",  # type: ignore[arg-type]
+                save_csv="false",  # type: ignore[arg-type]
+            )
 
         assert config.remove_clients is True
         assert config.show_plots is False
         assert config.save_plots is True
         assert config.save_csv is False
 
-    def test_init_with_none_values(self):
-        """Test initialization with None values."""
+    def test_init_with_default_values(self):
+        """Test initialization uses sensible defaults for strategy parameters."""
         config = StrategyConfig()
 
         assert config.aggregation_strategy_keyword is None
         assert config.num_of_rounds is None
         assert config.num_of_clients is None
-        assert config.trust_threshold is None
+        assert config.trust_threshold == 0.1
+        assert config.remove_clients is False
+        assert config.begin_removing_from_round == 0
+        assert config.min_fit_clients == 2
+        assert config.Ki == 1.0
+        assert config.Kd == 0.0
+        assert config.num_of_malicious_clients == 1
+        assert config.num_krum_selections == 2
+        assert config.trim_ratio == 0.1
 
     def test_init_with_mixed_parameters(self):
         """Test initialization with mixed parameter types."""
-        config = StrategyConfig(
-            aggregation_strategy_keyword="pid",
-            num_of_rounds=3,
-            remove_clients="true",
-            Kp=1.0,
-            Ki=0.1,
-            Kd=0.01,
-            show_plots="false",
-        )
+        with pytest.warns(DeprecationWarning):
+            config = StrategyConfig(
+                aggregation_strategy_keyword="pid",
+                num_of_rounds=3,
+                remove_clients="true",  # type: ignore[arg-type]
+                Kp=1.0,
+                Ki=0.1,
+                Kd=0.01,
+                show_plots="false",  # type: ignore[arg-type]
+            )
 
         assert config.aggregation_strategy_keyword == "pid"
         assert config.num_of_rounds == 3
@@ -68,12 +82,12 @@ class TestStrategyConfig:
 
     def test_from_dict_valid_config(self) -> None:
         """Test from_dict with valid configuration dictionary."""
-        config_dict: Dict[str, Any] = {
+        config_dict: dict[str, Any] = {
             "aggregation_strategy_keyword": "krum",
             "num_of_rounds": 4,
             "num_of_clients": 8,
             "num_krum_selections": 3,
-            "remove_clients": "true",
+            "remove_clients": True,
         }
 
         config = StrategyConfig.from_dict(config_dict)
@@ -100,7 +114,8 @@ class TestStrategyConfig:
             "show_plots": "true",
         }
 
-        config = StrategyConfig.from_dict(config_dict)
+        with pytest.warns(DeprecationWarning):
+            config = StrategyConfig.from_dict(config_dict)
 
         assert config.save_plots is True
         assert config.preserve_dataset is False
@@ -127,9 +142,7 @@ class TestStrategyConfig:
 
     def test_to_json_with_none_values(self):
         """Test to_json with None values."""
-        config = StrategyConfig(
-            aggregation_strategy_keyword="pid", num_of_rounds=None, Kp=1.5
-        )
+        config = StrategyConfig(aggregation_strategy_keyword="pid", num_of_rounds=None, Kp=1.5)
 
         json_str = config.to_json()
         parsed_json = json.loads(json_str)
@@ -158,8 +171,7 @@ class TestStrategyConfig:
 
         # Compare all relevant fields
         assert (
-            new_config.aggregation_strategy_keyword
-            == original_config.aggregation_strategy_keyword
+            new_config.aggregation_strategy_keyword == original_config.aggregation_strategy_keyword
         )
         assert new_config.num_of_rounds == original_config.num_of_rounds
         assert new_config.num_of_clients == original_config.num_of_clients
@@ -171,27 +183,25 @@ class TestStrategyConfig:
         """Test handling invalid parameters gracefully."""
         # StrategyConfig accepts any keyword arguments, so this tests that
         # unknown parameters are set as attributes
-        config = StrategyConfig(unknown_parameter="test_value", another_unknown=123)
+        config = StrategyConfig(unknown_parameter="test_value", another_unknown=123)  # type: ignore[call-arg]
 
-        assert config.unknown_parameter == "test_value"
-        assert config.another_unknown == 123
+        assert config.unknown_parameter == "test_value"  # type: ignore[attr-defined]
+        assert config.another_unknown == 123  # type: ignore[attr-defined]
 
     def test_boolean_conversion_edge_cases(self):
-        """Test boolean conversion edge cases."""
-        config = StrategyConfig(
-            # Only "true" and "false" strings are converted
-            actual_boolean=True,
-            string_true="true",
-            string_false="false",
-            other_string="maybe",
-            number_value=1,
-        )
+        """Test that only declared boolean fields are coerced."""
+        with pytest.warns(DeprecationWarning):
+            config = StrategyConfig(
+                remove_clients="true",  # type: ignore[arg-type] # Declared field, should be coerced
+                show_plots="false",  # type: ignore[arg-type] # Declared field, should be coerced
+                other_string="maybe",  # type: ignore[call-arg] # Extra field, should not be coerced
+                number_value=1,  # type: ignore[call-arg] # Extra field, should not be coerced
+            )
 
-        assert config.actual_boolean is True
-        assert config.string_true is True
-        assert config.string_false is False
-        assert config.other_string == "maybe"  # Not converted
-        assert config.number_value == 1  # Not converted
+        assert config.remove_clients is True
+        assert config.show_plots is False
+        assert config.other_string == "maybe"  # type: ignore[attr-defined]
+        assert config.number_value == 1  # type: ignore[attr-defined]
 
     def test_strategy_specific_parameters(self):
         """Test strategy-specific parameters."""
@@ -218,16 +228,12 @@ class TestStrategyConfig:
         assert pid_config.num_std_dev == 2.5
 
         # Krum strategy parameters
-        krum_config = StrategyConfig(
-            aggregation_strategy_keyword="krum", num_krum_selections=5
-        )
+        krum_config = StrategyConfig(aggregation_strategy_keyword="krum", num_krum_selections=5)
 
         assert krum_config.num_krum_selections == 5
 
         # Trimmed mean strategy parameters
-        trimmed_config = StrategyConfig(
-            aggregation_strategy_keyword="trimmed_mean", trim_ratio=0.2
-        )
+        trimmed_config = StrategyConfig(aggregation_strategy_keyword="trimmed_mean", trim_ratio=0.2)
 
         assert trimmed_config.trim_ratio == 0.2
 
@@ -270,11 +276,12 @@ class TestStrategyConfig:
         ]
         config = StrategyConfig(
             num_of_malicious_clients=2,
-            attack_schedule=attack_schedule,
+            attack_schedule=attack_schedule,  # type: ignore[arg-type]
         )
 
         assert config.num_of_malicious_clients == 2
         assert config.attack_schedule == attack_schedule
-        assert config.attack_schedule[0]["attack_type"] == "gaussian_noise"
-        assert config.attack_schedule[0]["attack_ratio"] == 0.3
-        assert config.attack_schedule[0]["target_noise_snr"] == 10.0
+        assert config.attack_schedule is not None
+        assert config.attack_schedule[0].get("attack_type") == "gaussian_noise"
+        assert config.attack_schedule[0].get("attack_ratio") == 0.3
+        assert config.attack_schedule[0].get("target_noise_snr") == 10.0

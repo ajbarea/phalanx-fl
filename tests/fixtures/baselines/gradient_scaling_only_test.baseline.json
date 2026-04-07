@@ -1,0 +1,205 @@
+{
+  "config": "gradient_scaling_only_test.json",
+  "recorded_at": "2025-12-09T03:49:51.108488",
+  "framework_version": "1.0.0",
+  "baseline_format_version": "1.0",
+  "success": true,
+  "num_clients": 4,
+  "strategies": [
+    {
+      "total_rounds": 5,
+      "per_round": {
+        "aggregated_loss": [
+          0.07705861310701112,
+          0.09326004956219647,
+          0.11709912454759752,
+          0.2873764288103258,
+          0.20634801709974135
+        ],
+        "average_accuracy": [
+          0.1114104521437805,
+          0.1223412489843011,
+          0.09521843188469856,
+          0.10701273929866707,
+          0.09444475101402636
+        ]
+      },
+      "final_accuracy": 0.09444475101402636,
+      "final_loss": 0.20634801709974135,
+      "strategy_index": 0,
+      "per_client": {
+        "0": {
+          "loss": [
+            0.07535728343798523,
+            0.0906798763535832,
+            0.11225370122522862,
+            0.26926678025369494,
+            0.1937041836610416
+          ],
+          "accuracy": [
+            0.11389521640091116,
+            0.13211845102505695,
+            0.08656036446469248,
+            0.11161731207289294,
+            0.0774487471526196
+          ],
+          "removal_criterion": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "absolute_distance": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "participation": [
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        "1": {
+          "loss": [
+            0.07903602784950828,
+            0.09571597282056767,
+            0.11816047099193287,
+            0.28673848706720156,
+            0.20540072004175397
+          ],
+          "accuracy": [
+            0.11233480176211454,
+            0.12334801762114538,
+            0.12334801762114538,
+            0.10792951541850221,
+            0.11233480176211454
+          ],
+          "removal_criterion": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "absolute_distance": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "participation": [
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        "2": {
+          "loss": [
+            0.0774113723209926,
+            0.09262734627237125,
+            0.11969642979758126,
+            0.29186802688910035,
+            0.21021165750464615
+          ],
+          "accuracy": [
+            0.11020408163265306,
+            0.12040816326530612,
+            0.09387755102040816,
+            0.11428571428571428,
+            0.09591836734693877
+          ],
+          "removal_criterion": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "absolute_distance": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "participation": [
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        "3": {
+          "loss": [
+            0.07636543412790564,
+            0.093961830057475,
+            0.11789700459106577,
+            0.3003076455322527,
+            0.21510076216507776
+          ],
+          "accuracy": [
+            0.10920770877944326,
+            0.11349036402569593,
+            0.07708779443254818,
+            0.09421841541755889,
+            0.09207708779443255
+          ],
+          "removal_criterion": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "absolute_distance": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "participation": [
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "plots": [
+      "absolute_distance_history_0.pdf",
+      "accuracy_history_0.pdf",
+      "aggregated_loss_history.pdf",
+      "average_accuracy_history.pdf",
+      "loss_history_0.pdf",
+      "removal_accuracy_history.pdf",
+      "removal_criterion_history_0.pdf",
+      "removal_f1_history.pdf",
+      "removal_precision_history.pdf",
+      "removal_recall_history.pdf",
+      "score_calculation_time_nanos_history.pdf",
+      "total_fp_and_fn_history.pdf"
+    ],
+    "csv": [
+      "exec_stats_0.csv",
+      "per_client_metrics_0.csv",
+      "round_metrics_0.csv"
+    ],
+    "attack_snapshots": 3
+  },
+  "runtime_seconds": 61.0
+}

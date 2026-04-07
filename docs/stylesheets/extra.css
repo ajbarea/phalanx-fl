@@ -1,0 +1,1168 @@
+/* ==========================================================================
+   InteFL Custom Theme — Elevated Minimal
+   Teal / Deep-Purple palette with immersive landing page
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=account_tree,api,bolt,bug_report,code,data_object,database,group,inbox,layers,local_fire_department,menu_book,photo_library,play_circle,psychology,rocket_launch,scatter_plot,settings,shield,smart_toy,terminal,trending_up,verified_user,warning&display=block');
+
+:root>* {
+  --md-primary-fg-color: #009688;
+  --md-primary-fg-color--light: #4DB6AC;
+  --md-primary-fg-color--dark: #00796B;
+  --md-accent-fg-color: #7C4DFF;
+
+  /* InteFL palette */
+  --intefl-teal: #009688;
+  --intefl-teal-light: #4DB6AC;
+  --intefl-teal-dark: #00695C;
+  --intefl-purple: #7C4DFF;
+  --intefl-purple-light: #B388FF;
+  --intefl-slate: #1a1a2e;
+  --intefl-glass-bg: color-mix(in srgb, #fff 3%, transparent);
+  --intefl-glass-border: color-mix(in srgb, var(--intefl-teal) 20%, transparent);
+
+  /* Hero background — light mode uses the desaturated variant */
+  --hero-bg-image: url('../assets/phalanx-hero-light.png');
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: inherit;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  vertical-align: middle;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-hue: 210;
+  --md-default-bg-color: #161e2b;
+  --md-default-bg-color--light: #1a2333;
+  --hero-bg-image: url('../assets/phalanx-hero.png');
+}
+
+/* ==========================================================================
+   Full-Viewport Immersive Hero
+   ========================================================================== */
+
+/* Homepage body class — set by reveal.js when .hero is present */
+body.hero-page .md-footer {
+  display: none !important;
+}
+
+html.hero-page,
+body.hero-page {
+  overflow-x: hidden !important;
+}
+
+body.hero-page .md-main__inner,
+body.hero-page .md-content__inner {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+.md-typeset .hero {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  text-align: center;
+  background:
+    radial-gradient(ellipse at center, transparent 25%, color-mix(in srgb, #fff 12%, transparent) 60%, color-mix(in srgb, #fff 45%, transparent) 100%),
+    linear-gradient(to bottom,
+      color-mix(in srgb, #fff 25%, transparent) 0%,
+      color-mix(in srgb, #fff 5%, transparent) 40%,
+      color-mix(in srgb, #fff 60%, transparent) 80%,
+      #fff 100%),
+    var(--hero-bg-image) center 48px / contain no-repeat;
+  padding: 1rem 2rem 5rem;
+  margin: -1.2rem -0.8rem 0;
+  overflow: hidden;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .hero {
+  background:
+    radial-gradient(ellipse at center, transparent 10%, color-mix(in srgb, var(--md-default-bg-color) 45%, transparent) 45%, color-mix(in srgb, var(--md-default-bg-color) 90%, transparent) 80%, var(--md-default-bg-color) 100%),
+    linear-gradient(to bottom,
+      color-mix(in srgb, var(--md-default-bg-color) 50%, transparent) 0%,
+      color-mix(in srgb, var(--md-default-bg-color) 20%, transparent) 35%,
+      color-mix(in srgb, var(--md-default-bg-color) 85%, transparent) 75%,
+      var(--md-default-bg-color) 100%),
+    var(--hero-bg-image) center 48px / contain no-repeat;
+}
+
+.md-typeset .hero h1 {
+  font-size: clamp(2.2rem, 5vw, 3.2rem);
+  font-weight: 800;
+  margin-bottom: 0.4rem;
+  letter-spacing: -0.03em;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .hero h1 {
+  background: linear-gradient(135deg, #B2DFDB 0%, #80CBC4 30%, var(--intefl-teal-light) 60%, var(--intefl-purple-light) 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 20px color-mix(in srgb, var(--intefl-teal) 25%, transparent));
+}
+
+.md-typeset .hero .hero-subtitle {
+  font-size: clamp(0.85rem, 1.5vw, 1.1rem);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.88;
+  margin-bottom: 1.5rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .hero .hero-subtitle {
+  opacity: 0.95;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
+}
+
+.md-typeset .hero .hero-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.hero-buttons .md-button {
+  min-width: 190px;
+  padding: 0.7rem 1.8rem !important;
+  font-size: 0.85rem !important;
+  text-align: center;
+  border-radius: 3rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.05em !important;
+  transition: all 0.3s ease;
+}
+
+.hero-buttons .md-button--primary {
+  box-shadow: 0 4px 15px color-mix(in srgb, var(--intefl-teal) 30%, transparent) !important;
+}
+
+.hero-buttons .md-button--primary:hover {
+  transform: scale(1.04);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--intefl-teal) 45%, transparent) !important;
+}
+
+[data-md-color-scheme="slate"] .hero .md-button--primary {
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+[data-md-color-scheme="slate"] .hero .md-button:not(.md-button--primary) {
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  color: var(--intefl-teal-light) !important;
+  background: color-mix(in srgb, var(--md-default-bg-color) 50%, transparent) !important;
+  backdrop-filter: blur(4px);
+}
+
+[data-md-color-scheme="slate"] .hero .md-button:not(.md-button--primary):hover {
+  border-color: var(--intefl-teal-light) !important;
+  background: color-mix(in srgb, var(--md-default-bg-color) 65%, transparent) !important;
+}
+
+/* Hero tagline strip — Strategies | Attacks | Datasets */
+.hero-tagline {
+  margin-top: 0.5rem;
+}
+
+.hero-modes {
+  font-size: clamp(0.7rem, 1.2vw, 0.82rem);
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin: 0;
+}
+
+[data-md-color-scheme="slate"] .hero-modes {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* ==========================================================================
+   Scroll Indicator
+   ========================================================================== */
+
+.scroll-hint {
+  text-align: center;
+  margin-top: -3rem;
+  padding-bottom: 1.5rem;
+  position: relative;
+  z-index: 2;
+  animation: hint-bounce 2s ease-in-out infinite;
+}
+
+.scroll-chevron {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-right: 2px solid var(--md-primary-fg-color);
+  border-bottom: 2px solid var(--md-primary-fg-color);
+  transform: rotate(45deg);
+  opacity: 0.3;
+}
+
+@keyframes hint-bounce {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(6px);
+  }
+}
+
+/* ==========================================================================
+   Landing Sections — Scroll Reveal
+   ========================================================================== */
+
+.landing-section {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  padding: 5rem 2rem;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.landing-section--intro,
+.landing-section--promise {
+  min-height: 80vh;
+  min-height: 80svh;
+  display: flex;
+  align-items: center;
+}
+
+.landing-section--intro {
+  padding-bottom: 12vh;
+}
+
+.landing-section--promise {
+  padding-top: 12vh;
+}
+
+.landing-section.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Alternating tint in dark mode — 2% was invisible; 5% gives subtle depth */
+[data-md-color-scheme="slate"] .landing-section:nth-of-type(even) {
+  background: color-mix(in srgb, var(--intefl-teal) 5%, var(--md-default-bg-color));
+}
+
+.section-inner {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.section-title {
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 800;
+  margin: 0 0 1.2rem 0;
+  color: var(--md-primary-fg-color);
+}
+
+[data-md-color-scheme="slate"] .section-title {
+  background: linear-gradient(135deg, var(--intefl-teal-light), var(--intefl-purple-light));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.section-lead {
+  font-size: clamp(0.9rem, 1.5vw, 1.05rem);
+  opacity: 0.8;
+  line-height: 1.8;
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+/* ==========================================================================
+   Pipeline Flow Strip
+   ========================================================================== */
+
+.pipeline-flow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2.5rem;
+  margin: 2.5rem auto;
+  position: relative;
+  padding: 0 2rem;
+}
+
+/* Connecting line */
+.pipeline-flow::before {
+  content: '';
+  position: absolute;
+  top: 1.1rem;
+  left: 16%;
+  right: 16%;
+  height: 2px;
+  background: linear-gradient(90deg,
+      transparent,
+      var(--intefl-teal),
+      var(--intefl-purple),
+      transparent);
+  z-index: 0;
+  border-radius: 1px;
+}
+
+.pipeline-step {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.step-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.step-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.pipeline-caption {
+  font-size: 0.82rem;
+  opacity: 0.4;
+  font-style: italic;
+  margin-top: 0.5rem;
+}
+
+/* ==========================================================================
+   Feature / Doc Card Grid
+   ========================================================================== */
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.feature-grid--compact {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.feature-card {
+  background: var(--intefl-glass-bg);
+  border: 1px solid var(--intefl-glass-border);
+  border-top: 3px solid var(--card-accent, var(--intefl-teal));
+  border-radius: 8px;
+  padding: 1.5rem 1.2rem;
+  text-align: center;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  display: block;
+  text-decoration: none !important;
+  color: inherit;
+  cursor: pointer;
+}
+
+.feature-card *,
+.feature-card *:hover {
+  text-decoration: none !important;
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--card-accent, var(--intefl-teal)) 18%, transparent);
+  border-color: var(--card-accent, var(--intefl-teal));
+}
+
+.feature-card--flat {
+  cursor: default;
+  border-top-width: 2px;
+  text-align: left;
+}
+
+.feature-card--flat:hover {
+  transform: none;
+}
+
+.feature-icon {
+  font-size: 1.8rem;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.feature-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.feature-card p {
+  font-size: 0.8rem;
+  opacity: 0.65;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.feature-card code {
+  font-size: 0.75rem;
+}
+
+/* ==========================================================================
+   Technology Stack Strip
+   ========================================================================== */
+
+.tech-stack {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.tech-item {
+  background: var(--intefl-glass-bg);
+  border: 1px solid var(--intefl-glass-border);
+  border-radius: 2rem;
+  padding: 0.5rem 1.2rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  transition: border-color 0.2s ease;
+}
+
+.tech-item:hover {
+  border-color: var(--intefl-teal);
+}
+
+.tech-item strong {
+  margin-right: 0.3rem;
+}
+
+/* ==========================================================================
+   CTA Section
+   ========================================================================== */
+
+.cta-section {
+  padding: 5rem 2rem !important;
+}
+
+.cta-lead {
+  font-size: clamp(0.9rem, 1.5vw, 1.1rem);
+  opacity: 0.6;
+  margin-bottom: 1.5rem;
+}
+
+.cta-button {
+  font-size: 0.9rem !important;
+  min-width: 220px;
+  border-radius: 3rem !important;
+}
+
+/* ==========================================================================
+   Landing Footer
+   ========================================================================== */
+
+.landing-footer {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  border-top: 1px solid var(--intefl-glass-border);
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.78rem;
+  opacity: 0.5;
+}
+
+.landing-footer a {
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.landing-footer a:hover {
+  opacity: 1;
+}
+
+.landing-footer svg {
+  vertical-align: middle;
+}
+
+/* ==========================================================================
+   Card Grid Enhancements (non-landing pages)
+   ========================================================================== */
+
+.md-typeset .grid.cards>ul>li,
+.md-typeset .grid.cards>ol>li {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  transition: border-color 200ms, box-shadow 200ms;
+}
+
+.md-typeset .grid.cards>ul>li:hover,
+.md-typeset .grid.cards>ol>li:hover {
+  border-color: var(--md-accent-fg-color);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.md-typeset .grid.cards .twemoji,
+.md-typeset .grid.cards .emojione {
+  margin-right: 0.4rem;
+}
+
+/* ==========================================================================
+   Status Badges
+   ========================================================================== */
+
+.md-typeset .badge {
+  display: inline-block;
+  padding: 0.15em 0.5em;
+  border-radius: 1em;
+  font-size: 0.75em;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.md-typeset .badge.badge-image {
+  background: linear-gradient(135deg, #26a69a, #009688);
+  color: white;
+}
+
+.md-typeset .badge.badge-text {
+  background: linear-gradient(135deg, #7C4DFF, #651FFF);
+  color: white;
+}
+
+.md-typeset .badge.badge-3d {
+  background: linear-gradient(135deg, #FF6D00, #FF9100);
+  color: white;
+}
+
+/* ==========================================================================
+   Table Styling
+   ========================================================================== */
+
+.md-typeset table:not([class]) {
+  font-size: 0.82rem;
+  width: auto;
+}
+
+.md-typeset table:not([class]) th,
+.md-typeset table:not([class]) td {
+  white-space: nowrap;
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) th {
+  background: color-mix(in srgb, var(--intefl-teal) 10%, transparent);
+  border-bottom: 2px solid var(--intefl-teal-dark);
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) tr:hover td {
+  background: color-mix(in srgb, var(--intefl-teal) 4%, transparent);
+}
+
+/* ==========================================================================
+   Mermaid Diagram Theming — Teal on Slate
+   ========================================================================== */
+
+.md-typeset .mermaid {
+  margin: 1.5rem 0;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Node styling */
+[data-md-color-scheme="slate"] .mermaid .node rect,
+[data-md-color-scheme="slate"] .mermaid .node circle,
+[data-md-color-scheme="slate"] .mermaid .node polygon {
+  fill: color-mix(in srgb, var(--intefl-teal) 12%, transparent) !important;
+  stroke: var(--intefl-teal) !important;
+  stroke-width: 2px !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid .node .label,
+[data-md-color-scheme="slate"] .mermaid .nodeLabel {
+  color: var(--intefl-teal-light) !important;
+  fill: var(--intefl-teal-light) !important;
+}
+
+/* Edge lines and arrows */
+[data-md-color-scheme="slate"] .mermaid .edgePath .path,
+[data-md-color-scheme="slate"] .mermaid .flowchart-link {
+  stroke: var(--intefl-teal-dark) !important;
+  stroke-width: 2px !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid .arrowheadPath,
+[data-md-color-scheme="slate"] .mermaid marker path {
+  fill: var(--intefl-teal-dark) !important;
+  stroke: var(--intefl-teal-dark) !important;
+}
+
+/* Edge labels */
+[data-md-color-scheme="slate"] .mermaid .edgeLabel {
+  background-color: var(--md-default-bg-color) !important;
+  color: var(--intefl-teal-light) !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid .edgeLabel rect {
+  fill: var(--md-default-bg-color) !important;
+  opacity: 0.9 !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid .edgeLabel span {
+  color: var(--intefl-teal-light) !important;
+  fill: var(--intefl-teal-light) !important;
+}
+
+/* State diagrams */
+[data-md-color-scheme="slate"] .mermaid .statediagram-state rect {
+  fill: color-mix(in srgb, var(--intefl-teal) 12%, transparent) !important;
+  stroke: var(--intefl-teal) !important;
+}
+
+/* Sequence diagrams */
+[data-md-color-scheme="slate"] .mermaid .actor {
+  fill: color-mix(in srgb, var(--intefl-teal) 12%, transparent) !important;
+  stroke: var(--intefl-teal) !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid text.actor,
+[data-md-color-scheme="slate"] .mermaid .actor text {
+  fill: var(--intefl-teal-light) !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid .messageLine0,
+[data-md-color-scheme="slate"] .mermaid .messageLine1 {
+  stroke: var(--intefl-teal-dark) !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid .messageText {
+  fill: var(--intefl-teal-light) !important;
+}
+
+/* Cluster / subgraph backgrounds */
+[data-md-color-scheme="slate"] .mermaid .cluster rect {
+  fill: color-mix(in srgb, var(--intefl-teal) 4%, transparent) !important;
+  stroke: var(--intefl-teal-dark) !important;
+}
+
+/* ==========================================================================
+   Announcement Bar
+   ========================================================================== */
+
+.md-banner {
+  background-color: var(--md-accent-fg-color);
+  color: white;
+}
+
+/* ==========================================================================
+   Smooth Scrolling
+   ========================================================================== */
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ==========================================================================
+   Footer Social Icons
+   ========================================================================== */
+
+.md-social__link {
+  margin: 0 0.2rem;
+}
+
+/* ==========================================================================
+   Responsive — Tablet (max-width: 768px)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+
+  /* Hero */
+  .md-typeset .hero {
+    padding: 1rem 1.2rem 2.5rem;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .md-typeset .hero h1 {
+    font-size: clamp(1.8rem, 8vw, 2.4rem);
+  }
+
+  .hero-buttons {
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+    align-items: center;
+  }
+
+  .hero-buttons .md-button {
+    min-width: 0;
+    width: 70%;
+    max-width: 260px;
+    padding: 0.6rem 1.2rem !important;
+    font-size: 0.78rem !important;
+  }
+
+  .hero-modes {
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+  }
+
+  /* Landing sections */
+  .landing-section {
+    padding: 3.5rem 1.2rem;
+  }
+
+  .landing-section--intro,
+  .landing-section--promise {
+    min-height: 70vh;
+    min-height: 70svh;
+  }
+
+  .landing-section--intro {
+    padding-bottom: 8vh;
+  }
+
+  .landing-section--promise {
+    padding-top: 8vh;
+  }
+
+  /* Pipeline */
+  .pipeline-flow {
+    gap: 1.2rem;
+    padding: 0 0.5rem;
+  }
+
+  .pipeline-flow::before {
+    left: 6%;
+    right: 6%;
+  }
+
+  .step-icon {
+    font-size: 1.3rem;
+  }
+
+  /* Feature grid — 2 cols */
+  .feature-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .feature-grid--compact {
+    grid-template-columns: 1fr;
+  }
+
+  /* Tables scroll horizontally */
+  .md-typeset table:not([class]) {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    font-size: 0.78rem;
+  }
+
+  /* Tech stack wrap tighter */
+  .tech-stack {
+    gap: 0.6rem;
+  }
+
+  /* Mermaid */
+  .mermaid {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ==========================================================================
+   Responsive — Small Phones (max-width: 480px)
+   ========================================================================== */
+
+@media (max-width: 480px) {
+  .md-typeset .hero {
+    padding: 0.5rem 0.8rem 1.5rem;
+  }
+
+  .md-typeset .hero h1 {
+    font-size: clamp(1.5rem, 9vw, 2rem);
+    letter-spacing: -0.02em;
+  }
+
+  .md-typeset .hero .hero-subtitle {
+    font-size: 0.7rem;
+  }
+
+  .hero-buttons .md-button {
+    width: 80%;
+    max-width: 220px;
+    padding: 0.5rem 1rem !important;
+    font-size: 0.72rem !important;
+  }
+
+  .hero-modes {
+    font-size: 0.58rem;
+  }
+
+  /* Feature grid — single col */
+  .feature-grid,
+  .feature-grid--compact {
+    grid-template-columns: 1fr;
+  }
+
+  /* Landing sections */
+  .landing-section {
+    padding: 2.5rem 1rem;
+  }
+
+  .landing-section--intro,
+  .landing-section--promise {
+    min-height: 65vh;
+    min-height: 65svh;
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+
+  /* Pipeline tighter */
+  .pipeline-flow {
+    gap: 0.6rem;
+    padding: 0 0.3rem;
+  }
+
+  .pipeline-flow::before {
+    left: 3%;
+    right: 3%;
+  }
+
+  .step-icon {
+    font-size: 1.1rem;
+  }
+
+  .step-label {
+    font-size: 0.55rem;
+  }
+
+  .scroll-hint {
+    margin-top: -2rem;
+  }
+
+  /* Typography tighten */
+  .md-typeset h1:not(.hero h1) {
+    font-size: 1.4rem;
+  }
+
+  .md-typeset h2 {
+    font-size: 1.15rem;
+  }
+
+  .md-typeset h3 {
+    font-size: 1rem;
+  }
+
+  .md-typeset pre>code {
+    font-size: 0.75rem;
+  }
+}
+
+/* ==========================================================================
+   Responsive — Extra Small (max-width: 360px)
+   ========================================================================== */
+
+@media (max-width: 360px) {
+  .md-typeset .hero {
+    padding: 0.3rem 0.6rem 1.2rem;
+  }
+
+  .hero-buttons .md-button {
+    width: 90%;
+    font-size: 0.68rem !important;
+    padding: 0.45rem 0.8rem !important;
+  }
+
+  .hero-modes {
+    font-size: 0.52rem;
+    letter-spacing: 0.06em;
+  }
+}
+
+/* ==========================================================================
+   Responsive — Wide Desktop (min-width: 1440px)
+   ========================================================================== */
+
+@media (min-width: 1440px) {
+  .md-typeset .hero {
+    padding-bottom: 6rem;
+  }
+
+  .md-typeset .hero h1 {
+    font-size: 3.8rem;
+  }
+
+  .md-typeset .hero .hero-subtitle {
+    font-size: 1.15rem;
+    max-width: 700px;
+  }
+
+  .hero-buttons .md-button {
+    min-width: 220px;
+    padding: 0.85rem 2.2rem !important;
+    font-size: 0.9rem !important;
+  }
+
+  .hero-modes {
+    font-size: 0.88rem;
+  }
+
+  .feature-grid {
+    gap: 1.2rem;
+  }
+}
+
+/* ==========================================================================
+   Responsive — Ultra-Wide (min-width: 1920px)
+   ========================================================================== */
+
+@media (min-width: 1920px) {
+  .md-typeset .hero {
+    padding-bottom: 8rem;
+  }
+
+  .md-typeset .hero h1 {
+    font-size: 4.2rem;
+  }
+
+  .md-typeset .hero .hero-subtitle {
+    font-size: 1.25rem;
+  }
+}
+
+/* ==========================================================================
+   Light-Mode Polish
+   Explicit [data-md-color-scheme="default"] overrides for things that look
+   fine in dark mode but need attention on white backgrounds.
+   ========================================================================== */
+
+/* Glass surfaces need a visible tinted base — 3% white ≈ invisible on white */
+[data-md-color-scheme="default"] {
+  --intefl-glass-bg: color-mix(in srgb, var(--intefl-teal) 6%, #fff);
+  --intefl-glass-border: color-mix(in srgb, var(--intefl-teal) 22%, transparent);
+}
+
+/* Light-mode hero — lighter overlays since the light image is already soft */
+[data-md-color-scheme="default"] .md-typeset .hero {
+  background:
+    radial-gradient(ellipse at center, transparent 30%, color-mix(in srgb, #fff 10%, transparent) 70%, color-mix(in srgb, #fff 50%, transparent) 100%),
+    linear-gradient(to bottom,
+      transparent 0%,
+      transparent 50%,
+      color-mix(in srgb, #fff 60%, transparent) 80%,
+      #fff 100%),
+    var(--hero-bg-image) center 48px / contain no-repeat;
+}
+
+/* Hero h1 in dark mode gets the teal→purple gradient; light mode had plain black */
+[data-md-color-scheme="default"] .md-typeset .hero h1 {
+  background: linear-gradient(135deg, var(--intefl-teal-dark) 0%, var(--intefl-teal) 60%, #26A69A 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.3));
+}
+
+/* Section headings: flat teal in light; add gradient to match dark mode treatment */
+[data-md-color-scheme="default"] .section-title {
+  background: linear-gradient(135deg, var(--intefl-teal-dark) 0%, var(--intefl-teal) 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Landing page text — dark text on white backgrounds so it's actually readable */
+[data-md-color-scheme="default"] .landing-section {
+  color: #2e2e2e;
+}
+
+[data-md-color-scheme="default"] .section-lead {
+  color: #444;
+}
+
+[data-md-color-scheme="default"] .pipeline-caption {
+  color: #666;
+}
+
+[data-md-color-scheme="default"] .feature-card p {
+  color: #555;
+  opacity: 0.85;
+}
+
+[data-md-color-scheme="default"] .feature-card--flat .feature-name {
+  color: #2e2e2e;
+}
+
+/* Tech stack chips — visible borders and dark text */
+[data-md-color-scheme="default"] .tech-item {
+  color: #333;
+  border-color: color-mix(in srgb, var(--intefl-teal) 30%, transparent);
+}
+
+/* Light mode alternating section tint */
+[data-md-color-scheme="default"] .landing-section:nth-of-type(even) {
+  background: color-mix(in srgb, var(--intefl-teal) 4%, #fff);
+}
+
+/* CTA section text */
+[data-md-color-scheme="default"] .cta-lead {
+  color: #555;
+}
+
+/* Pipeline step labels — ensure they stay visible on white */
+[data-md-color-scheme="default"] .step-icon {
+  color: var(--intefl-teal);
+}
+
+/* Scroll indicator — visible on white */
+[data-md-color-scheme="default"] .scroll-chevron {
+  border-color: var(--intefl-teal-dark);
+}
+
+/* Landing footer — dark text on white */
+[data-md-color-scheme="default"] .landing-footer {
+  color: #555;
+  border-top-color: color-mix(in srgb, var(--intefl-teal) 20%, transparent);
+}
+
+/* Hero subtitle — ensure readability on lightened hero bg */
+[data-md-color-scheme="default"] .md-typeset .hero .hero-subtitle {
+  color: #1a1a1a;
+  opacity: 1;
+}
+
+/* Hero modes (tagline strip) — ensure readability */
+[data-md-color-scheme="default"] .hero-modes {
+  color: #444;
+  opacity: 0.85;
+}
+
+/* Hero buttons — thin dark outlines in light mode */
+[data-md-color-scheme="default"] .hero .md-button--primary {
+  border: 1px solid rgba(0, 0, 0, 0.2) !important;
+}
+
+[data-md-color-scheme="default"] .hero .md-button:not(.md-button--primary) {
+  border: 1px solid rgba(0, 0, 0, 0.25) !important;
+  color: var(--intefl-teal-dark) !important;
+  background: color-mix(in srgb, #fff 80%, transparent) !important;
+}
+
+[data-md-color-scheme="default"] .hero .md-button:not(.md-button--primary):hover {
+  background: #fff !important;
+  border-color: var(--intefl-teal) !important;
+}
+
+/* Feature card link text — visible name color */
+[data-md-color-scheme="default"] .feature-card .feature-name {
+  color: #1a1a1a;
+}
+
+/* Light-mode table header styling */
+[data-md-color-scheme="default"] .md-typeset table:not([class]) th {
+  background: color-mix(in srgb, var(--intefl-teal) 8%, #fff);
+  border-bottom: 2px solid var(--intefl-teal);
+}
+
+/* ==========================================================================
+   Mermaid — Teal Theming (body-scoped + svg for specificity over inline styles)
+   These rules shadow the [data-md-color-scheme] .mermaid rules above; the
+   body prefix raises specificity enough to beat mermaid's programmatic fill.
+   ========================================================================== */
+
+body[data-md-color-scheme="default"] .mermaid svg .node rect,
+body[data-md-color-scheme="default"] .mermaid svg .node polygon,
+body[data-md-color-scheme="default"] .mermaid svg .node circle {
+  fill: color-mix(in srgb, var(--intefl-teal) 12%, white) !important;
+  stroke: var(--intefl-teal) !important;
+  stroke-width: 1.5px !important;
+}
+
+body[data-md-color-scheme="default"] .mermaid svg .nodeLabel,
+body[data-md-color-scheme="default"] .mermaid svg .node .label {
+  color: var(--intefl-teal-dark) !important;
+  fill: var(--intefl-teal-dark) !important;
+}
+
+body[data-md-color-scheme="default"] .mermaid svg .flowchart-link,
+body[data-md-color-scheme="default"] .mermaid svg .edgePath .path {
+  stroke: var(--intefl-teal) !important;
+  stroke-width: 1.5px !important;
+}
+
+body[data-md-color-scheme="default"] .mermaid svg marker path,
+body[data-md-color-scheme="default"] .mermaid svg .arrowheadPath {
+  fill: var(--intefl-teal) !important;
+  stroke: var(--intefl-teal) !important;
+}
+
+body[data-md-color-scheme="slate"] .mermaid svg .node rect,
+body[data-md-color-scheme="slate"] .mermaid svg .node polygon,
+body[data-md-color-scheme="slate"] .mermaid svg .node circle {
+  fill: color-mix(in srgb, var(--intefl-teal) 18%, var(--md-default-bg-color)) !important;
+  stroke: var(--intefl-teal) !important;
+  stroke-width: 1.5px !important;
+}
+
+body[data-md-color-scheme="slate"] .mermaid svg .nodeLabel,
+body[data-md-color-scheme="slate"] .mermaid svg .node .label {
+  color: var(--intefl-teal-light) !important;
+  fill: var(--intefl-teal-light) !important;
+}
+
+body[data-md-color-scheme="slate"] .mermaid svg .flowchart-link,
+body[data-md-color-scheme="slate"] .mermaid svg .edgePath .path {
+  stroke: var(--intefl-teal-dark) !important;
+  stroke-width: 1.5px !important;
+}
+
+body[data-md-color-scheme="slate"] .mermaid svg marker path,
+body[data-md-color-scheme="slate"] .mermaid svg .arrowheadPath {
+  fill: var(--intefl-teal-dark) !important;
+  stroke: var(--intefl-teal-dark) !important;
+}
+
+body[data-md-color-scheme="slate"] .mermaid svg .edgeLabel {
+  background-color: var(--md-default-bg-color) !important;
+  color: var(--intefl-teal-light) !important;
+}
+
+body[data-md-color-scheme="slate"] .mermaid svg .edgeLabel rect {
+  fill: var(--md-default-bg-color) !important;
+}
+
+body[data-md-color-scheme="slate"] .mermaid svg .edgeLabel span {
+  color: var(--intefl-teal-light) !important;
+  fill: var(--intefl-teal-light) !important;
+}

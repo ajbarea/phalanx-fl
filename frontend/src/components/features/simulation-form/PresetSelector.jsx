@@ -1,0 +1,125 @@
+import './PresetCard.css';
+import { Card, Row, Col, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
+import { PRESETS } from '@constants/presets';
+
+export function PresetSelector({ selectedPreset, onPresetChange }) {
+  const handleKeyDown = (event, key) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onPresetChange(key);
+    }
+  };
+
+  const requiresModelDownload = preset => {
+    return preset.config.model_type === 'transformer';
+  };
+
+  const getDatasetInfo = preset => {
+    const { config } = preset;
+    const isLocal = config.dataset_source === 'local';
+    const sourceEmoji = isLocal ? '📁' : '☁️';
+
+    let datasetName;
+    if (config.hf_dataset_name) {
+      datasetName = config.hf_dataset_name.split('/').pop().toUpperCase();
+    } else if (config.dataset_keyword) {
+      const parts = config.dataset_keyword.split('_');
+      datasetName = parts[0].toUpperCase();
+      if (parts.length > 1) {
+        datasetName += ` (${parts.slice(1).join('-').toUpperCase()})`;
+      }
+    } else {
+      datasetName = 'Custom';
+    }
+
+    const isText = config.model_type === 'transformer' || config.text_column;
+    const typeEmoji = isText ? '📝' : '🖼️';
+    const dataType = isText ? 'Text' : 'Image';
+
+    return { sourceEmoji, datasetName, typeEmoji, dataType };
+  };
+
+  const getBadgeClassName = tag => {
+    const tagLower = tag.toLowerCase();
+    if (tagLower === 'beginner') return 'bg-secondary difficulty-beginner';
+    if (tagLower === 'intermediate') return 'bg-secondary difficulty-intermediate';
+    if (tagLower === 'advanced') return 'bg-secondary difficulty-advanced';
+    return 'bg-secondary';
+  };
+
+  return (
+    <div className="mb-4">
+      <h3 className="mb-3 preset-selector-heading">Quick Start Presets</h3>
+      <p className="text-muted mb-3">
+        Select a preset configuration to get started quickly, or scroll down to customize your own
+        simulation.
+      </p>
+      <Row xs={1} md={2} lg={3} className="g-3 align-items-stretch preset-grid">
+        {Object.entries(PRESETS).map(([key, preset], index) => (
+          <Col key={key} className="d-flex preset-col" style={{ '--index': index }}>
+            <Card
+              onClick={() => onPresetChange(key)}
+              onKeyDown={e => handleKeyDown(e, key)}
+              className={`preset-card h-100 ${selectedPreset === key ? 'border-primary' : ''}`}
+              tabIndex={0}
+              role="button"
+              aria-pressed={selectedPreset === key}
+              aria-label={`Select ${preset.name} preset`}
+            >
+              <Card.Body>
+                <div className="preset-header">
+                  <span className="preset-icon" aria-hidden="true">
+                    {preset.icon}
+                  </span>
+                  <div className="preset-title-section">
+                    <Card.Title className="h6">{preset.name}</Card.Title>
+                    <Card.Subtitle className="text-muted small">{preset.subtitle}</Card.Subtitle>
+                  </div>
+                </div>
+                <Card.Text className="small preset-description">{preset.description}</Card.Text>
+                {preset.tags && (
+                  <div className="mb-2">
+                    {preset.tags.map(tag => (
+                      <Badge key={tag} className={`me-1 ${getBadgeClassName(tag)}`}>
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                <div className="small text-muted preset-footer">
+                  <div>
+                    <strong>Est. time:</strong> {preset.estimatedTime}
+                    {requiresModelDownload(preset) && (
+                      <OverlayTrigger
+                        placement="top"
+                        overlay={
+                          <Tooltip>
+                            First-time run includes model download overhead. Subsequent runs are
+                            faster.
+                          </Tooltip>
+                        }
+                      >
+                        <span
+                          className="ms-2 text-warning"
+                          style={{ cursor: 'help' }}
+                          aria-label="Model download warning"
+                        >
+                          ⚠️
+                        </span>
+                      </OverlayTrigger>
+                    )}
+                  </div>
+                  <div>
+                    <strong>Dataset:</strong> {getDatasetInfo(preset).sourceEmoji}{' '}
+                    {getDatasetInfo(preset).datasetName} {getDatasetInfo(preset).typeEmoji}{' '}
+                    {getDatasetInfo(preset).dataType}
+                  </div>
+                </div>
+              </Card.Body>
+            </Card>
+          </Col>
+        ))}
+      </Row>
+    </div>
+  );
+}

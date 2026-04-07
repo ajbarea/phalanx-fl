@@ -1,23 +1,23 @@
 """Unit tests for attack snapshot logging utilities."""
 
+from __future__ import annotations
+
 import pickle
 from unittest.mock import patch
 
+from intellifl.attack_utils.attack_snapshots import (
+    get_snapshot_summary,
+    list_attack_snapshots,
+    load_attack_snapshot,
+    save_attack_snapshot,
+)
 from tests.common import (
-    pytest,
-    create_sample_tensors,
     create_attack_config,
     create_nested_attack_config,
+    create_sample_tensors,
+    pytest,
     verify_pickle_snapshot,
 )
-
-from src.attack_utils.attack_snapshots import (
-    save_attack_snapshot,
-    load_attack_snapshot,
-    list_attack_snapshots,
-    get_snapshot_summary,
-)
-
 
 # =============================================================================
 # TEST SUITE
@@ -46,11 +46,7 @@ class TestSaveAttackSnapshot:
         )
 
         snapshot_path = (
-            tmp_path
-            / "attack_snapshots_0"
-            / "client_0"
-            / "round_3"
-            / "label_flipping.pickle"
+            tmp_path / "attack_snapshots_0" / "client_0" / "round_3" / "label_flipping.pickle"
         )
         verify_pickle_snapshot(
             snapshot_path,
@@ -78,11 +74,7 @@ class TestSaveAttackSnapshot:
         )
 
         snapshot_path = (
-            tmp_path
-            / "attack_snapshots_0"
-            / "client_0"
-            / "round_1"
-            / "label_flipping.pickle"
+            tmp_path / "attack_snapshots_0" / "client_0" / "round_1" / "label_flipping.pickle"
         )
         with open(snapshot_path, "rb") as f:
             snapshot = pickle.load(f)
@@ -112,11 +104,7 @@ class TestSaveAttackSnapshot:
         )
 
         snapshot_path = (
-            tmp_path
-            / "attack_snapshots_0"
-            / "client_2"
-            / "round_7"
-            / "label_flipping.pickle"
+            tmp_path / "attack_snapshots_0" / "client_2" / "round_7" / "label_flipping.pickle"
         )
         with open(snapshot_path, "rb") as f:
             snapshot = pickle.load(f)
@@ -181,22 +169,16 @@ class TestSaveAttackSnapshot:
 
         # Should have latest data (5 samples, not 3)
         snapshot_path = (
-            tmp_path
-            / "attack_snapshots_0"
-            / "client_0"
-            / "round_1"
-            / "label_flipping.pickle"
+            tmp_path / "attack_snapshots_0" / "client_0" / "round_1" / "label_flipping.pickle"
         )
         with open(snapshot_path, "rb") as f:
             snapshot = pickle.load(f)
 
         assert snapshot["metadata"]["num_samples"] == 5
 
-    @patch("src.attack_utils.attack_snapshots.pickle.dump")
-    @patch("src.attack_utils.attack_snapshots.logging")
-    def test_save_snapshot_handles_exception(
-        self, mock_logging, mock_pickle_dump, tmp_path
-    ):
+    @patch("intellifl.attack_utils.attack_snapshots.pickle.dump")
+    @patch("intellifl.attack_utils.attack_snapshots.logging")
+    def test_save_snapshot_handles_exception(self, mock_logging, mock_pickle_dump, tmp_path):
         """Test that exceptions are caught and logged."""
         data, labels = create_sample_tensors(batch_size=5)
         attack_config = create_attack_config("label_flipping")
@@ -246,11 +228,7 @@ class TestSaveAttackSnapshot:
         )
 
         snapshot_path = (
-            tmp_path
-            / "attack_snapshots_0"
-            / "client_0"
-            / "round_1"
-            / "label_flipping.pickle"
+            tmp_path / "attack_snapshots_0" / "client_0" / "round_1" / "label_flipping.pickle"
         )
         with open(snapshot_path, "rb") as f:
             snapshot = pickle.load(f)
@@ -277,11 +255,7 @@ class TestSaveAttackSnapshot:
         )
 
         snapshot_path = (
-            tmp_path
-            / "attack_snapshots_0"
-            / "client_0"
-            / "round_1"
-            / "label_flipping.pickle"
+            tmp_path / "attack_snapshots_0" / "client_0" / "round_1" / "label_flipping.pickle"
         )
         with open(snapshot_path, "rb") as f:
             snapshot = pickle.load(f)
@@ -312,11 +286,7 @@ class TestLoadAttackSnapshot:
 
         # Load snapshot
         snapshot_path = (
-            tmp_path
-            / "attack_snapshots_0"
-            / "client_0"
-            / "round_1"
-            / "label_flipping.pickle"
+            tmp_path / "attack_snapshots_0" / "client_0" / "round_1" / "label_flipping.pickle"
         )
         snapshot = load_attack_snapshot(str(snapshot_path))
 
@@ -332,7 +302,7 @@ class TestLoadAttackSnapshot:
         snapshot = load_attack_snapshot("/nonexistent/path/snapshot.pickle")
         assert snapshot is None
 
-    @patch("src.attack_utils.attack_snapshots.logging")
+    @patch("intellifl.attack_utils.attack_snapshots.logging")
     def test_load_unsupported_format(self, mock_logging, tmp_path):
         """Test loading snapshot with unsupported format."""
         # Create file with unsupported extension
@@ -344,7 +314,7 @@ class TestLoadAttackSnapshot:
         assert snapshot is None
         mock_logging.error.assert_called()
 
-    @patch("src.attack_utils.attack_snapshots.logging")
+    @patch("intellifl.attack_utils.attack_snapshots.logging")
     def test_load_corrupted_pickle(self, mock_logging, tmp_path):
         """Test loading corrupted pickle file."""
         # Create corrupted pickle file
@@ -356,7 +326,7 @@ class TestLoadAttackSnapshot:
         assert snapshot is None
         mock_logging.error.assert_called()
 
-    @patch("src.attack_utils.attack_snapshots.logging")
+    @patch("intellifl.attack_utils.attack_snapshots.logging")
     def test_load_corrupted_json(self, mock_logging, tmp_path):
         """Test loading corrupted JSON file."""
         # Create corrupted JSON file

@@ -4,7 +4,10 @@ Validation script for pytest test suite setup
 Tests that core testing components are properly configured
 """
 
+from __future__ import annotations
+
 from pathlib import Path
+
 from tests.common import init_test_environment
 
 logger = init_test_environment()
@@ -27,7 +30,7 @@ def check_core_config() -> bool:
     files_ok = True
     files_ok &= check_file_exists(".coveragerc", "Coverage config")
     files_ok &= check_file_exists("pytest.ini", "Pytest config")
-    files_ok &= check_file_exists("requirements.txt", "Requirements")
+    files_ok &= check_file_exists("uv.lock", "Lockfile")
     files_ok &= check_file_exists(".github/workflows/ci.yml", "CI workflow")
 
     return files_ok
@@ -38,11 +41,11 @@ def check_pytest_config() -> bool:
     logger.info("\n🔍 Checking pytest configuration...")
 
     try:
-        with open("pytest.ini", "r", encoding="utf-8") as f:
+        with open("pytest.ini", encoding="utf-8") as f:
             content = f.read()
 
         required_options = [
-            "--cov=src",
+            "--cov=intellifl",
             "--cov-report=term-missing",
         ]
 
@@ -78,11 +81,11 @@ def check_coverage_rc() -> bool:
     logger.info("\n🔍 Checking .coveragerc configuration...")
 
     try:
-        with open(".coveragerc", "r", encoding="utf-8") as f:
+        with open(".coveragerc", encoding="utf-8") as f:
             content = f.read()
 
         required_sections = ["[run]", "[report]", "[html]"]
-        required_settings = ["source = src", "show_missing = True"]
+        required_settings = ["source = intellifl", "show_missing = True"]
 
         missing_sections = [sec for sec in required_sections if sec not in content]
         missing_settings = [set for set in required_settings if set not in content]
@@ -133,19 +136,17 @@ def check_ci_config() -> bool:
     logger.info("\n🔍 Checking CI configuration...")
 
     try:
-        with open(".github/workflows/ci.yml", "r", encoding="utf-8") as f:
+        with open(".github/workflows/ci.yml", encoding="utf-8") as f:
             ci_content = f.read()
 
         required_elements = [
             "pytest",
-            "--cov=src",
+            "--cov=intellifl",
             "--cov-report=xml",
             "--cov-report=term-missing",
         ]
 
-        missing_elements = [
-            elem for elem in required_elements if elem not in ci_content
-        ]
+        missing_elements = [elem for elem in required_elements if elem not in ci_content]
 
         if missing_elements:
             logger.error(f"❌ Missing CI elements: {missing_elements}")
@@ -193,7 +194,7 @@ def main() -> int:
     if passed == total:
         logger.info(f"\n🎉 All checks passed ({passed}/{total})")
         logger.info("\nNext steps:")
-        logger.info("  1. Run: pytest --cov=src")
+        logger.info("  1. Run: pytest --cov=intellifl")
         logger.info("  2. Check: htmlcov/index.html")
         logger.info("  3. Commit and push to trigger CI")
         return 0

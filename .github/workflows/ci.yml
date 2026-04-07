@@ -1,61 +1,83 @@
 name: CI Pipeline
-
-on:
+'on':
   push:
-    branches: [ "aj-attack" ]
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   test:
+    name: 'Test (Python ${{ matrix.python-version }})'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+        python-version:
+          - '3.11'
+          - '3.12'
+          - '3.13'
       fail-fast: false
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      id: setup-python
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Cache pip dependencies
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('tests/pyproject.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-${{ matrix.python-version }}-
-          ${{ runner.os }}-pip-
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-
-    - name: Run unit tests (parallel)
-      run: |
-        pytest -n auto tests/unit/ --cov=src --cov-report=term-missing --tb=short
-
-    - name: Run integration tests (serial)
-      run: |
-        pytest -n 0 tests/integration/ --cov=src --cov-append --tb=short
-
-    - name: Run performance tests (serial)
-      run: |
-        pytest -n 0 tests/performance/ --cov=src --cov-append --tb=short
-
-    - name: Generate coverage report
-      run: |
-        coverage xml
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      with:
-        file: ./coverage.xml
-        fail_ci_if_error: false
+      - name: Checkout code
+        uses: actions/checkout@v6.0.1
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: 0.9.26
+          enable-cache: true
+          cache-suffix: 'py${{ matrix.python-version }}'
+      - name: Install dependencies
+        run: 'uv sync --frozen --python ${{ matrix.python-version }}'
+      - name: Audit for security vulnerabilities
+        run: uv run intellifl-dev audit
+      - name: Run unit tests (parallel)
+        run: >
+          uv run coverage run --append --source=intellifl -m pytest -n auto
+          tests/unit/ --tb=short
+      - name: Run integration tests (serial)
+        run: >
+          uv run coverage run --append --source=intellifl -m pytest
+          tests/integration/ --tb=short
+      - name: Run performance tests (serial)
+        run: >
+          uv run coverage run --append --source=intellifl -m pytest
+          tests/performance/ --tb=short
+      - name: Generate final coverage report
+        run: |
+          uv run coverage report --show-missing
+          uv run coverage xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        if: matrix.python-version == '3.11'
+        with:
+          token: '${{ secrets.CODECOV_TOKEN }}'
+          slug: ajbarea/phalanx-fl
+          files: tests/logs/coverage.xml
+          fail_ci_if_error: true
+      - name: Minimize uv cache
+        if: always()
+        run: uv cache prune --ci
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6.0.1
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: 0.9.26
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Smoke check developer CLI
+        run: uv run intellifl-dev help
+      - name: Run smoke tests
+        run: |
+          uv run python -m tests.scripts.ci_smoke_test
+      - name: Minimize uv cache
+        if: always()
+        run: uv cache prune --ci

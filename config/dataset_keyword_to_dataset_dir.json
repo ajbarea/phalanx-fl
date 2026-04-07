@@ -16,5 +16,9 @@
   "organamnist": "datasets/organamnist",
   "organcmnist": "datasets/organcmnist",
   "organsmnist": "datasets/organsmnist",
-  "medmentions": "datasets/medmentions_st21pv_ner"
+  "pubmed_classification_20k": "huggingface",
+  "financial_phrasebank": "huggingface",
+  "lexglue": "huggingface",
+  "medal": "huggingface",
+  "cifar100": "huggingface"
 }

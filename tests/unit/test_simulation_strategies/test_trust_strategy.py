@@ -4,29 +4,25 @@ Unit tests for TrustBasedRemovalStrategy.
 Tests trust score calculation algorithms, client removal logic, and threshold behaviors.
 """
 
+from __future__ import annotations
+
 from unittest.mock import patch
 
-from tests.common import Mock, np, pytest, FitRes, ndarrays_to_parameters, ClientProxy
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.simulation_strategies.trust_based_removal_strategy import (
+from intellifl.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
-
-from tests.common import generate_mock_client_data
+from tests.common import ClientProxy, FitRes, Mock, ndarrays_to_parameters, np, pytest
 
 
 class TestTrustBasedRemovalStrategy:
     """Test cases for TrustBasedRemovalStrategy."""
 
     @pytest.fixture
-    def mock_client_results(self):
-        """Generate mock client results for testing."""
-        return generate_mock_client_data(num_clients=5)
-
-    @pytest.fixture
-    def mock_strategy_history(self):
-        """Create mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
+    def mock_evaluate_results(self, mock_evaluate_results_factory):
+        """Generate mock evaluate results with custom parameters for trust strategy."""
+        return mock_evaluate_results_factory(
+            num_clients=5, base_accuracy=0.82, base_loss=0.4, loss_decrement=0.05
+        )
 
     @pytest.fixture
     def trust_strategy(self, mock_strategy_history, mock_output_directory):
@@ -182,32 +178,24 @@ class TestTrustBasedRemovalStrategy:
             trust = trust_strategy.update_trust(prev_trust, reputation, d)
             assert 0 <= trust <= 1
 
-    @patch("src.simulation_strategies.trust_based_removal_strategy.KMeans")
-    @patch("src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler")
+    @patch("intellifl.simulation_strategies.trust_based_removal_strategy.KMeans")
+    @patch("intellifl.simulation_strategies.trust_based_removal_strategy.MinMaxScaler")
     def test_aggregate_fit_clustering(
         self, mock_scaler, mock_kmeans, trust_strategy, mock_client_results
     ):
         """Test aggregate_fit performs clustering correctly."""
         # Setup mocks
         mock_kmeans_instance = Mock()
-        mock_kmeans_instance.transform.return_value = np.array(
-            [[0.1], [0.2], [0.3], [0.4], [0.5]]
-        )
+        mock_kmeans_instance.transform.return_value = np.array([[0.1], [0.2], [0.3], [0.4], [0.5]])
         mock_kmeans.return_value.fit.return_value = mock_kmeans_instance
 
         mock_scaler_instance = Mock()
-        mock_scaler_instance.transform.return_value = np.array(
-            [[0.1], [0.2], [0.3], [0.4], [0.5]]
-        )
+        mock_scaler_instance.transform.return_value = np.array([[0.1], [0.2], [0.3], [0.4], [0.5]])
         mock_scaler.return_value = mock_scaler_instance
 
-        with patch.object(
-            trust_strategy, "aggregate_fit", wraps=trust_strategy.aggregate_fit
-        ):
+        with patch.object(trust_strategy, "aggregate_fit", wraps=trust_strategy.aggregate_fit):
             # Mock the parent aggregate_fit method
-            with patch(
-                "flwr.server.strategy.FedAvg.aggregate_fit"
-            ) as mock_parent_aggregate:
+            with patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate:
                 mock_parent_aggregate.return_value = (Mock(), {})
 
                 trust_strategy.aggregate_fit(1, mock_client_results, [])
@@ -221,10 +209,10 @@ class TestTrustBasedRemovalStrategy:
         """Test aggregate_fit calculates trust scores for all clients."""
         with (
             patch(
-                "src.simulation_strategies.trust_based_removal_strategy.KMeans"
+                "intellifl.simulation_strategies.trust_based_removal_strategy.KMeans"
             ) as mock_kmeans,
             patch(
-                "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
             patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
         ):
@@ -381,9 +369,7 @@ class TestTrustBasedRemovalStrategy:
             truth_value = np.array([0.8])
             current_round = 3
 
-            reputation = strategy.update_reputation(
-                prev_reputation, truth_value, current_round
-            )
+            reputation = strategy.update_reputation(prev_reputation, truth_value, current_round)
 
             # Beta value should affect the result
             assert 0 <= reputation <= 1
@@ -435,10 +421,10 @@ class TestTrustBasedRemovalStrategy:
         """Test integration with strategy history."""
         with (
             patch(
-                "src.simulation_strategies.trust_based_removal_strategy.KMeans"
+                "intellifl.simulation_strategies.trust_based_removal_strategy.KMeans"
             ) as mock_kmeans,
             patch(
-                "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
             patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
         ):
@@ -461,16 +447,13 @@ class TestTrustBasedRemovalStrategy:
 
             # Verify strategy history methods were called
             assert (
-                trust_strategy.strategy_history.insert_single_client_history_entry.call_count
-                == 5
+                trust_strategy.strategy_history.insert_single_client_history_entry.call_count == 5
             )
             trust_strategy.strategy_history.insert_round_history_entry.assert_called_once()
 
     def test_edge_case_empty_results(self, trust_strategy):
         """Test handling of empty results."""
-        with patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
+        with patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate:
             mock_parent_aggregate.return_value = (None, {})
 
             result = trust_strategy.aggregate_fit(1, [], [])
@@ -492,10 +475,10 @@ class TestTrustBasedRemovalStrategy:
 
         with (
             patch(
-                "src.simulation_strategies.trust_based_removal_strategy.KMeans"
+                "intellifl.simulation_strategies.trust_based_removal_strategy.KMeans"
             ) as mock_kmeans,
             patch(
-                "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
+                "intellifl.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
             ) as mock_scaler,
             patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
         ):
@@ -515,3 +498,81 @@ class TestTrustBasedRemovalStrategy:
             # Should handle single client gracefully
             assert len(trust_strategy.client_trusts) == 1
             assert len(trust_strategy.client_reputations) == 1
+
+    def test_aggregate_evaluate_empty_results(self, trust_strategy):
+        """Test aggregate_evaluate with empty results."""
+        result = trust_strategy.aggregate_evaluate(1, [], [])
+
+        assert result == (None, {})
+
+    def test_aggregate_evaluate_collects_per_client_metrics(
+        self, trust_strategy, mock_evaluate_results, mock_strategy_history
+    ):
+        """Test aggregate_evaluate collects per-client metrics."""
+        server_round = 1
+
+        trust_strategy.aggregate_evaluate(server_round, mock_evaluate_results, [])
+
+        # Should call insert_single_client_history_entry twice per client (accuracy and loss)
+        assert mock_strategy_history.insert_single_client_history_entry.call_count == 10
+
+    def test_aggregate_evaluate_calculates_aggregated_loss(
+        self, trust_strategy, mock_evaluate_results
+    ):
+        """Test aggregate_evaluate calculates weighted aggregated loss."""
+        server_round = 1
+
+        loss_aggregated, _ = trust_strategy.aggregate_evaluate(
+            server_round, mock_evaluate_results, []
+        )
+
+        # Should return a float loss value
+        assert isinstance(loss_aggregated, float)
+        assert loss_aggregated >= 0
+
+    def test_aggregate_evaluate_returns_empty_metrics(self, trust_strategy, mock_evaluate_results):
+        """Test aggregate_evaluate returns empty metrics dict."""
+        server_round = 1
+
+        _, metrics = trust_strategy.aggregate_evaluate(server_round, mock_evaluate_results, [])
+
+        # Trust strategy doesn't return metrics in aggregate_evaluate
+        assert isinstance(metrics, dict)
+
+    def test_aggregate_evaluate_stores_per_client_data(
+        self, trust_strategy, mock_evaluate_results, mock_strategy_history
+    ):
+        """Test aggregate_evaluate stores correct per-client data."""
+        server_round = 1
+        trust_strategy.current_round = 1
+
+        trust_strategy.aggregate_evaluate(server_round, mock_evaluate_results, [])
+
+        # Verify both accuracy and loss were stored
+        calls = mock_strategy_history.insert_single_client_history_entry.call_args_list
+
+        # First 5 calls should be accuracy
+        # client_id is str (node ID)
+        first_call = calls[0]
+        assert first_call[1]["client_id"] == "0"
+        assert first_call[1]["current_round"] == 1
+        assert first_call[1]["accuracy"] == 0.82
+
+        # Next 5 calls should be loss
+        sixth_call = calls[5]
+        assert sixth_call[1]["client_id"] == "0"
+        assert sixth_call[1]["current_round"] == 1
+        assert sixth_call[1]["loss"] == 0.4
+
+    def test_aggregate_evaluate_with_failures(self, trust_strategy, mock_evaluate_results):
+        """Test aggregate_evaluate handles failures parameter."""
+        server_round = 1
+        failures = [Exception("Test failure")]
+
+        # Should process successfully despite failures
+        loss_aggregated, metrics = trust_strategy.aggregate_evaluate(
+            server_round, mock_evaluate_results, failures
+        )
+
+        assert isinstance(loss_aggregated, float)
+        assert isinstance(metrics, dict)

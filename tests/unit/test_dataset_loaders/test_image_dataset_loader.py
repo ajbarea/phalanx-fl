@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 from unittest.mock import patch
 
-from tests.common import Mock, pytest
 import torch
-from src.dataset_loaders.image_dataset_loader import ImageDatasetLoader
 from torchvision import transforms
+
+from intellifl.dataset_loaders.image_dataset_loader import ImageDatasetLoader
+from tests.common import Mock, pytest
 
 
 class TestImageDatasetLoader:
@@ -62,9 +65,9 @@ class TestImageDatasetLoader:
         assert loader.batch_size == 32
         assert loader.training_subset_fraction == 0.7
 
-    @patch("src.dataset_loaders.image_dataset_loader.datasets.ImageFolder")
-    @patch("src.dataset_loaders.image_dataset_loader.random_split")
-    @patch("src.dataset_loaders.image_dataset_loader.DataLoader")
+    @patch("intellifl.dataset_loaders.image_dataset_loader.datasets.ImageFolder")
+    @patch("intellifl.dataset_loaders.image_dataset_loader.random_split")
+    @patch("intellifl.dataset_loaders.image_dataset_loader.DataLoader")
     def test_load_datasets_processes_client_folders(
         self, mock_dataloader, mock_random_split, mock_image_folder, dataset_loader
     ):
@@ -103,8 +106,8 @@ class TestImageDatasetLoader:
         assert len(trainloaders) == 3
         assert len(valloaders) == 3
 
-    @patch("src.dataset_loaders.image_dataset_loader.datasets.ImageFolder")
-    @patch("src.dataset_loaders.image_dataset_loader.random_split")
+    @patch("intellifl.dataset_loaders.image_dataset_loader.datasets.ImageFolder")
+    @patch("intellifl.dataset_loaders.image_dataset_loader.random_split")
     def test_load_datasets_calculates_split_sizes_correctly(
         self, mock_random_split, mock_image_folder, dataset_loader
     ):
@@ -119,7 +122,7 @@ class TestImageDatasetLoader:
         mock_val_dataset = Mock()
         mock_random_split.return_value = (mock_train_dataset, mock_val_dataset)
 
-        with patch("src.dataset_loaders.image_dataset_loader.DataLoader"):
+        with patch("intellifl.dataset_loaders.image_dataset_loader.DataLoader"):
             dataset_loader.load_datasets()
 
         # Check that split was called with correct sizes
@@ -131,9 +134,9 @@ class TestImageDatasetLoader:
         assert call_args[0] == mock_dataset
         assert call_args[1] == [expected_train_size, expected_val_size]
 
-    @patch("src.dataset_loaders.image_dataset_loader.datasets.ImageFolder")
-    @patch("src.dataset_loaders.image_dataset_loader.random_split")
-    @patch("src.dataset_loaders.image_dataset_loader.DataLoader")
+    @patch("intellifl.dataset_loaders.image_dataset_loader.datasets.ImageFolder")
+    @patch("intellifl.dataset_loaders.image_dataset_loader.random_split")
+    @patch("intellifl.dataset_loaders.image_dataset_loader.DataLoader")
     def test_load_datasets_creates_dataloaders_with_correct_params(
         self, mock_dataloader, mock_random_split, mock_image_folder, dataset_loader
     ):
@@ -153,18 +156,14 @@ class TestImageDatasetLoader:
         assert mock_dataloader.call_count == 6  # 3 clients * 2 loaders each
 
         # Check that train loaders have shuffle=True
-        train_calls = [
-            call for call in mock_dataloader.call_args_list[::2]
-        ]  # Even indices
+        train_calls = list(mock_dataloader.call_args_list[::2])  # Even indices
         for call in train_calls:
             args, kwargs = call
             assert kwargs.get("shuffle") is True
             assert kwargs.get("batch_size") == 2
 
         # Check that val loaders have shuffle=False (default)
-        val_calls = [
-            call for call in mock_dataloader.call_args_list[1::2]
-        ]  # Odd indices
+        val_calls = list(mock_dataloader.call_args_list[1::2])  # Odd indices
         for call in val_calls:
             args, kwargs = call
             assert kwargs.get("shuffle") is None or kwargs.get("shuffle") is False
@@ -190,46 +189,40 @@ class TestImageDatasetLoader:
         dataset_loader.dataset_dir = str(dataset_dir)
 
         with patch(
-            "src.dataset_loaders.image_dataset_loader.datasets.ImageFolder"
+            "intellifl.dataset_loaders.image_dataset_loader.datasets.ImageFolder"
         ) as mock_image_folder:
             mock_dataset = Mock()
             mock_dataset.__len__ = Mock(return_value=10)
             mock_image_folder.return_value = mock_dataset
 
-            with patch(
-                "src.dataset_loaders.image_dataset_loader.random_split"
-            ) as mock_split:
+            with patch("intellifl.dataset_loaders.image_dataset_loader.random_split") as mock_split:
                 mock_train_ds = Mock()
                 mock_val_ds = Mock()
                 mock_split.return_value = (mock_train_ds, mock_val_ds)
-                with patch("src.dataset_loaders.image_dataset_loader.DataLoader"):
+                with patch("intellifl.dataset_loaders.image_dataset_loader.DataLoader"):
                     trainloaders, valloaders = dataset_loader.load_datasets()
 
         # Should only process non-hidden folders
         assert mock_image_folder.call_count == 1  # Only client_0, not .DS_Store
 
-    @patch("src.dataset_loaders.image_dataset_loader.os.listdir")
-    def test_load_datasets_sorts_client_folders_correctly(
-        self, mock_listdir, dataset_loader
-    ):
+    @patch("intellifl.dataset_loaders.image_dataset_loader.os.listdir")
+    def test_load_datasets_sorts_client_folders_correctly(self, mock_listdir, dataset_loader):
         """Verify client folders are sorted by their numeric suffix before processing."""
         # Mock unsorted client folder list
         mock_listdir.return_value = ["client_10", "client_2", "client_1"]
 
         with patch(
-            "src.dataset_loaders.image_dataset_loader.datasets.ImageFolder"
+            "intellifl.dataset_loaders.image_dataset_loader.datasets.ImageFolder"
         ) as mock_image_folder:
             mock_dataset = Mock()
             mock_dataset.__len__ = Mock(return_value=10)
             mock_image_folder.return_value = mock_dataset
 
-            with patch(
-                "src.dataset_loaders.image_dataset_loader.random_split"
-            ) as mock_split:
+            with patch("intellifl.dataset_loaders.image_dataset_loader.random_split") as mock_split:
                 mock_train_ds = Mock()
                 mock_val_ds = Mock()
                 mock_split.return_value = (mock_train_ds, mock_val_ds)
-                with patch("src.dataset_loaders.image_dataset_loader.DataLoader"):
+                with patch("intellifl.dataset_loaders.image_dataset_loader.DataLoader"):
                     dataset_loader.load_datasets()
 
         # Check that ImageFolder was called with correctly sorted paths
@@ -247,19 +240,17 @@ class TestImageDatasetLoader:
     def test_load_datasets_uses_correct_transformer(self, dataset_loader):
         """Verify the configured transformer is passed to ImageFolder."""
         with patch(
-            "src.dataset_loaders.image_dataset_loader.datasets.ImageFolder"
+            "intellifl.dataset_loaders.image_dataset_loader.datasets.ImageFolder"
         ) as mock_image_folder:
             mock_dataset = Mock()
             mock_dataset.__len__ = Mock(return_value=10)
             mock_image_folder.return_value = mock_dataset
 
-            with patch(
-                "src.dataset_loaders.image_dataset_loader.random_split"
-            ) as mock_split:
+            with patch("intellifl.dataset_loaders.image_dataset_loader.random_split") as mock_split:
                 mock_train_ds = Mock()
                 mock_val_ds = Mock()
                 mock_split.return_value = (mock_train_ds, mock_val_ds)
-                with patch("src.dataset_loaders.image_dataset_loader.DataLoader"):
+                with patch("intellifl.dataset_loaders.image_dataset_loader.DataLoader"):
                     dataset_loader.load_datasets()
 
         # Check that transformer was passed to ImageFolder
@@ -267,14 +258,10 @@ class TestImageDatasetLoader:
             args, kwargs = call
             assert kwargs["transform"] == dataset_loader.transformer
 
-    @patch("src.dataset_loaders.image_dataset_loader.datasets.ImageFolder")
-    def test_load_datasets_handles_empty_directory(
-        self, mock_image_folder, dataset_loader
-    ):
+    @patch("intellifl.dataset_loaders.image_dataset_loader.datasets.ImageFolder")
+    def test_load_datasets_handles_empty_directory(self, mock_image_folder, dataset_loader):
         """Verify load_datasets returns empty lists when no client folders exist."""
-        with patch(
-            "src.dataset_loaders.image_dataset_loader.os.listdir", return_value=[]
-        ):
+        with patch("intellifl.dataset_loaders.image_dataset_loader.os.listdir", return_value=[]):
             trainloaders, valloaders = dataset_loader.load_datasets()
 
             assert len(trainloaders) == 0
@@ -284,19 +271,19 @@ class TestImageDatasetLoader:
     def test_load_datasets_uses_reproducible_seed(self, dataset_loader):
         """Verify a reproducible random generator (torch.Generator) is used for splits."""
         with patch(
-            "src.dataset_loaders.image_dataset_loader.datasets.ImageFolder"
+            "intellifl.dataset_loaders.image_dataset_loader.datasets.ImageFolder"
         ) as mock_image_folder:
             mock_dataset = Mock()
             mock_dataset.__len__ = Mock(return_value=100)
             mock_image_folder.return_value = mock_dataset
 
             with patch(
-                "src.dataset_loaders.image_dataset_loader.random_split"
+                "intellifl.dataset_loaders.image_dataset_loader.random_split"
             ) as mock_random_split:
                 mock_train_ds = Mock()
                 mock_val_ds = Mock()
                 mock_random_split.return_value = (mock_train_ds, mock_val_ds)
-                with patch("src.dataset_loaders.image_dataset_loader.DataLoader"):
+                with patch("intellifl.dataset_loaders.image_dataset_loader.DataLoader"):
                     dataset_loader.load_datasets()
 
         # Check that all splits used the same fixed seed
@@ -305,3 +292,176 @@ class TestImageDatasetLoader:
             generator = args[2]  # Third argument is the generator
             # Verify it's a generator with seed 42 (we can't check seed directly)
             assert isinstance(generator, torch.Generator)
+
+    @patch("intellifl.dataset_loaders.image_dataset_loader.datasets.ImageFolder")
+    @patch("intellifl.dataset_loaders.image_dataset_loader.random_split")
+    def test_load_datasets_ensures_minimum_validation_samples(
+        self, mock_random_split, mock_image_folder, dataset_loader
+    ):
+        """Verify at least 1 validation sample is ensured when val_subset_len would be 0."""
+        # Mock dataset with only 2 samples
+        # With training_subset_fraction=1.0, val would be 0, but should be adjusted to 1
+        mock_dataset = Mock()
+        mock_dataset.__len__ = Mock(return_value=2)
+        mock_image_folder.return_value = mock_dataset
+
+        mock_train_dataset = Mock()
+        mock_val_dataset = Mock()
+        mock_random_split.return_value = (mock_train_dataset, mock_val_dataset)
+
+        # Set training_subset_fraction to 1.0 to trigger the edge case
+        dataset_loader.training_subset_fraction = 1.0
+
+        with patch("intellifl.dataset_loaders.image_dataset_loader.DataLoader"):
+            dataset_loader.load_datasets()
+
+        # Check that split was called with adjusted sizes
+        # Original: train=2, val=0 → Adjusted: train=1, val=1
+        call_args = mock_random_split.call_args_list[0][0]
+        split_sizes = call_args[1]
+
+        assert split_sizes == [1, 1], f"Expected [1, 1] but got {split_sizes}"
+
+    @patch("intellifl.dataset_loaders.image_dataset_loader.datasets.ImageFolder")
+    @patch("intellifl.dataset_loaders.image_dataset_loader.random_split")
+    def test_load_datasets_validation_adjustment_with_multiple_samples(
+        self, mock_random_split, mock_image_folder, dataset_loader
+    ):
+        """Verify validation adjustment works with various dataset sizes."""
+        # Test with 10 samples and training_subset_fraction=1.0
+        mock_dataset = Mock()
+        mock_dataset.__len__ = Mock(return_value=10)
+        mock_image_folder.return_value = mock_dataset
+
+        mock_train_dataset = Mock()
+        mock_val_dataset = Mock()
+        mock_random_split.return_value = (mock_train_dataset, mock_val_dataset)
+
+        dataset_loader.training_subset_fraction = 1.0
+
+        with patch("intellifl.dataset_loaders.image_dataset_loader.DataLoader"):
+            dataset_loader.load_datasets()
+
+        # Should adjust to ensure at least 1 validation sample
+        call_args = mock_random_split.call_args_list[0][0]
+        split_sizes = call_args[1]
+
+        assert split_sizes == [9, 1], f"Expected [9, 1] but got {split_sizes}"
+
+    @patch("intellifl.dataset_loaders.image_dataset_loader.datasets.ImageFolder")
+    @patch("intellifl.dataset_loaders.image_dataset_loader.random_split")
+    def test_load_datasets_no_adjustment_when_validation_already_nonzero(
+        self, mock_random_split, mock_image_folder, dataset_loader
+    ):
+        """Verify no adjustment when validation size is already > 0."""
+        # Test with 100 samples and training_subset_fraction=0.8
+        mock_dataset = Mock()
+        mock_dataset.__len__ = Mock(return_value=100)
+        mock_image_folder.return_value = mock_dataset
+
+        mock_train_dataset = Mock()
+        mock_val_dataset = Mock()
+        mock_random_split.return_value = (mock_train_dataset, mock_val_dataset)
+
+        dataset_loader.training_subset_fraction = 0.8
+
+        with patch("intellifl.dataset_loaders.image_dataset_loader.DataLoader"):
+            dataset_loader.load_datasets()
+
+        # Should use original split sizes (no adjustment needed)
+        call_args = mock_random_split.call_args_list[0][0]
+        split_sizes = call_args[1]
+
+        # 80% of 100 = 80 train, 20 val (no adjustment)
+        assert split_sizes == [80, 20], f"Expected [80, 20] but got {split_sizes}"
+
+    @patch("intellifl.dataset_loaders.image_dataset_loader.datasets.ImageFolder")
+    @patch("intellifl.dataset_loaders.image_dataset_loader.random_split")
+    def test_load_datasets_no_adjustment_for_single_sample_dataset(
+        self, mock_random_split, mock_image_folder, dataset_loader
+    ):
+        """Verify no adjustment when dataset has only 1 sample (edge case)."""
+        # Test with only 1 sample - cannot split, so val_subset_len stays 0
+        mock_dataset = Mock()
+        mock_dataset.__len__ = Mock(return_value=1)
+        mock_image_folder.return_value = mock_dataset
+
+        mock_train_dataset = Mock()
+        mock_val_dataset = Mock()
+        mock_random_split.return_value = (mock_train_dataset, mock_val_dataset)
+
+        dataset_loader.training_subset_fraction = 1.0
+
+        with patch("intellifl.dataset_loaders.image_dataset_loader.DataLoader"):
+            dataset_loader.load_datasets()
+
+        # Should NOT adjust because len(client_dataset) == 1 (not > 1)
+        call_args = mock_random_split.call_args_list[0][0]
+        split_sizes = call_args[1]
+
+        assert split_sizes == [1, 0], f"Expected [1, 0] but got {split_sizes}"
+
+    @patch("intellifl.dataset_loaders.image_dataset_loader.datasets.ImageFolder")
+    @patch("intellifl.dataset_loaders.image_dataset_loader.random_split")
+    def test_load_datasets_validation_adjustment_with_fraction_rounding(
+        self, mock_random_split, mock_image_folder, dataset_loader
+    ):
+        """Verify validation adjustment handles fraction rounding correctly."""
+        # Test with 5 samples and training_subset_fraction=0.99
+        # int(5 * 0.99) = int(4.95) = 4, so train=4, val=1 (no adjustment needed)
+        mock_dataset = Mock()
+        mock_dataset.__len__ = Mock(return_value=5)
+        mock_image_folder.return_value = mock_dataset
+
+        mock_train_dataset = Mock()
+        mock_val_dataset = Mock()
+        mock_random_split.return_value = (mock_train_dataset, mock_val_dataset)
+
+        dataset_loader.training_subset_fraction = 0.99
+
+        with patch("intellifl.dataset_loaders.image_dataset_loader.DataLoader"):
+            dataset_loader.load_datasets()
+
+        call_args = mock_random_split.call_args_list[0][0]
+        split_sizes = call_args[1]
+
+        # int(5 * 0.99) = 4, so 5-4 = 1 validation sample (no adjustment)
+        assert split_sizes == [4, 1], f"Expected [4, 1] but got {split_sizes}"
+
+    @patch("intellifl.dataset_loaders.image_dataset_loader.datasets.ImageFolder")
+    @patch("intellifl.dataset_loaders.image_dataset_loader.random_split")
+    def test_load_datasets_validation_adjustment_multiple_clients(
+        self, mock_random_split, mock_image_folder, dataset_loader
+    ):
+        """Verify validation adjustment is applied independently per client."""
+        # Create different dataset sizes for different clients
+        dataset_sizes = [2, 100, 5]  # Client 0: needs adjustment, others don't
+        datasets = []
+
+        for size in dataset_sizes:
+            mock_dataset = Mock()
+            mock_dataset.__len__ = Mock(return_value=size)
+            datasets.append(mock_dataset)
+
+        mock_image_folder.side_effect = datasets
+
+        mock_train_dataset = Mock()
+        mock_val_dataset = Mock()
+        mock_random_split.return_value = (mock_train_dataset, mock_val_dataset)
+
+        dataset_loader.training_subset_fraction = 1.0
+
+        with patch("intellifl.dataset_loaders.image_dataset_loader.DataLoader"):
+            dataset_loader.load_datasets()
+
+        # Check all three split calls
+        split_calls = mock_random_split.call_args_list
+
+        # Client 0: 2 samples, fraction=1.0 → train=1, val=1 (adjusted)
+        assert split_calls[0][0][1] == [1, 1]
+
+        # Client 1: 100 samples, fraction=1.0 → train=99, val=1 (adjusted)
+        assert split_calls[1][0][1] == [99, 1]
+
+        # Client 2: 5 samples, fraction=1.0 → train=4, val=1 (adjusted)
+        assert split_calls[2][0][1] == [4, 1]

@@ -5,44 +5,29 @@ Tests all 10 aggregation strategies with parameter variations, edge cases, and b
 Verifies each strategy's specific behavior across different configurations.
 """
 
+from __future__ import annotations
+
 import importlib
+from typing import Any
 from unittest.mock import patch
 
-from tests.common import Mock, pytest
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.simulation_strategies.krum_based_removal_strategy import (
+from intellifl.simulation_strategies.krum_based_removal_strategy import (
     KrumBasedRemovalStrategy,
 )
-from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
-from src.simulation_strategies.trust_based_removal_strategy import (
+from intellifl.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+from intellifl.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
-
-from tests.common import generate_mock_client_data
+from tests.common import Mock, pytest
 
 
 class TestStrategyVariations:
     """Parameterized tests for all aggregation strategy variations."""
 
     @pytest.fixture
-    def mock_client_results(self):
-        """Generate mock client results for testing."""
-        return generate_mock_client_data(num_clients=20)
-
-    @pytest.fixture
-    def mock_strategy_history(self):
-        """Create mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
-
-    @pytest.fixture
-    def mock_network_model(self):
-        """Create mock network model."""
-        return Mock()
-
-    @pytest.fixture
-    def krum_fit_metrics_fn(self):
-        """Provide consistent fit_metrics_aggregation_fn for Krum-based strategies."""
-        return lambda x: x
+    def mock_client_results(self, mock_client_results_factory):
+        """Generate mock client results for testing (20 clients for variation tests)."""
+        return mock_client_results_factory(20)
 
     # Test all 10 strategies with basic initialization
     @pytest.mark.parametrize(
@@ -50,7 +35,7 @@ class TestStrategyVariations:
         [
             (
                 "trust",
-                "src.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
+                "intellifl.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
                 {
                     "remove_clients": True,
                     "beta_value": 0.5,
@@ -60,7 +45,7 @@ class TestStrategyVariations:
             ),
             (
                 "trimmed_mean",
-                "src.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
+                "intellifl.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
                 {
                     "remove_clients": True,
                     "trim_ratio": 0.2,
@@ -69,7 +54,7 @@ class TestStrategyVariations:
             ),
             (
                 "pid",
-                "src.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
+                "intellifl.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
                 {
                     "remove_clients": True,
                     "begin_removing_from_round": 2,
@@ -82,18 +67,18 @@ class TestStrategyVariations:
             ),
             (
                 "krum",
-                "src.simulation_strategies.krum_based_removal_strategy.KrumBasedRemovalStrategy",
+                "intellifl.simulation_strategies.krum_based_removal_strategy.KrumBasedRemovalStrategy",
                 {
                     "remove_clients": True,
                     "num_malicious_clients": 2,
                     "num_krum_selections": 5,
                     "begin_removing_from_round": 1,
-                    "fit_metrics_aggregation_fn": krum_fit_metrics_fn,
+                    "fit_metrics_aggregation_fn": lambda x: x,
                 },
             ),
             (
                 "multi_krum",
-                "src.simulation_strategies.multi_krum_strategy.MultiKrumStrategy",
+                "intellifl.simulation_strategies.multi_krum_strategy.MultiKrumStrategy",
                 {
                     "remove_clients": True,
                     "num_of_malicious_clients": 2,
@@ -103,7 +88,7 @@ class TestStrategyVariations:
             ),
             (
                 "rfa",
-                "src.simulation_strategies.rfa_based_removal_strategy.RFABasedRemovalStrategy",
+                "intellifl.simulation_strategies.rfa_based_removal_strategy.RFABasedRemovalStrategy",
                 {
                     "remove_clients": True,
                     "begin_removing_from_round": 2,
@@ -112,7 +97,7 @@ class TestStrategyVariations:
             ),
             (
                 "bulyan",
-                "src.simulation_strategies.bulyan_strategy.BulyanStrategy",
+                "intellifl.simulation_strategies.bulyan_strategy.BulyanStrategy",
                 {
                     "remove_clients": True,
                     "num_krum_selections": 5,
@@ -159,7 +144,7 @@ class TestStrategyVariations:
         [
             (
                 "trust",
-                "src.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
+                "intellifl.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
                 [
                     {"beta_value": 0.1, "trust_threshold": 0.3},  # Low values
                     {"beta_value": 0.5, "trust_threshold": 0.7},  # Medium values
@@ -168,7 +153,7 @@ class TestStrategyVariations:
             ),
             (
                 "trimmed_mean",
-                "src.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
+                "intellifl.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
                 [
                     {"trim_ratio": 0.1},  # Low trimming
                     {"trim_ratio": 0.2},  # Medium trimming
@@ -177,7 +162,7 @@ class TestStrategyVariations:
             ),
             (
                 "pid",
-                "src.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
+                "intellifl.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
                 [
                     {
                         "kp": 0.5,
@@ -204,7 +189,7 @@ class TestStrategyVariations:
             ),
             (
                 "krum",
-                "src.simulation_strategies.krum_based_removal_strategy.KrumBasedRemovalStrategy",
+                "intellifl.simulation_strategies.krum_based_removal_strategy.KrumBasedRemovalStrategy",
                 [
                     {
                         "num_krum_selections": 3,
@@ -222,7 +207,7 @@ class TestStrategyVariations:
             ),
             (
                 "multi_krum",
-                "src.simulation_strategies.multi_krum_strategy.MultiKrumStrategy",
+                "intellifl.simulation_strategies.multi_krum_strategy.MultiKrumStrategy",
                 [
                     {
                         "num_krum_selections": 2,
@@ -281,15 +266,12 @@ class TestStrategyVariations:
             # Verify strategy-specific parameters
             if strategy_name == "trust":
                 assert strategy.beta_value == pytest.approx(params["beta_value"])
-                assert strategy.trust_threshold == pytest.approx(
-                    params["trust_threshold"]
-                )
+                assert strategy.trust_threshold == pytest.approx(params["trust_threshold"])
             elif strategy_name == "trimmed_mean":
                 assert strategy.trim_ratio == pytest.approx(params["trim_ratio"])
             elif strategy_name == "pid":
                 assert (
-                    strategy.aggregation_strategy_keyword
-                    == params["aggregation_strategy_keyword"]
+                    strategy.aggregation_strategy_keyword == params["aggregation_strategy_keyword"]
                 )
                 assert strategy.kp == pytest.approx(params["kp"])
                 assert strategy.ki == pytest.approx(params["ki"])
@@ -299,33 +281,30 @@ class TestStrategyVariations:
                 assert strategy.num_malicious_clients == params["num_malicious_clients"]
             elif strategy_name == "multi_krum":
                 assert strategy.num_krum_selections == params["num_krum_selections"]
-                assert (
-                    strategy.num_of_malicious_clients
-                    == params["num_of_malicious_clients"]
-                )
+                assert strategy.num_of_malicious_clients == params["num_of_malicious_clients"]
 
     @pytest.mark.parametrize(
         "strategy_name,strategy_class",
         [
             (
                 "trust",
-                "src.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
+                "intellifl.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
             ),
             (
                 "trimmed_mean",
-                "src.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
+                "intellifl.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
             ),
             (
                 "pid",
-                "src.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
+                "intellifl.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
             ),
             (
                 "krum",
-                "src.simulation_strategies.krum_based_removal_strategy.KrumBasedRemovalStrategy",
+                "intellifl.simulation_strategies.krum_based_removal_strategy.KrumBasedRemovalStrategy",
             ),
             (
                 "rfa",
-                "src.simulation_strategies.rfa_based_removal_strategy.RFABasedRemovalStrategy",
+                "intellifl.simulation_strategies.rfa_based_removal_strategy.RFABasedRemovalStrategy",
             ),
         ],
     )
@@ -385,9 +364,7 @@ class TestStrategyVariations:
         few_client_results = mock_client_results[:2]
 
         # Mock the parent aggregate_fit method
-        with patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
+        with patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate:
             mock_parent_aggregate.return_value = (Mock(), {})
 
             # Should handle insufficient clients gracefully
@@ -405,7 +382,7 @@ class TestStrategyVariations:
         [
             (
                 "trust",
-                "src.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
+                "intellifl.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
                 [
                     {"beta_value": 0.0, "trust_threshold": 0.0},  # Minimum values
                     {"beta_value": 1.0, "trust_threshold": 1.0},  # Maximum values
@@ -413,7 +390,7 @@ class TestStrategyVariations:
             ),
             (
                 "trimmed_mean",
-                "src.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
+                "intellifl.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
                 [
                     {"trim_ratio": 0.0},  # No trimming
                     {"trim_ratio": 0.5},  # Maximum practical trimming
@@ -421,7 +398,7 @@ class TestStrategyVariations:
             ),
             (
                 "pid",
-                "src.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
+                "intellifl.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
                 [
                     {
                         "kp": 0.0,
@@ -441,7 +418,7 @@ class TestStrategyVariations:
             ),
             (
                 "krum",
-                "src.simulation_strategies.krum_based_removal_strategy.KrumBasedRemovalStrategy",
+                "intellifl.simulation_strategies.krum_based_removal_strategy.KrumBasedRemovalStrategy",
                 [
                     {
                         "num_krum_selections": 1,
@@ -495,15 +472,12 @@ class TestStrategyVariations:
             # Verify extreme values are handled
             if strategy_name == "trust":
                 assert strategy.beta_value == pytest.approx(params["beta_value"])
-                assert strategy.trust_threshold == pytest.approx(
-                    params["trust_threshold"]
-                )
+                assert strategy.trust_threshold == pytest.approx(params["trust_threshold"])
             elif strategy_name == "trimmed_mean":
                 assert strategy.trim_ratio == pytest.approx(params["trim_ratio"])
             elif strategy_name == "pid":
                 assert (
-                    strategy.aggregation_strategy_keyword
-                    == params["aggregation_strategy_keyword"]
+                    strategy.aggregation_strategy_keyword == params["aggregation_strategy_keyword"]
                 )
                 assert strategy.kp == pytest.approx(params["kp"])
                 assert strategy.ki == pytest.approx(params["ki"])
@@ -575,9 +549,7 @@ class TestStrategyVariations:
         # Test with specific client count
         client_results = mock_client_results[:client_count]
 
-        with patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
+        with patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate:
             mock_parent_aggregate.return_value = (Mock(), {})
 
             try:
@@ -664,9 +636,7 @@ class TestStrategyVariations:
         # Test with specific client count
         client_results = mock_client_results[:client_count]
 
-        with patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
+        with patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate:
             mock_parent_aggregate.return_value = (Mock(), {})
 
             if expected_valid:
@@ -688,7 +658,7 @@ class TestStrategyVariations:
         [
             (
                 "multi_krum_based",
-                "src.simulation_strategies.multi_krum_based_removal_strategy.MultiKrumBasedRemovalStrategy",
+                "intellifl.simulation_strategies.multi_krum_based_removal_strategy.MultiKrumBasedRemovalStrategy",
                 {
                     "num_of_malicious_clients": 2,
                     "num_krum_selections": 3,
@@ -697,12 +667,12 @@ class TestStrategyVariations:
             ),
             (
                 "rfa",
-                "src.simulation_strategies.rfa_based_removal_strategy.RFABasedRemovalStrategy",
+                "intellifl.simulation_strategies.rfa_based_removal_strategy.RFABasedRemovalStrategy",
                 {"begin_removing_from_round": 2, "weighted_median_factor": 1.0},
             ),
             (
                 "bulyan",
-                "src.simulation_strategies.bulyan_strategy.BulyanStrategy",
+                "intellifl.simulation_strategies.bulyan_strategy.BulyanStrategy",
                 {"num_krum_selections": 5, "begin_removing_from_round": 1},
             ),
         ],
@@ -738,24 +708,16 @@ class TestStrategyVariations:
             # Verify initialization
             assert strategy is not None
             assert strategy.remove_clients is True
-            assert (
-                strategy.begin_removing_from_round
-                == special_params["begin_removing_from_round"]
-            )
+            assert strategy.begin_removing_from_round == special_params["begin_removing_from_round"]
 
             # Verify strategy-specific parameters
             if "num_krum_selections" in special_params:
-                assert (
-                    strategy.num_krum_selections
-                    == special_params["num_krum_selections"]
-                )
+                assert strategy.num_krum_selections == special_params["num_krum_selections"]
 
         except (ImportError, AttributeError) as e:
             # Some strategies might not be available or have different interfaces
             # This is acceptable for testing purposes
-            pytest.skip(
-                f"Strategy {strategy_name} not available or has different interface: {e}"
-            )
+            pytest.skip(f"Strategy {strategy_name} not available or has different interface: {e}")
 
     @pytest.mark.parametrize(
         "num_std_dev,expected_behavior",
@@ -801,7 +763,7 @@ class TestStrategyVariations:
         """Test that different strategies can be used in combination scenarios."""
         _ = mock_output_directory
         # Test creating multiple strategies that could work together
-        strategies = []
+        strategies: list[tuple[str, Any]] = []
 
         # Trust-based strategy
         try:
@@ -849,9 +811,7 @@ class TestStrategyVariations:
             pass
 
         # Verify at least some strategies are available
-        assert len(strategies) >= 1, (
-            "At least one strategy should be available for testing"
-        )
+        assert len(strategies) >= 1, "At least one strategy should be available for testing"
 
         # Verify all strategies have compatible interfaces
         for _strategy_name, strategy in strategies:
@@ -867,7 +827,7 @@ class TestStrategyVariations:
         edge_cases = [
             # Trust strategy edge cases
             {
-                "strategy_class": "src.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
+                "strategy_class": "intellifl.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
                 "params": {
                     "beta_value": 0.001,
                     "trust_threshold": 0.999,
@@ -875,12 +835,12 @@ class TestStrategyVariations:
             },
             # Trimmed mean edge cases
             {
-                "strategy_class": "src.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
+                "strategy_class": "intellifl.simulation_strategies.trimmed_mean_based_removal_strategy.TrimmedMeanBasedRemovalStrategy",
                 "params": {"trim_ratio": 0.49},  # Just under 50%
             },
             # PID edge cases
             {
-                "strategy_class": "src.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
+                "strategy_class": "intellifl.simulation_strategies.pid_based_removal_strategy.PIDBasedRemovalStrategy",
                 "params": {
                     "kp": 0.001,
                     "ki": 0.0001,
@@ -896,19 +856,21 @@ class TestStrategyVariations:
         for case in edge_cases:
             try:
                 # Import the strategy class dynamically
-                module_path, class_name = case["strategy_class"].rsplit(".", 1)
+                strategy_class = str(case["strategy_class"])
+                module_path, class_name = strategy_class.rsplit(".", 1)
                 module = importlib.import_module(module_path)
                 strategy_cls = getattr(module, class_name)
 
                 # Base parameters
-                init_params = {
+                init_params: dict[str, Any] = {
                     "remove_clients": True,
                     "begin_removing_from_round": 1,
                     "strategy_history": mock_strategy_history,
                 }
 
                 # Add edge case parameters
-                init_params.update(case["params"])
+                case_params: dict[str, Any] = case["params"]  # type: ignore[assignment]
+                init_params.update(case_params)
 
                 # Create strategy with edge case parameters
                 strategy = strategy_cls(**init_params)
@@ -921,9 +883,7 @@ class TestStrategyVariations:
                 # Some edge cases might not be supported, which is acceptable
                 continue
 
-    def test_strategy_round_behavior_variations(
-        self, mock_strategy_history, mock_output_directory
-    ):
+    def test_strategy_round_behavior_variations(self, mock_strategy_history, mock_output_directory):
         """Test how strategies behave with different begin_removing_from_round values."""
         _ = mock_output_directory
         round_variations = [0, 1, 2, 5, 10]
