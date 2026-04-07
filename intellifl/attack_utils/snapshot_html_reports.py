@@ -145,8 +145,8 @@ def generate_summary_json(
     }
 
     if run_config:
-        full_summary["experiment"]["total_clients"] = run_config.get("num_of_clients")
-        full_summary["experiment"]["total_rounds"] = run_config.get("num_of_rounds")
+        full_summary["experiment"]["total_clients"] = run_config.get("num_of_clients", "Unknown")
+        full_summary["experiment"]["total_rounds"] = run_config.get("num_of_rounds", "Unknown")
         full_summary["experiment"]["config_file"] = f"strategy_config_{strategy_number}.json"
 
     snapshots = list_attack_snapshots(output_dir, strategy_number)
