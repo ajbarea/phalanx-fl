@@ -191,44 +191,40 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
             strategy_number=self.strategy_number,
         )
 
-        if self.attack_snapshot_format in ["visual", "pickle_and_visual"]:
-            if self.model_type == "cnn" and original_data_sample is not None:
-                save_visual_snapshot(
-                    client_id=self.client_id,
-                    round_num=current_round,
-                    attack_config=data_attack_configs,
-                    data_sample=data_sample.cpu().numpy(),
-                    labels_sample=labels_sample.cpu().numpy(),
-                    original_labels_sample=original_labels_sample.cpu().numpy()
-                    if original_labels_sample is not None
-                    else labels_sample.cpu().numpy(),
-                    output_dir=self.output_dir,
-                    experiment_info=self.experiment_info,
-                    strategy_number=self.strategy_number,
-                    original_data_sample=original_data_sample.cpu().numpy(),
-                )
-            elif (
-                self.model_type == "transformer"
-                and original_data_sample is not None
-                and self.tokenizer is not None
-            ):
-                save_visual_snapshot(
-                    client_id=self.client_id,
-                    round_num=current_round,
-                    attack_config=data_attack_configs,
-                    data_sample=data_sample.cpu().numpy(),
-                    labels_sample=labels_sample.cpu().numpy(),
-                    original_labels_sample=original_labels_sample.cpu().numpy()
-                    if original_labels_sample is not None
-                    else labels_sample.cpu().numpy(),
-                    output_dir=self.output_dir,
-                    experiment_info=self.experiment_info,
-                    strategy_number=self.strategy_number,
-                    tokenizer=self.tokenizer,
-                    original_data_sample=original_data_sample.cpu().numpy(),
-                )
+        wants_visual = self.attack_snapshot_format in ["visual", "pickle_and_visual"]
+        can_visualize = original_data_sample is not None and (
+            self.model_type == "cnn" or (self.model_type == "transformer" and self.tokenizer is not None)
+        )
+        if wants_visual and can_visualize:
+            kwargs = {}
+            if self.model_type == "transformer":
+                kwargs["tokenizer"] = self.tokenizer
+            save_visual_snapshot(
+                client_id=self.client_id,
+                round_num=current_round,
+                attack_config=data_attack_configs,
+                data_sample=data_sample.cpu().numpy(),
+                labels_sample=labels_sample.cpu().numpy(),
+                original_labels_sample=original_labels_sample.cpu().numpy()
+                if original_labels_sample is not None
+                else labels_sample.cpu().numpy(),
+                output_dir=self.output_dir,
+                experiment_info=self.experiment_info,
+                strategy_number=self.strategy_number,
+                original_data_sample=original_data_sample.cpu().numpy(),
+                **kwargs,
+            )
 
         return bool(changed_mask.any().item())
+
+    @staticmethod
+    def _get_num_classes(net) -> int:
+        """Infer the number of output classes from the network's final layer."""
+        if hasattr(net, "fc3"):
+            return net.fc3.out_features
+        if hasattr(net, "fc"):
+            return net.fc.out_features
+        return 10
 
     def _to_device_only_tensors(self, batch: dict) -> dict:
         """Move only tensor values to device, leaving non-tensors as-is.
@@ -243,7 +239,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
     def set_parameters(self, net, parameters: list[np.ndarray]) -> None:
         """Load parameters into the model, handling LoRA adapters if enabled."""
         if self.use_lora:
-            from intellifl.network_models.bert_model_definition import (
+            from intellifl.network_models.transformer_models import (
                 get_peft_model_state_dict,
                 set_peft_model_state_dict,
             )
@@ -254,12 +250,12 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
         else:
             params_dict = zip(net.state_dict().keys(), parameters, strict=False)
             state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
-            self.net.load_state_dict(state_dict, strict=False)
+            net.load_state_dict(state_dict, strict=False)
 
     def get_parameters(self, config) -> list[np.ndarray]:
         """Extract model parameters as numpy arrays."""
         if self.use_lora:
-            from intellifl.network_models.bert_model_definition import get_peft_model_state_dict
+            from intellifl.network_models.transformer_models import get_peft_model_state_dict
 
             state_dict = get_peft_model_state_dict(self.net)
             return [val.cpu().numpy() for val in state_dict.values()]
@@ -297,7 +293,6 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
         net,
         trainloader,
         epochs: int,
-        verbose=False,
         global_params=None,
         mu=0.01,
         config=None,
@@ -308,7 +303,6 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
             net: Neural network model to train.
             trainloader: DataLoader for training data.
             epochs: Number of training epochs.
-            verbose: Whether to log epoch-level metrics.
             global_params: Global parameters for FedProx proximal term.
             mu: FedProx proximal term coefficient.
             config: Flower config dict containing server_round.
@@ -324,13 +318,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                 net.parameters(), lr=self.learning_rate or 1e-3
             )
             net.train()
-
-            if hasattr(net, "fc3"):
-                num_classes = net.fc3.out_features
-            elif hasattr(net, "fc"):
-                num_classes = net.fc.out_features
-            else:
-                num_classes = 10
+            num_classes = self._get_num_classes(net)
 
             epoch_loss: float = 0.0
             epoch_acc: float = 0.0
@@ -340,7 +328,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
             for epoch in range(epochs):
                 correct, total, epoch_loss = 0, 0, 0.0
 
-                for batch_idx, (images, labels) in enumerate(trainloader):
+                for images, labels in trainloader:
                     should_poison, attack_configs = should_poison_this_round(
                         current_round, self.client_id, self.attacks_schedule
                     )
@@ -403,17 +391,13 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                     correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
                     del outputs, loss
 
-                epoch_loss /= len(trainloader.dataset) or 1
+                epoch_loss /= max(1, len(trainloader))
                 epoch_acc = 0.0
                 if total > 0:
                     epoch_acc = correct / total
                 if epoch == 0 and not snapshot_saved and cnn_snapshot_fallback is not None:
                     self._save_attack_snapshots(**cnn_snapshot_fallback)
                     snapshot_saved = True
-                if verbose:
-                    logging.info(
-                        f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}"
-                    )
 
             return float(epoch_loss), float(epoch_acc)
 
@@ -522,16 +506,11 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                     f"[Client {self.client_id}] Epoch {epoch + 1} complete - Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.4f}"
                 )
 
-                if verbose:
-                    logging.info(
-                        f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}"
-                    )
-
             return float(epoch_loss), float(epoch_acc)
 
         else:
             raise ValueError(
-                f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'."
+                f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'transformer'."
             )
 
     def test(self, net, testloader, config=None) -> tuple[float, float]:
@@ -551,13 +530,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
             criterion = torch.nn.CrossEntropyLoss()
             correct, total, loss = 0, 0, 0.0
             net.eval()
-
-            if hasattr(net, "fc3"):
-                num_classes = net.fc3.out_features
-            elif hasattr(net, "fc"):
-                num_classes = net.fc.out_features
-            else:
-                num_classes = 10
+            num_classes = self._get_num_classes(net)
 
             with torch.no_grad():
                 for images, labels in testloader:
@@ -585,7 +558,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                     _, predicted = torch.max(outputs.data, 1)
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
-            loss /= len(testloader.dataset) if len(testloader.dataset) > 0 else 1
+            loss /= max(1, len(testloader))
             accuracy = 0.0
             if total > 0:
                 accuracy = correct / total
@@ -624,7 +597,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                         correct += (preds[mask] == labels[mask]).sum().item()
                         total += mask.sum().item()
 
-            loss = total_loss / len(testloader)
+            loss = total_loss / max(1, len(testloader))
             accuracy = 0.0
             if total > 0:
                 accuracy = correct / total
@@ -632,7 +605,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
 
         else:
             raise ValueError(
-                f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'."
+                f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'transformer'."
             )
 
     def fit(self, parameters, config):

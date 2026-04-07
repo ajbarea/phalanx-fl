@@ -53,8 +53,8 @@ from intellifl.dataset_loaders.image_transformers.medmnist_2d_rgb_image_transfor
 )
 from intellifl.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
 from intellifl.network_models import build_cnn_model
-from intellifl.network_models.bert_model_definition import load_model, load_model_with_lora
 from intellifl.network_models.dynamic_cnn import DynamicCNN
+from intellifl.network_models.transformer_models import load_model, load_model_with_lora
 from intellifl.simulation_strategies.arkrum_strategy import ArKrumStrategy
 from intellifl.simulation_strategies.bulyan_strategy import BulyanStrategy
 from intellifl.simulation_strategies.fedavg_strategy import FedAvgStrategy
@@ -522,9 +522,9 @@ class FederatedSimulation:
 
         if aggregation_strategy_keyword == "trust":
             self._aggregation_strategy = TrustBasedRemovalStrategy(
-                beta_value=self.strategy_config.beta_value,  # type: ignore[arg-type]
-                trust_threshold=self.strategy_config.trust_threshold,  # type: ignore[arg-type]
-                **common_kwargs,  # type: ignore[arg-type]
+                beta_value=self.strategy_config.beta_value,
+                trust_threshold=self.strategy_config.trust_threshold,
+                **common_kwargs,
             )
         elif aggregation_strategy_keyword in (
             "pid",
@@ -533,57 +533,57 @@ class FederatedSimulation:
             "pid_standardized_score_based",
         ):
             self._aggregation_strategy = PIDBasedRemovalStrategy(
-                ki=self.strategy_config.Ki,  # type: ignore[arg-type]
-                kp=self.strategy_config.Kp,  # type: ignore[arg-type]
-                kd=self.strategy_config.Kd,  # type: ignore[arg-type]
-                num_std_dev=self.strategy_config.num_std_dev,  # type: ignore[arg-type]
+                ki=self.strategy_config.Ki,
+                kp=self.strategy_config.Kp,
+                kd=self.strategy_config.Kd,
+                num_std_dev=self.strategy_config.num_std_dev,
                 network_model=self._network_model,
                 aggregation_strategy_keyword=aggregation_strategy_keyword,
                 use_lora=bool(
                     getattr(self.strategy_config, "use_llm", None)
                     and getattr(self.strategy_config, "llm_finetuning", None) == "lora"
                 ),
-                **common_kwargs,  # type: ignore[arg-type]
+                **common_kwargs,
             )
         elif aggregation_strategy_keyword == "krum":
             self._aggregation_strategy = KrumBasedRemovalStrategy(
-                num_malicious_clients=self.strategy_config.num_of_malicious_clients,  # type: ignore[arg-type]
-                num_krum_selections=self.strategy_config.num_krum_selections,  # type: ignore[arg-type]
-                **common_kwargs,  # type: ignore[arg-type]
+                num_malicious_clients=self.strategy_config.num_of_malicious_clients,
+                num_krum_selections=self.strategy_config.num_krum_selections,
+                **common_kwargs,
             )
         elif aggregation_strategy_keyword == "multi-krum-based":
             self._aggregation_strategy = MultiKrumBasedRemovalStrategy(
-                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,  # type: ignore[arg-type]
-                num_krum_selections=self.strategy_config.num_krum_selections,  # type: ignore[arg-type]
-                **common_kwargs,  # type: ignore[arg-type]
+                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
+                num_krum_selections=self.strategy_config.num_krum_selections,
+                **common_kwargs,
             )
         elif aggregation_strategy_keyword == "multi-krum":
             self._aggregation_strategy = MultiKrumStrategy(
-                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,  # type: ignore[arg-type]
-                num_krum_selections=self.strategy_config.num_krum_selections,  # type: ignore[arg-type]
-                **common_kwargs,  # type: ignore[arg-type]
+                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
+                num_krum_selections=self.strategy_config.num_krum_selections,
+                **common_kwargs,
             )
         elif aggregation_strategy_keyword == "trimmed_mean":
             self._aggregation_strategy = TrimmedMeanBasedRemovalStrategy(
-                trim_ratio=self.strategy_config.trim_ratio,  # type: ignore[arg-type]
-                **common_kwargs,  # type: ignore[arg-type]
+                trim_ratio=self.strategy_config.trim_ratio,
+                **common_kwargs,
             )
 
         elif aggregation_strategy_keyword == "rfa":
             self._aggregation_strategy = RFABasedRemovalStrategy(
-                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,  # type: ignore[arg-type]
-                **common_kwargs,  # type: ignore[arg-type]
+                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
+                **common_kwargs,
             )
 
         elif aggregation_strategy_keyword == "bulyan":
             self._aggregation_strategy = BulyanStrategy(
-                num_krum_selections=self.strategy_config.num_krum_selections,  # type: ignore[arg-type]
-                **common_kwargs,  # type: ignore[arg-type]
+                num_krum_selections=self.strategy_config.num_krum_selections,
+                **common_kwargs,
             )
 
         elif aggregation_strategy_keyword == "arkrum":
             self._aggregation_strategy = ArKrumStrategy(
-                **common_kwargs,  # type: ignore[arg-type]
+                **common_kwargs,
             )
 
         elif aggregation_strategy_keyword == "fedavg":
