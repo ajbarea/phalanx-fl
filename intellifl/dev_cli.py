@@ -308,7 +308,11 @@ def main(argv: list[str] | None = None) -> int:
         print_help()
         return 2
 
-    return run_task(parsed.command, parsed.args)
+    try:
+        return run_task(parsed.command, parsed.args)
+    except KeyboardInterrupt:
+        print("\n[INTERRUPT] Operation cancelled by user", file=sys.stderr)
+        return 130
 
 
 if __name__ == "__main__":
