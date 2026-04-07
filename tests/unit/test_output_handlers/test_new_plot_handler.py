@@ -236,9 +236,7 @@ class TestPlotHandler:
         config = StrategyConfig(
             aggregation_strategy_keyword="fedavg",
             dataset_keyword=None,
-            remove_clients=None,
             num_of_clients=None,
-            num_of_malicious_clients=None,
             num_of_client_epochs=None,
             batch_size=None,
         )

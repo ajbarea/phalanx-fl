@@ -42,14 +42,22 @@ class TestStrategyConfig:
         assert config.save_plots is True
         assert config.save_csv is False
 
-    def test_init_with_none_values(self):
-        """Test initialization with None values."""
+    def test_init_with_default_values(self):
+        """Test initialization uses sensible defaults for strategy parameters."""
         config = StrategyConfig()
 
         assert config.aggregation_strategy_keyword is None
         assert config.num_of_rounds is None
         assert config.num_of_clients is None
-        assert config.trust_threshold is None
+        assert config.trust_threshold == 0.1
+        assert config.remove_clients is False
+        assert config.begin_removing_from_round == 0
+        assert config.min_fit_clients == 2
+        assert config.Ki == 1.0
+        assert config.Kd == 0.0
+        assert config.num_of_malicious_clients == 1
+        assert config.num_krum_selections == 2
+        assert config.trim_ratio == 0.1
 
     def test_init_with_mixed_parameters(self):
         """Test initialization with mixed parameter types."""
