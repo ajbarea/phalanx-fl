@@ -54,6 +54,7 @@ def _check_and_warn_overflow(
             logger.error(f"{attack_type}: param[{i}] contains NaN/Inf values!")
     return params
 
+
 # ---------------------------------------------------------------------------
 # Attack type registry
 # ---------------------------------------------------------------------------
