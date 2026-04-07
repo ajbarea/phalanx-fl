@@ -53,9 +53,9 @@ def parse_pytest_summary(output: str) -> str:
     Returns:
         Summary string like '2155 passed, 2 skipped in 48.98s'.
     """
-    match = re.search(r"=+ (.+?) =+\s*$", output, re.MULTILINE)
-    if match:
-        return match.group(1).strip()
+    matches = re.findall(r"=+ (.+?) =+\s*$", output, re.MULTILINE)
+    if matches:
+        return matches[-1].strip()
     for line in reversed(output.splitlines()):
         if any(kw in line for kw in ("passed", "failed", "error")):
             return line.strip()
@@ -84,8 +84,7 @@ def main() -> int:
                 "pytest",
                 "tests/unit/",
                 "-n",
-                "auto",
-                "--tb=short",
+                "logical",
                 "-q",
                 "--no-header",
                 "--cov=intellifl",
@@ -99,7 +98,6 @@ def main() -> int:
                 "-m",
                 "pytest",
                 "tests/integration/",
-                "--tb=short",
                 "-q",
                 "--no-header",
                 "--cov=intellifl",
@@ -114,7 +112,6 @@ def main() -> int:
                 "-m",
                 "pytest",
                 "tests/performance/",
-                "--tb=short",
                 "-q",
                 "--no-header",
                 "--cov=intellifl",
@@ -126,10 +123,14 @@ def main() -> int:
     ]
 
     results: list[tuple[str, bool, str]] = []
-    for i, (cmd, description) in enumerate(suites, 1):
-        print(f"\n[{i}/{len(suites)}] {description}...")
-        passed, output = run_suite(cmd, description)
-        results.append((description, passed, output))
+    try:
+        for i, (cmd, description) in enumerate(suites, 1):
+            print(f"\n[{i}/{len(suites)}] {description}...")
+            passed, output = run_suite(cmd, description)
+            results.append((description, passed, output))
+    except KeyboardInterrupt:
+        print("\n[INTERRUPT] Test run cancelled by user", file=sys.stderr)
+        return 130
 
     # Summary
     passed_count = sum(1 for _, p, _ in results if p)
