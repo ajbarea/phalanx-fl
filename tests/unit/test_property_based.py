@@ -1,12 +1,10 @@
 """Property-based tests using Hypothesis for FL aggregation invariants.
 
-Note: pyright reports errors when Hypothesis is not installed because `st` is None.
-These tests are skipped via pytestmark when Hypothesis is unavailable.
+These tests are skipped at module level when Hypothesis is not installed.
 """
 
 from __future__ import annotations
 
-# pyright: reportOptionalMemberAccess=false
 import numpy as np
 import pytest
 
@@ -17,17 +15,10 @@ try:
     HYPOTHESIS_AVAILABLE = True
 except ImportError:
     HYPOTHESIS_AVAILABLE = False
-
-    def _dummy_decorator(*args, **kwargs):
-        def wrapper(f):
-            return f
-
-        return wrapper
-
-    given = _dummy_decorator
-    settings = _dummy_decorator  # type: ignore[misc,assignment]
-    st = None  # type: ignore[misc,assignment]
-    HealthCheck = None  # type: ignore[misc,assignment]  # noqa: N806
+    given = None  # type: ignore[assignment]
+    settings = None  # type: ignore[assignment]
+    st = None  # type: ignore[assignment]
+    HealthCheck = None  # type: ignore[assignment]  # noqa: N806
 
 
 if not HYPOTHESIS_AVAILABLE:
