@@ -184,9 +184,3 @@ Full docs at **[ajbarea.github.io/phalanx-fl](https://ajbarea.github.io/phalanx-
 [![codecov sunburst](https://codecov.io/gh/ajbarea/phalanx-fl/graphs/sunburst.svg?token=NTyqWs5w9l)](https://app.codecov.io/gh/ajbarea/phalanx-fl)
 
 </div>
-
----
-
-<div align="center">
-<sub>Built by <a href="https://github.com/ajbarea">AJ Barea</a></sub>
-</div>
