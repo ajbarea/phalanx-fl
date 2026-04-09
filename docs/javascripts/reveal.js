@@ -1,14 +1,19 @@
 /* Scroll-reveal for landing page sections and hero-page body class */
-document.addEventListener("DOMContentLoaded", function () {
+function setupReveal() {
   /* Mark the homepage so CSS can target it (hide default footer, etc.) */
   if (document.querySelector(".hero")) {
     document.documentElement.classList.add("hero-page");
     document.body.classList.add("hero-page");
   }
 
-  /* IntersectionObserver — fade-in landing sections on scroll */
+  /* Reset and re-observe landing sections */
   var sections = document.querySelectorAll(".landing-section");
   if (!sections.length) return;
+
+  /* Clear visible class so animations replay */
+  sections.forEach(function (section) {
+    section.classList.remove("visible");
+  });
 
   var observer = new IntersectionObserver(
     function (entries) {
@@ -25,4 +30,11 @@ document.addEventListener("DOMContentLoaded", function () {
   sections.forEach(function (section) {
     observer.observe(section);
   });
-});
+}
+
+/* Material theme's instant navigation uses document$ RxJS observable */
+if (typeof document$ !== "undefined") {
+  document$.subscribe(setupReveal);
+} else {
+  document.addEventListener("DOMContentLoaded", setupReveal);
+}
