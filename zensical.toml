@@ -61,14 +61,14 @@ features = [
 # Color palette — light/dark toggle
 # ---------------------------------------------------------------------------
 [[project.theme.palette]]
-scheme = "default"
+scheme = "slate"
 primary = "teal"
 accent = "deep-purple"
 toggle.icon = "lucide/sun"
 toggle.name = "Switch to dark mode"
 
 [[project.theme.palette]]
-scheme = "slate"
+scheme = "default"
 primary = "teal"
 accent = "deep-purple"
 toggle.icon = "lucide/moon"
