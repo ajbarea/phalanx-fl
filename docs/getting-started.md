@@ -259,3 +259,14 @@ If you see "Address already in use", either:
     ```
 
     HuggingFace datasets are cached in `cache/huggingface/` (configurable via `HF_HOME` env var).
+
+??? question "Frontend linting or npm errors (missing modules)"
+
+    If ESLint fails with "Cannot find module" or npm operations fail mysteriously, `node_modules` may be corrupted (especially on WSL or cross-filesystem setups):
+
+    ```bash
+    rm -rf frontend/node_modules
+    npm install
+    ```
+
+    This clears and reinstalls from `package-lock.json`. A plain `npm install` won't fix corruption because npm caches metadata — a full delete is required.
