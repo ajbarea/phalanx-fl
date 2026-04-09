@@ -1,40 +1,52 @@
 name: Documentation
-'on':
+
+on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Install Dependencies
+        run: uv sync --group dev --frozen
+
+      - name: Build Documentation
+        run: uv run zensical build --clean
+
       - name: Configure Pages
         uses: actions/configure-pages@v6
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-      - name: Cache pip packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: docs-pip-${{ runner.os }}-zensical
-      - name: Install Zensical
-        run: pip install zensical
-      - name: Build Documentation
-        run: zensical build --clean
+
       - name: Upload Artifact
         uses: actions/upload-pages-artifact@v4
         with:
           path: site
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
   deploy:
     needs: build
