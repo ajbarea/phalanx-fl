@@ -37,7 +37,7 @@ def setup_logger(name: str, log_file: str | None = None) -> logging.Logger:
             log_path = Path("logs") / log_path.name
 
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        file_handler = logging.FileHandler(log_path, encoding="utf-8")
+        file_handler = logging.FileHandler(log_path, encoding="utf-8", mode="w")
         file_handler.setLevel(logging.DEBUG)
         file_formatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -45,9 +45,6 @@ def setup_logger(name: str, log_file: str | None = None) -> logging.Logger:
         )
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
-
-        # Only log initialization message on first write to this file
-        if not log_path.exists() or log_path.stat().st_size == 0:
-            logger.debug(f"Logging to {log_path}")
+        logger.debug(f"Logging to {log_path}")
 
     return logger
