@@ -26,6 +26,7 @@ class DirectoryHandler:
             if output_dir
             else Path(f"out/{datetime.datetime.now().strftime('%m-%d-%Y_%H-%M-%S_%f')}")
         )
+        base = base.resolve()
         self.dirname = str(base)
         self.new_plots_dirname = self.dirname
         self.new_csv_dirname = str(base / "csv")
@@ -40,7 +41,7 @@ class DirectoryHandler:
     def assign_dataset_dir(self, strategy_number):
         """Create and set dataset directory for the strategy."""
         assert self.dirname is not None
-        dataset_path = Path(self.dirname) / f"dataset_{strategy_number}"
+        dataset_path = (Path(self.dirname) / f"dataset_{strategy_number}").resolve()
         dataset_path.mkdir(exist_ok=True)
         self.dataset_dir = str(dataset_path)
 
