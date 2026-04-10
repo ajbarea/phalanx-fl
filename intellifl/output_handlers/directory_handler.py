@@ -45,14 +45,16 @@ class DirectoryHandler:
         dataset_path.mkdir(exist_ok=True)
         self.dataset_dir = str(dataset_path)
 
-    def save_csv_and_config(self, simulation_strategy_history: SimulationStrategyHistory) -> None:
+    def save_csv_and_config(
+        self, simulation_strategy_history: SimulationStrategyHistory, total_strategies: int = 1
+    ) -> None:
         """
         Save per-client, per-round and per-execution metrics to CSV files, as well as simulation strategy config.
         """
 
         self.simulation_strategy_history = simulation_strategy_history
 
-        self._save_simulation_config()
+        self._save_simulation_config(total_strategies)
         self._save_per_client_to_csv()
         self._save_per_round_to_csv()
         self._save_per_execution_to_csv()
@@ -60,8 +62,11 @@ class DirectoryHandler:
         self._save_citation_bib()
         self._save_reproducibility_manifest()
 
-    def _save_simulation_config(self):
+    def _save_simulation_config(self, total_strategies: int):
         """Save simulation config to current directory"""
+        if total_strategies <= 1:
+            return
+
         assert self.simulation_strategy_history is not None
 
         config_dict = self.simulation_strategy_history.strategy_config.__dict__.copy()

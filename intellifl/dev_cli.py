@@ -177,15 +177,8 @@ TASK_GROUPS: tuple[tuple[str, tuple[tuple[str, Task], ...]], ...] = (
             (
                 "audit",
                 Task(
-                    description="Audit dependencies for security vulnerabilities",
+                    description="Auto-fix and audit security vulnerabilities (backend + frontend)",
                     command_factory=lambda: python_script("scripts", "audit.py"),
-                ),
-            ),
-            (
-                "frontend-audit",
-                Task(
-                    description="Fix frontend security vulnerabilities",
-                    command_factory=lambda: python_script("scripts", "frontend_audit.py"),
                 ),
             ),
         ),
@@ -193,13 +186,6 @@ TASK_GROUPS: tuple[tuple[str, tuple[tuple[str, Task], ...]], ...] = (
     (
         "Maintenance",
         (
-            (
-                "deps",
-                Task(
-                    description="Show dependency tree",
-                    command_factory=lambda: python_script("scripts", "deps.py"),
-                ),
-            ),
             (
                 "clean",
                 Task(
@@ -212,20 +198,6 @@ TASK_GROUPS: tuple[tuple[str, tuple[tuple[str, Task], ...]], ...] = (
                 Task(
                     description="Clean artifacts AND experiment results",
                     command_factory=lambda: python_script("scripts", "clean_build.py") + ["--out"],
-                ),
-            ),
-            (
-                "cache-dir",
-                Task(
-                    description="Show uv's cache directory",
-                    command_factory=lambda: ["uv", "cache", "dir"],
-                ),
-            ),
-            (
-                "cache-prune",
-                Task(
-                    description="Prune unused entries from uv's cache",
-                    command_factory=lambda: ["uv", "cache", "prune"],
                 ),
             ),
         ),
@@ -311,8 +283,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return run_task(parsed.command, parsed.args)
     except KeyboardInterrupt:
+        # Subprocess already handled signal; exit cleanly
         print("\n[INTERRUPT] Operation cancelled by user", file=sys.stderr)
-        return 130
+        return 0
 
 
 if __name__ == "__main__":

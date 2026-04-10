@@ -15,7 +15,7 @@ from pathlib import Path
 
 from logging_utils import setup_logger
 
-logger = setup_logger(__name__, "logs/setup.log")
+logger = setup_logger(__name__, "setup_datasets.log")
 
 DATASET_URL = "https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar"
 
