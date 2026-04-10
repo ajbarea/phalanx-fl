@@ -27,11 +27,17 @@ class RayConfig:
             "logging_level": logging.WARNING,
         }
 
-        # Suppress Ray 2.0+ accelerator warning for cleaner output
+        # Suppress Ray 2.0+ accelerator warning
         os.environ["RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO"] = "0"
 
+        # Suppress Ray's warning about ignoring .git and .venv by default
+        os.environ["RAY_OVERRIDE_RUNTIME_ENV_DEFAULT_EXCLUDES"] = ""
+
+        # Unset VIRTUAL_ENV before Ray sees it to avoid mismatch warnings
+        os.environ.pop("VIRTUAL_ENV", None)
+
         # Ray log levels: debug=0, info=1, warning=2, error=3, fatal=4
-        os.environ.setdefault("RAY_BACKEND_LOG_LEVEL", "fatal")
+        os.environ.setdefault("RAY_BACKEND_LOG_LEVEL", "error")
 
         logger.debug(f"Platform detected: {platform.system()}")
 

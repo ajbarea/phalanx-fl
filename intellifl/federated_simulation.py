@@ -12,10 +12,8 @@ import torch.nn as nn
 from flwr.client import Client, ClientApp
 from flwr.common import Context, ndarrays_to_parameters
 from flwr.server import ServerApp, ServerAppComponents, ServerConfig
-from flwr.simulation import run_simulation
 
 from intellifl.attack_utils.snapshot_html_reports import (
-    generate_main_dashboard,
     generate_snapshot_index,
     generate_summary_json,
 )
@@ -81,6 +79,53 @@ if TYPE_CHECKING:
     from torch.utils.data import DataLoader
 
     from intellifl.output_handlers.directory_handler import DirectoryHandler
+
+
+def run_simulation(
+    server_app: ServerApp,
+    client_app: ClientApp,
+    num_supernodes: int,
+    backend_name: str = "ray",
+    backend_config: dict[str, dict[str, Any]] | None = None,
+    enable_tf_gpu_growth: bool = False,
+    verbose_logging: bool = False,
+) -> None:
+    """Run Flower simulation without relying on deprecated public shim when possible.
+
+    Flower is deprecating `flwr.simulation.run_simulation` in favor of `flwr run`.
+    Until InteFL fully migrates to CLI-managed runs, call the underlying
+    simulation engine entrypoint used by Flower CLI and fall back for compatibility.
+    """
+    try:
+        from flwr.common.telemetry import EventType
+        from flwr.simulation.run_simulation import _run_simulation
+
+        _run_simulation(
+            num_supernodes=num_supernodes,
+            client_app=client_app,
+            server_app=server_app,
+            backend_name=backend_name,
+            backend_config=backend_config,
+            enable_tf_gpu_growth=enable_tf_gpu_growth,
+            verbose_logging=verbose_logging,
+            exit_event=EventType.PYTHON_API_RUN_SIMULATION_LEAVE,
+        )
+        return
+    except (ImportError, AttributeError, TypeError):
+        # Compatibility fallback for Flower versions where internals differ.
+        pass
+
+    from flwr.simulation import run_simulation as _flwr_run_simulation
+
+    _flwr_run_simulation(
+        server_app=server_app,
+        client_app=client_app,
+        num_supernodes=num_supernodes,
+        backend_name=backend_name,
+        backend_config=backend_config,
+        enable_tf_gpu_growth=enable_tf_gpu_growth,
+        verbose_logging=verbose_logging,
+    )
 
 
 def get_hf_dataset_config(dataset_keyword: str) -> dict:
@@ -235,7 +280,7 @@ class FederatedSimulation:
         self._assign_all_properties()
 
     def run_simulation(self) -> None:
-        """Execute federated simulation using Flower's run_simulation API."""
+        """Execute federated simulation using Flower's simulation engine."""
         self.gpu_monitor.log_memory_usage("before simulation start")
 
         assert self.strategy_config.num_of_clients is not None, "num_of_clients must be set"
@@ -243,8 +288,6 @@ class FederatedSimulation:
         assert self.strategy_config.cpus_per_client is not None, "cpus_per_client must be set"
         assert self.strategy_config.gpus_per_client is not None, "gpus_per_client must be set"
 
-        # Research: Flower 1.13+ deprecates start_simulation() in favor of App wrappers
-        # https://flower.ai/docs/framework/how-to-upgrade-to-flower-1.13.html
         client_app = ClientApp(client_fn=self.client_fn)
 
         strategy = self._aggregation_strategy
@@ -258,8 +301,6 @@ class FederatedSimulation:
 
         server_app = ServerApp(server_fn=server_fn)
 
-        # Research: run_simulation replaces deprecated start_simulation (Flower 1.11+)
-        # https://flower.ai/docs/framework/how-to-run-simulations.html
         # num_supernodes = number of virtual clients; backend_config sets resource allocation
         run_simulation(
             server_app=server_app,
@@ -294,10 +335,6 @@ class FederatedSimulation:
                         )
                     except Exception as e:
                         logging.warning(f"Failed to generate attack snapshot index/summary: {e}")
-                try:
-                    generate_main_dashboard(output_dir)
-                except Exception as e:
-                    logging.warning(f"Failed to generate main dashboard: {e}")
 
     def _assign_all_properties(self) -> None:
         """Initialize dataset loaders, network model, and aggregation strategy."""
@@ -642,7 +679,7 @@ class FederatedSimulation:
         attack_snapshot_format = getattr(
             self.strategy_config, "attack_snapshot_format", "pickle_and_visual"
         )
-        snapshot_max_samples = getattr(self.strategy_config, "snapshot_max_samples", 5)
+        snapshot_max_samples = getattr(self.strategy_config, "snapshot_max_samples", 6)
 
         experiment_info: dict[str, Any] | None = None
         if output_dir:

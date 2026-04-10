@@ -82,6 +82,7 @@ signal.signal(signal.SIGINT, _handle_shutdown_signal)
 if hasattr(signal, "SIGTERM"):  # SIGTERM not available on Windows in all contexts
     signal.signal(signal.SIGTERM, _handle_shutdown_signal)
 
+from intellifl.attack_utils.snapshot_html_reports import generate_main_dashboard
 from intellifl.config_loaders.config_loader import ConfigLoader
 from intellifl.data_models.simulation_strategy_config import StrategyConfig
 from intellifl.dataset_handlers.dataset_handler import DatasetHandler
@@ -91,7 +92,6 @@ from intellifl.output_handlers.directory_handler import DirectoryHandler
 from intellifl.utils.ray_logger import (
     RaySimulationMonitor,
     check_ray_cluster_health,
-    log_ray_worker_event,
 )
 from intellifl.utils.status_tracker import StatusTracker
 
@@ -263,16 +263,6 @@ class SimulationRunner:
                     strategy_start_time = time.time()
 
                     try:
-                        # Log strategy start event
-                        log_ray_worker_event(
-                            event_type="STRATEGY_START",
-                            extra_info={
-                                "strategy_number": strategy_number,
-                                "total_strategies": total_strategies,
-                                "simulation_id": simulation_id,
-                            },
-                        )
-
                         logging.info(
                             "\n"
                             + "-" * 50
@@ -313,32 +303,23 @@ class SimulationRunner:
 
                         simulation_strategy.strategy_history.calculate_additional_rounds_data()
                         self._directory_handler.save_csv_and_config(
-                            simulation_strategy.strategy_history
+                            simulation_strategy.strategy_history, total_strategies
                         )
 
+                        # Generate main dashboard
+                        assert self._directory_handler.dirname is not None
+                        try:
+                            generate_main_dashboard(self._directory_handler.dirname)
+                        except Exception as dash_err:
+                            logging.warning(f"Failed to generate main dashboard: {dash_err}")
+
                         strategy_duration = time.time() - strategy_start_time
-                        ray_monitor.record_round(strategy_number, strategy_duration)
-                        log_ray_worker_event(
-                            event_type="STRATEGY_COMPLETE",
-                            extra_info={
-                                "strategy_number": strategy_number,
-                                "duration_seconds": f"{strategy_duration:.2f}",
-                                "simulation_id": simulation_id,
-                            },
-                        )
+                        num_fl_rounds = strategy_config_dict.get("num_of_rounds", 0)
+                        ray_monitor.record_round(strategy_number, strategy_duration, num_fl_rounds)
 
                     except Exception as strategy_error:
                         # Log strategy-level errors
                         ray_monitor.record_error(strategy_error, strategy_number)
-                        log_ray_worker_event(
-                            event_type="STRATEGY_ERROR",
-                            error_message=str(strategy_error),
-                            extra_info={
-                                "strategy_number": strategy_number,
-                                "error_type": type(strategy_error).__name__,
-                                "simulation_id": simulation_id,
-                            },
-                        )
                         raise
 
                     finally:
@@ -348,15 +329,6 @@ class SimulationRunner:
 
                         if ray.is_initialized():
                             health = check_ray_cluster_health()
-                            if health.get("dead_nodes", 0) > 0:
-                                log_ray_worker_event(
-                                    event_type="CLUSTER_DEGRADED",
-                                    extra_info={
-                                        "dead_nodes": health.get("dead_nodes"),
-                                        "alive_nodes": health.get("alive_nodes"),
-                                        "simulation_id": simulation_id,
-                                    },
-                                )
                             logging.debug(f"Ray cluster health before shutdown: {health}")
 
                         # Prevent errors in multi-strategy runs
