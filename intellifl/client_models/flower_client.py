@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import logging
 from collections import OrderedDict
 from pathlib import Path
@@ -40,7 +41,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
         attacks_schedule=None,
         save_attack_snapshots=False,
         attack_snapshot_format="pickle_and_visual",
-        snapshot_max_samples=5,
+        snapshot_max_samples=6,
         output_dir=None,
         experiment_info=None,
         strategy_number=0,
@@ -277,7 +278,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
     def _get_predictions(self, images: torch.Tensor, top_k: int = 5) -> tuple:
         """Run inference and return top-K predictions plus full probabilities."""
         self.net.eval()
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = self.net(images.to(self.training_device))
             probs = torch.softmax(outputs, dim=1)
             top_confs, top_preds = probs.topk(top_k, dim=1)
@@ -336,8 +337,8 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                     )
 
                     if should_poison and attack_configs:
-                        original_images = images.clone()
-                        original_labels = labels.clone()
+                        original_images = images.detach().clone()
+                        original_labels = labels.detach().clone()
 
                         for attack_config in attack_configs:
                             if is_weight_attack(attack_config.get("attack_type", "")):
@@ -355,10 +356,10 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                                 cnn_snapshot_fallback = {
                                     "current_round": current_round,
                                     "attack_configs": attack_configs,
-                                    "data_sample": images.clone(),
-                                    "labels_sample": labels.clone(),
-                                    "original_data_sample": original_images.clone(),
-                                    "original_labels_sample": original_labels.clone(),
+                                    "data_sample": images.detach(),
+                                    "labels_sample": labels.detach(),
+                                    "original_data_sample": original_images,
+                                    "original_labels_sample": original_labels,
                                 }
 
                             changed_mask = self._compute_changed_sample_mask(
@@ -400,6 +401,11 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                 if epoch == 0 and not snapshot_saved and cnn_snapshot_fallback is not None:
                     self._save_attack_snapshots(**cnn_snapshot_fallback)
                     snapshot_saved = True
+                # Free fallback dict and originals after epoch 0 — no longer needed
+                if epoch == 0:
+                    del cnn_snapshot_fallback
+                    cnn_snapshot_fallback = None
+                    gc.collect()
 
             return float(epoch_loss), float(epoch_acc)
 
@@ -422,8 +428,8 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                         current_round, self.client_id, self.attacks_schedule
                     )
                     if should_poison and attack_configs:
-                        original_input_ids = batch["input_ids"].clone()
-                        original_labels = batch["labels"].clone()
+                        original_input_ids = batch["input_ids"].detach().clone()
+                        original_labels = batch["labels"].detach().clone()
 
                         for attack_config in attack_configs:
                             if attack_config.get("attack_type") == "token_replacement":
@@ -439,10 +445,10 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                                 transformer_snapshot_fallback = {
                                     "current_round": current_round,
                                     "attack_configs": attack_configs,
-                                    "data_sample": batch["input_ids"].clone(),
-                                    "labels_sample": batch["labels"].clone(),
-                                    "original_data_sample": original_input_ids.clone(),
-                                    "original_labels_sample": original_labels.clone(),
+                                    "data_sample": batch["input_ids"].detach(),
+                                    "labels_sample": batch["labels"].detach(),
+                                    "original_data_sample": original_input_ids,
+                                    "original_labels_sample": original_labels,
                                 }
 
                             changed_mask = self._compute_changed_sample_mask(
@@ -504,6 +510,11 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                 if epoch == 0 and not snapshot_saved and transformer_snapshot_fallback is not None:
                     self._save_attack_snapshots(**transformer_snapshot_fallback)
                     snapshot_saved = True
+                # Free fallback dict and originals after epoch 0 — no longer needed
+                if epoch == 0:
+                    del transformer_snapshot_fallback
+                    transformer_snapshot_fallback = None
+                    gc.collect()
                 logging.debug(
                     f"[Client {self.client_id}] Epoch {epoch + 1} complete - Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.4f}"
                 )
@@ -534,7 +545,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
             net.eval()
             num_classes = self._get_num_classes(net)
 
-            with torch.no_grad():
+            with torch.inference_mode():
                 for images, labels in testloader:
                     should_poison, attack_configs = should_poison_this_round(
                         current_round, self.client_id, self.attacks_schedule
@@ -571,7 +582,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
             total_loss: float = 0.0
             correct, total = 0, 0
 
-            with torch.no_grad():
+            with torch.inference_mode():
                 for batch in testloader:
                     should_poison, attack_configs = should_poison_this_round(
                         current_round, self.client_id, self.attacks_schedule
@@ -674,6 +685,8 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
             sample_images = None
             preds_before = None
             probs_before = None
+            preds_after = None
+            probs_after = None
             sample_labels = None
 
             if self.save_attack_snapshots and self.output_dir:
@@ -744,6 +757,22 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                             )
                         except Exception as e:
                             logging.warning(f"Failed to save weight attack prediction grid: {e}")
+
+            # Clean up weight poisoning intermediate data after snapshots are saved
+            # Keep poisoned_parameters since it's returned, but free other temporaries
+            if params_before is not None:
+                del params_before
+            if sample_images is not None:
+                del sample_images
+            if preds_before is not None:
+                del preds_before
+            if probs_before is not None:
+                del probs_before
+            if preds_after is not None:
+                del preds_after
+            if probs_after is not None:
+                del probs_after
+            gc.collect()
 
             return (
                 poisoned_parameters,
