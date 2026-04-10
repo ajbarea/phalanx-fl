@@ -21,68 +21,21 @@ import ray
 ray_logger = logging.getLogger("ray.worker")
 
 
-class RayLogHandler(logging.Handler):
-    """Custom log handler that captures Ray worker events to a file."""
-
-    def __init__(self, log_dir: Path, simulation_id: str):
-        super().__init__()
-        self.log_dir = log_dir
-        self.simulation_id = simulation_id
-        self.log_file = log_dir / f"ray_worker_{simulation_id}.log"
-
-        # Ensure log directory exists
-        self.log_dir.mkdir(parents=True, exist_ok=True)
-
-        # Create file handler
-        self.file_handler = logging.FileHandler(self.log_file, mode="a")
-        self.file_handler.setFormatter(
-            logging.Formatter(
-                "%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S",
-            )
-        )
-
-    def emit(self, record: logging.LogRecord) -> None:
-        """Emit a log record to the file."""
-        self.file_handler.emit(record)
-
-    def close(self) -> None:
-        """Close the file handler."""
-        self.file_handler.close()
-        super().close()
-
-
 def configure_ray_logging(
     output_dir: Path,
     simulation_id: str,
     log_level: str = "DEBUG",
-) -> RayLogHandler:
+):
     """
-    Configure Ray logging to capture worker events.
+    Configure Ray logging to capture worker events into logs.
 
     Args:
         output_dir: Directory to save Ray logs
         simulation_id: Unique identifier for this simulation run
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
-
-    Returns:
-        RayLogHandler instance for cleanup
     """
-    # Create custom handler for Ray events
-    handler = RayLogHandler(output_dir, simulation_id)
-    handler.setLevel(getattr(logging, log_level))
-
-    # Add handler to Ray's logger
-    ray_logger.addHandler(handler)
     ray_logger.setLevel(getattr(logging, log_level))
-
-    # Also capture flwr.simulation logs which wrap Ray
-    flwr_logger = logging.getLogger("flwr.simulation")
-    flwr_logger.addHandler(handler)
-
-    logging.info(f"Ray logging configured. Log file: {handler.log_file}")
-
-    return handler
+    logging.info("Ray logging configured to inherit standard file handler.")
 
 
 def get_fault_tolerance_config(
@@ -192,7 +145,7 @@ def log_ray_worker_event(
         ray_logger.warning(f"[RAY_WORKER] {log_msg}")
         logging.warning(f"[RAY_WORKER] {log_msg}")
     else:
-        ray_logger.debug(f"[RAY_WORKER] {log_msg}")
+        ray_logger.info(f"[RAY_WORKER] {log_msg}")
 
 
 def check_ray_cluster_health() -> dict[str, Any]:
@@ -306,27 +259,37 @@ class RaySimulationMonitor:
     def __init__(self, output_dir: Path, simulation_id: str):
         self.output_dir = output_dir
         self.simulation_id = simulation_id
-        self.log_handler: RayLogHandler | None = None
         self.start_time: datetime | None = None
         self.round_times: list[float] = []
         self.errors: list[dict] = []
+        # Tracks the actual number of FL rounds (set via record_round)
+        self._total_fl_rounds: int = 0
 
     def start(self) -> None:
         """Start monitoring the simulation."""
         self.start_time = datetime.now()
-        self.log_handler = configure_ray_logging(self.output_dir, self.simulation_id, "INFO")
+        configure_ray_logging(self.output_dir, self.simulation_id, "INFO")
         log_ray_worker_event(
             event_type="SIMULATION_START",
             extra_info={"simulation_id": self.simulation_id},
         )
 
-    def record_round(self, round_num: int, duration_seconds: float) -> None:
-        """Record timing for a round."""
+    def record_round(self, round_num: int, duration_seconds: float, num_fl_rounds: int = 0) -> None:
+        """Record timing for a completed strategy.
+
+        Args:
+            round_num: Strategy index (0-based).
+            duration_seconds: Wall-clock time for this strategy.
+            num_fl_rounds: Number of FL rounds executed in this strategy (e.g. 10).
+        """
         self.round_times.append(duration_seconds)
+        if num_fl_rounds > 0:
+            self._total_fl_rounds += num_fl_rounds
         log_ray_worker_event(
-            event_type="ROUND_COMPLETE",
+            event_type="STRATEGY_COMPLETE",
             extra_info={
-                "round": round_num,
+                "strategy": round_num,
+                "fl_rounds": num_fl_rounds,
                 "duration_seconds": f"{duration_seconds:.2f}",
                 "simulation_id": self.simulation_id,
             },
@@ -360,16 +323,21 @@ class RaySimulationMonitor:
         # Get cluster health at end
         health = check_ray_cluster_health()
 
+        # avg_round_time is the per-FL-round average, not per-strategy average
+        total_fl_rounds = (
+            self._total_fl_rounds if self._total_fl_rounds > 0 else len(self.round_times)
+        )
+        avg_round_time = duration / total_fl_rounds if total_fl_rounds > 0 else 0
+
         summary = {
             "simulation_id": self.simulation_id,
             "success": success,
             "start_time": self.start_time.isoformat() if self.start_time else None,
             "end_time": end_time.isoformat(),
             "duration_seconds": duration,
-            "total_rounds": len(self.round_times),
-            "avg_round_time": sum(self.round_times) / len(self.round_times)
-            if self.round_times
-            else 0,
+            "total_rounds": total_fl_rounds,
+            "total_strategies": len(self.round_times),
+            "avg_round_time": avg_round_time,
             "total_errors": len(self.errors),
             "errors": self.errors,
             "cluster_health": health,
@@ -384,18 +352,5 @@ class RaySimulationMonitor:
                 "simulation_id": self.simulation_id,
             },
         )
-
-        # Save summary to file
-        summary_file = self.output_dir / f"ray_simulation_summary_{self.simulation_id}.json"
-        import json
-
-        with open(summary_file, "w") as f:
-            json.dump(summary, f, indent=2, default=str)
-
-        logging.debug(f"Ray simulation summary saved to: {summary_file}")
-
-        # Cleanup
-        if self.log_handler:
-            self.log_handler.close()
 
         return summary
