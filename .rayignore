@@ -1,0 +1,35 @@
+# Ray working_dir excludes
+# Explicitly listing these here suppresses the "ignored by default" WARNING
+# that Ray emits when it auto-excludes .git and .venv.
+# See: https://docs.ray.io/en/latest/ray-core/handling-dependencies.html
+
+# Version control — large pack files cause 512MB limit to be hit
+.git
+
+# Virtual environment — already installed on workers via pyproject.toml
+.venv
+venv
+
+# Build / cache artefacts
+__pycache__
+*.pyc
+*.pyo
+.ruff_cache
+.mypy_cache
+.pytest_cache
+.hypothesis
+.coverage
+htmlcov
+*.egg-info
+
+# Large runtime output dirs — not needed by workers
+out
+logs
+datasets
+.cache
+
+# Editor / tooling
+.vscode
+.idea
+.DS_Store
+node_modules

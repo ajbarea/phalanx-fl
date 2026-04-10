@@ -12,7 +12,7 @@
 ##   make <target>               Optional compatibility wrapper
 ##
 
-.PHONY: help setup upgrade yolo dev dev-down sim lint validate test audit clean reset docs deps check-env frontend-audit baselines cache-dir cache-prune
+.PHONY: help setup upgrade yolo dev dev-down sim lint validate test audit clean reset docs check-env baselines
 .DEFAULT_GOAL := help
 
 export UV_PROJECT_ENVIRONMENT ?= .venv
@@ -61,10 +61,7 @@ lint:                      ## Run code quality checks (ruff format, ruff check, 
 validate:                  ## Quick validation: lint + unit tests only (fast feedback)
 	@$(UV_DEV) validate
 
-frontend-audit:            ## Fix frontend security vulnerabilities
-	@$(UV_DEV) frontend-audit
-
-audit:                     ## Audit dependencies for security vulnerabilities
+audit:                     ## Auto-fix and audit security vulnerabilities (backend + frontend)
 	@$(UV_DEV) audit
 
 test:                      ## Run full test suite (unit + integration + performance)
@@ -85,15 +82,6 @@ reset:                     ## Clean artifacts AND experiment results
 
 docs:                      ## Serve documentation (Zensical)
 	@$(UV_DEV) docs
-
-deps:                      ## Show dependency tree
-	@$(UV_DEV) deps
-
-cache-dir:                 ## Show uv cache directory
-	@$(UV_DEV) cache-dir
-
-cache-prune:               ## Prune unused uv cache entries
-	@$(UV_DEV) cache-prune
 
 # ════════════════════════════════════════════════════════════════════════════
 # Help

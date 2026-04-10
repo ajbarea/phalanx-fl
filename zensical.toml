@@ -65,14 +65,14 @@ scheme = "slate"
 primary = "teal"
 accent = "deep-purple"
 toggle.icon = "lucide/sun"
-toggle.name = "Switch to dark mode"
+toggle.name = "Switch to light mode"
 
 [[project.theme.palette]]
 scheme = "default"
 primary = "teal"
 accent = "deep-purple"
 toggle.icon = "lucide/moon"
-toggle.name = "Switch to light mode"
+toggle.name = "Switch to dark mode"
 
 # ---------------------------------------------------------------------------
 # Fonts
