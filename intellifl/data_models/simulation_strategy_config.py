@@ -105,7 +105,7 @@ class StrategyConfig(BaseModel):
     save_csv: bool | None = None
     save_attack_snapshots: bool | None = None
     attack_snapshot_format: str = "pickle"
-    snapshot_max_samples: int = 5
+    snapshot_max_samples: int = 6
     training_device: str | None = None
     cpus_per_client: float | None = None
     gpus_per_client: float | None = None

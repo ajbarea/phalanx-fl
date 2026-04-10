@@ -163,8 +163,8 @@ def _add_attack_background_shading(
         added_attacks.add(attack_key)
 
         ax.axvspan(
-            entry["start_round"],
-            entry["end_round"],
+            entry["start_round"] - 0.4,
+            entry["end_round"] + 0.4,
             alpha=0.15,
             facecolor=ATTACK_COLORS.get(entry["attack_type"], "#dddddd"),
             hatch=ATTACK_HATCHES.get(entry["attack_type"], ""),

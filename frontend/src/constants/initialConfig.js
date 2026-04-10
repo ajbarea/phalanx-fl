@@ -64,7 +64,7 @@ export const initialConfig = {
   save_csv: true,
   save_attack_snapshots: false,
   attack_snapshot_format: 'pickle_and_visual',
-  snapshot_max_samples: 5,
+  snapshot_max_samples: 6,
   preserve_dataset: true,
   strict_mode: true,
 

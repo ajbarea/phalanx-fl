@@ -491,7 +491,9 @@ def generate_main_dashboard(output_dir: str) -> None:
         csv_files = sorted(output_path.glob("*.csv"))
 
     # Find config files
-    config_files = sorted(output_path.glob("strategy_config_*.json"))
+    config_files = sorted(output_path.glob("config.json")) + sorted(
+        output_path.glob("strategy_config_*.json")
+    )
 
     # Generate HTML
     html_content = _generate_main_dashboard_html(

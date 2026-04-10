@@ -63,7 +63,7 @@ export function OutputSettings({ config, onChange }) {
           <NumberField
             name="snapshot_max_samples"
             label="Max Snapshot Samples"
-            value={config.snapshot_max_samples || 5}
+            value={config.snapshot_max_samples || 6}
             onChange={onChange}
             min={1}
             max={50}

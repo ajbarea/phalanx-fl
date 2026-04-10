@@ -53,16 +53,27 @@ def _compute_weight_statistics(parameters: list[NDArray]) -> dict[str, float]:
     Returns:
         Dictionary with statistics (mean, std, min, max, l2_norm, sparsity).
     """
-    all_weights = np.concatenate([p.flatten() for p in parameters])
+    # Compute statistics incrementally without full concatenation
+    total_elements = sum(p.size for p in parameters)
+    running_sum = sum(float(np.sum(p)) for p in parameters)
+    running_sum_sq = sum(float(np.sum(p**2)) for p in parameters)
+    min_val = float(min(np.min(p) for p in parameters))
+    max_val = float(max(np.max(p) for p in parameters))
+    num_small = sum(int(np.sum(np.abs(p) < 1e-6)) for p in parameters)
+    l2_norm = float(np.sqrt(running_sum_sq))
+
+    mean = running_sum / total_elements
+    variance = (running_sum_sq / total_elements) - (mean**2)
+    std = float(np.sqrt(max(0, variance)))  # max() to avoid sqrt of negative due to numerical error
 
     return {
-        "mean": float(np.mean(all_weights)),
-        "std": float(np.std(all_weights)),
-        "min": float(np.min(all_weights)),
-        "max": float(np.max(all_weights)),
-        "l2_norm": float(np.linalg.norm(all_weights)),
-        "sparsity": float(np.mean(np.abs(all_weights) < 1e-6)),
-        "num_parameters": int(len(all_weights)),
+        "mean": mean,
+        "std": std,
+        "min": min_val,
+        "max": max_val,
+        "l2_norm": l2_norm,
+        "sparsity": float(num_small / total_elements),
+        "num_parameters": int(total_elements),
         "num_layers": len(parameters),
     }
 
@@ -88,16 +99,28 @@ def compute_weight_diff_statistics(
         - pct_changed: Percentage of weights that changed
     """
     diffs = [after - before for before, after in zip(params_before, params_after, strict=False)]
-    all_diffs = np.concatenate([d.flatten() for d in diffs])
+
+    # Compute incrementally without full concatenation
+    total_elements = sum(d.size for d in diffs)
+    running_sum = sum(float(np.sum(d)) for d in diffs)
+    running_sum_sq = sum(float(np.sum(d**2)) for d in diffs)
+    min_val = float(min(np.min(d) for d in diffs))
+    max_val = float(max(np.max(d) for d in diffs))
+    num_changed = sum(int(np.sum(np.abs(d) > 1e-10)) for d in diffs)
+    l2_norm = float(np.sqrt(running_sum_sq))
+
+    mean = running_sum / total_elements
+    variance = (running_sum_sq / total_elements) - (mean**2)
+    std = float(np.sqrt(max(0, variance)))
 
     return {
-        "diff_mean": float(np.mean(all_diffs)),
-        "diff_std": float(np.std(all_diffs)),
-        "diff_min": float(np.min(all_diffs)),
-        "diff_max": float(np.max(all_diffs)),
-        "diff_l2_norm": float(np.linalg.norm(all_diffs)),
-        "num_changed": int(np.sum(np.abs(all_diffs) > 1e-10)),
-        "pct_changed": float(np.mean(np.abs(all_diffs) > 1e-10) * 100),
+        "diff_mean": mean,
+        "diff_std": std,
+        "diff_min": min_val,
+        "diff_max": max_val,
+        "diff_l2_norm": l2_norm,
+        "num_changed": num_changed,
+        "pct_changed": float(num_changed / total_elements * 100),
     }
 
 
@@ -213,20 +236,35 @@ def _save_weight_histogram(
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    weights_before = np.concatenate([p.flatten() for p in params_before])
-    weights_after = np.concatenate([p.flatten() for p in params_after])
-
-    # Compute shared x-axis limits for consistent comparison
-    x_min = min(weights_before.min(), weights_after.min())
-    x_max = max(weights_before.max(), weights_after.max())
+    # Compute limits without full concatenation to save memory
+    x_min = min(p.min() for p in params_before + params_after)
+    x_max = max(p.max() for p in params_before + params_after)
     # Add small margin for visual padding
     x_margin = (x_max - x_min) * 0.02
     x_limits = (x_min - x_margin, x_max + x_margin)
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 4), layout="constrained")
 
-    axes[0].hist(
-        weights_before, bins=100, alpha=0.7, color="#3498db", edgecolor="none", density=True
+    # Use incremental histogram binning to avoid full concatenation
+    bin_edges = np.linspace(x_min, x_max, 101)  # 100 bins
+
+    # Panel 0: Before poisoning (incremental histogram)
+    counts_before = np.zeros(100)
+    for p in params_before:
+        layer_counts, _ = np.histogram(p.flatten(), bins=bin_edges)
+        counts_before += layer_counts
+
+    # Normalize for density
+    bin_width = bin_edges[1] - bin_edges[0]
+    total_elements = sum(p.size for p in params_before)
+    density_before = counts_before / (total_elements * bin_width)
+    axes[0].bar(
+        bin_edges[:-1],
+        density_before,
+        width=bin_width,
+        alpha=0.7,
+        color="#3498db",
+        edgecolor="none",
     )
     axes[0].set_title("Before Poisoning")
     axes[0].set_xlabel("Weight Value")
@@ -234,8 +272,16 @@ def _save_weight_histogram(
     axes[0].set_yscale("log")
     axes[0].set_xlim(x_limits)
 
-    axes[1].hist(
-        weights_after, bins=100, alpha=0.7, color="#e74c3c", edgecolor="none", density=True
+    # Panel 1: After poisoning (incremental histogram)
+    counts_after = np.zeros(100)
+    for p in params_after:
+        layer_counts, _ = np.histogram(p.flatten(), bins=bin_edges)
+        counts_after += layer_counts
+
+    total_elements = sum(p.size for p in params_after)
+    density_after = counts_after / (total_elements * bin_width)
+    axes[1].bar(
+        bin_edges[:-1], density_after, width=bin_width, alpha=0.7, color="#e74c3c", edgecolor="none"
     )
     axes[1].set_title("After Poisoning")
     axes[1].set_xlabel("Weight Value")
@@ -243,22 +289,23 @@ def _save_weight_histogram(
     axes[1].set_yscale("log")
     axes[1].set_xlim(x_limits)
 
-    axes[2].hist(
-        weights_before,
-        bins=100,
+    # Panel 2: Comparison (reuse computed histograms)
+    axes[2].bar(
+        bin_edges[:-1],
+        density_before,
+        width=bin_width,
         alpha=0.5,
         color="#3498db",
         edgecolor="none",
-        density=True,
         label="Before",
     )
-    axes[2].hist(
-        weights_after,
-        bins=100,
+    axes[2].bar(
+        bin_edges[:-1],
+        density_after,
+        width=bin_width,
         alpha=0.5,
         color="#e74c3c",
         edgecolor="none",
-        density=True,
         label="After",
     )
     axes[2].set_title("Comparison")
@@ -277,8 +324,10 @@ def _save_weight_histogram(
     )
 
     histogram_path = snapshot_dir / f"{attack_type}_weight_histogram.png"
-    plt.savefig(histogram_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
+    try:
+        plt.savefig(histogram_path, dpi=100, bbox_inches="tight")
+    finally:
+        plt.close(fig)
 
     logger.debug(f"Saved weight histogram: {histogram_path}")
 
@@ -320,7 +369,8 @@ def save_weight_layer_delta(
         layer_l2.append(float(np.linalg.norm(diff)))
         layer_diffs.append(diff)
 
-    total_l2 = float(np.linalg.norm(np.concatenate(list(layer_diffs))))
+    # Compute total L2 norm incrementally without concatenation
+    total_l2 = float(np.sqrt(sum(np.sum(d**2) for d in layer_diffs)))
     most_affected_idx = int(np.argmax(layer_l2))
     least_affected_idx = int(np.argmin(layer_l2))
 
@@ -412,8 +462,10 @@ def save_weight_layer_delta(
     )
 
     path = snapshot_dir / f"{attack_type}_weight_layer_delta.png"
-    plt.savefig(path, dpi=150, bbox_inches="tight", pad_inches=0.2, facecolor="white")
-    plt.close(fig)
+    try:
+        plt.savefig(path, dpi=100, bbox_inches="tight", pad_inches=0.2, facecolor="white")
+    finally:
+        plt.close(fig)
     logger.debug(f"Saved weight layer delta: {path}")
 
 

@@ -190,6 +190,7 @@ def apply_byzantine_perturbation(
             [(p - o).flatten() for p, o in zip(perturbed_params, parameters, strict=True)]
         )
         delta_norm = np.linalg.norm(all_deltas)
+        del all_deltas  # Free after computing norm
         if delta_norm > clip_norm:
             scale = clip_norm / (delta_norm + 1e-10)
             perturbed_params = [
@@ -453,6 +454,8 @@ def apply_alternating_min_poisoning(
         f"Alternating-min poisoning: n_total={n_total}, n_malicious={n_malicious}, "
         f"tau={tau:.4f}, pgd_steps={pgd_steps}, pgd_step_size={pgd_step_size}"
     )
+    # Cleanup large flat arrays after use
+    del params_flat, global_flat, delta_flat, adv_flat, grad_dir, poisoned_flat
     return result
 
 

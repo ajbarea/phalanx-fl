@@ -67,7 +67,7 @@ export const PRESETS = {
       evaluate_metrics_aggregation_fn: 'weighted_average',
       save_attack_snapshots: true,
       attack_snapshot_format: 'pickle_and_visual',
-      snapshot_max_samples: 5,
+      snapshot_max_samples: 6,
       attack_schedule: [
         {
           start_round: 8,
@@ -158,7 +158,7 @@ export const PRESETS = {
       evaluate_metrics_aggregation_fn: 'weighted_average',
       save_attack_snapshots: true,
       attack_snapshot_format: 'pickle_and_visual',
-      snapshot_max_samples: 5,
+      snapshot_max_samples: 6,
       attack_schedule: [
         {
           start_round: 8,
@@ -249,7 +249,7 @@ export const PRESETS = {
       evaluate_metrics_aggregation_fn: 'weighted_average',
       save_attack_snapshots: true,
       attack_snapshot_format: 'pickle_and_visual',
-      snapshot_max_samples: 5,
+      snapshot_max_samples: 6,
       attack_schedule: [
         {
           start_round: 1,
@@ -300,7 +300,7 @@ export const PRESETS = {
       evaluate_metrics_aggregation_fn: 'weighted_average',
       save_attack_snapshots: true,
       attack_snapshot_format: 'pickle_and_visual',
-      snapshot_max_samples: 5,
+      snapshot_max_samples: 6,
       attack_schedule: [
         {
           start_round: 1,
@@ -348,7 +348,7 @@ export const PRESETS = {
       evaluate_metrics_aggregation_fn: 'weighted_average',
       save_attack_snapshots: true,
       attack_snapshot_format: 'pickle_and_visual',
-      snapshot_max_samples: 5,
+      snapshot_max_samples: 6,
       attack_schedule: [
         {
           start_round: 2,
@@ -395,7 +395,7 @@ export const PRESETS = {
       evaluate_metrics_aggregation_fn: 'weighted_average',
       save_attack_snapshots: true,
       attack_snapshot_format: 'pickle_and_visual',
-      snapshot_max_samples: 5,
+      snapshot_max_samples: 6,
       attack_schedule: [
         {
           start_round: 1,
@@ -440,7 +440,7 @@ export const PRESETS = {
       evaluate_metrics_aggregation_fn: 'weighted_average',
       save_attack_snapshots: true,
       attack_snapshot_format: 'pickle_and_visual',
-      snapshot_max_samples: 5,
+      snapshot_max_samples: 6,
       attack_schedule: [
         {
           start_round: 2,
@@ -490,7 +490,7 @@ export const PRESETS = {
       evaluate_metrics_aggregation_fn: 'weighted_average',
       save_attack_snapshots: true,
       attack_snapshot_format: 'pickle_and_visual',
-      snapshot_max_samples: 5,
+      snapshot_max_samples: 6,
       attack_schedule: [
         {
           start_round: 2,

@@ -342,6 +342,7 @@ def save_visual_snapshot(
                 )
                 logging.debug(f"Saved composite synopsis plate: {snapshot_dir / synopsis_filename}")
 
+            # Specialized visualizations
             if attack_type == "label_flipping":
                 save_label_flipping_grid(
                     data_sample,
@@ -350,17 +351,6 @@ def save_visual_snapshot(
                     snapshot_dir / filename,
                     attack_config,
                 )
-
-                if original_data_sample is not None:
-                    standard_filename = f"{attack_type}_comparison.png"
-                    save_image_grid(
-                        data_sample,
-                        labels_sample,
-                        original_labels_sample,
-                        snapshot_dir / standard_filename,
-                        attack_config,
-                        original_images=original_data_sample,
-                    )
             elif attack_type == "targeted_label_flipping":
                 save_targeted_label_flipping_grid(
                     data_sample,
@@ -379,11 +369,27 @@ def save_visual_snapshot(
                     original_images=original_data_sample,
                 )
             else:
+                # Default side-by-side comparison as the primary visual
                 save_image_grid(
                     data_sample,
                     labels_sample,
                     original_labels_sample,
                     snapshot_dir / filename,
+                    attack_config,
+                    original_images=original_data_sample,
+                )
+
+            # Generate standard comparison grid if specialized visual was used
+            if original_data_sample is not None and attack_type in [
+                "label_flipping",
+                "targeted_label_flipping",
+            ]:
+                standard_filename = f"{attack_type}_comparison.png"
+                save_image_grid(
+                    data_sample,
+                    labels_sample,
+                    original_labels_sample,
+                    snapshot_dir / standard_filename,
                     attack_config,
                     original_images=original_data_sample,
                 )

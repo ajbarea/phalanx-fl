@@ -5,6 +5,7 @@ Based on IEEE Transactions on Visualization research on data-driven animations.
 
 from __future__ import annotations
 
+import gc
 import logging
 from pathlib import Path
 from typing import Any
@@ -18,7 +19,7 @@ from matplotlib.ticker import FuncFormatter, MaxNLocator
 from intellifl.attack_utils.snapshot_image_viz import TITLE_STYLE
 
 DEFAULT_FPS = 2  # Slow enough to read, fast enough to engage
-DEFAULT_DPI = 150  # Balance of quality and file size
+DEFAULT_DPI = 100  # Animations are small previews, reduce DPI to save memory
 DEFAULT_DURATION_PER_FRAME_MS = 500
 LOOP_PAUSE_MS = 1500
 
@@ -197,7 +198,9 @@ def save_attack_timeline_gif(
 
     writer = PillowWriter(fps=DEFAULT_FPS)
     anim.save(str(filepath), writer=writer, dpi=DEFAULT_DPI)
+    del anim, writer
     plt.close(fig)
+    gc.collect()
 
     logging.info(f"Saved attack timeline animation: {filepath}")
 
@@ -308,7 +311,9 @@ def save_accuracy_progression_gif(
 
     writer = PillowWriter(fps=DEFAULT_FPS)
     anim.save(str(filepath), writer=writer, dpi=DEFAULT_DPI)
+    del anim, writer
     plt.close(fig)
+    gc.collect()
 
     logging.info(f"Saved accuracy progression animation: {filepath}")
 
@@ -411,7 +416,9 @@ def save_client_comparison_gif(
 
     writer = PillowWriter(fps=DEFAULT_FPS)
     anim.save(str(filepath), writer=writer, dpi=DEFAULT_DPI)
+    del anim, writer
     plt.close(fig)
+    gc.collect()
 
     logging.info(f"Saved client comparison animation: {filepath}")
 

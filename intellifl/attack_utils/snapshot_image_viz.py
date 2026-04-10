@@ -85,6 +85,33 @@ def _normalize_axes(axes, rows: int, cols: int):
         return axes
 
 
+def _calculate_balanced_layout(num_samples: int, max_cols: int = 4) -> tuple[int, int]:
+    """Calculate balanced grid layout (rows, cols) to avoid sparse final rows.
+
+    Example: 6 samples with max_cols=4:
+    - Standard: row 1 (4), row 2 (2) -> Unbalanced
+    - Balanced: row 1 (3), row 2 (3) -> (2, 3)
+
+    Example: 5 samples with max_cols=4:
+    - Standard: row 1 (4), row 2 (1) -> Unbalanced
+    - Balanced: row 1 (3), row 2 (2) -> (2, 3)
+
+    Args:
+        num_samples: Total number of items to display.
+        max_cols: Maximum number of columns per row.
+
+    Returns:
+        Tuple of (num_rows, cols_per_row).
+    """
+    if num_samples == 0:
+        return 0, 0
+
+    num_rows = math.ceil(num_samples / max_cols)
+    cols_per_row = math.ceil(num_samples / num_rows)
+
+    return num_rows, cols_per_row
+
+
 _extract_attack_param = extract_attack_param
 _extract_attack_type = extract_attack_type
 
@@ -397,8 +424,10 @@ def save_backdoor_trigger_grid(
         transform=footer_ax.transAxes,
     )
 
-    plt.savefig(filepath, dpi=300, bbox_inches="tight", pad_inches=0.2, facecolor="white")
-    plt.close()
+    try:
+        plt.savefig(filepath, dpi=150, bbox_inches="tight", pad_inches=0.2, facecolor="white")
+    finally:
+        plt.close(fig)
 
 
 def save_targeted_label_flipping_grid(
@@ -449,8 +478,9 @@ def save_targeted_label_flipping_grid(
     show_indices = affected_indices[:max_samples]
     num_show = len(show_indices)
 
-    samples_per_row = min(4, max(1, num_show))
-    num_rows = math.ceil(num_show / samples_per_row) if num_show > 0 else 1
+    num_rows, samples_per_row = _calculate_balanced_layout(num_show, max_cols=4)
+    if num_rows == 0:
+        num_rows = 1
 
     fig = plt.figure(
         figsize=(6 * samples_per_row, 3 + 4 * num_rows + 1),
@@ -677,8 +707,10 @@ def save_targeted_label_flipping_grid(
         transform=footer_ax.transAxes,
     )
 
-    plt.savefig(filepath, dpi=150, bbox_inches="tight", pad_inches=0.2, facecolor="white")
-    plt.close()
+    try:
+        plt.savefig(filepath, dpi=150, bbox_inches="tight", pad_inches=0.2, facecolor="white")
+    finally:
+        plt.close(fig)
 
 
 def save_composite_synopsis(
@@ -852,8 +884,10 @@ def save_composite_synopsis(
         subtitle="Publication-ready multi-panel snapshot",
     )
 
-    plt.savefig(filepath, dpi=300, bbox_inches="tight")
-    plt.close()
+    try:
+        plt.savefig(filepath, dpi=150, bbox_inches="tight")
+    finally:
+        plt.close(fig)
 
 
 def save_image_grid(
@@ -880,12 +914,8 @@ def save_image_grid(
     attack_type = _extract_attack_type(attack_config)
 
     if original_images is not None:
-        pairs_per_row = min(4, max(1, num_samples))
-        if pairs_per_row > 1 and num_samples > pairs_per_row and num_samples % pairs_per_row == 1:
-            # Avoid sparse final rows like 4+1 by using a denser layout (e.g., 3+2).
-            pairs_per_row -= 1
+        rows, pairs_per_row = _calculate_balanced_layout(num_samples, max_cols=4)
         cols = pairs_per_row * 2
-        rows = math.ceil(num_samples / pairs_per_row)
         figsize = (3 * cols, 3 * rows)
 
         fig, axes = plt.subplots(
@@ -962,12 +992,7 @@ def save_image_grid(
         _add_figure_title(fig, f"{attack_display}: Original vs Poisoned Comparison")
 
     else:
-        max_cols = 8
-        if num_samples <= max_cols:
-            rows, cols = 1, num_samples
-        else:
-            cols = max_cols
-            rows = math.ceil(num_samples / cols)
+        rows, cols = _calculate_balanced_layout(num_samples, max_cols=8)
 
         figsize = (4 * cols, 4 * rows)
         fig, axes = plt.subplots(rows, cols, figsize=figsize, layout="constrained")
@@ -997,8 +1022,10 @@ def save_image_grid(
         attack_display = attack_type.replace("_", " ").title()
         _add_figure_title(fig, f"{attack_display}: Poisoned Samples")
 
-    plt.savefig(filepath, dpi=150, bbox_inches="tight", pad_inches=0.3)
-    plt.close()
+    try:
+        plt.savefig(filepath, dpi=150, bbox_inches="tight", pad_inches=0.3)
+    finally:
+        plt.close(fig)
 
 
 def save_label_confusion_matrix(
@@ -1046,7 +1073,7 @@ def save_label_confusion_matrix(
     percentages = confusion / row_sums * 100
 
     fig_size = max(6, num_classes * 0.8)
-    fig, ax = plt.subplots(figsize=(fig_size, fig_size), dpi=100, layout="constrained")
+    fig, ax = plt.subplots(figsize=(fig_size, fig_size), dpi=150, layout="constrained")
 
     im = ax.imshow(confusion, cmap="Blues", aspect="equal")
 
@@ -1134,8 +1161,10 @@ def save_label_confusion_matrix(
         color="#555555",
     )
 
-    plt.savefig(filepath, dpi=300, bbox_inches="tight", pad_inches=0.3, facecolor="white")
-    plt.close()
+    try:
+        plt.savefig(filepath, dpi=150, bbox_inches="tight", pad_inches=0.3, facecolor="white")
+    finally:
+        plt.close(fig)
 
 
 def save_noise_difference_heatmap(
@@ -1322,8 +1351,10 @@ def save_noise_difference_heatmap(
         transform=footer_ax.transAxes,
     )
 
-    plt.savefig(filepath, dpi=300, bbox_inches="tight", pad_inches=0.2, facecolor="white")
-    plt.close()
+    try:
+        plt.savefig(filepath, dpi=150, bbox_inches="tight", pad_inches=0.2, facecolor="white")
+    finally:
+        plt.close(fig)
 
 
 def save_label_flipping_grid(
@@ -1346,10 +1377,7 @@ def save_label_flipping_grid(
 
     num_samples = len(images)
 
-    samples_per_row = min(4, max(1, num_samples))
-    if samples_per_row > 1 and num_samples > samples_per_row and num_samples % samples_per_row == 1:
-        samples_per_row -= 1
-    num_rows = math.ceil(num_samples / samples_per_row)
+    num_rows, samples_per_row = _calculate_balanced_layout(num_samples, max_cols=4)
 
     fig_width = 6 * samples_per_row
     fig_height = 4 * num_rows + 1.8
@@ -1494,8 +1522,10 @@ def save_label_flipping_grid(
         transform=footer_ax.transAxes,
     )
 
-    plt.savefig(filepath, dpi=150, bbox_inches="tight", pad_inches=0.2, facecolor="white")
-    plt.close()
+    try:
+        plt.savefig(filepath, dpi=150, bbox_inches="tight", pad_inches=0.2, facecolor="white")
+    finally:
+        plt.close(fig)
 
 
 def save_label_flipping_summary(
@@ -1804,5 +1834,7 @@ def save_weight_attack_prediction_grid(
         transform=footer_ax.transAxes,
     )
 
-    plt.savefig(filepath, dpi=150, bbox_inches="tight", pad_inches=0.2, facecolor="white")
-    plt.close()
+    try:
+        plt.savefig(filepath, dpi=150, bbox_inches="tight", pad_inches=0.2, facecolor="white")
+    finally:
+        plt.close(fig)
