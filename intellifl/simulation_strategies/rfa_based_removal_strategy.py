@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import logging
 import time
 from typing import Any
@@ -230,6 +231,8 @@ class RFABasedRemovalStrategy(FedAvg):
             start_idx += param_size
         aggregated_parameters = fl.common.ndarrays_to_parameters(aggregated_parameters_list)
         aggregated_metrics: dict[str, Any] = {}
+
+        gc.collect()
 
         return aggregated_parameters, aggregated_metrics
 

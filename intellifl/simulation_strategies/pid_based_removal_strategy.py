@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import logging
 import os
 import time
@@ -423,6 +424,8 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.strategy_history.insert_round_history_entry(removal_threshold=self.current_threshold)
 
         self.logger.info(f"REMOVAL THRESHOLD: {self.current_threshold}")
+
+        gc.collect()
 
         return aggregated_parameters, aggregated_metrics
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import logging
 import os
 import time
@@ -221,12 +222,14 @@ class MultiKrumBasedRemovalStrategy(Krum):
                 current_round=self.current_round,
                 client_id=client_id,
                 removal_criterion=float(score),
-                absolute_distance=float(distances[i][0]),
+                absolute_distance=float(normalized_distances[i][0]),
             )
 
             self.logger.info(
                 f"Aggregation round: {server_round} Client ID: {client_id} Multi-Krum Score: {score} Normalized Distance: {normalized_distances[i][0]}"
             )
+
+        gc.collect()
 
         return aggregated_parameters, aggregated_metrics
 

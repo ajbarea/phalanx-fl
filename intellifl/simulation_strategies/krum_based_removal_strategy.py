@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import logging
 import time
 from typing import Any
@@ -182,18 +183,22 @@ class KrumBasedRemovalStrategy(Krum):
             clustering_param_data.append(param_tensor)
 
         X = np.array(clustering_param_data)
+        del clustering_param_data  # No longer needed after X created
         kmeans = KMeans(n_clusters=1, init="k-means++").fit(X)
         distances = kmeans.transform(X)
+        del kmeans, X  # No longer needed after distances computed
 
         scaler = MinMaxScaler()
         scaler.fit(distances)
         normalized_distances = scaler.transform(distances)
+        del scaler  # No longer needed after normalized_distances computed
 
         distances = np.zeros((len(results), len(results)))
 
         time_start_calc = time.time_ns()
 
         krum_scores = self._calculate_krum_scores(results, distances)
+        del distances  # No longer needed after krum_scores computed
         time_end_calc = time.time_ns()
 
         self.strategy_history.insert_round_history_entry(
@@ -209,7 +214,7 @@ class KrumBasedRemovalStrategy(Krum):
                 current_round=self.current_round,
                 client_id=client_id,
                 removal_criterion=float(score),
-                absolute_distance=float(distances[i][0]),
+                absolute_distance=float(normalized_distances[i][0]),
             )
 
             logging.info(
@@ -227,6 +232,9 @@ class KrumBasedRemovalStrategy(Krum):
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(
             server_round, selected_clients, failures
         )
+
+        del krum_scores, normalized_distances  # Cleanup remaining intermediates
+        gc.collect()
 
         return aggregated_parameters, aggregated_metrics
 

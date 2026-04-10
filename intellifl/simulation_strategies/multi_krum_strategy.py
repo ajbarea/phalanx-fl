@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import logging
 import os
 import time
@@ -229,12 +230,15 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
             clustering_param_data.append(param_tensor)
 
         X = np.array(clustering_param_data)
+        del clustering_param_data  # No longer needed after X created
         kmeans = KMeans(n_clusters=1, init="k-means++").fit(X)
         distances = kmeans.transform(X)
+        del kmeans, X  # No longer needed after distances computed
 
         scaler = MinMaxScaler()
         scaler.fit(distances)
         normalized_distances = scaler.transform(distances)
+        del scaler  # No longer needed after normalized_distances computed
 
         distances = np.zeros((len(results), len(results)))
         time_start_calc = time.time_ns()
@@ -246,6 +250,7 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(
             server_round, selected_clients, failures
         )
+        del selected_indices, selected_clients  # No longer needed after aggregation
 
         time_end_calc = time.time_ns()
 
@@ -272,6 +277,8 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
                 f"Normalized Distance: {normalized_distances[i][0]}"
             )
 
+        del multi_krum_scores, normalized_distances, distances  # Cleanup remaining intermediates
+        gc.collect()
         return aggregated_parameters, aggregated_metrics
 
     def configure_fit(

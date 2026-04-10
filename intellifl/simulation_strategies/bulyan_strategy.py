@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import logging
 import os
 import time
@@ -157,9 +158,11 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
             ]
             clustering_param_data.append(torch.cat(tensors))
         X_embed = np.vstack([t.numpy() for t in clustering_param_data])
+        del clustering_param_data  # No longer needed after X_embed created
         kmeans = KMeans(n_clusters=1, init="k-means++").fit(X_embed)
         abs_distances = kmeans.transform(X_embed)
         norm_distances = MinMaxScaler().fit(abs_distances).transform(abs_distances)
+        del kmeans, X_embed  # No longer needed after distances computed
 
         param_arrays = [parameters_to_ndarrays(fr.parameters) for _, fr in results]
         flat_updates = np.stack([np.concatenate([p.ravel() for p in pa]) for pa in param_arrays])
@@ -183,12 +186,14 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         krum_scores = np.array([np.partition(dists[i], m)[:m].sum() for i in range(n)])
         candidate_idx = np.argpartition(krum_scores, C)[:C]
         candidates = flat_updates[candidate_idx]
+        del dists, krum_scores  # No longer needed after candidate selection
 
         sorted_idx = np.argsort(candidates, axis=0)
         kept_slice = slice(f, C - f)
         trimmed = candidates[sorted_idx[kept_slice, np.arange(dim)], np.arange(dim)]
         bulyan_vector = trimmed.mean(axis=0)
         time_end_calc = time.time_ns()
+        del candidates, sorted_idx, trimmed  # No longer needed after bulyan_vector computed
 
         agg_list, cursor = [], 0
         for arr in param_arrays[0]:
@@ -198,6 +203,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
             )
             cursor += num
         aggregated_parameters = ndarrays_to_parameters(agg_list)
+        del agg_list  # No longer needed after aggregation
 
         self.strategy_history.insert_round_history_entry(
             score_calculation_time_nanos=time_end_calc - time_start_calc
@@ -221,6 +227,14 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
                 f"Normalized Distance: {norm_distances[i][0]:.4f}"
             )
 
+        del (
+            flat_updates,
+            bulyan_vector,
+            abs_distances,
+            norm_distances,
+            param_arrays,
+        )  # Cleanup remaining intermediates
+        gc.collect()
         return aggregated_parameters, {}
 
     def configure_fit(

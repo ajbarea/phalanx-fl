@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import logging
 import math as m
 from typing import Any
@@ -298,6 +299,8 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             )
 
         self.strategy_history.insert_round_history_entry(removal_threshold=self.trust_threshold)
+
+        gc.collect()
 
         return aggregated_parameters, aggregated_metrics
 
