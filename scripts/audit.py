@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
-"""Security audit for project dependencies.
+"""Security audit for Python and frontend dependencies.
 
-Attempts to audit dependencies using pip-audit, falling back to uv audit.
-Skipped packages (e.g. local packages not on PyPI) are reported cleanly.
+Auto-fixes what can be fixed:
+  - Frontend: runs npm audit fix (auto-fixes vulnerabilities)
+  - Backend: audits and reports vulnerabilities (auto-fix via dependency updates)
+
+Logs results separately for visibility.
 """
 
+import re
+import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 from logging_utils import setup_logger
 
-logger = setup_logger(__name__, "audit.log")
+backend_logger = setup_logger("backend-audit", "backend-audit.log")
+frontend_logger = setup_logger("frontend-audit", "frontend-audit.log")
 
 
 def parse_skipped(output: str) -> list[str]:
-    """Extract skipped package names from pip-audit tabular output.
-
-    Args:
-        output: Combined stdout/stderr from pip-audit.
-
-    Returns:
-        List of skipped package names.
-    """
+    """Extract skipped package names from pip-audit tabular output."""
     skipped = []
     in_table = False
     for line in output.splitlines():
@@ -36,7 +36,6 @@ def parse_skipped(output: str) -> list[str]:
             in_table = False
             continue
         parts = line.split(None, 1)
-        # Only treat as a table entry if the reason contains skip-specific keywords
         if len(parts) >= 2 and any(kw in parts[1] for kw in ("PyPI", "audited", "not found")):
             skipped.append(parts[0])
         else:
@@ -44,88 +43,169 @@ def parse_skipped(output: str) -> list[str]:
     return skipped
 
 
-def run_audit(cmd: list[str], label: str) -> tuple[bool | None, str]:
-    """Run an audit command and return (passed, full_output).
-
-    Args:
-        cmd: Command to run.
-        label: Display label for logging.
+def run_backend_audit() -> int:
+    """Run backend security audit using pip-audit or uv audit.
 
     Returns:
-        (True if passed, False if vulnerabilities found, None if not available), output string.
+        0 if no vulnerabilities, 1 if vulnerabilities found.
     """
-    print(f"  ▶ Running {label}...")
-    logger.info(f"Running: {label}")
-    try:
-        result = subprocess.run(
-            cmd,
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-        )
-        output = result.stdout + result.stderr
-        logger.debug(output.strip())
-        return result.returncode == 0, output
-    except FileNotFoundError:
-        logger.debug(f"{label} not available")
-        return None, ""
+    print("  ▶ Backend audit (Python dependencies)...")
+    backend_logger.info("Starting backend audit...")
 
-
-def main() -> int:
-    """Run security audit on dependencies.
-
-    Returns:
-        0 if audit passes or is skipped, 1 if vulnerabilities are found.
-    """
-    print("\n🔒 Security Audit")
-    print("=" * 60)
-    logger.info("Starting security audit...")
-
-    # Try pip-audit first, fall back to uv audit
     tools = [
         (["pip-audit"], "pip-audit"),
         (["uv", "audit"], "uv audit"),
     ]
 
     for cmd, label in tools:
-        passed, output = run_audit(cmd, label)
+        try:
+            result = subprocess.run(
+                cmd,
+                check=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+            )
+            output = result.stdout + result.stderr
+            backend_logger.debug(output.strip())
 
-        if passed is None:
-            continue  # tool not available, try next
+            skipped = parse_skipped(output)
+            passed = result.returncode == 0
 
-        skipped = parse_skipped(output)
+            if passed:
+                print("    ✓ No vulnerabilities found")
+                backend_logger.info("✓ Backend audit passed — no vulnerabilities found")
+            else:
+                print("    ⚠ Vulnerabilities found (see backend-audit.log)")
+                backend_logger.error("Backend audit failed — vulnerabilities detected")
+                if output.strip():
+                    backend_logger.debug(f"Full output:\n{output.strip()}")
 
-        if passed:
-            print("  ✓ No vulnerabilities found")
-            logger.info("✓ Audit passed — no vulnerabilities found")
-        else:
-            print("  ✗ Vulnerabilities found")
-            logger.error("Audit failed — vulnerabilities detected")
-            if output.strip():
-                logger.debug(f"Full output:\n{output.strip()}")
+            if skipped:
+                print(f"    ℹ {len(skipped)} package(s) skipped: {', '.join(skipped)}")
+                backend_logger.info(f"Skipped packages: {', '.join(skipped)}")
 
-        if skipped:
-            print(f"  ⚠  {len(skipped)} package(s) skipped (not on PyPI): {', '.join(skipped)}")
-            logger.info(f"Skipped packages: {', '.join(skipped)}")
+            return 0 if passed else 1
 
-        print("\n" + "=" * 60)
-        if passed:
-            print("✓ Audit passed")
-        else:
-            print("✗ Audit failed")
-        print("=" * 60 + "\n")
-        logger.info("Security audit complete")
-        return 0 if passed else 1
+        except FileNotFoundError:
+            continue
 
     # No audit tool available
-    print("  ⚠  No audit tool available (pip-audit or uv audit)")
-    print("     Install pip-audit: uv add --dev pip-audit")
-    logger.warning("No security audit tool available")
-    print("\n" + "=" * 60)
-    print("⚠  Audit skipped")
-    print("=" * 60 + "\n")
+    print("    ⚠ No audit tool available (pip-audit or uv audit)")
+    backend_logger.warning("No security audit tool available")
     return 0
+
+
+def run_frontend_audit() -> int:
+    """Run frontend security audit and auto-fix vulnerabilities.
+
+    Returns:
+        0 if no remaining vulnerabilities, 1 if vulnerabilities found.
+    """
+    print("  ▶ Frontend audit (npm dependencies)...")
+    frontend_logger.info("Starting frontend audit...")
+
+    frontend_dir = Path("frontend")
+
+    if not frontend_dir.is_dir():
+        error_msg = "Frontend directory not found at ./frontend"
+        print(f"    ✗ {error_msg}")
+        frontend_logger.error(error_msg)
+        return 1
+
+    try:
+        npm_path = shutil.which("npm")
+        if not npm_path:
+            raise FileNotFoundError("npm not found in PATH")
+
+        # Run npm audit fix (auto-fixes vulnerabilities)
+        frontend_logger.info("Running: npm audit fix")
+        result = subprocess.run(
+            [npm_path, "audit", "fix"],
+            cwd=str(frontend_dir),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        full_output = result.stdout + result.stderr
+        frontend_logger.debug(full_output.strip())
+
+        # Parse metrics
+        metrics = {
+            "packages_audited": 0,
+            "vulnerabilities": 0,
+            "packages_funding": 0,
+        }
+
+        packages_match = re.search(r"audited (\d+) packages?", full_output)
+        if packages_match:
+            metrics["packages_audited"] = int(packages_match.group(1))
+
+        vuln_match = re.search(r"found (\d+) vulnerabilities?", full_output)
+        if vuln_match:
+            metrics["vulnerabilities"] = int(vuln_match.group(1))
+
+        funding_match = re.search(r"(\d+) packages? (?:are )?looking for funding", full_output)
+        if funding_match:
+            metrics["packages_funding"] = int(funding_match.group(1))
+
+        # Display summary
+        vuln_count = metrics["vulnerabilities"]
+        print("    ✓ npm audit fix" if vuln_count == 0 else "    ⚠ npm audit fix")
+        print(f"    Packages audited: {metrics['packages_audited']}")
+        if vuln_count > 0:
+            print(f"    Remaining vulnerabilities: {vuln_count}")
+
+        frontend_logger.info(f"Packages audited: {metrics['packages_audited']}")
+        if vuln_count == 0:
+            frontend_logger.info("✓ No vulnerabilities found after fix")
+        else:
+            frontend_logger.warning(f"Found {vuln_count} remaining vulnerabilities")
+
+        if metrics["packages_funding"] > 0:
+            frontend_logger.info(f"Packages looking for funding: {metrics['packages_funding']}")
+
+        return 0 if vuln_count == 0 else 1
+
+    except FileNotFoundError:
+        error_msg = "npm not found. Please install Node.js and npm."
+        print(f"    ✗ {error_msg}")
+        frontend_logger.error(error_msg)
+        return 1
+    except Exception as e:
+        error_msg = f"Frontend audit failed: {e}"
+        print(f"    ✗ {error_msg}")
+        frontend_logger.error(error_msg)
+        return 1
+
+
+def main() -> int:
+    """Run unified security audit for all dependencies.
+
+    Returns:
+        0 if all audits passed, 1 if vulnerabilities found.
+    """
+    print("\n🔒 Security Audit (Unified)")
+    print("=" * 60)
+    print("Running auto-fixes and security checks...\n")
+
+    backend_status = run_backend_audit()
+    print()
+    frontend_status = run_frontend_audit()
+
+    print("\n" + "=" * 60)
+    if backend_status == 0 and frontend_status == 0:
+        print("✓ All security checks passed")
+        print("=" * 60 + "\n")
+        return 0
+    else:
+        if frontend_status != 0:
+            print("⚠ Frontend: Some vulnerabilities remain (see frontend-audit.log)")
+        if backend_status != 0:
+            print("⚠ Backend: Vulnerabilities detected (see backend-audit.log)")
+        print("=" * 60 + "\n")
+        return 1
 
 
 if __name__ == "__main__":
