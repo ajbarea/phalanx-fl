@@ -47,7 +47,7 @@ class TestFlowerClientAttackSnapshots:
             attacks_schedule=[{"rounds": [1, 2], "attack_type": "label_flipping"}],
             save_attack_snapshots=True,
             attack_snapshot_format="pickle_and_visual",
-            snapshot_max_samples=5,
+            snapshot_max_samples=6,
             output_dir=str(tmp_path / "out"),
             strategy_number=0,
         )

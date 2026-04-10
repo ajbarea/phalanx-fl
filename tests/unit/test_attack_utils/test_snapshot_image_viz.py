@@ -4,7 +4,6 @@ Tests for image visualization utilities in attack snapshots.
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 from typing import Any, cast
 from unittest.mock import Mock, patch
@@ -509,15 +508,16 @@ class TestSaveImageGrid:
         sample_images: tuple,
     ) -> None:
         """Test that grid is saved with original images for comparison."""
+        from intellifl.attack_utils.snapshot_image_viz import _calculate_balanced_layout
+
         images, labels, original_labels = sample_images
         original_images = np.random.rand(*images.shape)
         filepath = tmp_path / "test_grid.png"
         config = {"attack_type": "label_flipping"}
 
         num_samples = len(images)
-        pairs_per_row = 4
+        rows, pairs_per_row = _calculate_balanced_layout(num_samples, max_cols=4)
         cols = pairs_per_row * 2
-        rows = math.ceil(num_samples / pairs_per_row)
 
         mock_fig = Mock()
         mock_axes = [[Mock() for _ in range(cols)] for _ in range(rows)]
@@ -581,18 +581,15 @@ class TestSaveImageGrid:
         num_samples: int,
     ) -> None:
         """Test that various grid sizes are handled correctly."""
+        from intellifl.attack_utils.snapshot_image_viz import _calculate_balanced_layout
+
         images = np.random.rand(num_samples, 3, 32, 32)
         labels = np.random.randint(0, 10, size=num_samples)
         original_labels = np.random.randint(0, 10, size=num_samples)
         filepath = tmp_path / "test_grid.png"
         config = {"attack_type": "label_flipping"}
 
-        max_cols = 8
-        if num_samples <= max_cols:
-            expected_rows, expected_cols = 1, num_samples
-        else:
-            expected_cols = max_cols
-            expected_rows = math.ceil(num_samples / max_cols)
+        expected_rows, expected_cols = _calculate_balanced_layout(num_samples, max_cols=8)
 
         mock_fig = Mock()
         mock_axes: Any
@@ -709,3 +706,36 @@ class TestSaveImageGrid:
         assert len(figsize) == 2
         assert figsize[0] > 0
         assert figsize[1] > 0
+
+
+class TestCalculateBalancedLayout:
+    """Test suite for _calculate_balanced_layout function."""
+
+    @pytest.mark.parametrize(
+        "num_samples,max_cols,expected",
+        [
+            (0, 4, (0, 0)),
+            (1, 4, (1, 1)),
+            (2, 4, (1, 2)),
+            (3, 4, (1, 3)),
+            (4, 4, (1, 4)),
+            (5, 4, (2, 3)),  # 3+2
+            (6, 4, (2, 3)),  # 3+3 (Balanced!)
+            (7, 4, (2, 4)),  # 4+3
+            (8, 4, (2, 4)),  # 4+4
+            (9, 4, (3, 3)),  # 3+3+3
+            # num_rows = ceil(10/4) = 3.
+            # cols_per_row = ceil(10/3) = 4.
+            # Result (3, 4). (4+4+2).
+            (10, 4, (3, 4)),
+            (1, 8, (1, 1)),
+            (8, 8, (1, 8)),
+            (9, 8, (2, 5)),  # 5+4
+            (16, 8, (2, 8)),  # 8+8
+        ],
+    )
+    def test_calculate_balanced_layout(self, num_samples, max_cols, expected):
+        """Test that _calculate_balanced_layout returns expected (rows, cols)."""
+        from intellifl.attack_utils.snapshot_image_viz import _calculate_balanced_layout
+
+        assert _calculate_balanced_layout(num_samples, max_cols) == expected

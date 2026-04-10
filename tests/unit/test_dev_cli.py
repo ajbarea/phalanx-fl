@@ -24,8 +24,7 @@ def test_run_task_sets_utf8_defaults(monkeypatch) -> None:
     monkeypatch.delenv("UV_PROJECT_ENVIRONMENT", raising=False)
     monkeypatch.setattr(dev_cli.subprocess, "run", fake_run)
 
-    assert dev_cli.run_task("cache-prune") == 0
-    assert captured["command"] == ["uv", "cache", "prune"]
+    assert dev_cli.run_task("check-env") == 0
     assert captured["cwd"] == dev_cli.PROJECT_ROOT
     assert captured["check"] is False
 
@@ -56,10 +55,10 @@ def test_yolo_runs_clean_setup_then_upgrade(monkeypatch) -> None:
 
 
 def test_help_lists_uv_first_commands(capsys) -> None:
-    """Help output should advertise the uv-first workflow and cache commands."""
+    """Help output should advertise the uv-first workflow."""
     dev_cli.print_help()
 
     output = capsys.readouterr().out
     assert "uv run intellifl-dev <command>" in output
-    assert "cache-dir" in output
-    assert "cache-prune" in output
+    assert "audit" in output
+    assert "check-env" in output

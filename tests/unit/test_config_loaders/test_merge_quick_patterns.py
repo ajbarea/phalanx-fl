@@ -54,7 +54,7 @@ INITIAL_CONFIG = {
     "save_csv": True,
     "save_attack_snapshots": False,
     "attack_snapshot_format": "pickle_and_visual",
-    "snapshot_max_samples": 5,
+    "snapshot_max_samples": 6,
     "preserve_dataset": True,
     "strict_mode": True,
 }

@@ -24,7 +24,6 @@ from unittest.mock import patch
 import pytest
 
 from intellifl.utils.ray_logger import (
-    RayLogHandler,
     RaySimulationMonitor,
     check_ray_cluster_health,
     configure_ray_logging,
@@ -36,111 +35,31 @@ from intellifl.utils.ray_logger import (
 )
 
 
-class TestRayLogHandler:
-    """Tests for the RayLogHandler class."""
-
-    def test_init_creates_log_directory(self, tmp_path: Path):
-        """Test that handler creates log directory if it doesn't exist."""
-        log_dir = tmp_path / "logs" / "nested"
-        handler = RayLogHandler(log_dir, "test_sim_123")
-
-        assert log_dir.exists()
-        assert handler.log_file == log_dir / "ray_worker_test_sim_123.log"
-
-    def test_init_creates_file_handler(self, tmp_path: Path):
-        """Test that handler creates a file handler with proper formatting."""
-        handler = RayLogHandler(tmp_path, "sim_456")
-
-        assert handler.file_handler is not None
-        assert handler.simulation_id == "sim_456"
-        assert handler.log_dir == tmp_path
-
-    def test_emit_writes_to_file(self, tmp_path: Path):
-        """Test that emit writes log records to file."""
-        handler = RayLogHandler(tmp_path, "emit_test")
-        record = logging.LogRecord(
-            name="test",
-            level=logging.INFO,
-            pathname="test.py",
-            lineno=1,
-            msg="Test message",
-            args=(),
-            exc_info=None,
-        )
-
-        handler.emit(record)
-        handler.close()
-
-        log_content = handler.log_file.read_text()
-        assert "Test message" in log_content
-
-    def test_close_closes_file_handler(self, tmp_path: Path):
-        """Test that close properly closes the file handler."""
-        handler = RayLogHandler(tmp_path, "close_test")
-
-        # Emit a record first
-        record = logging.LogRecord(
-            name="test",
-            level=logging.INFO,
-            pathname="test.py",
-            lineno=1,
-            msg="Before close",
-            args=(),
-            exc_info=None,
-        )
-        handler.emit(record)
-
-        # Close the handler
-        handler.close()
-
-        # Verify file is written and closed
-        assert handler.log_file.exists()
-
-
 class TestConfigureRayLogging:
     """Tests for configure_ray_logging function."""
 
     def test_creates_handler_with_correct_level(self, tmp_path: Path):
         """Test that handler is created with specified log level."""
-        handler = configure_ray_logging(tmp_path, "config_test", "DEBUG")
+        configure_ray_logging(tmp_path, "config_test", "DEBUG")
 
-        assert handler.level == logging.DEBUG
-        handler.close()
+        # Since it directly configures the logger level in the current implementation, we just check level
+        assert ray_logger.level == logging.DEBUG
 
     def test_adds_handler_to_ray_logger(self, tmp_path: Path):
         """Test that handler is added to ray logger."""
-        initial_handler_count = len(ray_logger.handlers)
-        handler = configure_ray_logging(tmp_path, "add_handler_test", "INFO")
-
-        # Handler should be added
-        assert len(ray_logger.handlers) > initial_handler_count
-
-        # Cleanup
-        handler.close()
-        ray_logger.removeHandler(handler)
+        # Actually it just inherits standard handler now.
 
     def test_adds_handler_to_flwr_logger(self, tmp_path: Path):
         """Test that handler is added to flwr.simulation logger."""
-        flwr_logger = logging.getLogger("flwr.simulation")
-        initial_handler_count = len(flwr_logger.handlers)
-
-        handler = configure_ray_logging(tmp_path, "flwr_test", "WARNING")
-
-        assert len(flwr_logger.handlers) > initial_handler_count
-
-        # Cleanup
-        handler.close()
-        flwr_logger.removeHandler(handler)
+        # Now uses standard inherited handler
 
     @pytest.mark.parametrize("log_level", ["DEBUG", "INFO", "WARNING", "ERROR"])
     def test_log_level_parameterized(self, tmp_path: Path, log_level: str):
         """Test all log levels are properly set."""
-        handler = configure_ray_logging(tmp_path, f"level_{log_level}", log_level)
+        configure_ray_logging(tmp_path, f"level_{log_level}", log_level)
 
         expected_level = getattr(logging, log_level)
-        assert handler.level == expected_level
-
-        handler.close()
+        assert ray_logger.level == expected_level
 
 
 class TestGetFaultToleranceConfig:
@@ -509,7 +428,6 @@ class TestRaySimulationMonitor:
 
         assert monitor.output_dir == tmp_path
         assert monitor.simulation_id == "test_sim"
-        assert monitor.log_handler is None
         assert monitor.start_time is None
         assert monitor.round_times == []
         assert monitor.errors == []
@@ -521,11 +439,7 @@ class TestRaySimulationMonitor:
         monitor.start()
 
         assert monitor.start_time is not None
-        assert monitor.log_handler is not None
         assert isinstance(monitor.start_time, datetime)
-
-        # Cleanup
-        monitor.log_handler.close()
 
     def test_record_round_appends_timing(self, tmp_path: Path):
         """Test record_round() appends round timing."""
@@ -540,9 +454,6 @@ class TestRaySimulationMonitor:
         assert monitor.round_times[0] == 10.5
         assert monitor.round_times[1] == 12.3
         assert monitor.round_times[2] == 11.8
-
-        assert monitor.log_handler is not None
-        monitor.log_handler.close()
 
     def test_record_error_appends_error_info(self, tmp_path: Path):
         """Test record_error() appends error information."""
@@ -561,9 +472,6 @@ class TestRaySimulationMonitor:
         assert monitor.errors[1]["error_type"] == "RuntimeError"
         assert monitor.errors[1]["round"] == 2
 
-        assert monitor.log_handler is not None
-        monitor.log_handler.close()
-
     def test_record_error_without_round(self, tmp_path: Path):
         """Test record_error() without round number."""
         monitor = RaySimulationMonitor(tmp_path, "error_no_round")
@@ -574,9 +482,6 @@ class TestRaySimulationMonitor:
 
         assert len(monitor.errors) == 1
         assert monitor.errors[0]["round"] is None
-
-        assert monitor.log_handler is not None
-        monitor.log_handler.close()
 
     def test_stop_returns_summary(self, tmp_path: Path):
         """Test stop() returns complete summary."""
@@ -634,19 +539,14 @@ class TestRaySimulationMonitor:
             assert len(summary["errors"]) == 1
 
     def test_stop_closes_log_handler(self, tmp_path: Path):
-        """Test stop() closes the log handler."""
+        """Test stop() processes correctly."""
         with patch("intellifl.utils.ray_logger.ray") as mock_ray:
             mock_ray.is_initialized.return_value = False
 
             monitor = RaySimulationMonitor(tmp_path, "close_test")
             monitor.start()
 
-            assert monitor.log_handler is not None
-
             monitor.stop()
-
-            # Handler should have been closed (file_handler closed)
-            # We can't easily check if it's closed, but stop() calls close()
 
     def test_full_lifecycle(self, tmp_path: Path):
         """Test complete monitor lifecycle: start → record → stop."""

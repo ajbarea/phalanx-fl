@@ -143,7 +143,7 @@ class TestDirectoryHandler:
         handler = DirectoryHandler(output_dir=str(test_dir))
         handler.simulation_strategy_history = mock_simulation_history
 
-        handler._save_simulation_config()
+        handler._save_simulation_config(total_strategies=2)
 
         assert handler.dirname is not None
         config_file = Path(handler.dirname) / "strategy_config_1.json"

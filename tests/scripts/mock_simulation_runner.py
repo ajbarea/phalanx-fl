@@ -474,7 +474,7 @@ def run_mock_simulation(
             if attack_schedule and save_snapshots is True:
                 total_rounds = merged_config.get("num_of_rounds", 10)
                 snapshot_format = merged_config.get("attack_snapshot_format", "pickle")
-                max_samples = merged_config.get("snapshot_max_samples", 5)
+                max_samples = merged_config.get("snapshot_max_samples", 6)
 
                 generate_mock_attack_snapshots(
                     attack_schedule=attack_schedule,

@@ -1107,8 +1107,8 @@ class TestAddAttackBackgroundShading:
         ]
         _add_attack_background_shading(mock_axes, schedule)
         call_args = mock_axes.axvspan.call_args[0]
-        assert call_args[0] == 5  # start_round
-        assert call_args[1] == 10  # end_round
+        assert call_args[0] == 4.6  # start_round - 0.4
+        assert call_args[1] == 10.4  # end_round + 0.4
 
 
 class TestSavePlotDataJson:
