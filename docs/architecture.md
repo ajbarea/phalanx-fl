@@ -49,7 +49,7 @@ Orchestrates a single strategy run:
 
 - Selects the correct **dataset loader** and **network model** based on `dataset_keyword`
 - Selects the correct **aggregation strategy** based on `aggregation_strategy_keyword`
-- Wraps the strategy and clients in Flower's `ServerApp` / `ClientApp` and calls `run_simulation()`
+- Wraps the strategy and clients in Flower's `ServerApp` / `ClientApp` and launches Flower's simulation engine
 - After the run, optionally generates attack snapshot HTML reports
 
 ### `flower_client.py`
@@ -96,7 +96,7 @@ flowchart TD
     S2["2. StrategyConfig validated by Pydantic"]
     S3["3. DatasetHandler partitions dataset → N client shards"]
     S4["4. FederatedSimulation initialises loaders,<br/>model, strategy, and Flower apps"]
-    S5["5. run_simulation() launches Ray actors"]
+    S5["5. Flower simulation engine launches Ray actors"]
     Round["For each round<br/>a&#41; Server sends global params<br/>b&#41; Clients train locally<br/>c&#41; Clients apply attack (opt.)<br/>d&#41; Strategy aggregates updates<br/>e&#41; Metrics recorded to history"]
     S6["6. SimulationStrategyHistory → CSV"]
     S7["7. Plots generated and saved"]
@@ -212,4 +212,3 @@ When you submit a simulation via the REST API:
 !!! info "Fallback mode"
 
     If Redis is unavailable, the API dispatches simulations as subprocess tasks instead of Celery tasks. The UI still works; queuing is just unavailable.
-

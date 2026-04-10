@@ -126,7 +126,7 @@ See the [Attacks](attacks.md) page for full documentation of all 11 attack types
 | `preserve_dataset` | `bool` | — | Keep partitioned dataset files after the simulation. |
 | `save_attack_snapshots` | `bool` | `false` | Save before/after data snapshots for attacked clients. |
 | `attack_snapshot_format` | `string` | `"pickle"` | `"pickle"`, `"visual"`, or `"pickle_and_visual"`. |
-| `snapshot_max_samples` | `int` | `5` | Max samples included in each snapshot. |
+| `snapshot_max_samples` | `int` | `6` | Max samples included in each snapshot. |
 
 ### :material-tune-variant: Strategy-specific parameters
 
