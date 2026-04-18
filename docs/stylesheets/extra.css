@@ -138,10 +138,18 @@ body.hero-page .md-content__inner {
 
 .md-typeset .hero .hero-buttons {
   display: flex;
-  gap: 1rem;
   justify-content: center;
-  flex-wrap: wrap;
   margin-bottom: 1.5rem;
+}
+
+.md-typeset .hero .hero-buttons > p {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  column-gap: 1rem;
+  row-gap: 0.85rem;
+  margin: 0;
 }
 
 .hero-buttons .md-button {
@@ -715,8 +723,14 @@ html {
   }
 
   .hero-buttons {
+    width: 100%;
+    align-items: center;
+  }
+
+  .hero-buttons > p {
     flex-direction: column;
-    gap: 0.5rem;
+    row-gap: 0.5rem;
+    column-gap: 0;
     width: 100%;
     align-items: center;
   }
