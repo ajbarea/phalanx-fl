@@ -297,11 +297,11 @@ class SimulationRunner:
 
                         executed_simulation_strategies.append(simulation_strategy)
 
+                        simulation_strategy.strategy_history.calculate_additional_rounds_data()
+
                         new_plot_handler.show_plots_within_strategy(
                             simulation_strategy, self._directory_handler
                         )
-
-                        simulation_strategy.strategy_history.calculate_additional_rounds_data()
                         self._directory_handler.save_csv_and_config(
                             simulation_strategy.strategy_history, total_strategies
                         )

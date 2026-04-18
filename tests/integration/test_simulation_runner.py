@@ -648,7 +648,7 @@ class TestSimulationRunnerOutputGeneration:
         runner.run()
 
         mocks["dir_instance"].save_csv_and_config.assert_called_once_with(
-            mocks["simulation_instance"].strategy_history
+            mocks["simulation_instance"].strategy_history, 1
         )
 
     def test_strategy_history_calculations(self, mock_output_components):

@@ -64,9 +64,6 @@ class DirectoryHandler:
 
     def _save_simulation_config(self, total_strategies: int):
         """Save simulation config to current directory"""
-        if total_strategies <= 1:
-            return
-
         assert self.simulation_strategy_history is not None
 
         config_dict = self.simulation_strategy_history.strategy_config.__dict__.copy()

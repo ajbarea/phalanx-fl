@@ -70,6 +70,9 @@ class TestPlotHandler:
 
         mock_rounds_history = Mock(spec=RoundsInfo)
         mock_rounds_history.removal_threshold_history = []
+        mock_rounds_history.average_accuracy_history = []
+        mock_rounds_history.aggregated_loss_history = []
+        mock_rounds_history.average_accuracy_std_history = []
         strategy_history.rounds_history = mock_rounds_history
 
         simulation.strategy_history = strategy_history
@@ -1141,6 +1144,9 @@ class TestSavePlotDataJson:
 
         rounds_history = Mock(spec=RoundsInfo)
         rounds_history.removal_threshold_history = []
+        rounds_history.average_accuracy_history = []
+        rounds_history.aggregated_loss_history = []
+        rounds_history.average_accuracy_std_history = []
         strategy_history.rounds_history = rounds_history
 
         simulation.strategy_history = strategy_history
@@ -1310,6 +1316,9 @@ class TestSavePlotDataJson:
         strategy_history.get_all_clients.return_value = clients
         rounds_history = Mock(spec=RoundsInfo)
         rounds_history.removal_threshold_history = []
+        rounds_history.average_accuracy_history = []
+        rounds_history.aggregated_loss_history = []
+        rounds_history.average_accuracy_std_history = []
         strategy_history.rounds_history = rounds_history
         simulation.strategy_history = strategy_history
 
@@ -1365,6 +1374,9 @@ class TestShowPlotsWithAttackShading:
         strategy_history.get_all_clients.return_value = [client]
         rounds_history = Mock(spec=RoundsInfo)
         rounds_history.removal_threshold_history = []
+        rounds_history.average_accuracy_history = []
+        rounds_history.aggregated_loss_history = []
+        rounds_history.average_accuracy_std_history = []
         strategy_history.rounds_history = rounds_history
         simulation.strategy_history = strategy_history
 

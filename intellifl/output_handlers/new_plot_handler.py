@@ -222,6 +222,21 @@ def save_plot_data_json(
         )
         if simulation_strategy.strategy_history.rounds_history.removal_threshold_history
         else None,
+        "average_accuracy_history": list(
+            simulation_strategy.strategy_history.rounds_history.average_accuracy_history
+        )
+        if simulation_strategy.strategy_history.rounds_history.average_accuracy_history
+        else None,
+        "aggregated_loss_history": list(
+            simulation_strategy.strategy_history.rounds_history.aggregated_loss_history
+        )
+        if simulation_strategy.strategy_history.rounds_history.aggregated_loss_history
+        else None,
+        "average_accuracy_std_history": list(
+            simulation_strategy.strategy_history.rounds_history.average_accuracy_std_history
+        )
+        if simulation_strategy.strategy_history.rounds_history.average_accuracy_std_history
+        else None,
         "strategy_number": simulation_strategy.strategy_config.strategy_number,
     }
 
