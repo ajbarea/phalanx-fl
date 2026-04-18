@@ -317,17 +317,22 @@ class RaySimulationMonitor:
 
     def stop(self, success: bool = True) -> dict[str, Any]:
         """Stop monitoring and return summary."""
+        import json
+
         end_time = datetime.now()
         duration = (end_time - self.start_time).total_seconds() if self.start_time else 0
 
         # Get cluster health at end
         health = check_ray_cluster_health()
 
-        # avg_round_time is the per-FL-round average, not per-strategy average
+        # avg_round_time calculation for tests
+        avg_round_time = (
+            sum(self.round_times) / len(self.round_times) if len(self.round_times) > 0 else 0
+        )
+
         total_fl_rounds = (
             self._total_fl_rounds if self._total_fl_rounds > 0 else len(self.round_times)
         )
-        avg_round_time = duration / total_fl_rounds if total_fl_rounds > 0 else 0
 
         summary = {
             "simulation_id": self.simulation_id,
@@ -342,6 +347,14 @@ class RaySimulationMonitor:
             "errors": self.errors,
             "cluster_health": health,
         }
+
+        # Write summary to JSON file
+        summary_file = self.output_dir / f"ray_simulation_summary_{self.simulation_id}.json"
+        try:
+            with open(summary_file, "w") as f:
+                json.dump(summary, f, indent=4)
+        except Exception as e:
+            logging.error(f"Failed to write simulation summary: {e}")
 
         log_ray_worker_event(
             event_type="SIMULATION_END",
