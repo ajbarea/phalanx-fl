@@ -241,6 +241,7 @@ class ArKrumStrategy(FedAvg):
             score_calculation_time_nanos=time_end - time_start
         )
 
+        closest_indices_set = set(closest_indices)
         for i, (proxy, _) in enumerate(results):
             cid = proxy.cid
             self.client_scores[cid] = arkrum_scores[i]
@@ -249,6 +250,7 @@ class ArKrumStrategy(FedAvg):
                 client_id=cid,
                 removal_criterion=arkrum_scores[i],
                 absolute_distance=float(dist_matrix[best_idx, i]),
+                aggregation_participation=1 if i in closest_indices_set else 0,
             )
 
         return super().aggregate_fit(server_round, selected_results, failures)

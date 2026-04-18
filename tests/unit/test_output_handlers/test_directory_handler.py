@@ -216,7 +216,8 @@ class TestDirectoryHandler:
 
             for row in rows:
                 assert row[loss_col_index] == "not collected"
-                assert row[agg_part_col_index] == "1"
+                # Default participation is 0; strategies set 1 only for included clients.
+                assert row[agg_part_col_index] == "0"
 
     def test_save_per_round_to_csv_creates_correct_format(self, mock_simulation_history, tmp_path):
         """Verifies _save_per_round_to_csv creates CSV with expected headers."""

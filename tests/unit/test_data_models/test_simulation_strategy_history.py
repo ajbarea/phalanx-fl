@@ -171,7 +171,7 @@ class TestSimulationStrategyHistory:
         assert client.accuracy_history[1] == 0.75
         assert client.removal_criterion_history[1] is None
         assert client.absolute_distance_history[1] is None
-        assert client.aggregation_participation_history[1] == 1
+        assert client.aggregation_participation_history[1] == 0
 
     def test_insert_round_history_entry_basic(self):
         """Verifies insert_round_history_entry stores all provided round metrics."""
@@ -227,6 +227,14 @@ class TestSimulationStrategyHistory:
             strategy_config=config,
             dataset_handler=mock_dataset_handler,
         )
+
+        # Pre-mark all clients as participated for round 2 (simulates aggregation).
+        # update_client_participation only overrides removed clients back to 0;
+        # inclusion is recorded separately by strategies via aggregation_participation=1.
+        for cid in range(5):
+            history.insert_single_client_history_entry(
+                client_id=cid, current_round=2, aggregation_participation=1
+            )
 
         removed_client_ids = {1, 3}
         history.update_client_participation(current_round=2, removed_client_ids=removed_client_ids)

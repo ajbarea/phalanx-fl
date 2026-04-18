@@ -40,7 +40,7 @@ class ClientInfo:
         self.absolute_distance_history = _init_list()
         self.loss_history = _init_list()
         self.accuracy_history = _init_list()
-        self.aggregation_participation_history = _init_list(value=1)
+        self.aggregation_participation_history = _init_list(value=0)
 
         self.rounds = []
 

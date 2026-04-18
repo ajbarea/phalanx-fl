@@ -279,6 +279,8 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             self.client_reputations[client_id] = new_reputation
             self.client_trusts[client_id] = new_trust
 
+            is_participating = 1 if client_id not in self.removed_client_ids else 0
+
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
                 client_id=client_id,
@@ -288,6 +290,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
                 absolute_distance=float(distances[i][0].item())
                 if hasattr(distances[i][0], "item")
                 else float(distances[i][0]),
+                aggregation_participation=is_participating,
             )
 
             logging.info(

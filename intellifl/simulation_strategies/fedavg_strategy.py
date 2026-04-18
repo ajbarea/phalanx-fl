@@ -89,6 +89,13 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
                 partition_id = int(metrics["partition_id"])
                 self.strategy_history.register_node_mapping(client_proxy.cid, partition_id)
 
+            # Record that this client participated in the aggregation
+            self.strategy_history.insert_single_client_history_entry(
+                client_id=client_proxy.cid,
+                current_round=self.current_round,
+                aggregation_participation=1,
+            )
+
         return super().aggregate_fit(server_round, results, failures)
 
     def aggregate_evaluate(

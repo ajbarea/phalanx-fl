@@ -183,8 +183,10 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         time_start_calc = time.time_ns()
         dists = self._pairwise_sq_dists(flat_updates)
         m = n - f - 2  # number of nearest neighbours to sum
-        krum_scores = np.array([np.partition(dists[i], m)[:m].sum() for i in range(n)])
+        # Krum score: sum of m distances to OTHER closest neighbors (exclude self at index 0)
+        krum_scores = np.array([np.partition(dists[i], m + 1)[1 : m + 1].sum() for i in range(n)])
         candidate_idx = np.argpartition(krum_scores, C)[:C]
+        candidate_idx_set = set(candidate_idx)
         candidates = flat_updates[candidate_idx]
         del dists, krum_scores  # No longer needed after candidate selection
 
@@ -221,6 +223,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
                 client_id=cid,
                 removal_criterion=deviation,
                 absolute_distance=float(abs_distances[i][0]),
+                aggregation_participation=1 if i in candidate_idx_set else 0,
             )
             self.logger.info(
                 f"Aggregation round: {server_round} Client ID: {cid} Deviation: {deviation:.4e} "

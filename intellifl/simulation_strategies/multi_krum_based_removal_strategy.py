@@ -123,13 +123,14 @@ class MultiKrumBasedRemovalStrategy(Krum):
 
         for i in range(num_clients):
             for j in range(i + 1, num_clients):
-                distances[i, j] = np.linalg.norm(flat_params[i] - flat_params[j])  # type: ignore[operator]
+                distances[i, j] = np.sum((flat_params[i] - flat_params[j]) ** 2)
                 distances[j, i] = distances[i, j]
 
         scores = []
         for i in range(num_clients):
             sorted_distances = np.sort(distances[i])
-            score = np.sum(sorted_distances[: self.num_krum_selections - 2])
+            # Sum distances to (num_krum_selections - 2) closest neighbors (excluding self at index 0)
+            score = np.sum(sorted_distances[1 : self.num_krum_selections - 1])
             scores.append(score)
 
         return scores
@@ -202,6 +203,7 @@ class MultiKrumBasedRemovalStrategy(Krum):
         multi_krum_scores = self._calculate_multi_krum_scores(results, distances)
 
         selected_indices = np.argsort(multi_krum_scores)[: self.num_krum_selections]
+        selected_indices_set = set(selected_indices)
         selected_clients = [results[i] for i in selected_indices]
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(
             server_round, selected_clients, failures
@@ -223,6 +225,7 @@ class MultiKrumBasedRemovalStrategy(Krum):
                 client_id=client_id,
                 removal_criterion=float(score),
                 absolute_distance=float(normalized_distances[i][0]),
+                aggregation_participation=1 if i in selected_indices_set else 0,
             )
 
             self.logger.info(

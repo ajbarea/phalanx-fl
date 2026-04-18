@@ -145,6 +145,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
                     current_round=self.current_round,
                     client_id=cid,
                     removal_criterion=0.0,
+                    aggregation_participation=1,
                 )
 
             self.strategy_history.update_client_participation(
@@ -192,6 +193,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
                 current_round=self.current_round,
                 client_id=cid,
                 removal_criterion=trim_frequency,
+                aggregation_participation=1,
             )
 
         self.strategy_history.update_client_participation(

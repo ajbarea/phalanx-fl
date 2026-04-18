@@ -115,15 +115,15 @@ class KrumBasedRemovalStrategy(Krum):
 
         for i in range(num_clients):
             for j in range(i + 1, num_clients):
-                distances[i, j] = np.linalg.norm(flat_params[i] - flat_params[j])  # type: ignore[operator]
+                distances[i, j] = np.sum((flat_params[i] - flat_params[j]) ** 2)
                 distances[j, i] = distances[i, j]
 
         scores = []
         for i in range(num_clients):
             sorted_distances = np.sort(distances[i])
-            # Sum distances to (n - f - 2) nearest neighbors
+            # Sum distances to (n - f - 2) nearest neighbors (excluding self at index 0)
             num_neighbors = num_clients - self.num_malicious_clients - 2
-            score = np.sum(sorted_distances[:num_neighbors])
+            score = np.sum(sorted_distances[1 : num_neighbors + 1])
             scores.append(score)
         return scores
 
@@ -205,6 +205,8 @@ class KrumBasedRemovalStrategy(Krum):
             score_calculation_time_nanos=time_end_calc - time_start_calc
         )
 
+        min_krum_score_index = np.argmin(krum_scores)
+
         for i, (client_proxy, _) in enumerate(results):
             client_id = client_proxy.cid
             score = float(krum_scores[i])
@@ -215,13 +217,13 @@ class KrumBasedRemovalStrategy(Krum):
                 client_id=client_id,
                 removal_criterion=float(score),
                 absolute_distance=float(normalized_distances[i][0]),
+                aggregation_participation=1 if i == min_krum_score_index else 0,
             )
 
             logging.info(
                 f"Aggregation round: {server_round} Client ID: {client_id} Krum Score: {score} Normalized Distance: {normalized_distances[i][0]}"
             )
 
-        min_krum_score_index = np.argmin(krum_scores)
         min_krum_client = results[min_krum_score_index]
         selected_client_id = min_krum_client[0].cid
         logging.info(

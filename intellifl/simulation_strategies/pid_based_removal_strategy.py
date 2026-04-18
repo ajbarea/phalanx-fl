@@ -395,6 +395,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
                 client_id=client_id,
                 removal_criterion=float(new_PID),
                 absolute_distance=float(distances[i][0]),
+                aggregation_participation=1 if client_id not in self.removed_client_ids else 0,
             )
 
             self.logger.info(

@@ -96,11 +96,11 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
     def _calculate_chunked_distance(
         self, params1: np.ndarray, params2: np.ndarray, chunk_size: int = 10_000_000
     ) -> float:
-        """Calculate L2 distance using memory-efficient chunked processing for large models.
+        """Calculate squared L2 distance using memory-efficient chunked processing.
 
-        Computes sqrt(sum((p1 - p2)^2)) in chunks to avoid memory overflow with models
+        Computes sum((p1 - p2)^2) in chunks to avoid memory overflow with models
         exceeding 50M parameters. Processes chunk_size parameters at a time, accumulating
-        squared differences before final square root.
+        squared differences.
         """
         total_params = len(params1)
         squared_diff_sum = 0.0
@@ -118,24 +118,24 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
             # Free memory immediately
             del diff, chunk1, chunk2
 
-        # Return L2 norm (square root of sum of squared differences)
-        return np.sqrt(squared_diff_sum)
+        return squared_diff_sum
 
     def _calculate_multi_krum_scores(
         self, results: list[tuple[ClientProxy, FitRes]], distances: np.ndarray
     ) -> list[float]:
         """Calculate Multi-Krum scores using sum of distances to closest neighbors.
 
-        Computes pairwise L2 distances between all client parameter vectors (using
-        chunked processing for models >50M parameters), then for each client sums
-        distances to its (num_krum_selections - 2) closest neighbors. Lower scores
-        indicate higher trust.
+        Computes pairwise squared L2 distances between all client parameter vectors
+        (using chunked processing for models >50M parameters), then for each client
+        sums distances to its (num_krum_selections - 2) closest neighbors. Lower
+        scores indicate higher trust.
 
-        Note: Multi-Krum uses m-2 neighbors where m is the number of clients to aggregate,
-        differing from single Krum which uses n-f-2 where f is malicious client count.
+        Note: Multi-Krum uses m-2 neighbors where m is the number of clients to
+        aggregate, differing from single Krum which uses n-f-2 where f is
+        malicious client count.
 
         Side effects:
-            - Modifies distances matrix in-place with computed pairwise L2 norms
+            - Modifies distances matrix in-place with computed pairwise squared L2 norms
 
         Args:
             results: List of (ClientProxy, FitRes) tuples containing client parameters.
@@ -165,14 +165,15 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
                         flat_param_data[i], flat_param_data[j]
                     )
                 else:
-                    distances[i, j] = np.linalg.norm(flat_param_data[i] - flat_param_data[j])
+                    distances[i, j] = np.sum((flat_param_data[i] - flat_param_data[j]) ** 2)
                 distances[j, i] = distances[i, j]
 
         scores = []
         for i in range(num_clients):
             sorted_distances = np.sort(distances[i])
             # Multi-Krum: sum distances to (m - 2) neighbors where m = num_krum_selections
-            score = np.sum(sorted_distances[: self.num_krum_selections - 2])
+            # Excluding self at index 0.
+            score = np.sum(sorted_distances[1 : self.num_krum_selections - 1])
             scores.append(score)
 
         return scores
@@ -246,6 +247,7 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
         multi_krum_scores = self._calculate_multi_krum_scores(results, distances)
 
         selected_indices = np.argsort(multi_krum_scores)[: self.num_krum_selections]
+        selected_indices_set = set(selected_indices)
         selected_clients = [results[i] for i in selected_indices]
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(
             server_round, selected_clients, failures
@@ -268,6 +270,7 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
                 client_id=client_id,
                 removal_criterion=float(score),
                 absolute_distance=float(distances[i][0]),
+                aggregation_participation=1 if i in selected_indices_set else 0,
             )
 
             self.logger.info(

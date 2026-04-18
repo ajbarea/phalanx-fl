@@ -429,7 +429,7 @@ class TestMultiKrumStrategy:
 
         for i in range(3):
             for j in range(i + 1, 3):
-                expected_distance = np.linalg.norm(expected_params[i] - expected_params[j])
+                expected_distance = np.sum((expected_params[i] - expected_params[j]) ** 2)
                 assert abs(distances[i, j] - expected_distance) < 1e-6
                 assert abs(distances[j, i] - expected_distance) < 1e-6
 

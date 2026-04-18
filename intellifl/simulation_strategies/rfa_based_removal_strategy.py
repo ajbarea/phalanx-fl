@@ -203,20 +203,27 @@ class RFABasedRemovalStrategy(FedAvg):
         scaler.fit(distances)
         normalized_distances = scaler.transform(distances)
 
+        # Map CIDs to their indices in results to correctly retrieve distances
+        results_cids = [r[0].cid for r in results]
+        cid_to_dist_idx = {cid: i for i, cid in enumerate(results_cids)}
+
         for i, (client_proxy, _) in enumerate(aggregate_clients):
             client_id = client_proxy.cid
             deviation = float(np.linalg.norm(stacked_params[i] - weighted_geometric_median))
             self.client_scores[client_id] = deviation
 
+            dist_idx = cid_to_dist_idx[client_id]
+
             logging.info(
-                f"Aggregation round: {server_round} Client ID: {client_id} Deviation: {deviation} Normalized Distance: {normalized_distances[i][0]}"
+                f"Aggregation round: {server_round} Client ID: {client_id} Deviation: {deviation} Normalized Distance: {normalized_distances[dist_idx][0]}"
             )
 
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
                 client_id=client_id,
                 removal_criterion=deviation,
-                absolute_distance=float(distances[i][0]),
+                absolute_distance=float(distances[dist_idx][0]),
+                aggregation_participation=1,
             )
 
         aggregated_parameters_list = []

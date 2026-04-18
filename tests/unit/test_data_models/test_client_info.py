@@ -40,8 +40,9 @@ class TestClientInfo:
         assert all(val is None for val in client.loss_history)
         assert all(val is None for val in client.accuracy_history)
 
-        # Check that aggregation_participation_history is initialized with 1s
-        assert all(val == 1 for val in client.aggregation_participation_history)
+        # Check that aggregation_participation_history is initialized with 0s
+        # (strategies explicitly set 1 only for clients that actually participated)
+        assert all(val == 0 for val in client.aggregation_participation_history)
 
     def test_post_init_rounds_list(self):
         """Test that __post_init__ properly initializes rounds list"""
