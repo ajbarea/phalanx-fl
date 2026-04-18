@@ -45,8 +45,9 @@ dependencies = [
 dev = [
     "hypothesis",
     "mutmut",
+    "testcontainers[redis]",
     "pip-audit",
-    "pytest>=8.0,<9",
+    "pytest>=9.0.3",
     "pytest-asyncio",
     "pytest-cov",
     "pytest-mock",
