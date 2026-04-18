@@ -1,114 +1,102 @@
 #!/usr/bin/env python3
 """Code quality checks and formatting.
 
-Runs ruff format, ruff check, type checking with ty, and frontend linting.
-Provides clear output and exits with appropriate status codes.
+Runs the auto-fixers first (ruff --fix, ruff format), then the strict
+check pass (ruff check, ty, frontend lint). Exits non-zero if any check
+still fails after the fix pass.
 """
 
+from __future__ import annotations
+
 import shutil
-import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
-from logging_utils import setup_logger
+from intellifl.dev_runner import (
+    C_BOLD,
+    C_GREEN,
+    C_RED,
+    C_RESET,
+    LOG,
+    PROJECT_ROOT,
+    StepFailedError,
+    fix_and_check,
+    print_header,
+)
 
-logger = setup_logger(__name__, "lint.log")
+FRONTEND_DIR = PROJECT_ROOT / "frontend"
 
 
-def run_command(cmd: list[str], description: str, cwd: str | None = None) -> bool:
-    """Execute a command and report results.
+def _frontend_available() -> bool:
+    return FRONTEND_DIR.is_dir() and shutil.which("npm") is not None
 
-    Args:
-        cmd: Command and arguments as a list.
-        description: Human-readable description for logging.
-        cwd: Working directory for the command (optional).
 
-    Returns:
-        True if successful, False otherwise.
-    """
-    logger.info(f"Running: {description}")
-    try:
-        result = subprocess.run(
-            cmd,
-            check=True,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            cwd=cwd,
-        )
-        logger.info(f"✓ {description} passed")
-        if result.stdout:
-            logger.debug(f"Output: {result.stdout}")
-        return True
-    except subprocess.CalledProcessError as e:
-        logger.error(f"✗ {description} failed (exit code: {e.returncode})")
-        if e.stdout:
-            logger.error(f"STDOUT:\n{e.stdout}")
-        if e.stderr:
-            logger.error(f"STDERR:\n{e.stderr}")
-        return False
-    except FileNotFoundError:
-        logger.error(f"✗ {description} - command not found")
-        return False
+def _cwd_for(label: str) -> Path | None:
+    if label.startswith("npm run "):
+        return FRONTEND_DIR
+    return None
+
+
+def python_fixers() -> list[tuple[str, Sequence[str]]]:
+    return [
+        ("ruff format", ["uv", "run", "ruff", "format", "."]),
+        ("ruff check --fix", ["uv", "run", "ruff", "check", "--fix", "--unsafe-fixes", "."]),
+    ]
+
+
+def python_checks() -> list[tuple[str, Sequence[str]]]:
+    return [
+        ("ruff format --check", ["uv", "run", "ruff", "format", "--check", "."]),
+        ("ruff check", ["uv", "run", "ruff", "check", "."]),
+        # ty has no auto-fix; it runs in the check phase only.
+        ("ty check", ["uv", "run", "ty", "check", "intellifl", "tests"]),
+    ]
+
+
+def frontend_fixers() -> list[tuple[str, Sequence[str]]]:
+    return [("npm run lint:fix", ["npm", "run", "lint:fix", "--if-present"])]
+
+
+def frontend_checks() -> list[tuple[str, Sequence[str]]]:
+    return [("npm run lint", ["npm", "run", "lint"])]
 
 
 def main() -> int:
-    """Run all linting checks.
+    failures: list[str] = []
+    failures += fix_and_check("Python lint", python_fixers(), python_checks())
 
-    Returns:
-        0 if all checks pass, 1 if any fail.
-    """
-    print("\n🔍 Code Quality Checks")
-    print("=" * 60)
-    logger.info("Starting code quality checks...")
-
-    checks = [
-        (["ruff", "format", "."], "Ruff format", None),
-        (
-            ["ruff", "check", "--fix", "--unsafe-fixes", "."],
-            "Ruff check",
-            None,
-        ),
-        (
-            ["ty", "check", "intellifl", "tests"],
-            "Type checking (ty)",
-            None,
-        ),
-    ]
-
-    # Add frontend linting if frontend directory exists
-    frontend_dir = Path("frontend")
-    if frontend_dir.exists():
-        npm_path = shutil.which("npm") or "npm"
-        checks.append(([npm_path, "run", "lint"], "Frontend linting", "frontend"))
-
-    results = []
-    for i, (cmd, description, cwd) in enumerate(checks, 1):
-        print(f"\n[{i}/{len(checks)}] {description}...")
-        results.append(run_command(cmd, description, cwd))
-
-    # Summary
-    passed = sum(results)
-    total = len(results)
-
-    print("\n" + "=" * 60)
-    print("📋 Summary")
-    print("=" * 60)
-    for (_, description, _), result in zip(checks, results, strict=False):
-        status = "✓" if result else "✗"
-        print(f"  {status} {description}")
-
-    print("=" * 60)
-    if passed == total:
-        print(f"✓ All checks passed ({passed}/{total})\n")
-        logger.info("All checks passed")
-        return 0
+    if _frontend_available():
+        failures += fix_and_check(
+            "Frontend lint",
+            frontend_fixers(),
+            frontend_checks(),
+            fixer_cwd=_cwd_for,
+            check_cwd=_cwd_for,
+        )
     else:
-        print(f"✗ Some checks failed ({passed}/{total})")
-        print("   See logs/lint.log for details\n")
-        logger.error(f"Some checks failed ({passed}/{total})")
+        print_header("Frontend lint")
+        print("  skipped (no frontend/ or npm not on PATH)")
+
+    print()
+    print("=" * 60)
+    print(f"{C_BOLD}Lint summary{C_RESET}")
+    print("=" * 60)
+    if failures:
+        print(f"  {C_RED}{len(failures)} check(s) still failing:{C_RESET}")
+        for f in failures:
+            print(f"    - {f}")
+        if LOG.latest_path:
+            print(f"\n  See {LOG.latest_path} for full output.")
         return 1
+
+    print(f"  {C_GREEN}all checks passed{C_RESET}")
+    return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except StepFailedError as exc:
+        print(f"FAILED: {' '.join(exc.cmd)} (exit {exc.returncode})", file=sys.stderr)
+        sys.exit(exc.returncode)

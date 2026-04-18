@@ -12,12 +12,14 @@ from __future__ import annotations
 
 import argparse
 import os
-import subprocess
 import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+
+from intellifl.dev_runner import LOG, StepFailedError
+from intellifl.dev_runner import run as streamed_run
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_ENV = {
@@ -54,6 +56,8 @@ def build_env() -> dict[str, str]:
     env = os.environ.copy()
     for key, value in DEFAULT_ENV.items():
         env.setdefault(key, value)
+    if sys.stdout.isatty() and os.environ.get("NO_COLOR") is None:
+        env.setdefault("FORCE_COLOR", "1")
     return env
 
 
@@ -219,14 +223,12 @@ def print_help() -> None:
             print(f"  {name:<20} {task.description}")
 
 
-def run_process(command: list[str], *, cwd: Path) -> int:
-    """Run a subprocess and return its exit code."""
+def run_process(command: list[str], *, cwd: Path, label: str | None = None) -> int:
+    """Run a subprocess, streaming output to console + session log."""
     try:
-        result = subprocess.run(command, cwd=cwd, env=build_env(), check=False)
-    except FileNotFoundError:
-        print(f"Command not found: {command[0]}", file=sys.stderr)
-        return 127
-    return result.returncode
+        return streamed_run(command, check=False, label=label, cwd=cwd, env=build_env())
+    except StepFailedError as exc:
+        return exc.returncode
 
 
 def run_task(name: str, extra_args: list[str] | None = None) -> int:
@@ -252,7 +254,7 @@ def run_task(name: str, extra_args: list[str] | None = None) -> int:
     task = TASKS[name]
     command = task.command_factory() + extra_args
     start = time.perf_counter()
-    result = run_process(command, cwd=task.cwd)
+    result = run_process(command, cwd=task.cwd, label=name)
     if task.timed:
         elapsed = round(time.perf_counter() - start)
         print(f"[TIMER] Target {name} completed in {elapsed} seconds")
@@ -280,12 +282,29 @@ def main(argv: list[str] | None = None) -> int:
         print_help()
         return 2
 
-    try:
+    if parsed.command == "help":
         return run_task(parsed.command, parsed.args)
+
+    LOG.open(parsed.command)
+    LOG.session_header(parsed.command, list(argv) if argv is not None else sys.argv[1:])
+    if LOG.latest_path:
+        print(
+            f"log: {LOG.latest_path}"
+            + (f" (archive: {LOG.archive_path})" if LOG.archive_path else ""),
+            flush=True,
+        )
+
+    rc = 1
+    try:
+        rc = run_task(parsed.command, parsed.args)
+        return rc
     except KeyboardInterrupt:
-        # Subprocess already handled signal; exit cleanly
+        rc = 130
         print("\n[INTERRUPT] Operation cancelled by user", file=sys.stderr)
+        LOG.event("WARN", "interrupted (SIGINT)")
         return 0
+    finally:
+        LOG.session_footer(rc)
 
 
 if __name__ == "__main__":

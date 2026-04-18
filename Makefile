@@ -12,7 +12,7 @@
 ##   make <target>               Optional compatibility wrapper
 ##
 
-.PHONY: help setup upgrade yolo dev dev-down sim lint validate test audit clean reset docs check-env baselines
+.PHONY: help setup upgrade yolo dev dev-down sim lint validate test test-unit test-integration test-performance audit clean reset docs check-env baselines logs logs-tail
 .DEFAULT_GOAL := help
 
 export UV_PROJECT_ENVIRONMENT ?= .venv
@@ -58,14 +58,23 @@ sim:                       ## Run local simulation with optimized Ray environmen
 lint:                      ## Run code quality checks (ruff format, ruff check, ty)
 	@$(UV_DEV) lint
 
-validate:                  ## Quick validation: lint + unit tests only (fast feedback)
+validate:                  ## Quick validation: lint + unit tests only
 	@$(UV_DEV) validate
-
-audit:                     ## Auto-fix and audit security vulnerabilities (backend + frontend)
-	@$(UV_DEV) audit
 
 test:                      ## Run full test suite (unit + integration + performance)
 	@$(UV_DEV) test
+
+test-unit:                 ## Run unit tests only (parallel with CPU detection)
+	@$(UV_DEV) test -- --unit
+
+test-integration:          ## Run integration tests only
+	@$(UV_DEV) test -- --integration
+
+test-performance:          ## Run performance tests only
+	@$(UV_DEV) test -- --performance
+
+audit:                     ## Auto-fix and audit security vulnerabilities (backend + frontend)
+	@$(UV_DEV) audit
 
 baselines:                 ## Record fast simulation baselines for CI
 	@$(UV_DEV) baselines -- --all-fast
@@ -82,6 +91,18 @@ reset:                     ## Clean artifacts AND experiment results
 
 docs:                      ## Serve documentation (Zensical)
 	@$(UV_DEV) docs
+
+# ════════════════════════════════════════════════════════════════════════════
+# Logs
+#   These bypass intellifl-dev — opening the CLI truncates logs/dev-latest.log,
+#   which would erase what we're trying to read.
+# ════════════════════════════════════════════════════════════════════════════
+
+logs:                      ## Show the last 200 lines of logs/dev-latest.log
+	@tail -n 200 logs/dev-latest.log 2>/dev/null || echo "no logs yet — run any make target first"
+
+logs-tail:                 ## Follow logs/dev-latest.log (Ctrl-C to exit)
+	@tail -f logs/dev-latest.log
 
 # ════════════════════════════════════════════════════════════════════════════
 # Help

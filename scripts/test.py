@@ -2,57 +2,41 @@
 """Test suite runner with coverage reporting.
 
 Runs unit, integration, and performance tests with coverage accumulation.
+Supports running individual suites via --unit, --integration, --performance flags.
 Generates XML coverage report consumed by CI.
+
+Usage:
+    python scripts/test.py              # Run all suites (with lint first)
+    python scripts/test.py --unit       # Unit tests only
+    python scripts/test.py --integration  # Integration tests only
+    python scripts/test.py --performance  # Performance tests only
 """
 
+from __future__ import annotations
+
 import re
-import subprocess
 import sys
 from pathlib import Path
 
-from logging_utils import setup_logger
+from intellifl.dev_runner import (
+    C_BOLD,
+    C_GREEN,
+    C_RED,
+    C_RESET,
+    LOG,
+    PROJECT_ROOT,
+    StepFailedError,
+    print_header,
+    run,
+    run_capture,
+)
 
-logger = setup_logger(__name__, "test.log")
-
-
-def run_suite(cmd: list[str], description: str) -> tuple[bool, str]:
-    """Execute a test suite and return (passed, output).
-
-    Args:
-        cmd: Command and arguments as a list.
-        description: Human-readable description for logging.
-
-    Returns:
-        (True if successful, False otherwise), combined stdout+stderr.
-    """
-    logger.info(f"Running: {description}")
-    try:
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True, encoding="utf-8")
-        output = (result.stdout + result.stderr).strip()
-        logger.info(f"✓ {description} passed")
-        if output:
-            logger.debug(output)
-        return True, output
-    except subprocess.CalledProcessError as e:
-        output = (e.stdout + e.stderr).strip()
-        logger.error(f"✗ {description} failed (exit code: {e.returncode})")
-        if output:
-            logger.error(output)
-        return False, output
-    except FileNotFoundError:
-        logger.error(f"✗ {description} — command not found")
-        return False, ""
+COVERAGE_DIR = PROJECT_ROOT / "tests" / "logs"
+COVERAGE_XML = COVERAGE_DIR / "coverage.xml"
 
 
 def parse_pytest_summary(output: str) -> str:
-    """Extract the short result line from pytest output.
-
-    Args:
-        output: Combined pytest stdout/stderr.
-
-    Returns:
-        Summary string like '2155 passed, 2 skipped in 48.98s'.
-    """
+    """Extract the short result line from pytest output."""
     matches = re.findall(r"=+ (.+?) =+\s*$", output, re.MULTILINE)
     if matches:
         return matches[-1].strip()
@@ -62,102 +46,91 @@ def parse_pytest_summary(output: str) -> str:
     return ""
 
 
-def main() -> int:
-    """Run full test suite with coverage.
-
-    Returns:
-        0 if all tests pass, 1 if any fail.
-    """
-    print("\n🧪 Test Suite")
-    print("=" * 60)
-    logger.info("Starting test suite...")
-
-    log_dir = Path("tests/logs")
-    log_dir.mkdir(parents=True, exist_ok=True)
-    coverage_xml = log_dir / "coverage.xml"
-
-    suites: list[tuple[list[str], str]] = [
-        (
-            [
-                sys.executable,
-                "-m",
-                "pytest",
-                "tests/unit/",
-                "-n",
-                "logical",
-                "-q",
-                "--no-header",
-                "--cov=intellifl",
-                f"--cov-report=xml:{coverage_xml}",
-            ],
-            "Unit tests",
-        ),
-        (
-            [
-                sys.executable,
-                "-m",
-                "pytest",
-                "tests/integration/",
-                "-q",
-                "--no-header",
-                "--cov=intellifl",
-                "--cov-append",
-                f"--cov-report=xml:{coverage_xml}",
-            ],
-            "Integration tests",
-        ),
-        (
-            [
-                sys.executable,
-                "-m",
-                "pytest",
-                "tests/performance/",
-                "-q",
-                "--no-header",
-                "--cov=intellifl",
-                "--cov-append",
-                f"--cov-report=xml:{coverage_xml}",
-            ],
-            "Performance tests",
-        ),
+def suite_command(subpath: str, *, append_cov: bool, extra: list[str] | None = None) -> list[str]:
+    cmd = [
+        sys.executable,
+        "-m",
+        "pytest",
+        subpath,
+        "-q",
+        "--no-header",
+        "--cov=intellifl",
+        f"--cov-report=xml:{COVERAGE_XML}",
     ]
+    if append_cov:
+        cmd.insert(cmd.index("--cov=intellifl") + 1, "--cov-append")
+    if extra:
+        cmd.extend(extra)
+    return cmd
 
-    results: list[tuple[str, bool, str]] = []
+
+def main() -> int:
+    args = sys.argv[1:]
+    run_unit = "--unit" in args
+    run_integration = "--integration" in args
+    run_performance = "--performance" in args
+    run_all = not (run_unit or run_integration or run_performance)
+
+    COVERAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+    suites: list[tuple[str, list[str]]] = []
+    if run_all or run_unit:
+        suites.append(
+            ("unit tests", suite_command("tests/unit/", append_cov=False, extra=["-n", "auto"]))
+        )
+    if run_all or run_performance:
+        suites.append(("performance tests", suite_command("tests/performance/", append_cov=True)))
+    if run_all or run_integration:
+        suites.append(("integration tests", suite_command("tests/integration/", append_cov=True)))
+
+    print_header("Test suite")
+
+    if run_all:
+        try:
+            rc = run(
+                [sys.executable, str(Path(__file__).with_name("lint.py"))],
+                check=False,
+                label="lint (pre-flight)",
+            )
+        except StepFailedError as exc:
+            rc = exc.returncode
+        if rc != 0:
+            print(f"\n{C_RED}Lint failed — fix issues before running tests{C_RESET}\n")
+            return rc
+
+    results: list[tuple[str, int, str]] = []
     try:
-        for i, (cmd, description) in enumerate(suites, 1):
-            print(f"\n[{i}/{len(suites)}] {description}...")
-            passed, output = run_suite(cmd, description)
-            results.append((description, passed, output))
+        for label, cmd in suites:
+            rc, output = run_capture(cmd, label=label, check=False)
+            results.append((label, rc, output))
     except KeyboardInterrupt:
         print("\n[INTERRUPT] Test run cancelled by user", file=sys.stderr)
         return 130
 
-    # Summary
-    passed_count = sum(1 for _, p, _ in results if p)
+    passed_count = sum(1 for _, rc, _ in results if rc == 0)
     total = len(results)
 
-    print("\n" + "=" * 60)
-    print("📋 Summary")
+    print()
     print("=" * 60)
-    for description, passed, output in results:
-        status = "✓" if passed else "✗"
+    print(f"{C_BOLD}Test summary{C_RESET}")
+    print("=" * 60)
+    for label, rc, output in results:
+        status = f"{C_GREEN}✓{C_RESET}" if rc == 0 else f"{C_RED}✗{C_RESET}"
         summary = parse_pytest_summary(output)
         suffix = f" — {summary}" if summary else ""
-        print(f"  {status} {description}{suffix}")
+        print(f"  {status} {label}{suffix}")
 
-    print(f"\n  Coverage report: {coverage_xml}")
+    print(f"\n  Coverage report: {COVERAGE_XML}")
     print("=" * 60)
 
     if passed_count == total:
-        print(f"✓ All tests passed ({passed_count}/{total})\n")
-        logger.info(f"All tests passed ({passed_count}/{total})")
+        print(f"{C_GREEN}✓ all suites passed ({passed_count}/{total}){C_RESET}\n")
         return 0
-    else:
-        failed = total - passed_count
-        print(f"✗ {failed}/{total} suites failed")
-        print("  See logs/test.log for details\n")
-        logger.error(f"{failed}/{total} suites failed")
-        return 1
+    failed = total - passed_count
+    print(f"{C_RED}✗ {failed}/{total} suite(s) failed{C_RESET}")
+    if LOG.latest_path:
+        print(f"  See {LOG.latest_path} for full output.")
+    return 1
 
 
 if __name__ == "__main__":
