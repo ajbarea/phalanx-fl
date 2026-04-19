@@ -27,3 +27,16 @@ ignore:
   - "scripts/**"
   - "frontend/**"
   - "*.md"
+  # Developer tooling — invoked via CLI, not part of the FL framework runtime
+  - "intellifl/dev_cli.py"
+  - "intellifl/dev_runner.py"
+  # Visualization / reporting — matplotlib, HTML, animation output; verified via artifact inspection
+  - "intellifl/attack_utils/snapshot_image_viz.py"
+  - "intellifl/attack_utils/snapshot_html_reports.py"
+  - "intellifl/attack_utils/snapshot_animation.py"
+  - "intellifl/attack_utils/snapshot_text_viz.py"
+  - "intellifl/output_handlers/new_plot_handler.py"
+  # Celery task wrappers — thin subprocess shims, exercised by integration runs
+  - "intellifl/tasks/**"
+  # Terminal/PTY router — interactive shell, not unit-testable in CI
+  - "intellifl/api/routers/terminal.py"
