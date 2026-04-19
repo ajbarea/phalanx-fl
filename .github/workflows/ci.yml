@@ -63,15 +63,15 @@ jobs:
         run: 'uv sync --frozen --python ${{ matrix.python-version }}'
       - name: Run unit tests (parallel)
         run: >
-          uv run coverage run --append --source=intellifl -m pytest -n auto
+          uv run pytest -n auto --cov=intellifl --cov-append --cov-report=
           tests/unit/ --tb=short
       - name: Run integration tests (serial)
         run: >
-          uv run coverage run --append --source=intellifl -m pytest
+          uv run pytest --cov=intellifl --cov-append --cov-report=
           tests/integration/ --tb=short
       - name: Run performance tests (serial)
         run: >
-          uv run coverage run --append --source=intellifl -m pytest
+          uv run pytest --cov=intellifl --cov-append --cov-report=
           tests/performance/ --tb=short
       - name: Generate final coverage report
         run: |
