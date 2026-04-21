@@ -140,9 +140,7 @@ class TestRegistryShape:
 
     def test_every_entry_has_either_env_vars_or_filter_kwargs(self):
         for key, cfg in WARNING_FILTERS.items():
-            assert "env_vars" in cfg or "filter_kwargs" in cfg, (
-                f"{key} has nothing to apply"
-            )
+            assert "env_vars" in cfg or "filter_kwargs" in cfg, f"{key} has nothing to apply"
 
 
 def test_apply_env_vars_handles_caplog_isolation(clean_env):
