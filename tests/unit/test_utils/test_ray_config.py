@@ -33,16 +33,19 @@ class TestGetInitArgs:
 
     def test_sets_accelerator_warning_suppressor(self, clean_env):
         import os
+
         RayConfig.get_init_args()
         assert os.environ["RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO"] == "0"
 
     def test_sets_runtime_env_excludes_to_empty(self, clean_env):
         import os
+
         RayConfig.get_init_args()
         assert os.environ["RAY_OVERRIDE_RUNTIME_ENV_DEFAULT_EXCLUDES"] == ""
 
     def test_unsets_virtual_env(self, clean_env):
         import os
+
         clean_env.setenv("VIRTUAL_ENV", "/some/venv")
         RayConfig.get_init_args()
         assert "VIRTUAL_ENV" not in os.environ
@@ -53,11 +56,13 @@ class TestGetInitArgs:
 
     def test_backend_log_level_defaults_to_error(self, clean_env):
         import os
+
         RayConfig.get_init_args()
         assert os.environ["RAY_BACKEND_LOG_LEVEL"] == "error"
 
     def test_backend_log_level_respects_existing_value(self, clean_env):
         import os
+
         clean_env.setenv("RAY_BACKEND_LOG_LEVEL", "debug")
         RayConfig.get_init_args()
         # setdefault semantics: pre-existing value wins

@@ -203,9 +203,7 @@ class TestTerminationSummary:
         h = TerminationHandler(
             policy=TerminationPolicy.STRICT, min_clients_threshold=5, logger=Mock()
         )
-        h.should_terminate(
-            available_clients=2, total_clients=10, round_num=4, removed_count=8
-        )
+        h.should_terminate(available_clients=2, total_clients=10, round_num=4, removed_count=8)
         summary = h.get_termination_summary()
         assert summary["terminated_early"] is True
         assert summary["termination_round"] == 4
