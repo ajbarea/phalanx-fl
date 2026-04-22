@@ -46,7 +46,6 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - '3.11'
           - '3.12'
           - '3.13'
       fail-fast: false
@@ -79,7 +78,7 @@ jobs:
           uv run coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6.0.0
-        if: matrix.python-version == '3.11'
+        if: matrix.python-version == '3.12'
         with:
           token: '${{ secrets.CODECOV_TOKEN }}'
           slug: ajbarea/phalanx-fl

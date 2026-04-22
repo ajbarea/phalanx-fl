@@ -2,7 +2,7 @@
 name = "intellifl"
 version = "0.1.0"
 description = "Federated Learning Framework with Ray, Flower, and PyTorch"
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "celery[redis]",
     "datasets",
