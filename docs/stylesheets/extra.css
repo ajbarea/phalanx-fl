@@ -1,6 +1,10 @@
 /* ==========================================================================
-   InteFL Custom Theme — Elevated Minimal
+   Phalanx-FL Custom Theme — Elevated Minimal
    Teal / Deep-Purple palette with immersive landing page
+
+   Note: internal CSS variable names still use the `--intefl-*` prefix from
+   the InteFL era. Kept as-is to minimize churn ahead of the planned
+   Phalanx-FL rewrite, which will rework this stylesheet from scratch.
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=account_tree,api,bolt,bug_report,code,data_object,database,group,inbox,layers,local_fire_department,menu_book,photo_library,play_circle,psychology,rocket_launch,scatter_plot,settings,shield,smart_toy,terminal,trending_up,verified_user,warning&display=block');
@@ -1191,4 +1195,26 @@ body[data-md-color-scheme="slate"] .mermaid svg .edgeLabel rect {
 body[data-md-color-scheme="slate"] .mermaid svg .edgeLabel span {
   color: var(--intefl-teal-light) !important;
   fill: var(--intefl-teal-light) !important;
+}
+
+/* ==========================================================================
+   Research Posters
+   Used by docs/research/**/index.md for poster thumbnails. The detail page
+   (rit-capstone-2025-intellifl/index.md) has a bare <img>; the landing page
+   (research/index.md) wraps the image in an <a> for navigation.
+   ========================================================================== */
+
+.md-typeset img.research-poster {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  display: block;
+  margin: 1rem auto;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--intefl-teal) 15%, transparent);
+}
+
+.md-typeset a:hover img.research-poster {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px color-mix(in srgb, var(--intefl-teal) 28%, transparent);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }

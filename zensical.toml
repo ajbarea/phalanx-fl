@@ -1,5 +1,5 @@
 [project]
-site_name = "InteFL"
+site_name = "Phalanx-FL"
 site_description = "A federated learning execution and research framework"
 site_author = "AJ Barea"
 site_url = "https://ajbarea.github.io/phalanx-fl/"
@@ -8,13 +8,19 @@ copyright = "AJ Barea · 2026"
 nav = [
   { "Home" = "index.md" },
   { "Getting Started" = "getting-started.md" },
-  { "CLI Reference" = "cli.md" },
-  { "Architecture" = "architecture.md" },
-  { "Configuration" = "configuration.md" },
-  { "Datasets" = "datasets.md" },
-  { "Strategies" = "strategies.md" },
-  { "Attacks" = "attacks.md" },
-  { "API Reference" = "api.md" },
+  { "Guide" = [
+      { "CLI Reference" = "cli.md" },
+      { "Architecture" = "architecture.md" },
+      { "Configuration" = "configuration.md" },
+      { "Datasets" = "datasets.md" },
+      { "Strategies" = "strategies.md" },
+      { "Attacks" = "attacks.md" },
+      { "API Reference" = "api.md" },
+  ]},
+  { "Research" = [
+      { "Overview" = "research/index.md" },
+      { "RIT Capstone 2025 — IntelliFL" = "research/rit-capstone-2025-intellifl/index.md" },
+  ]},
 ]
 
 extra_css = ["stylesheets/extra.css"]
@@ -97,4 +103,4 @@ generator = false
 [[project.extra.social]]
 icon = "fontawesome/brands/github"
 link = "https://github.com/ajbarea/phalanx-fl"
-name = "InteFL on GitHub"
+name = "Phalanx-FL on GitHub"
