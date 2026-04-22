@@ -1064,9 +1064,9 @@ dev = [
     { name = "pytest-randomly" },
     { name = "pytest-repeat" },
     { name = "pytest-xdist" },
-    { name = "ruff" },
+    { name = "ruff", specifier = ">=0.9" },
     { name = "testcontainers", extras = ["redis"] },
-    { name = "ty" },
+    { name = "ty", specifier = ">=0.0.25" },
     { name = "zensical" },
 ]
 
