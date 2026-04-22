@@ -38,3 +38,8 @@ node_modules/
 test-results/
 site/
 .env
+
+# Claude Code — canonical skills live at ~/.claude/skills/; only the per-repo
+# skill-context.md is team-shared (injected into canonical skills at runtime).
+.claude/*
+!.claude/skill-context.md
