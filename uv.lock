@@ -934,7 +934,7 @@ dev = [
     { name = "pytest-xdist" },
     { name = "ruff", specifier = ">=0.9" },
     { name = "testcontainers", extras = ["redis"] },
-    { name = "ty", specifier = ">=0.0.25" },
+    { name = "ty", specifier = ">=0.0.25,<0.1" },
     { name = "zensical" },
 ]
 

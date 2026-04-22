@@ -44,7 +44,7 @@ dev = [
     "pytest-repeat",
     "pytest-xdist",
     "ruff>=0.9",
-    "ty>=0.0.25",
+    "ty>=0.0.25,<0.1",
     "zensical",
 ]
 
