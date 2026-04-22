@@ -27,6 +27,43 @@ its source doc. Items already implemented in source code have been removed.
 
 ---
 
+## Dependency hygiene
+
+Captured from the ECOSYSTEM.md audit (2026-04-22). The obvious wins
+(eleven dead top-level declarations removed, `mkdocs`/`mkdocs-material`
+dropped since docs migrated to zensical) shipped with that audit; the
+items below need a real decision before they move.
+
+- **Celery+Redis vs FastAPI `BackgroundTasks`** — today simulation
+  runs go API → Celery → Redis broker → worker. That's the right
+  pattern if multiple researchers hit the same API concurrently and
+  want durable queues, or if simulation workers need to scale
+  horizontally off-node. If usage is "one researcher at a time on
+  one box", FastAPI's built-in `BackgroundTasks` would eliminate
+  Celery + Redis + `testcontainers[redis]` + the queue reconciliation
+  logic. Decide based on actual concurrency need, not perceived
+  scalability want.
+- **Ray as a hard runtime dep vs an `[executor]` extra** — three
+  direct import sites (`simulation_runner`, `utils.ray_config`,
+  `utils.ray_logger`) sit on the simulation critical path, but
+  Flower itself has a non-Ray executor option. If the Ray dep moves
+  to an `[executor]` extra with an import-guard in `simulation_runner`,
+  users who don't want Ray's install footprint (≈500 MB) can opt out
+  and fall back to Flower's native executor.
+- **mutmut cadence** — mutation testing is expensive (O(mutants ×
+  test run)); it's only useful if it actually runs. Define a cadence
+  ("monthly", "before each release", "quarterly audit") or drop the
+  dep. A CI workflow that runs `mutmut` nightly against a subset of
+  `intellifl.simulation_strategies` would make it concrete without
+  blocking the fast lane.
+- **`huggingface_hub[hf_xet]` evaluation** — the `[hf_xet]` extra
+  enables HF's chunk-dedup download protocol. For our download
+  pattern (MNIST + CIFAR-10 + FEMNIST + maybe a Llama checkpoint),
+  the savings are unmeasured. A before/after benchmark on cold-cache
+  dataset downloads would settle whether to keep the extra or drop
+  it. Currently removed with the rest of the dead-dep sweep; re-add
+  if benchmarks justify.
+
 ## Dataset System Rework
 
 > Source: `demo/DATASET_REWORK_PLAN.md` (Phases 0-5)
