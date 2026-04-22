@@ -3,7 +3,7 @@ site_name = "InteFL"
 site_description = "A federated learning execution and research framework"
 site_author = "AJ Barea"
 site_url = "https://ajbarea.github.io/phalanx-fl/"
-copyright = "AJ Barea &middot; 2026"
+copyright = "AJ Barea · 2026"
 
 nav = [
   { "Home" = "index.md" },
