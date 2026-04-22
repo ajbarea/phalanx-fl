@@ -34,7 +34,6 @@ dependencies = [
 [dependency-groups]
 dev = [
     "hypothesis",
-    "mutmut",
     "testcontainers[redis]",
     "pip-audit",
     "pytest>=9.0.3",
@@ -253,27 +252,3 @@ torchvision = [
     { index = "pytorch-cu128", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
 ]
 
-# =============================================================================
-# Mutation Testing Configuration
-# =============================================================================
-[tool.mutmut]
-paths_to_mutate = ["intellifl/"]
-runner = "python -m pytest"
-tests_dir = ["tests/"]
-use_coverage = true
-exclude = [
-    "intellifl/__init__.py",
-    "intellifl/api/__init__.py",
-    "intellifl/api/models.py",
-    "intellifl/attack_utils/__init__.py",
-    "intellifl/attack_utils/vocabularies/",
-    "intellifl/client_models/__init__.py",
-    "intellifl/config_loaders/__init__.py",
-    "intellifl/data_models/",
-    "intellifl/dataset_handlers/__init__.py",
-    "intellifl/dataset_loaders/__init__.py",
-    "intellifl/network_models/__init__.py",
-    "intellifl/output_handlers/__init__.py",
-    "intellifl/simulation_strategies/__init__.py",
-    "intellifl/utils/__init__.py",
-]

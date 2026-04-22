@@ -29,40 +29,49 @@ its source doc. Items already implemented in source code have been removed.
 
 ## Dependency hygiene
 
-Captured from the ECOSYSTEM.md audit (2026-04-22). The obvious wins
-(eleven dead top-level declarations removed, `mkdocs`/`mkdocs-material`
-dropped since docs migrated to zensical) shipped with that audit; the
-items below need a real decision before they move.
+Captured from the ECOSYSTEM.md audit (2026-04-22). Decisions reached
+during that pass are logged inline; remaining items need real work
+before they close.
 
-- **Celery+Redis vs FastAPI `BackgroundTasks`** — today simulation
-  runs go API → Celery → Redis broker → worker. That's the right
-  pattern if multiple researchers hit the same API concurrently and
-  want durable queues, or if simulation workers need to scale
-  horizontally off-node. If usage is "one researcher at a time on
-  one box", FastAPI's built-in `BackgroundTasks` would eliminate
-  Celery + Redis + `testcontainers[redis]` + the queue reconciliation
-  logic. Decide based on actual concurrency need, not perceived
-  scalability want.
-- **Ray as a hard runtime dep vs an `[executor]` extra** — three
-  direct import sites (`simulation_runner`, `utils.ray_config`,
-  `utils.ray_logger`) sit on the simulation critical path, but
-  Flower itself has a non-Ray executor option. If the Ray dep moves
-  to an `[executor]` extra with an import-guard in `simulation_runner`,
-  users who don't want Ray's install footprint (≈500 MB) can opt out
-  and fall back to Flower's native executor.
-- **mutmut cadence** — mutation testing is expensive (O(mutants ×
-  test run)); it's only useful if it actually runs. Define a cadence
-  ("monthly", "before each release", "quarterly audit") or drop the
-  dep. A CI workflow that runs `mutmut` nightly against a subset of
-  `intellifl.simulation_strategies` would make it concrete without
-  blocking the fast lane.
-- **`huggingface_hub[hf_xet]` evaluation** — the `[hf_xet]` extra
-  enables HF's chunk-dedup download protocol. For our download
-  pattern (MNIST + CIFAR-10 + FEMNIST + maybe a Llama checkpoint),
-  the savings are unmeasured. A before/after benchmark on cold-cache
-  dataset downloads would settle whether to keep the extra or drop
-  it. Currently removed with the rest of the dead-dep sweep; re-add
-  if benchmarks justify.
+### Resolved (2026-04-22)
+
+- **Celery+Redis stays.** The load-bearing use case is *serialisation*,
+  not scale: without it, concurrent frontend users clicking "run sim"
+  would crash the box. Celery with single-worker concurrency enforces
+  "one sim at a time, durable queue across restarts". BackgroundTasks
+  wouldn't survive a server restart mid-queue, and a bare semaphore
+  wouldn't either.
+- **Ray stays as a hard dep; `utils/ray_config.py` removed.** The
+  platform-workaround shim covered Flower 1.9 quirks that Flower 1.28+
+  now handles natively. `simulation_runner` and `utils/ray_logger`
+  still import Ray directly; those stay.
+- **`mutmut` dropped.** Aspirational tooling; no cadence defined, no
+  runs recorded. `uv add --group dev mutmut` revives it if and when a
+  real schedule materialises.
+- **`huggingface_hub[hf_xet]` dropped.** The Xet-protocol boost is
+  unmeasured for our download pattern (MNIST + CIFAR-10 + FEMNIST +
+  maybe a Llama checkpoint) and the motivation was curiosity rather
+  than observed savings. Re-add if a real bottleneck shows up.
+
+### Still open
+
+- **`utils/ray_logger.py` evaluation (369 lines)** — structured
+  worker-crash / OOM logging added in the Flower 1.9 era. Flower 1.28+
+  has richer native observability; unclear how much of `ray_logger`
+  is still carrying unique value vs shadowing what Flower now provides.
+  Read through Flower's current worker-observability surface, then
+  either delete `ray_logger.py` (and simplify `simulation_runner`) or
+  document the specific gap it fills. The API's log-parsing tests only
+  parse log-line formats containing the string `ray_logger`, so
+  deleting the module is not test-coupled.
+- **File-consolidation pass** — apply the `network_models` precedent
+  (dozens of files → one `transformer_models.py` dispatcher, shipped
+  2026-04-06) to the other one-class-per-file packages:
+  `intellifl/*_handlers/`, `intellifl/simulation_strategies/`,
+  `intellifl/dataset_loaders/`, `intellifl/client_models/`. Each is a
+  standalone refactor; all follow the same shape (registry dict +
+  dispatch function + dataclass config). Big diff, small semantic
+  change.
 
 ## Dataset System Rework
 

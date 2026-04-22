@@ -72,7 +72,6 @@ from intellifl.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
 from intellifl.utils.gpu_monitor import GPUMemoryMonitor
-from intellifl.utils.ray_config import RayConfig
 from intellifl.utils.status_tracker import StatusTracker
 
 if TYPE_CHECKING:
@@ -311,7 +310,6 @@ class FederatedSimulation:
                     "num_cpus": self.strategy_config.cpus_per_client,
                     "num_gpus": self.strategy_config.gpus_per_client,
                 },
-                "init_args": RayConfig.get_init_args(),
             },
         )
 

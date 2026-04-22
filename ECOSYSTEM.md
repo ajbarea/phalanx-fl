@@ -31,10 +31,12 @@ reflects that breadth.
   experiments. Lives alongside `flwr`; bump together.
 - **`ray>=2.54.1`** — distributed execution backend for Flower
   simulations (`flwr.simulation.run_simulation` uses Ray under the hood
-  when scaled). Direct imports in `simulation_runner`, `utils.ray_config`,
-  and `utils.ray_logger` — three files, but they sit on the critical
-  path for every simulation run. The `>=2.54.1` floor pins a specific
-  patch that fixes a logger-shutdown hang.
+  when scaled). Direct imports in `simulation_runner` and
+  `utils.ray_logger`. The `>=2.54.1` floor pins a specific patch that
+  fixes a logger-shutdown hang. Platform-workaround shim
+  (`utils.ray_config`) removed 2026-04-22 — Flower 1.28+ handles the
+  env-var and dashboard fiddling that the shim used to cover for
+  Flower 1.9.
 - **`torch`** + **`torchvision`** — client-side training and the vision
   datasets (MNIST, CIFAR-10, FEMNIST). Uses the `pytorch-cu128` explicit
   index via `[tool.uv.sources]` to get CUDA 12.8 wheels on Linux/Windows.
@@ -70,11 +72,15 @@ reflects that breadth.
   progress to the frontend. One import site
   (`intellifl/api/routers/simulations.py`) but it's on the primary UX
   path (live progress bars).
-- **`celery[redis]`** — distributed task queue for simulation runs. The
-  `[redis]` extra pins redis as the broker/backend; dev tests against a
-  real redis via `testcontainers[redis]`. Imported in `celery_app`,
-  `simulation_tasks`, and several API routers. The API submits jobs;
-  Celery workers execute them.
+- **`celery[redis]`** — distributed task queue for simulation runs.
+  **Decided to stay** (2026-04-22 audit): the load-bearing use case is
+  *serialisation*, not scale. Without Celery, concurrent frontend users
+  clicking "run simulation" would launch multiple sims on one box and
+  crash it; Celery with single-worker concurrency queues them instead.
+  BackgroundTasks wouldn't give durable queues across server restart.
+  The `[redis]` extra pins redis as the broker/backend; dev tests
+  against a real redis via `testcontainers[redis]`. Imported in
+  `celery_app`, `simulation_tasks`, and several API routers.
 - **`pydantic`** — request/response schemas for FastAPI + data-model
   validation across the stack.
 - **`jsonschema`** — config-file validation for the research-experiment
@@ -125,12 +131,10 @@ workers, real redis in containers, randomness in partitioning).
 - **`testcontainers[redis]`** — spins up a real Redis container for
   integration tests that exercise the Celery queue end-to-end. The
   canonical "don't mock the broker" pattern.
-- **`mutmut`** — mutation testing. Bold addition for a research-grade
-  framework; `[tool.mutmut]` excludes `__init__.py` shims and
-  vocabulary/model packages to keep the mutant surface meaningful. Run
-  occasionally, not per-CI.
 - **`pip-audit`** — CVE scanning across the resolved dep tree. Run in
-  CI alongside lint.
+  CI alongside lint. (mutmut was dropped 2026-04-22 — aspirational
+  tooling that never ran; `uv add --group dev mutmut` to bring it back
+  if a cadence ever gets defined.)
 
 ### Build + lint
 
@@ -179,15 +183,12 @@ the real code paths — which is the correct behaviour.
 
 ## Open questions
 
-- **Ray as a hard dep.** Three direct import sites feels thin for a
-  `>=2.54.1` floor pin. Is phalanx committed to Ray, or is it
-  Flower-through-Ray where another simulation backend (Flower's native
-  non-Ray executor, for example) would work? If pluggable, Ray could
-  move to an extra.
-- **`huggingface_hub[hf_xet]` extra value.** Benchmarks needed —
-  is the Xet-protocol boost measurable for our download pattern, or is
-  it cargo-culted from HF docs?
-- **Mutation-testing cadence.** mutmut is expensive (O(mutants × test
-  suite)). Is there a regular run schedule, or is this aspirational
-  tooling? Worth defining a "run mutmut monthly / before release"
-  cadence, or dropping it if it never runs.
+- **`utils/ray_logger.py` (369 lines)** — structured worker-crash / OOM
+  logging. Unclear how much of this Flower 1.28+ now provides natively.
+  Evaluation planned (see ROADMAP dep-hygiene); removing it would
+  further shrink the Ray-surface footprint in phalanx.
+- **File-consolidation pass.** Most of `intellifl/*_handlers/`,
+  `intellifl/simulation_strategies/`, and `intellifl/dataset_loaders/`
+  are dozens-of-files-one-class-each; `network_models` was already
+  collapsed to a single dispatcher (2026-04-06). Propagating that
+  pattern is captured in the ROADMAP.
