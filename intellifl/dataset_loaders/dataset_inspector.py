@@ -18,7 +18,7 @@ class DatasetInspector:
     @staticmethod
     def inspect_dataset(dataset_name: str, label_column: str = "label") -> dict:
         """
-        Inspect a HuggingFace dataset and extract comprehensive metadata.
+        Inspect a HuggingFace dataset and extract metadata.
 
         Args:
             dataset_name: HuggingFace dataset identifier (e.g., "flwrlabs/femnist")

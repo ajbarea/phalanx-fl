@@ -63,10 +63,6 @@ class TerminationHandler:
     """
     Handles experiment termination logic for client removal scenarios.
 
-    Provides flexible, configurable policies for determining when federated
-    learning experiments should terminate due to insufficient client availability.
-    Includes comprehensive logging and state tracking for research reproducibility.
-
     Example:
         >>> handler = TerminationHandler(
         ...     policy=TerminationPolicy.GRACEFUL,
