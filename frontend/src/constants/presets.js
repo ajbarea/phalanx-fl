@@ -4,7 +4,7 @@ export const PRESETS = {
     name: 'Showcase: Full Convergence',
     subtitle: '30 rounds - 8 clients - Deep Training',
     description:
-      'Premium convergence demonstration with extended training showing a complete learning curve from random initialization to high accuracy. Perfect for presentations and understanding FL dynamics.',
+      '30-round FedAvg on FEMNIST IID. Full learning curve from random init to convergence.',
     estimatedTime: '15-20 minutes',
     icon: '🏆',
     tags: ['showcase', 'fundamentals', 'presentation'],
@@ -37,7 +37,7 @@ export const PRESETS = {
     name: 'Showcase: Attack & Recovery',
     subtitle: '25 rounds - 8 clients - Defense Demo',
     description:
-      'Dramatic visualization of Byzantine attack and successful defense. Demonstrates how Krum aggregation maintains model integrity despite sustained model poisoning attacks.',
+      'Krum aggregation against label-flipping attacks, with 2 of 8 clients malicious from rounds 8–18.',
     estimatedTime: '12-18 minutes',
     icon: '🛡️',
     tags: ['showcase', 'defense', 'presentation'],
@@ -84,7 +84,7 @@ export const PRESETS = {
     name: 'Showcase: Large Federation',
     subtitle: '20 rounds - 16 clients - Scaling Demo',
     description:
-      'Demonstrates federated learning at scale with 16 participating clients. Shows how collaborative training improves with more participants and diverse data contributions.',
+      '16-client FedAvg federation on FEMNIST IID.',
     estimatedTime: '10-15 minutes',
     icon: '🌐',
     tags: ['showcase', 'scaling', 'presentation'],
@@ -117,7 +117,7 @@ export const PRESETS = {
     name: 'Showcase: Byzantine NLP Defense',
     subtitle: '25 rounds - 5 clients - 100% Detection Rate',
     description:
-      'Demonstrates Krum defense achieving 100% Byzantine detection on transformer models. Malicious token replacement attacks are identified and filtered while maintaining stable convergence throughout 25 rounds of federated DistilBERT training.',
+      'Krum defense on federated DistilBERT across 25 rounds. Token replacement attacks from 1 of 5 clients.',
     estimatedTime: '60-90 minutes',
     icon: '🛡️',
     tags: ['showcase', 'nlp', 'defense', 'byzantine-detection'],
@@ -178,7 +178,7 @@ export const PRESETS = {
     name: 'Baseline Convergence',
     subtitle: '15 rounds - 5 clients - FedAvg',
     description:
-      'Fundamental federated learning workflow demonstrating collaborative training convergence. Ideal for understanding core FL mechanics with clean IID data distribution.',
+      'Baseline FedAvg run on FEMNIST IID. Starting point for exploring FL mechanics.',
     estimatedTime: '2-3 minutes',
     icon: '🚀',
     tags: ['beginner', 'fundamentals'],
@@ -457,7 +457,7 @@ export const PRESETS = {
     name: 'Adaptive Multi-Phase',
     subtitle: '15 rounds - 5 clients - Attack Schedule',
     description:
-      'Advanced defense showcasing multiple attack types: data poisoning, weight poisoning, and gradient manipulation. PID controller adapts to evolving threats.',
+      'PID controller defense across three phases: label flipping, model poisoning, gradient scaling.',
     estimatedTime: '3-4 minutes',
     icon: '🔄',
     tags: ['advanced', 'defense', 'weight-poisoning'],

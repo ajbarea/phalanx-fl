@@ -1,7 +1,7 @@
 """
 Image visualization utilities for attack snapshots.
 
-Provides publication-quality visualizations for federated learning attack research:
+Visualizations for federated learning attacks:
 - Side-by-side image grids (original vs poisoned)
 - Confusion matrices for label flipping attacks
 - Difference heatmaps for noise-based attacks
