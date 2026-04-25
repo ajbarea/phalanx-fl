@@ -52,8 +52,11 @@ def run_backend_audit() -> int:
     print("  ▶ Backend audit (Python dependencies)...")
     backend_logger.info("Starting backend audit...")
 
+    # CVE-2026-3219 (pip): no patched release yet — advisory GHSA-58qw-9mgm-455v
+    # (https://github.com/advisories/GHSA-58qw-9mgm-455v) was updated 2026-04-25
+    # with "Patched versions: None". Remove --ignore-vuln when a fixed pip ships.
     tools = [
-        (["pip-audit"], "pip-audit"),
+        (["pip-audit", "--ignore-vuln=CVE-2026-3219"], "pip-audit"),
         (["uv", "audit"], "uv audit"),
     ]
 
