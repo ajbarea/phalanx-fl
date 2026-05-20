@@ -52,11 +52,32 @@ def run_backend_audit() -> int:
     print("  ▶ Backend audit (Python dependencies)...")
     backend_logger.info("Starting backend audit...")
 
-    # CVE-2026-3219 (pip): no patched release yet — advisory GHSA-58qw-9mgm-455v
-    # (https://github.com/advisories/GHSA-58qw-9mgm-455v) was updated 2026-04-25
-    # with "Patched versions: None". Remove --ignore-vuln when a fixed pip ships.
+    # Unpatched-upstream ignore list — review before every release.
+    # Each entry's advisory reports "Patched versions: None" or has no fix
+    # listed in the pip-audit `Fix Versions` column. When upstream ships a
+    # patched release, drop the corresponding entry.
+    #
+    # CVE-2026-3219 (pip): advisory GHSA-58qw-9mgm-455v updated 2026-04-25.
+    # PYSEC-2024-277 (joblib 1.5.3, latest on PyPI 2026-05-20).
+    # PYSEC-2026-89 (markdown 3.10.2, latest on PyPI 2026-05-20).
+    # PYSEC-2025-211 through PYSEC-2025-218 (transformers): eight advisories
+    #   in the same series; still unpatched in transformers 5.9.0 (latest on
+    #   PyPI 2026-05-20). Filed against HuggingFace upstream — track via
+    #   https://github.com/huggingface/transformers/security/advisories.
+    transformers_advisories = [
+        f"--ignore-vuln=PYSEC-2025-{n}" for n in range(211, 219)
+    ]
     tools = [
-        (["pip-audit", "--ignore-vuln=CVE-2026-3219"], "pip-audit"),
+        (
+            [
+                "pip-audit",
+                "--ignore-vuln=CVE-2026-3219",
+                "--ignore-vuln=PYSEC-2024-277",
+                "--ignore-vuln=PYSEC-2026-89",
+                *transformers_advisories,
+            ],
+            "pip-audit",
+        ),
         (["uv", "audit"], "uv audit"),
     ]
 
