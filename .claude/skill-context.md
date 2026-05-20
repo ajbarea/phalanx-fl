@@ -13,7 +13,7 @@ toolchain / path / tooling changes.
 - runner_module: `intellifl/dev_runner.py::SessionLog.session_footer`
 - has: docker, frontend, datasets, attack vocabularies
 
-## audit (aj-audit)
+## audit
 
 Full audit = 10 `make` targets, in order:
 
@@ -39,7 +39,7 @@ Do **not** read `dev-latest.log` (overwritten each invocation).
 Do-not-run targets (long-running / expensive / external-state):
 `make docs` (zensical serve), `make dev`, `make sim`, `make baselines`.
 
-## ci_audit (aj-ci-audit)
+## ci_audit
 
 Referenced configs a CI failure can trace to:
 - `pyproject.toml`
@@ -55,7 +55,7 @@ Tool error markers that may appear in CI logs (extend the default grep set):
 
 Expected external PR checks: codecov (see `codecov.yml`), GitGuardian.
 
-## slop_ground_truth (aj-deslop / aj-reslop / aj-docsync)
+## slop_ground_truth
 
 Sources of truth for numeric performance / scale claims:
 
@@ -64,7 +64,7 @@ Sources of truth for numeric performance / scale claims:
 
 Any quantitative perf/scale claim not traceable to one of those is slop.
 
-## scan_scope (aj-deslop / aj-reslop)
+## scan_scope
 
 Skip paths (vendored, generated, or out-of-scope):
 - `.venv/`, `node_modules/`, `dist/`, `build/`, `site/`, `out/`
@@ -81,7 +81,7 @@ Subagent scan-area split:
 - Config/build: `pyproject.toml`, `Makefile`, `.github/workflows/**`, `zensical.toml`, `docker-compose*.yml`, `Dockerfile`, `.vscode/**`
 - Docs (opt-in): `docs/**/*.md`
 
-## docs_site (aj-docs-site)
+## docs_site
 
 - config: `zensical.toml`
 - workflow: `.github/workflows/docs.yml`

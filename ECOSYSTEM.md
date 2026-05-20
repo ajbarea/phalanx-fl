@@ -6,7 +6,7 @@ of truth for *why*.
 
 Shared toolchain-pin rationale (pytest 9.0.3 floor, ruff/ty floors,
 `requires-python = ">=3.11,<3.14"`) lives with the
-[aj-sisters](../.claude/skill-context.md) drift-detection skill — those are
+cross-repo [drift-detection skill](.claude/skill-context.md) — those are
 cross-repo policy, not phalanx-specific decisions.
 
 phalanx is the heaviest of the three sisters: an FL research framework with
@@ -157,7 +157,7 @@ workers, real redis in containers, randomness in partitioning).
   to `zensical` (`zensical.toml` exists; no `mkdocs.yml`). These two
   deps should be removed on the next housekeeping pass.
 - **`zensical`** — the actual docs generator. Same tooling across all
-  three sisters; aj-sisters audits for drift.
+  three sisters; cross-repo drift audit covers all three.
 
 ---
 
