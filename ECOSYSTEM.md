@@ -9,7 +9,7 @@ Shared toolchain-pin rationale (pytest 9.0.3 floor, ruff/ty floors,
 cross-repo [drift-detection skill](.claude/skill-context.md) — those are
 cross-repo policy, not phalanx-specific decisions.
 
-phalanx is the heaviest of the three sisters: an FL research framework with
+phalanx is the heaviest of the Python sisters: an FL research framework with
 a FastAPI control plane, Celery+Redis async job queue, Flower simulation
 core, Ray execution backend, and a PyTorch training path. The dep list
 reflects that breadth.
@@ -108,7 +108,7 @@ reflects that breadth.
 
 ### Test stack
 
-phalanx runs the richest pytest plugin set of the three sisters because
+phalanx runs the richest pytest plugin set of the Python sisters because
 FL simulations are inherently flaky at the edges (Ray actors, Celery
 workers, real redis in containers, randomness in partitioning).
 
@@ -156,8 +156,8 @@ workers, real redis in containers, randomness in partitioning).
 - **`mkdocs`** + **`mkdocs-material`** — *legacy.* The repo has migrated
   to `zensical` (`zensical.toml` exists; no `mkdocs.yml`). These two
   deps should be removed on the next housekeeping pass.
-- **`zensical`** — the actual docs generator. Same tooling across all
-  three sisters; cross-repo drift audit covers all three.
+- **`zensical`** — the actual docs generator. Same tooling across every
+  Python sister; cross-repo drift audit covers every linked sister.
 
 ---
 
