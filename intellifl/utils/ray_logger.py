@@ -5,6 +5,29 @@ This module provides:
 - Structured logging for Ray worker events (crashes, restarts, OOM)
 - Fault tolerance configuration for Ray simulations
 - Log file management for debugging Ray issues
+
+Why this is not just "use Flower's native observability" (re-evaluated
+2026-05-21 against Flower >= 1.28): Flower's simulation engine surfaces
+per-client `client_resources`, driver-side worker logs via Ray's
+`log_to_driver=True`, and a default `ServerApp` / `ClientApp` log stream.
+What it does NOT provide, and this module supplies:
+
+  1. **Strategy-level timing aggregation.** `RaySimulationMonitor` records
+     wall-clock per phalanx-fl strategy (a multi-FL-round concept on top of
+     Flower); Flower's native logs aggregate per FL round only.
+  2. **Classified event taxonomy.** `event_type=CRASH | OOM | TIMEOUT |
+     ACTOR_CRASH | TASK_CRASH | NODE_DEATH` makes structured greps possible;
+     raw Ray driver logs require regex over stack traces.
+  3. **Persistent summary artifact.** `ray_simulation_summary_<id>.json`
+     written at `stop()` preserves the round timings + error list + closing
+     cluster health for post-mortem; Flower does not write this.
+  4. **Closing cluster-health snapshot.** `check_ray_cluster_health()` polls
+     `ray.nodes()` for dead nodes at the simulation boundary; Flower does
+     not surface this.
+
+Shadow surfaces (covered by Flower native, intentionally not duplicated
+here): per-client resource allocation, in-flight worker stdout streaming,
+basic OOM error propagation from a ClientApp.
 """
 
 from __future__ import annotations

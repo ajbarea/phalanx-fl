@@ -53,17 +53,24 @@ before they close.
   maybe a Llama checkpoint) and the motivation was curiosity rather
   than observed savings. Re-add if a real bottleneck shows up.
 
+### Resolved (2026-05-21)
+
+- **`utils/ray_logger.py` evaluation (369 lines).** Re-read against
+  Flower >= 1.28 native observability (web-search verified, May 2026).
+  Verdict: **keep, document the gap**. Flower covers driver-side
+  worker log streaming + per-client `client_resources` + raw OOM
+  propagation, but does not provide (1) strategy-level timing
+  aggregation — `RaySimulationMonitor.record_round` works at
+  phalanx-fl's multi-FL-round "strategy" granularity which Flower
+  doesn't know about; (2) classified event taxonomy
+  (`CRASH / OOM / TIMEOUT / NODE_DEATH`) for structured grepping;
+  (3) a persistent `ray_simulation_summary_<id>.json` artifact for
+  post-mortem; (4) closing cluster-health snapshot via `ray.nodes()`.
+  Added module-header docstring naming each unique surface vs the
+  shadows. No code deletion warranted; the module earns its 369 lines.
+
 ### Still open
 
-- **`utils/ray_logger.py` evaluation (369 lines)** — structured
-  worker-crash / OOM logging added in the Flower 1.9 era. Flower 1.28+
-  has richer native observability; unclear how much of `ray_logger`
-  is still carrying unique value vs shadowing what Flower now provides.
-  Read through Flower's current worker-observability surface, then
-  either delete `ray_logger.py` (and simplify `simulation_runner`) or
-  document the specific gap it fills. The API's log-parsing tests only
-  parse log-line formats containing the string `ray_logger`, so
-  deleting the module is not test-coupled.
 - **File-consolidation pass** — apply the `network_models` precedent
   (dozens of files → one `transformer_models.py` dispatcher, shipped
   2026-04-06) to the other one-class-per-file packages:
