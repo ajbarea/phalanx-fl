@@ -173,7 +173,7 @@ the registry only needs to live in one place.
 
 - [ ] **1A: Update `docs/configuration.md`** — expand `partitioning_strategy` to list all supported keys with param tables
 - [ ] **1B: Update `docs/datasets.md`** — add config snippets showing each partitioner in action (especially Shard, Linear, Dirichlet with different α values). *(This also satisfies the Docs section item "Add JSON config snippets per dataset" — no separate task needed.)*
-- [ ] **1C: Add example simulation configs** — create 2-3 preset configs in `config/presets/` demonstrating non-IID scenarios (e.g., `pathological_2class.json`, `dirichlet_heterogeneous.json`, `shard_mcmahan.json`)
+- [ ] **1C: Add example simulation configs** — create 3-5 preset configs in `config/scenarios/` demonstrating researcher-grade scenarios. Original three: `pathological_2class.json`, `dirichlet_heterogeneous.json`, `shard_mcmahan.json`. Audit-of-audit additions (2026-05-21, Copilot-derived): `medical_imaging_iid_robust.json` (MedMNIST IID + Krum/Bulyan/RFA, "does robustness come free on IID data?"), `medical_imaging_non_iid_robust.json` (MedMNIST non-IID + Krum/Bulyan/Trust, "how does robustness degrade with heterogeneity?"), `femnist_label_flip_comparison.json` (FedAvg/Krum/Trust under 20% label-flip), `heterogeneous_byzantine_worst_case.json` (FEMNIST non-IID + gradient scaling + label-flip on overlapping clients). Each scenario file is strict JSON; explanatory text + research question + expected outcomes live in a sibling `.md` alongside (don't use JSON5/JSONC — `json.load` rejects comments). Pair with a CLI surface: `intellifl-dev sim --scenario NAME` + `--list-scenarios`, registry at `config/scenarios/registry.json`. Trigger: lower barrier to first experiment; newcomers see what's possible before wrestling with config.
 
 ### Phase 2 — Frontend Integration
 
@@ -288,6 +288,44 @@ Current `Dockerfile` uses `curl | sh` to install uv. Update to match [official u
 - [ ] Phase 3: Agent integration — AI-driven experiment suggestions
 - [ ] Phase 4: Frontend — agent UI integration
 - [ ] AI strategy generation from research papers
+
+---
+
+## Privacy
+
+> Source: 2026-05-21 audit-of-audits (2026-05-21 audit-of-audits review). Byzantine robustness + DP is the 2026 gold-standard pairing; phalanx today exposes neither DP knobs nor budget tracking. Ref: [Fed-BioMed Opacus tutorial](https://fedbiomed.gitlabpages.inria.fr/latest/tutorials/security/differential-privacy-with-opacus-on-fedbiomed/) (canonical client-side DP pattern, 2026).
+
+- [ ] **Client-side DP via Opacus integration** — add optional `differential_privacy` block to `shared_settings` exposing `target_epsilon`, `target_delta`, `noise_mechanism` (gaussian/laplace). Wire Opacus's `PrivacyEngine` into the client training loop; log per-round consumed epsilon budget alongside loss/accuracy. Trigger: many FL deployments need both robustness and DP — phalanx covers robustness today, DP is the missing axis. Tier 2 medium-lift; pairs with vFL's server-side DP exploration as a complementary research story (client-side here, server-side aggregation kernel there).
+- [ ] **Federated unlearning research lane** — benchmark gradient-ascent vs knowledge-distillation vs retraining-without unlearning methods across phalanx's 9-strategy matrix. Refs: [arXiv 2512.23171](https://arxiv.org/abs/2512.23171) (primal-dual VFL unlearning, 2026), [Nature Scientific Reports 2026](https://www.nature.com/articles/s41598-026-51158-x) (decoupling forgetting and preservation via KD), [arXiv 2504.05822](https://arxiv.org/pdf/2504.05822) (negated pseudo-gradients). Research-tier — file as a Tier 3 milestone, not Phase 1 work; position phalanx as the standard sandbox for federated-unlearning evaluation.
+
+---
+
+## Fairness
+
+> Source: 2026-05-21 audit-of-audits. Phalanx has MedMNIST + medical imaging in the dataset list but no fairness instrumentation. Per 2026 ML-culture norms, demographic-aware metrics are first-class — research that ignores them is increasingly hard to publish.
+
+- [ ] **Demographic-aware accuracy reporting** — extend `shared_settings` with a `fairness_evaluation` block: `demographic_groups`, `metrics` (`accuracy_per_group`, `equalized_odds`, `demographic_parity`). Per-strategy comparison: "does Krum amplify bias vs FedAvg under label-flip?" Wire into existing report-generation surface. Trigger: medical-imaging FL needs fairness data; today phalanx reports only aggregate accuracy.
+- [ ] **Stratified attack selection** — extend attack_schedule's `selection_strategy` beyond exact-IDs / count / proportion to include `stratified_by_label_imbalance` (entropy or KL-divergence against global label distribution). Attackers don't choose victims uniformly; stratified selection mimics realistic adversarial behavior. Cheap to ship (one round of `scipy.stats.entropy` per client during setup, cached). Pairs with the fairness work above — biased attacks should be detectable in demographic-aware metrics.
+
+---
+
+## Audit-of-audit follow-ups (2026-05-21)
+
+> Source: 2026-05-21 audit-of-audits review (deleted after extraction). Items that survived audit-of-audit verdict review but don't fit the existing Privacy / Fairness / Dataset / Attack sections cleanly.
+
+- [ ] **Adaptive strategy selection (research-tier)** — add an `adaptive_mode` block to strategy configs allowing mid-experiment pivoting based on observed metrics (e.g. `pivot_metric: accuracy`, `fallback_strategy: krum`, `fallback_threshold: 0.50`, `check_every_rounds: 5`). Log the switch decision with reason ("accuracy < 0.50 at round 5, switched FedAvg → Krum") so the data is mineable later for a strategy-predictor follow-up. Position phalanx as a *learning* tool, not just a comparison tool. Tier 2 medium-lift.
+- [ ] **Real-time performance profiling per strategy** — augment existing accuracy/loss reporting with compute-time-in-aggregation-kernel (CPU cycles / GPU memory), per-client bandwidth (bytes in/out), rounds-to-target-accuracy. Useful for edge-deployment readers who care about latency/bandwidth budgets, not just convergence. Render as a strategy report card alongside the convergence curves. Tier 1 low-lift.
+- [ ] **Auto-comparison report generation across strategies** — after a multi-strategy run completes, generate an HTML report bundling: summary table (loss / accuracy / robustness / compute time), overlaid convergence curves, attack-impact-delta analysis, hyperparameter-sensitivity violin plots, Pareto-frontier recommendation (best-accuracy / best-latency / best-robustness). Researchers spend ~30% of post-experiment time on hand-rolled report generation; this closes the loop. Tier 1 medium-lift.
+- [ ] **`--export-deployment` for Flower production configs** — phalanx is already Flower-based, so this is not a "translate to Flower" task; it's "scrub sim-only assumptions (mock dataset paths, fake clients) and emit a Flower config that needs only real-data + auth glued in." Closes the sim → deployment gap. Tier 1 medium-lift.
+
+---
+
+## Cross-sister polish (2026-05-21)
+
+> Source: 2026-05-21 audit-of-audits review "Insights worth keeping" — ecosystem-narrative items that span all the active sisters. Mirror items live in the matching ROADMAP for the other sisters.
+
+- [ ] **Add `## Sister ecosystem` block to README** — name the other active sisters (Kourai Khryseai, VelocityFL, ajbarea.github.io, techne) with their roles (innovation / research / performance / governance / visibility) and one-line links. Today sister cross-references happen only via dev-infra (techne.toml, skill-context) and never at the narrative layer; the LDQIS lab page already tells this story coherently but the sisters themselves do not.
+- [ ] **Cite Project Glasswing posture in README security framing** — Anthropic's April 2026 trustworthy-software initiative (AWS / Apple / Google / JPMorganChase / NVIDIA / Palo Alto Networks / Linux Foundation + 40 more) sets the 2026 frame for Byzantine-robust FL work. One-paragraph mention is enough; don't over-claim. Ref: <https://www.anthropic.com/glasswing>.
 
 ---
 
