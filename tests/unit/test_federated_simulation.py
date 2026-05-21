@@ -22,7 +22,7 @@ def _get_base_strategy_config_dict() -> dict[str, Any]:
     """Base strategy configuration dictionary."""
     return {
         "aggregation_strategy_keyword": "trust",
-        "dataset_keyword": "its",
+        "dataset_keyword": "bloodmnist",
         "num_of_rounds": 3,
         "num_of_clients": 5,
         "num_of_malicious_clients": 1,
@@ -50,7 +50,7 @@ def _create_simulation_with_mocks(
     strategy_config: StrategyConfig,
     dataset_dir: str,
     dataset_handler: MockDatasetHandler,
-    network_name: str = "ITSNetwork",
+    network_name: str = "BloodmnistNetwork",
 ) -> FederatedSimulation:
     """Create a FederatedSimulation instance with mocked dependencies for testing."""
     with (
@@ -99,14 +99,14 @@ class TestFederatedSimulationInitialization:
     @pytest.fixture
     def mock_dataset_handler(self) -> MockDatasetHandler:
         """Create a mock dataset handler for testing."""
-        handler = MockDatasetHandler(dataset_type="its")
+        handler = MockDatasetHandler(dataset_type="bloodmnist")
         handler.setup_dataset(num_clients=5)
         return handler
 
     @pytest.fixture
     def temp_dataset_dir(self, tmp_path: Path) -> str:
         """Create a temporary dataset directory for testing."""
-        dataset_dir = tmp_path / "datasets" / "its"
+        dataset_dir = tmp_path / "datasets" / "bloodmnist"
         dataset_dir.mkdir(parents=True)
         return str(dataset_dir)
 
@@ -172,10 +172,8 @@ class TestFederatedSimulationInitialization:
     @pytest.mark.parametrize(
         "dataset_type, expected_network",
         [
-            ("its", "ITSNetwork"),
             ("femnist_iid", "FemnistReducedIIDNetwork"),
             ("femnist_niid", "FemnistFullNIIDNetwork"),
-            ("flair", "FlairNetwork"),
             ("pneumoniamnist", "PneumoniamnistNetwork"),
             ("bloodmnist", "BloodMNISTNetwork"),
             ("breastmnist", "BreastMNISTNetwork"),
@@ -187,7 +185,6 @@ class TestFederatedSimulationInitialization:
             ("organamnist", "OrganAMNISTNetwork"),
             ("organcmnist", "OrganCMNISTNetwork"),
             ("organsmnist", "OrganSMNISTNetwork"),
-            ("lung_photos", "LungCancerCNN"),
         ],
     )
     def test_dataset_and_network_assignment(
@@ -311,14 +308,14 @@ class TestFederatedSimulationClientFunction:
     @pytest.fixture
     def mock_dataset_handler(self) -> MockDatasetHandler:
         """Create a mock dataset handler for testing."""
-        handler = MockDatasetHandler(dataset_type="its")
+        handler = MockDatasetHandler(dataset_type="bloodmnist")
         handler.setup_dataset(num_clients=5)
         return handler
 
     @pytest.fixture
     def temp_dataset_dir(self, tmp_path: Path) -> str:
         """Create a temporary dataset directory for testing."""
-        dataset_dir = tmp_path / "datasets" / "its"
+        dataset_dir = tmp_path / "datasets" / "bloodmnist"
         dataset_dir.mkdir(parents=True)
         return str(dataset_dir)
 
@@ -494,7 +491,7 @@ class TestFederatedSimulationErrorHandling:
     def test_component_assignment_consistency(self) -> None:
         """Test that component assignment is consistent across initialization."""
         strategy_config = StrategyConfig.from_dict(_get_base_strategy_config_dict())
-        mock_dataset_handler = MockDatasetHandler(dataset_type="its")
+        mock_dataset_handler = MockDatasetHandler(dataset_type="bloodmnist")
         mock_dataset_handler.setup_dataset(num_clients=5)
 
         with (

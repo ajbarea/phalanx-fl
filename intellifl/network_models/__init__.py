@@ -104,34 +104,6 @@ _CNN_REGISTRY: dict[str, dict[str, Any]] = {
         "conv_channels": [16, 32],
         "fc_hidden": [128, 64],
     },
-    # ── 2-conv · 224×224 · RGB ──────────────────────────────────────────────
-    "its": {
-        "num_classes": 10,
-        "input_channels": 3,
-        "conv_channels": [6, 16],
-        "fc_hidden": [64, 32],
-        "input_height": 224,
-        "input_width": 224,
-    },
-    # ── 3-conv · 224×224 · grayscale ────────────────────────────────────────
-    "lung_photos": {
-        "num_classes": 4,
-        "input_channels": 1,
-        "conv_channels": [16, 32, 64],
-        "fc_hidden": [128, 64],
-        "input_height": 224,
-        "input_width": 224,
-    },
-    # ── 3-conv · 256×256 · RGB · custom dropout ─────────────────────────────
-    "flair": {
-        "num_classes": 2,
-        "input_channels": 3,
-        "conv_channels": [32, 64, 128],
-        "fc_hidden": [512, 128],
-        "input_height": 256,
-        "input_width": 256,
-        "dropout": (0.4, 0.3),
-    },
 }
 
 

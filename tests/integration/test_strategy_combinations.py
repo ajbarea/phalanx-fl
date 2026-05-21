@@ -21,7 +21,7 @@ def _create_multi_strategy_config(strategies: list[dict[str, Any]]) -> dict[str,
     """Create configuration with multiple strategies."""
     return {
         "shared_settings": {
-            "dataset_keyword": "its",
+            "dataset_keyword": "bloodmnist",
             "num_of_rounds": 3,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -170,7 +170,7 @@ class TestMultiStrategyScenarios:
         for i, strategy_dict in enumerate(strategies):
             config_dict: dict[str, Any] = {
                 "aggregation_strategy_keyword": strategy_dict["aggregation_strategy_keyword"],
-                "dataset_keyword": "its",
+                "dataset_keyword": "bloodmnist",
                 "num_of_rounds": 3,
                 "num_of_clients": 10,
                 "strategy_number": i,
@@ -179,7 +179,9 @@ class TestMultiStrategyScenarios:
             config_dicts.append(config_dict)
 
         mocks["loader_instance"].get_usecase_config_list.return_value = config_dicts
-        mocks["loader_instance"].get_dataset_config_list.return_value = [{"its": "datasets/its"}]
+        mocks["loader_instance"].get_dataset_config_list.return_value = [
+            {"bloodmnist": "datasets/bloodmnist"}
+        ]
 
         runner = SimulationRunner("multi_strategy_config.json")
 
@@ -299,7 +301,7 @@ class TestMultiStrategyScenarios:
         for i, strategy in enumerate(strategies):
             config_dict = {
                 "aggregation_strategy_keyword": strategy,
-                "dataset_keyword": "its",
+                "dataset_keyword": "bloodmnist",
                 "num_of_rounds": 2,
                 "num_of_clients": 8,
                 "strategy_number": i,
@@ -307,7 +309,9 @@ class TestMultiStrategyScenarios:
             config_dicts.append(config_dict)
 
         mocks["loader_instance"].get_usecase_config_list.return_value = config_dicts
-        mocks["loader_instance"].get_dataset_config_list.return_value = [{"its": "datasets/its"}]
+        mocks["loader_instance"].get_dataset_config_list.return_value = [
+            {"bloodmnist": "datasets/bloodmnist"}
+        ]
 
         execution_order = []
 
@@ -403,7 +407,7 @@ class TestByzantineFaultTolerance:
         for strategy in defense_strategies:
             base_config = {
                 "aggregation_strategy_keyword": strategy,
-                "dataset_keyword": "its",
+                "dataset_keyword": "bloodmnist",
                 "num_of_rounds": 3,
                 "num_of_clients": 10,
                 "num_of_malicious_clients": 3,  # 30% Byzantine clients
@@ -434,7 +438,7 @@ class TestByzantineFaultTolerance:
                 base_config.update({"trim_ratio": 0.3})
 
             strategy_config = StrategyConfig.from_dict(base_config)
-            mock_dataset_handler = MockDatasetHandler(dataset_type="its")
+            mock_dataset_handler = MockDatasetHandler(dataset_type="bloodmnist")
             mock_dataset_handler.setup_dataset(num_clients=10)
 
             simulation = FederatedSimulation(
@@ -520,7 +524,7 @@ class TestByzantineFaultTolerance:
             for strategy in individual_strategies:
                 base_config = {
                     "aggregation_strategy_keyword": strategy,
-                    "dataset_keyword": "its",
+                    "dataset_keyword": "bloodmnist",
                     "num_of_rounds": 2,
                     "num_of_clients": num_clients,
                     "num_of_malicious_clients": num_byzantine,
@@ -547,7 +551,7 @@ class TestByzantineFaultTolerance:
 
                 try:
                     strategy_config = StrategyConfig.from_dict(base_config)
-                    mock_dataset_handler = MockDatasetHandler(dataset_type="its")
+                    mock_dataset_handler = MockDatasetHandler(dataset_type="bloodmnist")
                     mock_dataset_handler.setup_dataset(num_clients=num_clients)
 
                     simulation = FederatedSimulation(
@@ -676,7 +680,9 @@ class TestAttackDefenseScenarios:
             config_dicts.append(config_dict)
 
         mocks["loader_instance"].get_usecase_config_list.return_value = config_dicts
-        mocks["loader_instance"].get_dataset_config_list.return_value = [{"its": "datasets/its"}]
+        mocks["loader_instance"].get_dataset_config_list.return_value = [
+            {"bloodmnist": "datasets/bloodmnist"}
+        ]
 
         def mock_simulation_with_attack_metrics(strategy_config, **kwargs):
             simulation = mocks["simulation_instance"]
@@ -754,7 +760,7 @@ class TestAttackDefenseScenarios:
                             "malicious_percentage": 0.3,
                         }
                     ],
-                    "dataset_keyword": "its",
+                    "dataset_keyword": "bloodmnist",
                     "num_of_rounds": 2,
                     "num_of_clients": 10,
                     "num_of_malicious_clients": 3,
@@ -799,7 +805,9 @@ class TestAttackDefenseScenarios:
                 strategy_number += 1
 
         mocks["loader_instance"].get_usecase_config_list.return_value = all_config_dicts
-        mocks["loader_instance"].get_dataset_config_list.return_value = [{"its": "datasets/its"}]
+        mocks["loader_instance"].get_dataset_config_list.return_value = [
+            {"bloodmnist": "datasets/bloodmnist"}
+        ]
 
         runner = SimulationRunner("multi_attack_defense_config.json")
 
@@ -869,7 +877,7 @@ class TestAttackDefenseScenarios:
                         "malicious_percentage": 0.25,
                     }
                 ],
-                "dataset_keyword": "its",
+                "dataset_keyword": "bloodmnist",
                 "num_of_rounds": 2,
                 "num_of_clients": 8,
                 "num_of_malicious_clients": 2,
@@ -893,7 +901,7 @@ class TestAttackDefenseScenarios:
 
             mocks["loader_instance"].get_usecase_config_list.return_value = [config_dict]
             mocks["loader_instance"].get_dataset_config_list.return_value = [
-                {"its": "datasets/its"}
+                {"bloodmnist": "datasets/bloodmnist"}
             ]
 
             runner = SimulationRunner("attack_param_test_config.json")

@@ -459,12 +459,10 @@ export function validateDatasetModelCompatibility(config) {
   const IMAGE_DATASETS_LOCAL = [
     'femnist_iid',
     'femnist_niid',
-    'its',
     'pneumoniamnist',
     'bloodmnist',
-    'lung_photos',
   ];
-  const TEXT_DATASETS_LOCAL = ['flair', 'medquad'];
+  const TEXT_DATASETS_LOCAL = ['medquad'];
 
   // Common HuggingFace dataset patterns
   const IMAGE_DATASET_PATTERNS = [
@@ -502,7 +500,6 @@ export function validateDatasetModelCompatibility(config) {
     'review',
     'qa',
     'nli',
-    'flair',
     'medquad',
     'pubmed',
     'mimic',

@@ -248,7 +248,7 @@ def strategy_config(
     return mock_strategy_configs[request.param]
 
 
-@pytest.fixture(params=["its", "femnist_iid", "pneumoniamnist", "bloodmnist"])
+@pytest.fixture(params=["bloodmnist", "femnist_iid", "pneumoniamnist", "bloodmnist"])
 def dataset_type(request: pytest.FixtureRequest) -> str:
     """Returns parameterized dataset type."""
     return str(request.param)

@@ -232,13 +232,10 @@ class MockNetworkFactory:
             MockCNNNetwork for image data, MockNetwork for text data.
         """
         network_configs = {
-            "its": {"input_channels": 3, "network_type": "cnn"},
             "femnist_iid": {"input_channels": 1, "network_type": "cnn"},
             "femnist_niid": {"input_channels": 1, "network_type": "cnn"},
-            "flair": {"input_channels": 3, "network_type": "cnn"},
             "pneumoniamnist": {"input_channels": 1, "network_type": "cnn"},
             "bloodmnist": {"input_channels": 3, "network_type": "cnn"},
-            "lung_photos": {"input_channels": 1, "network_type": "cnn"},
             "medquad": {"input_size": 768, "network_type": "linear"},  # Text data
         }
 
@@ -257,7 +254,7 @@ class MockNetworkFactory:
 
 
 def create_mock_client_models(
-    num_clients: int, dataset_type: str = "its", num_classes: int = 10
+    num_clients: int, dataset_type: str = "bloodmnist", num_classes: int = 10
 ) -> list[MockFlowerClient]:
     """
     Generate list of federated learning clients with varying dataset sizes.

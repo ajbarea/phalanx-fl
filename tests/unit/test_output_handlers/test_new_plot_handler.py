@@ -36,7 +36,7 @@ class TestPlotHandler:
         """Returns a mock StrategyConfig."""
         return StrategyConfig(
             aggregation_strategy_keyword="trust",
-            dataset_keyword="its",
+            dataset_keyword="bloodmnist",
             remove_clients=True,
             begin_removing_from_round=2,
             num_of_clients=10,
@@ -94,7 +94,7 @@ class TestPlotHandler:
         label = _generate_single_string_strategy_label(mock_strategy_config)
 
         assert "strategy: trust" in label
-        assert "dataset: its" in label
+        assert "dataset: bloodmnist" in label
         assert "remove: True" in label
         assert "remove_from: 2" in label
         assert "total clients: 10" in label

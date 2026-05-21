@@ -87,13 +87,26 @@ before they close.
 
 ### Phase 0 — Cleanup & Foundation
 
-- [ ] **0A: Drop `its`, `flair`, `lung_photos`**
-  - Delete image transformer files: `its_image_transformer.py`, `flair_image_transformer.py`, `lung_photos_image_transformer.py`
-  - Remove `its`/`flair`/`lung_photos` from `frontend/src/constants/datasets.js`
-  - Add `cifar10`, `cinic10`, `pubmed_classification_20k` to frontend datasets
-  - Remove dispatch branches in `federated_simulation.py`
-  - Delete related simulation configs (`its_bulyan_vs_labelflip25.json`, etc.)
-  - *(Note: `config/dataset_keyword_to_dataset_dir.json` entries cleaned up in Phase 4 when the entire file is deleted)*
+- [x] **0A: Drop `its`, `flair`, `lung_photos`** — shipped 2026-05-21.
+  Deleted 3 transformer files + 3 GPU sim configs, removed from
+  `federated_simulation.py` (imports, registry, dispatch),
+  `network_models/__init__.py` (3 dataset configs),
+  `config_loaders/validate_strategy_config.py` (validation enum),
+  `frontend/src/constants/datasets.js`, and
+  `frontend/src/utils/configValidation.js` (modality maps + pattern
+  list — also corrected a miscategorization of `flair` as a text
+  dataset). Test cleanup: 130 reference touchpoints across the test
+  suite — placeholder `dataset_keyword: "its"` mocks rewritten to
+  `bloodmnist`, parametrize rows for the dropped datasets dropped, a
+  `test_high_resolution_datasets` helper that only had 224×224
+  coverage retired (no remaining 224×224 datasets in the supported
+  set). 2178 unit + 151 integration tests pass; lint clean.
+  **`cifar10` / `cinic10` deliberately NOT added to frontend** — backend
+  has no `_cnn_loader_map` dispatch for either; adding to frontend
+  alone would create dead UX. `pubmed_classification_20k` WAS added
+  to frontend (backend already supports it via the text-dataset path).
+  Filed `cifar10` and `cinic10` frontend additions as part of Phase 1A
+  (config expansion) where the backend wiring lands first.
 - [ ] **0B: Add `_initialize_weights()` to `DynamicCNN`** (`dynamic_cnn.py`)
 - [ ] **0C: Normalize `FederatedDatasetLoader.load_datasets()` return type** — currently returns 3 values `(trainloaders, valloaders, num_classes)`, should return 2 and store `num_classes` as instance attribute
 - [ ] ~~**0D: Rename `cifar100_image_transformer` → `cifar_image_transformer`**~~ — Skip: Phase 5 plans to eliminate all transformer files via declarative JSON transforms. Renaming first is wasted churn.

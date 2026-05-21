@@ -284,7 +284,6 @@ class TestAttackScenarios:
     @pytest.mark.parametrize(
         "dataset_type,attack_effectiveness",
         [
-            ("its", "medium"),
             ("femnist_iid", "high"),
             ("femnist_niid", "low"),  # Non-IID data makes attacks harder
             ("bloodmnist", "medium"),

@@ -24,25 +24,15 @@ from tests.fixtures.mock_datasets import (
 # Dataset configurations with expected characteristics
 DATASET_CONFIGURATIONS = [
     # (dataset_name, expected_shape, num_channels, is_grayscale, expected_size)
-    ("its", (3, 224, 224), 3, False, (224, 224)),
     ("femnist_iid", (1, 28, 28), 1, True, (28, 28)),
     ("femnist_niid", (1, 28, 28), 1, True, (28, 28)),
-    (
-        "flair",
-        (3, 224, 224),
-        3,
-        False,
-        (224, 224),
-    ),  # Note: MockDatasetHandler uses 224x224 for flair
     ("pneumoniamnist", (1, 28, 28), 1, True, (28, 28)),
     ("bloodmnist", (3, 28, 28), 3, False, (28, 28)),
-    ("lung_photos", (1, 224, 224), 1, True, (224, 224)),
     ("medquad", None, None, None, None),  # Text dataset - different characteristics
 ]
 
 # Dataset-specific transformation parameters
 DATASET_TRANSFORM_CONFIGS = {
-    "its": {"resize": (224, 224), "normalize": None},
     "femnist_iid": {
         "resize": (28, 28),
         "normalize": ((0.5,), (0.5,)),
@@ -53,18 +43,12 @@ DATASET_TRANSFORM_CONFIGS = {
         "normalize": ((0.5,), (0.5,)),
         "grayscale": True,
     },
-    "flair": {"resize": (256, 256), "normalize": None},
     "pneumoniamnist": {
         "resize": (28, 28),
         "normalize": ((0.5,), (0.5,)),
         "grayscale": True,
     },
     "bloodmnist": {"resize": (28, 28), "normalize": ((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))},
-    "lung_photos": {
-        "resize": (224, 224),
-        "normalize": ((0.5,), (0.5,)),
-        "grayscale": True,
-    },
     "medquad": {
         "tokenizer": "bert-base-uncased",
         "chunk_size": 256,
@@ -164,13 +148,10 @@ class TestDatasetVariations:
     @pytest.mark.parametrize(
         "dataset_name,num_clients,samples_per_client",
         [
-            ("its", 5, 100),
             ("femnist_iid", 10, 50),
             ("femnist_niid", 8, 75),
-            ("flair", 3, 200),
             ("pneumoniamnist", 6, 80),
             ("bloodmnist", 4, 120),
-            ("lung_photos", 7, 60),
         ],
     )
     def test_federated_dataset_distribution(self, dataset_name, num_clients, samples_per_client):
@@ -253,7 +234,7 @@ class TestDatasetVariations:
     @pytest.mark.parametrize(
         "dataset_name,batch_size,expected_batches",
         [
-            ("its", 32, 2),  # 100 samples / 32 = ~3 batches
+            ("bloodmnist", 32, 2),  # 100 samples / 32 = ~3 batches
             ("femnist_iid", 16, 4),  # 50 samples / 16 = ~3 batches
             ("bloodmnist", 8, 7),  # 50 samples / 8 = ~6 batches
         ],
@@ -283,31 +264,13 @@ class TestDatasetVariations:
             f"Should have approximately {expected_batches} batches"
         )
 
-    @pytest.mark.parametrize("dataset_name", ["its", "flair", "lung_photos"])
-    def test_high_resolution_datasets(self, dataset_name):
-        """Test handling of high-resolution datasets (224x224 and above)."""
-        handler = MockDatasetHandler(dataset_type=dataset_name)
-        handler.setup_dataset(num_clients=2)
-
-        client_data = handler.get_client_data(client_id=0)
-        sample_data, _ = client_data[0]
-
-        # Verify high resolution
-        height, width = sample_data.shape[-2:]
-        assert height >= 224 and width >= 224, (
-            f"High-resolution dataset {dataset_name} should have dimensions >= 224x224"
-        )
-
-        # Test memory efficiency with smaller batches for high-res data
-        dataloader = DataLoader(client_data, batch_size=4, shuffle=True)
-
-        for batch_data, _batch_labels in dataloader:
-            # Verify batch can be processed without memory issues
-            assert batch_data.numel() > 0, "Batch should contain data"
-            break
+    # test_high_resolution_datasets removed 2026-05-21: the only 224×224
+    # datasets supported by the framework were `its`, `flair`, and
+    # `lung_photos`, all dropped in the Phase 0A cleanup. Re-add when a
+    # high-resolution dataset is wired back in.
 
     @pytest.mark.parametrize(
-        "dataset_name", ["femnist_iid", "femnist_niid", "pneumoniamnist", "lung_photos"]
+        "dataset_name", ["femnist_iid", "femnist_niid", "pneumoniamnist", "pneumoniamnist"]
     )
     def test_grayscale_datasets(self, dataset_name):
         """Test handling of grayscale datasets."""
@@ -325,7 +288,7 @@ class TestDatasetVariations:
             "Grayscale data should be in reasonable range for mock data"
         )
 
-    @pytest.mark.parametrize("dataset_name", ["its", "flair", "bloodmnist"])
+    @pytest.mark.parametrize("dataset_name", ["bloodmnist", "bloodmnist", "bloodmnist"])
     def test_color_datasets(self, dataset_name):
         """Test handling of color (RGB) datasets."""
         handler = MockDatasetHandler(dataset_type=dataset_name)
@@ -348,13 +311,10 @@ class TestDatasetVariations:
 
         # Verify all expected datasets are present
         expected_datasets = {
-            "its",
+            "bloodmnist",
             "femnist_iid",
             "femnist_niid",
-            "flair",
             "pneumoniamnist",
-            "bloodmnist",
-            "lung_photos",
         }
 
         assert set(config.keys()) == expected_datasets, "All datasets should be in configuration"
@@ -371,7 +331,6 @@ class TestDatasetVariations:
     @pytest.mark.parametrize(
         "dataset_name,error_scenario",
         [
-            ("its", "invalid_client_id"),
             ("femnist_iid", "not_setup"),
             ("bloodmnist", "empty_dataset"),
         ],
@@ -404,7 +363,7 @@ class TestDatasetVariations:
         initial_memory = process.memory_info().rss
 
         # Test multiple datasets without memory leaks
-        for dataset_name in ["its", "femnist_iid", "bloodmnist"]:
+        for dataset_name in ["bloodmnist", "femnist_iid", "bloodmnist"]:
             handler = MockDatasetHandler(dataset_type=dataset_name)
             handler.setup_dataset(num_clients=5)
 

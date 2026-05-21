@@ -592,7 +592,7 @@ DEFENSE_STRATEGIES = {
 }
 
 # Dataset types for parameterized testing
-DATASET_TYPES = ["its", "femnist_iid", "femnist_niid", "bloodmnist", "pneumoniamnist"]
+DATASET_TYPES = ["femnist_iid", "femnist_niid", "bloodmnist", "pneumoniamnist"]
 
 # Byzantine client ratio thresholds
 BYZANTINE_THRESHOLDS = {

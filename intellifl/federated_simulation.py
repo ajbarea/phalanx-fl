@@ -34,15 +34,6 @@ from intellifl.dataset_loaders.image_transformers.cifar100_image_transformer imp
 from intellifl.dataset_loaders.image_transformers.femnist_image_transformer import (
     femnist_image_transformer,
 )
-from intellifl.dataset_loaders.image_transformers.flair_image_transformer import (
-    flair_image_transformer,
-)
-from intellifl.dataset_loaders.image_transformers.its_image_transformer import (
-    its_image_transformer,
-)
-from intellifl.dataset_loaders.image_transformers.lung_photos_image_transformer import (
-    lung_cancer_image_transformer,
-)
 from intellifl.dataset_loaders.image_transformers.medmnist_2d_grayscale_image_transformer import (
     medmnist_2d_grayscale_image_transformer,
 )
@@ -151,9 +142,6 @@ def _build_image_transformer_registry() -> dict[str, Any]:
                 "medmnist_2d_rgb_image_transformer": medmnist_2d_rgb_image_transformer,
                 "medmnist_2d_grayscale_image_transformer": medmnist_2d_grayscale_image_transformer,
                 "femnist_image_transformer": femnist_image_transformer,
-                "flair_image_transformer": flair_image_transformer,
-                "its_image_transformer": its_image_transformer,
-                "lung_cancer_image_transformer": lung_cancer_image_transformer,
             }
         )
     return _IMAGE_TRANSFORMER_REGISTRY
@@ -373,10 +361,8 @@ class FederatedSimulation:
         # Maps each dataset keyword to its image transformer. Model is built
         # via the registry in intellifl.network_models (build_cnn_model).
         _cnn_loader_map: dict[str, Any] = {
-            "its": its_image_transformer,
             "femnist_iid": femnist_image_transformer,
             "femnist_niid": femnist_image_transformer,
-            "flair": flair_image_transformer,
             "pneumoniamnist": medmnist_2d_grayscale_image_transformer,
             "bloodmnist": medmnist_2d_rgb_image_transformer,
             "breastmnist": medmnist_2d_grayscale_image_transformer,
@@ -388,7 +374,6 @@ class FederatedSimulation:
             "organamnist": medmnist_2d_grayscale_image_transformer,
             "organcmnist": medmnist_2d_grayscale_image_transformer,
             "organsmnist": medmnist_2d_grayscale_image_transformer,
-            "lung_photos": lung_cancer_image_transformer,
         }
 
         if dataset_keyword in _cnn_loader_map:

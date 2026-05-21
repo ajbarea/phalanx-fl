@@ -27,7 +27,7 @@ def _get_base_strategy_config_dict() -> dict[str, Any]:
     """Return a base strategy configuration dictionary for testing."""
     return {
         "aggregation_strategy_keyword": "trust",
-        "dataset_keyword": "its",
+        "dataset_keyword": "bloodmnist",
         "num_of_rounds": 3,
         "num_of_clients": 5,
         "num_of_malicious_clients": 1,
@@ -74,7 +74,7 @@ def _create_simulation_with_mocks(
     strategy_config: StrategyConfig,
     dataset_dir: str,
     dataset_handler: MockDatasetHandler,
-    network_name: str = "ITSNetwork",
+    network_name: str = "BloodmnistNetwork",
 ) -> FederatedSimulation:
     """Create a FederatedSimulation instance with mocked dependencies for testing."""
     with (
@@ -104,14 +104,14 @@ class TestFederatedSimulationIntegration:
     @pytest.fixture
     def mock_dataset_handler(self) -> MockDatasetHandler:
         """Mock dataset handler."""
-        handler = MockDatasetHandler(dataset_type="its")
+        handler = MockDatasetHandler(dataset_type="bloodmnist")
         handler.setup_dataset(num_clients=5)
         return handler
 
     @pytest.fixture
     def temp_dataset_dir(self, tmp_path: Path) -> str:
         """Temporary dataset directory."""
-        dataset_dir = tmp_path / "datasets" / "its"
+        dataset_dir = tmp_path / "datasets" / "bloodmnist"
         dataset_dir.mkdir(parents=True)
         return str(dataset_dir)
 
@@ -200,7 +200,6 @@ class TestFederatedSimulationIntegration:
     ) -> None:
         """Test integration between dataset loaders, networks, and strategies across different configurations."""
         dataset_network_combinations = [
-            ("its", "ITSNetwork"),
             ("femnist_iid", "FemnistReducedIIDNetwork"),
             ("pneumoniamnist", "PneumoniamnistNetwork"),
         ]

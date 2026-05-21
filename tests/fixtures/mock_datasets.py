@@ -145,13 +145,10 @@ class MockDatasetHandler(DatasetHandler):
         """Setup dataset without file operations."""
         # Setup based on dataset type
         input_shapes = {
-            "its": (3, 224, 224),
             "femnist_iid": (1, 28, 28),
             "femnist_niid": (1, 28, 28),
-            "flair": (3, 224, 224),
             "pneumoniamnist": (1, 28, 28),
             "bloodmnist": (3, 28, 28),
-            "lung_photos": (1, 224, 224),
             "mock": (3, 32, 32),
         }
 
@@ -177,13 +174,10 @@ class MockDatasetHandler(DatasetHandler):
 def generate_mock_dataset_config() -> dict[str, str]:
     """Generate dataset configuration mapping."""
     return {
-        "its": "datasets/its",
         "femnist_iid": "datasets/femnist_iid",
         "femnist_niid": "datasets/femnist_niid",
-        "flair": "datasets/flair",
         "pneumoniamnist": "datasets/pneumoniamnist",
         "bloodmnist": "datasets/bloodmnist",
-        "lung_photos": "datasets/lung_photos",
     }
 
 

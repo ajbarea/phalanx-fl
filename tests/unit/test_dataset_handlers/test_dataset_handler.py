@@ -25,7 +25,7 @@ class TestDatasetHandler:
         """Create mock strategy configuration."""
         config = StrategyConfig()
         config.num_of_clients = 5
-        config.dataset_keyword = "its"
+        config.dataset_keyword = "bloodmnist"
         config.preserve_dataset = False
         return config
 
@@ -40,7 +40,7 @@ class TestDatasetHandler:
     def mock_dataset_config_list(self, tmp_path: Path) -> dict[str, str]:
         """Create mock dataset configuration mapping."""
         return {
-            "its": str(tmp_path / "source_datasets" / "its"),
+            "bloodmnist": str(tmp_path / "source_datasets" / "bloodmnist"),
             "femnist_iid": str(tmp_path / "source_datasets" / "femnist_iid"),
             "pneumoniamnist": str(tmp_path / "source_datasets" / "pneumoniamnist"),
         }
@@ -63,7 +63,7 @@ class TestDatasetHandler:
     @pytest.fixture
     def temp_source_dataset(self, tmp_path: Path, mock_dataset_config_list: dict[str, str]) -> Path:
         """Create temporary source dataset structure for testing."""
-        source_dir = Path(mock_dataset_config_list["its"])
+        source_dir = Path(mock_dataset_config_list["bloodmnist"])
         source_dir.mkdir(parents=True, exist_ok=True)
 
         # Create client directories with proper naming
@@ -98,7 +98,7 @@ class TestDatasetHandler:
 
         assert handler._strategy_config == mock_strategy_config
         assert handler.dst_dataset == mock_directory_handler.dataset_dir
-        assert handler.src_dataset == mock_dataset_config_list["its"]
+        assert handler.src_dataset == mock_dataset_config_list["bloodmnist"]
 
     def test_setup_dataset_calls_copy(self, dataset_handler: DatasetHandler) -> None:
         """Test setup_dataset calls copy method."""
@@ -162,7 +162,7 @@ class TestDatasetHandler:
 
     def test_dataset_handler_with_real_temp_directories(self, tmp_path: Path) -> None:
         """Test DatasetHandler with real temporary directory structure."""
-        source_dir = tmp_path / "source" / "its"
+        source_dir = tmp_path / "source" / "bloodmnist"
         dest_dir = tmp_path / "dest"
 
         source_dir.mkdir(parents=True)
@@ -178,13 +178,13 @@ class TestDatasetHandler:
 
         config = StrategyConfig()
         config.num_of_clients = 3
-        config.dataset_keyword = "its"
+        config.dataset_keyword = "bloodmnist"
         config.preserve_dataset = False
 
         dir_handler = Mock(spec=DirectoryHandler)
         dir_handler.dataset_dir = str(dest_dir)
 
-        dataset_config_list = {"its": str(source_dir)}
+        dataset_config_list = {"bloodmnist": str(source_dir)}
 
         handler = DatasetHandler(
             strategy_config=config,

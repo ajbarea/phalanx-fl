@@ -263,7 +263,9 @@ class TestMemoryLeakDetection:
         # Run multiple cycles of client creation and cleanup
         for cycle in range(5):
             # Create mock clients
-            clients: list[Any] = create_mock_client_models(num_clients=20, dataset_type="its")
+            clients: list[Any] = create_mock_client_models(
+                num_clients=20, dataset_type="bloodmnist"
+            )
 
             # Simulate some client operations
             for client in clients:
@@ -464,7 +466,9 @@ class TestResourceCleanup:
         client_groups: list[list[Any]] = []
 
         for group_id in range(5):
-            group_clients: list[Any] = create_mock_client_models(num_clients=10, dataset_type="its")
+            group_clients: list[Any] = create_mock_client_models(
+                num_clients=10, dataset_type="bloodmnist"
+            )
 
             # Simulate concurrent client operations
             for client in group_clients:

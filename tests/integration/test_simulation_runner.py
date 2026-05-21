@@ -23,7 +23,7 @@ def _create_mock_strategy_config() -> dict[str, Any]:
     return {
         "shared_settings": {
             "aggregation_strategy_keyword": "trust",
-            "dataset_keyword": "its",
+            "dataset_keyword": "bloodmnist",
             "num_of_rounds": 3,
             "num_of_clients": 5,
             "num_of_malicious_clients": 1,
@@ -80,7 +80,7 @@ def __create_multi_strategy_config() -> dict[str, Any]:
     """Return configuration with multiple strategies."""
     return {
         "shared_settings": {
-            "dataset_keyword": "its",
+            "dataset_keyword": "bloodmnist",
             "num_of_rounds": 2,
             "num_of_clients": 4,
             "num_of_malicious_clients": 1,
@@ -135,7 +135,7 @@ class TestSimulationRunnerInitialization:
             json.dump(strategy_config, f, indent=2)
 
         dataset_config = {
-            "its": "datasets/its",
+            "bloodmnist": "datasets/bloodmnist",
             "femnist_iid": "datasets/femnist_iid",
             "pneumoniamnist": "datasets/pneumoniamnist",
         }
@@ -157,14 +157,16 @@ class TestSimulationRunnerInitialization:
             mock_loader_instance.get_usecase_config_list.return_value = [
                 {
                     "aggregation_strategy_keyword": "trust",
-                    "dataset_keyword": "its",
+                    "dataset_keyword": "bloodmnist",
                     "num_of_rounds": 3,
                     "num_of_clients": 5,
                     "trust_threshold": 0.7,
                     "beta_value": 0.5,
                 }
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
+            mock_loader_instance.get_dataset_config_list.return_value = [
+                {"bloodmnist": "datasets/bloodmnist"}
+            ]
             mock_config_loader.return_value = mock_loader_instance
             mock_directory_handler.return_value = Mock(dirname="/tmp/test_output")
 
@@ -188,7 +190,7 @@ class TestSimulationRunnerInitialization:
             mock_loader_instance.get_usecase_config_list.return_value = [
                 {
                     "aggregation_strategy_keyword": "trust",
-                    "dataset_keyword": "its",
+                    "dataset_keyword": "bloodmnist",
                     "num_of_rounds": 2,
                     "num_of_clients": 4,
                     "trust_threshold": 0.7,
@@ -196,7 +198,7 @@ class TestSimulationRunnerInitialization:
                 },
                 {
                     "aggregation_strategy_keyword": "pid",
-                    "dataset_keyword": "its",
+                    "dataset_keyword": "bloodmnist",
                     "num_of_rounds": 2,
                     "num_of_clients": 4,
                     "Kp": 1.0,
@@ -205,13 +207,15 @@ class TestSimulationRunnerInitialization:
                 },
                 {
                     "aggregation_strategy_keyword": "krum",
-                    "dataset_keyword": "its",
+                    "dataset_keyword": "bloodmnist",
                     "num_of_rounds": 2,
                     "num_of_clients": 4,
                     "num_krum_selections": 3,
                 },
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
+            mock_loader_instance.get_dataset_config_list.return_value = [
+                {"bloodmnist": "datasets/bloodmnist"}
+            ]
             mock_config_loader.return_value = mock_loader_instance
             mock_directory_handler.return_value = Mock(dirname="/tmp/test_output")
 
@@ -268,14 +272,16 @@ class TestSimulationRunnerExecution:
             mock_loader_instance.get_usecase_config_list.return_value = [
                 {
                     "aggregation_strategy_keyword": "trust",
-                    "dataset_keyword": "its",
+                    "dataset_keyword": "bloodmnist",
                     "num_of_rounds": 3,
                     "num_of_clients": 5,
                     "trust_threshold": 0.7,
                     "beta_value": 0.5,
                 }
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
+            mock_loader_instance.get_dataset_config_list.return_value = [
+                {"bloodmnist": "datasets/bloodmnist"}
+            ]
             mock_config_loader.return_value = mock_loader_instance
 
             mock_dir_instance = Mock()
@@ -331,7 +337,7 @@ class TestSimulationRunnerExecution:
         mocks["loader_instance"].get_usecase_config_list.return_value = [
             {
                 "aggregation_strategy_keyword": "trust",
-                "dataset_keyword": "its",
+                "dataset_keyword": "bloodmnist",
                 "num_of_rounds": 2,
                 "num_of_clients": 4,
                 "trust_threshold": 0.7,
@@ -339,7 +345,7 @@ class TestSimulationRunnerExecution:
             },
             {
                 "aggregation_strategy_keyword": "pid",
-                "dataset_keyword": "its",
+                "dataset_keyword": "bloodmnist",
                 "num_of_rounds": 2,
                 "num_of_clients": 4,
                 "Kp": 1.0,
@@ -453,7 +459,7 @@ class TestSimulationRunnerConfigurationProcessing:
             mock_loader_instance.get_usecase_config_list.return_value = [
                 {
                     "aggregation_strategy_keyword": "trust",
-                    "dataset_keyword": "its",
+                    "dataset_keyword": "bloodmnist",
                     "num_of_rounds": 3,
                     "num_of_clients": 5,
                     "trust_threshold": 0.7,
@@ -462,7 +468,7 @@ class TestSimulationRunnerConfigurationProcessing:
                 },
                 {
                     "aggregation_strategy_keyword": "pid",
-                    "dataset_keyword": "its",
+                    "dataset_keyword": "bloodmnist",
                     "num_of_rounds": 3,
                     "num_of_clients": 5,
                     "Kp": 1.0,
@@ -471,7 +477,9 @@ class TestSimulationRunnerConfigurationProcessing:
                     "shared_setting": "shared_value",
                 },
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
+            mock_loader_instance.get_dataset_config_list.return_value = [
+                {"bloodmnist": "datasets/bloodmnist"}
+            ]
             mock_config_loader.return_value = mock_loader_instance
             mock_directory_handler.return_value = Mock(dirname="/tmp/test_output")
 
@@ -482,7 +490,7 @@ class TestSimulationRunnerConfigurationProcessing:
 
         for config in configs:
             assert config["shared_setting"] == "shared_value"
-            assert config["dataset_keyword"] == "its"
+            assert config["dataset_keyword"] == "bloodmnist"
             assert config["num_of_rounds"] == 3
             assert config["num_of_clients"] == 5
 
@@ -502,11 +510,11 @@ class TestSimulationRunnerConfigurationProcessing:
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [
-                {"aggregation_strategy_keyword": "trust", "dataset_keyword": "its"}
+                {"aggregation_strategy_keyword": "trust", "dataset_keyword": "bloodmnist"}
             ]
             mock_loader_instance.get_dataset_config_list.return_value = [
                 {
-                    "its": "datasets/its",
+                    "bloodmnist": "datasets/bloodmnist",
                     "femnist_iid": "datasets/femnist_iid",
                     "pneumoniamnist": "datasets/pneumoniamnist",
                 }
@@ -518,7 +526,7 @@ class TestSimulationRunnerConfigurationProcessing:
 
         dataset_config = runner._dataset_config_list
         assert len(dataset_config) == 1
-        assert "its" in dataset_config[0]
+        assert "bloodmnist" in dataset_config[0]
         assert "femnist_iid" in dataset_config[0]
         assert "pneumoniamnist" in dataset_config[0]
 
@@ -540,7 +548,7 @@ class TestSimulationRunnerConfigurationProcessing:
         """Test that strategy-specific parameters are properly processed."""
         base_config = {
             "aggregation_strategy_keyword": strategy_keyword,
-            "dataset_keyword": "its",
+            "dataset_keyword": "bloodmnist",
             "num_of_rounds": 3,
             "num_of_clients": 5,
         }
@@ -558,7 +566,9 @@ class TestSimulationRunnerConfigurationProcessing:
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [base_config]
-            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
+            mock_loader_instance.get_dataset_config_list.return_value = [
+                {"bloodmnist": "datasets/bloodmnist"}
+            ]
             mock_config_loader.return_value = mock_loader_instance
             mock_directory_handler.return_value = Mock(dirname="/tmp/test_output")
 
@@ -588,12 +598,14 @@ class TestSimulationRunnerOutputGeneration:
             mock_loader_instance.get_usecase_config_list.return_value = [
                 {
                     "aggregation_strategy_keyword": "trust",
-                    "dataset_keyword": "its",
+                    "dataset_keyword": "bloodmnist",
                     "num_of_rounds": 2,
                     "num_of_clients": 3,
                 }
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
+            mock_loader_instance.get_dataset_config_list.return_value = [
+                {"bloodmnist": "datasets/bloodmnist"}
+            ]
             mock_config_loader.return_value = mock_loader_instance
 
             mock_dir_instance = Mock()
@@ -671,18 +683,20 @@ class TestSimulationRunnerOutputGeneration:
             mock_loader_instance.get_usecase_config_list.return_value = [
                 {
                     "aggregation_strategy_keyword": "trust",
-                    "dataset_keyword": "its",
+                    "dataset_keyword": "bloodmnist",
                     "num_of_rounds": 2,
                     "num_of_clients": 3,
                 },
                 {
                     "aggregation_strategy_keyword": "pid",
-                    "dataset_keyword": "its",
+                    "dataset_keyword": "bloodmnist",
                     "num_of_rounds": 2,
                     "num_of_clients": 3,
                 },
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
+            mock_loader_instance.get_dataset_config_list.return_value = [
+                {"bloodmnist": "datasets/bloodmnist"}
+            ]
             mock_config_loader.return_value = mock_loader_instance
 
             runner = SimulationRunner("multi_config.json")
@@ -719,9 +733,11 @@ class TestSimulationRunnerErrorHandling:
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [
-                {"aggregation_strategy_keyword": "trust", "dataset_keyword": "its"}
+                {"aggregation_strategy_keyword": "trust", "dataset_keyword": "bloodmnist"}
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
+            mock_loader_instance.get_dataset_config_list.return_value = [
+                {"bloodmnist": "datasets/bloodmnist"}
+            ]
             mock_config_loader.return_value = mock_loader_instance
 
             mock_dir_instance = Mock()
@@ -747,9 +763,11 @@ class TestSimulationRunnerErrorHandling:
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [
-                {"aggregation_strategy_keyword": "trust", "dataset_keyword": "its"}
+                {"aggregation_strategy_keyword": "trust", "dataset_keyword": "bloodmnist"}
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
+            mock_loader_instance.get_dataset_config_list.return_value = [
+                {"bloodmnist": "datasets/bloodmnist"}
+            ]
             mock_config_loader.return_value = mock_loader_instance
 
             mock_dir_instance = Mock()
@@ -775,9 +793,11 @@ class TestSimulationRunnerErrorHandling:
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = [
-                {"aggregation_strategy_keyword": "trust", "dataset_keyword": "its"}
+                {"aggregation_strategy_keyword": "trust", "dataset_keyword": "bloodmnist"}
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
+            mock_loader_instance.get_dataset_config_list.return_value = [
+                {"bloodmnist": "datasets/bloodmnist"}
+            ]
             mock_config_loader.return_value = mock_loader_instance
 
             mock_dir_instance = Mock()
@@ -816,13 +836,15 @@ class TestSimulationRunnerLogging:
             mock_loader_instance.get_usecase_config_list.return_value = [
                 {
                     "aggregation_strategy_keyword": "trust",
-                    "dataset_keyword": "its",
+                    "dataset_keyword": "bloodmnist",
                     "num_of_rounds": 2,
                     "num_of_clients": 3,
                     "trust_threshold": 0.7,
                 }
             ]
-            mock_loader_instance.get_dataset_config_list.return_value = [{"its": "datasets/its"}]
+            mock_loader_instance.get_dataset_config_list.return_value = [
+                {"bloodmnist": "datasets/bloodmnist"}
+            ]
             mock_config_loader.return_value = mock_loader_instance
             mock_directory_handler.return_value = Mock(dirname="/tmp/test_output")
 

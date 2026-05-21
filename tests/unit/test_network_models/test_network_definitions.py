@@ -29,13 +29,10 @@ class TestNetworkModels:
 
     @pytest.fixture(
         params=[
-            ("its", (3, 224, 224), 10),
             ("femnist_iid", (1, 28, 28), 10),
             ("femnist_niid", (1, 28, 28), 62),
             ("pneumoniamnist", (1, 28, 28), 2),
             ("bloodmnist", (3, 28, 28), 8),
-            ("flair", (3, 256, 256), 2),
-            ("lung_photos", (1, 224, 224), 4),
             ("breastmnist", (1, 28, 28), 2),
             ("dermamnist", (3, 28, 28), 7),
             ("octmnist", (1, 28, 28), 4),
@@ -358,13 +355,13 @@ class TestNetworkModelIntegration:
 
     def test_network_training_loop_simulation(self):
         """Test a simulated training loop with network models."""
-        network = build_cnn_model("its")
+        network = build_cnn_model("bloodmnist")
         optimizer = torch.optim.Adam(network.parameters(), lr=0.001)
         criterion = nn.CrossEntropyLoss()
 
         batch_size = 4
-        input_shape = (3, 224, 224)
-        num_classes = 10
+        input_shape = (3, 28, 28)
+        num_classes = 8
 
         network.train()
 
@@ -419,7 +416,6 @@ class TestNetworkModelIntegration:
     @pytest.mark.parametrize(
         "dataset_key,input_shape",
         [
-            ("its", (3, 224, 224)),
             ("femnist_iid", (1, 28, 28)),
             ("pneumoniamnist", (1, 28, 28)),
             ("bloodmnist", (3, 28, 28)),
@@ -450,18 +446,18 @@ class TestNetworkModelIntegration:
 
     def test_network_reproducibility(self):
         """Test that networks produce reproducible results with same seed."""
-        input_shape = (3, 224, 224)
+        input_shape = (3, 28, 28)
         batch_size = 2
 
         torch.manual_seed(42)
-        network1 = build_cnn_model("its")
+        network1 = build_cnn_model("bloodmnist")
         inputs = torch.randn(batch_size, *input_shape)
         network1.eval()
         with torch.no_grad():
             output1 = network1(inputs)
 
         torch.manual_seed(42)
-        network2 = build_cnn_model("its")
+        network2 = build_cnn_model("bloodmnist")
         inputs = torch.randn(batch_size, *input_shape)
         network2.eval()
         with torch.no_grad():

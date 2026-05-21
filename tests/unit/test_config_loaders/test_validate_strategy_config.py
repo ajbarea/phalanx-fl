@@ -72,7 +72,7 @@ class TestValidateStrategyConfig:
         config = {
             "aggregation_strategy_keyword": "pid",
             "remove_clients": False,
-            "dataset_keyword": "its",
+            "dataset_keyword": "bloodmnist",
             "model_type": "cnn",
             "use_llm": False,
             "num_of_rounds": 3,
@@ -929,7 +929,7 @@ class TestValidateStrategyConfigEdgeCases:
         config = {
             "aggregation_strategy_keyword": "rfa",
             "remove_clients": False,
-            "dataset_keyword": "flair",
+            "dataset_keyword": "bloodmnist",
             "model_type": "cnn",
             "use_llm": False,
             "num_of_rounds": 4,
@@ -968,7 +968,7 @@ class TestValidateStrategyConfigEdgeCases:
         config = {
             "aggregation_strategy_keyword": "bulyan",
             "remove_clients": False,
-            "dataset_keyword": "lung_photos",
+            "dataset_keyword": "pneumoniamnist",
             "model_type": "cnn",
             "use_llm": False,
             "num_of_rounds": 3,

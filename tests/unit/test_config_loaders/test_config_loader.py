@@ -23,7 +23,7 @@ class TestConfigLoader:
         usecase_config = {
             "shared_settings": {
                 "num_of_rounds": 5,
-                "dataset_keyword": "its",
+                "dataset_keyword": "bloodmnist",
                 "model_type": "cnn",
                 "use_llm": False,
                 "remove_clients": False,
@@ -64,7 +64,10 @@ class TestConfigLoader:
             ],
         }
 
-        dataset_config = {"its": "datasets/its", "femnist_iid": "datasets/femnist_iid"}
+        dataset_config = {
+            "bloodmnist": "datasets/bloodmnist",
+            "femnist_iid": "datasets/femnist_iid",
+        }
 
         # Create temporary files
         usecase_file = tmp_path / "usecase_config.json"
@@ -88,7 +91,7 @@ class TestConfigLoader:
         usecase_config = {
             "shared_settings": {
                 "num_of_rounds": 5,
-                "dataset_keyword": "its",
+                "dataset_keyword": "bloodmnist",
                 "model_type": "cnn",
                 "use_llm": False,
                 "remove_clients": False,
@@ -155,7 +158,7 @@ class TestConfigLoader:
         assert len(result) == 2
         for strategy in result:
             assert strategy["num_of_rounds"] == 5
-            assert strategy["dataset_keyword"] == "its"
+            assert strategy["dataset_keyword"] == "bloodmnist"
             assert strategy["num_of_clients"] == 10
 
         # Verify strategy-specific parameters are preserved
@@ -187,7 +190,7 @@ class TestConfigLoader:
         mock_validate.side_effect = Exception("Validation failed")
 
         usecase_config = {
-            "shared_settings": {"num_of_rounds": 5, "dataset_keyword": "its"},
+            "shared_settings": {"num_of_rounds": 5, "dataset_keyword": "bloodmnist"},
             "simulation_strategies": [
                 {
                     "aggregation_strategy_keyword": "trust",
@@ -206,7 +209,7 @@ class TestConfigLoader:
     def test_set_config_success(self, tmp_path):
         """Test successful loading of dataset configuration."""
         dataset_config = {
-            "its": "datasets/its",
+            "bloodmnist": "datasets/bloodmnist",
             "femnist_iid": "datasets/femnist_iid",
             "pneumoniamnist": "datasets/pneumoniamnist",
         }
@@ -218,8 +221,8 @@ class TestConfigLoader:
         result = ConfigLoader._set_config(str(config_file))
 
         assert result == dataset_config
-        assert "its" in result
-        assert result["its"] == "datasets/its"
+        assert "bloodmnist" in result
+        assert result["bloodmnist"] == "datasets/bloodmnist"
 
     def test_set_config_invalid_json(self, tmp_path):
         """Test error handling for invalid JSON in dataset config."""
@@ -239,7 +242,7 @@ class TestConfigLoader:
         usecase_config = {
             "shared_settings": {
                 "num_of_rounds": 3,
-                "dataset_keyword": "its",
+                "dataset_keyword": "bloodmnist",
                 "model_type": "cnn",
                 "use_llm": False,
                 "remove_clients": False,
@@ -277,7 +280,7 @@ class TestConfigLoader:
             ],
         }
 
-        dataset_config = {"its": "datasets/its"}
+        dataset_config = {"bloodmnist": "datasets/bloodmnist"}
 
         usecase_file = tmp_path / "usecase.json"
         dataset_file = tmp_path / "dataset.json"
@@ -300,7 +303,7 @@ class TestConfigLoader:
         usecase_config = {
             "shared_settings": {
                 "num_of_rounds": 3,
-                "dataset_keyword": "its",
+                "dataset_keyword": "bloodmnist",
                 "model_type": "cnn",
                 "use_llm": False,
                 "remove_clients": False,
@@ -330,7 +333,7 @@ class TestConfigLoader:
         }
 
         dataset_config = {
-            "its": "datasets/its",
+            "bloodmnist": "datasets/bloodmnist",
             "femnist_iid": "datasets/femnist_iid",
             "pneumoniamnist": "datasets/pneumoniamnist",
         }
@@ -347,7 +350,7 @@ class TestConfigLoader:
         result = config_loader.get_dataset_config_list()
 
         assert result == dataset_config
-        assert "its" in result
+        assert "bloodmnist" in result
         assert "femnist_iid" in result
         assert "pneumoniamnist" in result
 
@@ -356,7 +359,7 @@ class TestConfigLoader:
         usecase_config = {
             "shared_settings": {
                 "num_of_rounds": 1,
-                "dataset_keyword": "its",
+                "dataset_keyword": "bloodmnist",
                 "model_type": "cnn",
                 "use_llm": False,
                 "remove_clients": False,
@@ -385,7 +388,10 @@ class TestConfigLoader:
             ],
         }
 
-        dataset_config = {"its": "datasets/its", "femnist_iid": "datasets/femnist_iid"}
+        dataset_config = {
+            "bloodmnist": "datasets/bloodmnist",
+            "femnist_iid": "datasets/femnist_iid",
+        }
 
         usecase_file = tmp_path / "usecase.json"
         dataset_file = tmp_path / "dataset.json"
@@ -397,8 +403,8 @@ class TestConfigLoader:
 
         config_loader = ConfigLoader(str(usecase_file), str(dataset_file))
 
-        result = config_loader.get_dataset_folder_name("its")
-        assert result == "datasets/its"
+        result = config_loader.get_dataset_folder_name("bloodmnist")
+        assert result == "datasets/bloodmnist"
 
         result = config_loader.get_dataset_folder_name("femnist_iid")
         assert result == "datasets/femnist_iid"
@@ -408,7 +414,7 @@ class TestConfigLoader:
         usecase_config = {
             "shared_settings": {
                 "num_of_rounds": 1,
-                "dataset_keyword": "its",
+                "dataset_keyword": "bloodmnist",
                 "model_type": "cnn",
                 "use_llm": False,
                 "remove_clients": False,
@@ -437,7 +443,7 @@ class TestConfigLoader:
             ],
         }
 
-        dataset_config = {"its": "datasets/its"}
+        dataset_config = {"bloodmnist": "datasets/bloodmnist"}
 
         usecase_file = tmp_path / "usecase.json"
         dataset_file = tmp_path / "dataset.json"
@@ -462,7 +468,7 @@ class TestConfigLoader:
         mock_config_data = {
             "shared_settings": {
                 "num_of_rounds": 5,
-                "dataset_keyword": "its",
+                "dataset_keyword": "bloodmnist",
                 "model_type": "cnn",
                 "use_llm": False,
                 "remove_clients": False,
@@ -523,7 +529,7 @@ class TestConfigLoader:
     def test_set_config_with_mocked_file_operations(self, mock_json_load, mock_file):
         """Test dataset configuration loading with mocked file operations."""
         mock_dataset_config = {
-            "its": "datasets/its",
+            "bloodmnist": "datasets/bloodmnist",
             "femnist_iid": "datasets/femnist_iid",
             "pneumoniamnist": "datasets/pneumoniamnist",
         }
@@ -538,8 +544,8 @@ class TestConfigLoader:
 
         # Verify configuration loading
         assert result == mock_dataset_config
-        assert "its" in result
-        assert result["its"] == "datasets/its"
+        assert "bloodmnist" in result
+        assert result["bloodmnist"] == "datasets/bloodmnist"
 
     def test_configuration_merging_preserves_strategy_specific_params(self, tmp_path):
         """Test that configuration merging preserves strategy-specific parameters."""
@@ -625,20 +631,17 @@ class TestConfigLoader:
         """Test complete dataset configuration mapping functionality."""
         # Create dataset configuration
         dataset_config = {
-            "its": "datasets/its",
-            "flair": "datasets/flair",
+            "bloodmnist": "datasets/bloodmnist",
             "femnist_iid": "datasets/femnist_iid",
             "femnist_niid": "datasets/femnist_niid",
             "pneumoniamnist": "datasets/pneumoniamnist",
-            "bloodmnist": "datasets/bloodmnist",
-            "lung_photos": "datasets/lung_photos",
         }
 
         # Minimal valid usecase config
         usecase_config = {
             "shared_settings": {
                 "num_of_rounds": 1,
-                "dataset_keyword": "its",
+                "dataset_keyword": "bloodmnist",
                 "model_type": "cnn",
                 "use_llm": False,
                 "remove_clients": False,
@@ -685,7 +688,7 @@ class TestConfigLoader:
         # Test that the complete dataset config is accessible
         full_config = config_loader.get_dataset_config_list()
         assert full_config == dataset_config
-        assert len(full_config) == 7  # All 7 datasets
+        assert len(full_config) == 4  # 4 valid datasets (3 dropped in Phase 0A cleanup)
 
     @patch("intellifl.config_loaders.config_loader.validate_strategy_config")
     def test_merge_usecase_configs_without_training_device(self, mock_validate, tmp_path):
@@ -693,7 +696,7 @@ class TestConfigLoader:
         usecase_config = {
             "shared_settings": {
                 "num_of_rounds": 3,
-                "dataset_keyword": "its",
+                "dataset_keyword": "bloodmnist",
                 # Note: training_device is intentionally omitted
             },
             "simulation_strategies": [
@@ -723,7 +726,7 @@ class TestConfigLoader:
         usecase_config = {
             "shared_settings": {
                 "num_of_rounds": 3,
-                "dataset_keyword": "its",
+                "dataset_keyword": "bloodmnist",
                 "training_device": "cpu",
             },
             "simulation_strategies": [

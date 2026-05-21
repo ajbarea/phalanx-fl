@@ -64,9 +64,7 @@ def run_backend_audit() -> int:
     #   in the same series; still unpatched in transformers 5.9.0 (latest on
     #   PyPI 2026-05-20). Filed against HuggingFace upstream — track via
     #   https://github.com/huggingface/transformers/security/advisories.
-    transformers_advisories = [
-        f"--ignore-vuln=PYSEC-2025-{n}" for n in range(211, 219)
-    ]
+    transformers_advisories = [f"--ignore-vuln=PYSEC-2025-{n}" for n in range(211, 219)]
     tools = [
         (
             [
