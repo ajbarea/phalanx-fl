@@ -138,11 +138,28 @@ def test_dispatch_registry_keywords_have_json_entries(config):
     """Every dataset_keyword in LOADER_REGISTRY must have a JSON entry.
 
     Reverse direction (every JSON entry has a registry builder) is **not**
-    enforced — Phase 1A intentionally adds entries ahead of the Phase 1B
-    builder rewrite. cifar10, cinic10, the MedMNIST family, and FEMNIST
-    variants will land in the registry in subsequent phases.
+    enforced — cifar10 and cinic10 intentionally have JSON entries ahead
+    of the Phase 2A transformer wiring.
     """
     from intellifl.dataset_loaders import LOADER_REGISTRY
 
     for keyword in LOADER_REGISTRY:
         assert keyword in config, f"LOADER_REGISTRY references {keyword!r} but no JSON entry exists"
+
+
+def test_local_cnn_keywords_have_resolvable_transformer(config):
+    """Phase 1B contract: every keyword in `_LOCAL_CNN_KEYWORDS` must point at
+    a non-null `image_transformer` field that resolves via
+    `resolve_image_transformer` — otherwise `_build_cnn` raises at
+    construction time.
+    """
+    from intellifl.dataset_loaders import _LOCAL_CNN_KEYWORDS, resolve_image_transformer
+
+    for keyword in _LOCAL_CNN_KEYWORDS:
+        entry = config[keyword]
+        name = entry.get("image_transformer")
+        assert name, (
+            f"{keyword}: local-CNN dispatch requires a non-null image_transformer "
+            f"in huggingface_datasets.json"
+        )
+        assert resolve_image_transformer(name) is not None

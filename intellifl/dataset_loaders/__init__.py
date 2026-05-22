@@ -105,24 +105,31 @@ def resolve_image_transformer(name: str | None) -> Any:
 
 
 # --------------------------------------------------------------------------
-# CNN dataset -> image transformer map (used by the CNN builder)
+# CNN dataset keywords (use ImageDatasetLoader + local files)
 # --------------------------------------------------------------------------
+#
+# Phase 1B (2026-05-22) — `image_transformer` moved from this Python dict
+# into `config/huggingface_datasets.json`, where the same field already
+# carried cifar100's transformer name. The keyword tuple stays here as the
+# source of truth for "which datasets use the local ImageDatasetLoader path"
+# — that property isn't yet expressed in the JSON. Phase 2 migrates these
+# datasets to FederatedDatasetLoader and removes this list entirely.
 
-_CNN_DATASET_TRANSFORMER_MAP: dict[str, Any] = {
-    "femnist_iid": femnist_image_transformer,
-    "femnist_niid": femnist_image_transformer,
-    "pneumoniamnist": medmnist_2d_grayscale_image_transformer,
-    "bloodmnist": medmnist_2d_rgb_image_transformer,
-    "breastmnist": medmnist_2d_grayscale_image_transformer,
-    "pathmnist": medmnist_2d_rgb_image_transformer,
-    "dermamnist": medmnist_2d_rgb_image_transformer,
-    "octmnist": medmnist_2d_grayscale_image_transformer,
-    "retinamnist": medmnist_2d_rgb_image_transformer,
-    "tissuemnist": medmnist_2d_grayscale_image_transformer,
-    "organamnist": medmnist_2d_grayscale_image_transformer,
-    "organcmnist": medmnist_2d_grayscale_image_transformer,
-    "organsmnist": medmnist_2d_grayscale_image_transformer,
-}
+_LOCAL_CNN_KEYWORDS: tuple[str, ...] = (
+    "femnist_iid",
+    "femnist_niid",
+    "pneumoniamnist",
+    "bloodmnist",
+    "breastmnist",
+    "pathmnist",
+    "dermamnist",
+    "octmnist",
+    "retinamnist",
+    "tissuemnist",
+    "organamnist",
+    "organcmnist",
+    "organsmnist",
+)
 
 
 # --------------------------------------------------------------------------
@@ -161,7 +168,13 @@ LoaderBuilder = Callable[[str, "StrategyConfig", str], tuple[Any, Any]]
 
 
 def _build_cnn(keyword: str, config: StrategyConfig, dataset_dir: str) -> tuple[Any, Any]:
-    transformer = _CNN_DATASET_TRANSFORMER_MAP[keyword]
+    hf_cfg = get_hf_dataset_config(keyword)
+    transformer = resolve_image_transformer(hf_cfg.get("image_transformer"))
+    if transformer is None:
+        raise ValueError(
+            f"CNN dataset {keyword!r} requires an `image_transformer` value in "
+            f"config/huggingface_datasets.json (got null/missing)"
+        )
     loader = ImageDatasetLoader(
         transformer=transformer,
         dataset_dir=dataset_dir,
@@ -274,10 +287,10 @@ _HF_TEXT_KEYWORDS = ("financial_phrasebank", "lexglue", "pubmed_classification_2
 
 
 LOADER_REGISTRY: dict[str, LoaderBuilder] = {
-    # CNN datasets — one builder; keyword indexes the transformer map in
-    # `_CNN_DATASET_TRANSFORMER_MAP` and the network shape in
-    # `intellifl.network_models`.
-    **dict.fromkeys(_CNN_DATASET_TRANSFORMER_MAP.keys(), _build_cnn),
+    # CNN datasets — one builder; keyword indexes both the per-dataset
+    # `image_transformer` in `config/huggingface_datasets.json` and the
+    # network shape in `intellifl.network_models`.
+    **dict.fromkeys(_LOCAL_CNN_KEYWORDS, _build_cnn),
     # Text datasets
     "medquad": _build_medquad,
     **dict.fromkeys(_HF_TEXT_KEYWORDS, _build_hf_text),
