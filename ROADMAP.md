@@ -153,9 +153,9 @@ the registry only needs to live in one place.
 
 ### Celery Config Hardening
 
-- [ ] Add task time limits to `celery_app.py` — `task_time_limit=7200` (hard kill 2h), `task_soft_time_limit=6900` (cleanup at 1h55m)
-- [x] ~~Add Redis memory policy in `docker-compose.yml`~~ — **Done**: `redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru` (docker-compose.yml line 98)
-- [ ] Atomic status.json writes — use write-to-temp + rename pattern in `StatusTracker` to prevent corruption on crash
+- [x] **Task time limits** — `task_time_limit=7200` (hard SIGKILL at 2h) + `task_soft_time_limit=6900` (SoftTimeLimitExceeded at 1h55m for graceful cleanup) added to `celery_app.py` 2026-05-23.
+- [x] **Redis memory policy** — `redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru` (docker-compose.yml line 98).
+- [x] **Atomic status.json writes** — `StatusTracker._write_status` writes to `.json.tmp` then `replace`s into place; already shipped under `intellifl/utils/status_tracker.py`. The ROADMAP entry pre-dated the implementation.
 
 ### Queue Reconciliation on Startup
 
@@ -172,13 +172,11 @@ the registry only needs to live in one place.
 > Source: `demo/plans-and-specs/CONTAINERIZATION/`
 > Ref: [Docker Build Best Practices](https://docs.docker.com/build/building/best-practices/) | [Compose Profiles](https://docs.docker.com/compose/how-tos/profiles/) | [uv Docker Guide](https://docs.astral.sh/uv/guides/integration/docker/)
 
-### uv Docker Best Practices (2026)
+### uv Docker Best Practices (2026) — shipped 2026-05-23
 
-Current `Dockerfile` uses `curl | sh` to install uv. Update to match [official uv Docker guidance](https://docs.astral.sh/uv/guides/integration/docker/):
-
-- [ ] **Replace curl installer with distroless copy** — `COPY --from=ghcr.io/astral-sh/uv:0.11 /uv /uvx /bin/` (eliminates curl dependency in builder, pinned to minor version)
-- [ ] **Add `--compile-bytecode`** to `uv sync` in Dockerfile for faster cold-start in production
-- [ ] **Add `.venv` to `.dockerignore`** — prevent local venv from leaking into build context
+- [x] **Distroless copy** — Dockerfile builder now does `COPY --from=ghcr.io/astral-sh/uv:0.11.16 /uv /uvx /bin/` instead of `curl | sh`. Pinned to a patch version (cross-sister audit catches drift); curl removed from the builder's apt install set (runner stage still needs it for entrypoint.sh dataset download + healthcheck).
+- [x] **`--compile-bytecode`** added to `uv sync` in Dockerfile builder for faster Python cold-start in production.
+- [x] **`.venv` in `.dockerignore`** — already present at line 40; ROADMAP entry pre-dated the addition.
 
 ### Dev/Prod Split Rework
 

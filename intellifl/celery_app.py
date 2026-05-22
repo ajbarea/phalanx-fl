@@ -39,4 +39,13 @@ app.conf.update(
     task_reject_on_worker_lost=True,  # Requeue if worker dies mid-task
     worker_max_tasks_per_child=50,  # Restart worker after 50 tasks (memory protection)
     broker_pool_limit=10,  # Max connections to Redis broker
+    # research(2026-05): hard + soft task timeouts protect against jobs that
+    # hang indefinitely (broken aggregator, infinite loop in attack code,
+    # GPU OOM with a stuck recovery). Soft (6900s = 1h55m) raises
+    # `SoftTimeLimitExceeded` so the task can clean up + write a `failed`
+    # status; hard (7200s = 2h) `SIGKILL`s if cleanup itself hangs. Real
+    # FL runs in this codebase top out around 60-90 min wall time on the
+    # large-tier baselines, so 2h is comfortably above legitimate work.
+    task_time_limit=7200,
+    task_soft_time_limit=6900,
 )
