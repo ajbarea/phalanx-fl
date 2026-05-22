@@ -32,7 +32,14 @@ _CNN_REGISTRY: dict[str, dict[str, Any]] = {
         "fc_hidden": [64, 32],
     },
     "femnist_iid": {
-        "num_classes": 10,
+        # 62 classes (10 digits + 26 lowercase + 26 uppercase) matches the
+        # canonical LEAF FEMNIST baseline + the `flwrlabs/femnist` HF
+        # mirror. Pre-2026-05-23 this carried `num_classes=10` reflecting
+        # an AJ-side digits-only preprocessing of the local-files tarball;
+        # Phase 2B migration to `FederatedDatasetLoader` adopts the
+        # community-standard 62-class baseline (no external paper used
+        # the 10-class digit subset, so no published comparison regresses).
+        "num_classes": 62,
         "input_channels": 1,
         "conv_channels": [6, 16],
         "fc_hidden": [64, 32],

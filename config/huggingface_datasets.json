@@ -90,6 +90,7 @@
     "input_height": 28,
     "input_width": 28,
     "image_transformer": "femnist_image_transformer",
+    "partitioning_strategy": "iid",
     "ref_url": "https://huggingface.co/datasets/flwrlabs/femnist"
   },
   "femnist_niid": {
@@ -103,6 +104,7 @@
     "input_height": 28,
     "input_width": 28,
     "image_transformer": "femnist_image_transformer",
+    "partitioning_strategy": "natural_id",
     "partition_by": "writer_id",
     "ref_url": "https://huggingface.co/datasets/flwrlabs/femnist"
   },

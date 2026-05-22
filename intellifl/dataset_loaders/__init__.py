@@ -114,15 +114,14 @@ def resolve_image_transformer(name: str | None) -> Any:
 # CNN dataset keywords still on the local ImageDatasetLoader path
 # --------------------------------------------------------------------------
 #
-# Phase 2B (2026-05-23) — MedMNIST family graduated to
-# `_HF_MEDMNIST_CNN_KEYWORDS` below. The remaining FEMNIST keywords stay
-# on the local-file path while the 10-vs-62-class semantic shift gets
-# decided (see IMPL.md). Phase 2E deletes this list outright.
+# Phase 2B (2026-05-23) — all 13 image-CNN keywords (CIFAR family +
+# MedMNIST family + FEMNIST iid/niid) have graduated to
+# `FederatedDatasetLoader`. This tuple is empty but kept here for the
+# `_build_cnn` dispatch surface that may resurrect for a new local-only
+# tier in the future; Phase 2E deletes both this tuple and
+# `_build_cnn` itself once we're confident no caller surfaces it again.
 
-_LOCAL_CNN_KEYWORDS: tuple[str, ...] = (
-    "femnist_iid",
-    "femnist_niid",
-)
+_LOCAL_CNN_KEYWORDS: tuple[str, ...] = ()
 
 
 # --------------------------------------------------------------------------
@@ -260,13 +259,19 @@ def _build_federated_dataset_loader(keyword: str, config: StrategyConfig) -> Fed
     """
     hf_cfg = get_hf_dataset_config(keyword)
     transformer = resolve_image_transformer(hf_cfg.get("image_transformer"))
+    # Precedence: config > JSON per-dataset default > "dirichlet" alpha=0.5
+    # fallback. The JSON default lets FEMNIST entries declare iid /
+    # natural_id without polluting the StrategyConfig surface.
     config_partitioning_strategy = getattr(config, "partitioning_strategy", None)
-    if config_partitioning_strategy is None:
-        partitioning_strategy = "dirichlet"
-        partitioning_params: dict[str, Any] = {"alpha": 0.5}
-    else:
+    if config_partitioning_strategy is not None:
         partitioning_strategy = config_partitioning_strategy
-        partitioning_params = getattr(config, "partitioning_params", None) or {}
+        partitioning_params: dict[str, Any] = getattr(config, "partitioning_params", None) or {}
+    elif hf_cfg.get("partitioning_strategy") is not None:
+        partitioning_strategy = hf_cfg["partitioning_strategy"]
+        partitioning_params = hf_cfg.get("partitioning_params") or {}
+    else:
+        partitioning_strategy = "dirichlet"
+        partitioning_params = {"alpha": 0.5}
     return FederatedDatasetLoader(
         dataset_name=hf_cfg["hf_dataset_path"],
         subset=hf_cfg.get("hf_dataset_name"),
@@ -330,6 +335,13 @@ def _build_hf_medmnist_cnn(
 
 _HF_TEXT_KEYWORDS = ("financial_phrasebank", "lexglue", "pubmed_classification_20k")
 _HF_IMAGE_CNN_KEYWORDS = ("cifar100", "cifar10", "cinic10")
+# MedMNIST + FEMNIST share `_build_hf_medmnist_cnn`: HF loader paired with
+# the per-keyword `MedMNISTCNN` architecture registered in
+# `intellifl.network_models._CNN_REGISTRY`. The keyword's `partitioning_strategy`
+# default is read from the JSON entry — FEMNIST iid declares `"iid"`,
+# FEMNIST niid declares `"natural_id"` + `partition_by="writer_id"`,
+# MedMNIST entries leave it absent (the builder falls back to
+# Dirichlet alpha=0.5).
 _HF_MEDMNIST_CNN_KEYWORDS = (
     "pneumoniamnist",
     "bloodmnist",
@@ -342,6 +354,8 @@ _HF_MEDMNIST_CNN_KEYWORDS = (
     "organamnist",
     "organcmnist",
     "organsmnist",
+    "femnist_iid",
+    "femnist_niid",
 )
 
 

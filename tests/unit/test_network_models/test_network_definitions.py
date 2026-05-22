@@ -29,7 +29,7 @@ class TestNetworkModels:
 
     @pytest.fixture(
         params=[
-            ("femnist_iid", (1, 28, 28), 10),
+            ("femnist_iid", (1, 28, 28), 62),
             ("femnist_niid", (1, 28, 28), 62),
             ("pneumoniamnist", (1, 28, 28), 2),
             ("bloodmnist", (3, 28, 28), 8),
@@ -392,7 +392,7 @@ class TestNetworkModelIntegration:
 
         batch_size = 4
         input_shape = (1, 28, 28)
-        num_classes = 10
+        num_classes = 62  # canonical FEMNIST class count post-2026-05-23 migration
 
         with torch.no_grad():
             for _batch in range(3):
