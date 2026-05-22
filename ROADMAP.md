@@ -14,6 +14,7 @@ its source doc. Items already implemented in source code have been removed.
 
 ## Recently shipped
 
+- **2026-05-22** — Dataset System Rework Phase 1A: `config/huggingface_datasets.json` expanded from 5 to 21 entries, covering the full keyword set (`pubmed_classification_20k` / `financial_phrasebank` / `lexglue` / `medal` / `medquad` text + `cifar100` / `cifar10` / `cinic10` / `femnist_iid` / `femnist_niid` / 11 MedMNIST 2D image). Canonical HF mirrors verified via May 2026 web-search (`albertvillanova/medmnist-v2` for MedMNIST configs; `flwrlabs/femnist` + `flwrlabs/cinic10` for Flower-blessed paths; `uoft-cs/cifar10` paralleling the existing cifar100 sibling; `lavita/MedQuAD`). New `tests/unit/test_dataset_loaders/test_huggingface_datasets_config.py` locks the schema: 7 assertions covering modality partition, per-modality required fields, image-shape sanity, MedMNIST channel↔transformer agreement against the medmnist `INFO` dict, and LOADER_REGISTRY ⊆ JSON keys. The dispatch isn't rewired yet — Phase 1B handles that.
 - **2026-05-22** — Dataset System Rework Phase 0B+0C: `DynamicCNN._initialize_weights()` matches `cnn_models.py` Kaiming/Xavier convention; `FederatedDatasetLoader.load_datasets()` returns 2-tuple with `num_classes` as instance attribute.
 - **2026-05-22** — File-consolidation pass closed out. `simulation_strategies/` (shipped 2026-05-21) and `dataset_loaders/` (shipped 2026-05-22) collapsed their if/elif dispatch chains into registry+factory shape; remaining `*_handlers/` and `client_models/` audited as N/A — no dispatch surface to consolidate.
 - **2026-05-21** — `ray_logger.py` audited against Flower 1.28+ native observability. Keep + document the gap: covers strategy-level timing aggregation, classified event taxonomy (CRASH/OOM/TIMEOUT/NODE_DEATH), persistent `ray_simulation_summary_*.json`, and `ray.nodes()` snapshot — none of which Flower provides natively.
@@ -38,8 +39,8 @@ Known carry-overs into Phase 1A: `cifar10` and `cinic10` frontend dropdown entri
 
 ### Phase 1 — Config Expansion & Config-Driven Dispatch
 
-- [ ] **1A:** Expand `config/huggingface_datasets.json` with all 21 datasets (MedMNIST, FEMNIST, cifar10, cinic10, medquad, text datasets)
-- [ ] **1B:** Rewrite `_assign_dataset_loaders_and_network_model()` — replace 4+ `elif dataset_keyword` branches with config-driven dispatch using `huggingface_datasets.json`
+- [x] **1A:** Expand `config/huggingface_datasets.json` with all 21 datasets — shipped 2026-05-22 (see Recently shipped above).
+- [ ] **1B:** Replace the per-keyword Python builders in `LOADER_REGISTRY` with a modality-driven dispatch that reads `modality` / `image_transformer` / `partition_by` directly from `huggingface_datasets.json`. The dispatch seam (`build_dataset_loader_and_model`) already exists; the work is collapsing `_build_cnn` / `_build_cifar100` / `_build_hf_text` into a smaller per-modality set. Wire `cifar10` / `cinic10` transformers (Phase 2A blocker), and resolve the femnist_iid-vs-femnist_niid partitioner from JSON (`partition_by: writer_id` for niid; default IID otherwise).
 - [ ] **1C:** Use `load_hf_model()` from the Transformer Merge (above) instead of duplicating LoRA/non-LoRA BERT loading here
 
 ### Phase 2 — Migrate Image Datasets to FederatedDatasetLoader
