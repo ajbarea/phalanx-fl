@@ -105,6 +105,22 @@ class TestDynamicCNNInitialization:
         assert isinstance(model.dropout, nn.Dropout)
         assert model.dropout.p == 0.5
 
+    def test_initialize_weights_zeros_all_biases(self) -> None:
+        """All Conv2d / Linear biases should be zero after init."""
+        model = DynamicCNN(num_classes=10, input_channels=3, input_height=32, input_width=32)
+        for m in model.modules():
+            if isinstance(m, nn.Conv2d | nn.Linear) and m.bias is not None:
+                assert torch.all(m.bias == 0), f"{type(m).__name__} bias not zero-initialized"
+
+    def test_initialize_weights_nonzero_weights(self) -> None:
+        """Conv2d / Linear weights should be initialized (not all zeros)."""
+        model = DynamicCNN(num_classes=10)
+        for m in model.modules():
+            if isinstance(m, nn.Conv2d | nn.Linear):
+                assert not torch.all(m.weight == 0), (
+                    f"{type(m).__name__} weights stuck at zero after init"
+                )
+
 
 class TestDynamicCNNForwardPass:
     """Test DynamicCNN forward pass."""

@@ -72,6 +72,19 @@ class DynamicCNN(nn.Module):
         self.fc2 = nn.Linear(512, num_classes)
         self.dropout = nn.Dropout(0.5)
 
+        self._initialize_weights()
+
+    def _initialize_weights(self) -> None:
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_uniform_(m.weight, nonlinearity="relu")
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass through the network.

@@ -129,6 +129,33 @@ deliberately out of scope:
 
 ### Phase 0 — Cleanup & Foundation
 
+- [x] **0B: Add `_initialize_weights()` to `DynamicCNN`** — shipped 2026-05-22.
+  Matches the established `cnn_models.py` convention: Kaiming uniform on
+  Conv2d (`nonlinearity="relu"`), Xavier uniform on Linear, zeros on
+  biases. Closes the silent-default gap where `DynamicCNN` (used by the
+  cifar100 path) leaned on PyTorch's `kaiming_uniform_(a=sqrt(5))`
+  default — which is also Kaiming but with a different fan mode that
+  isn't ReLU-tuned. Verified by two new tests in
+  `test_dynamic_cnn.py::TestDynamicCNNInitialization` asserting
+  biases-zero + non-zero weights post-construction. 2180 unit tests
+  pass.
+- [x] **0C: Normalize `FederatedDatasetLoader.load_datasets()` return type**
+  — shipped 2026-05-22. Returns `(trainloaders, valloaders)` only;
+  `num_classes` is stored as `self.num_classes` (initialized `None`,
+  populated by `_detect_num_classes` inside `load_datasets`). Brings
+  the loader into line with `image_dataset_loader`,
+  `medquad_dataset_loader`, `huggingface_image_dataset_loader`, and
+  `huggingface_text_dataset_loader` (all 2-tuple). The 3-tuple form
+  was a latent footgun: production call site
+  `federated_simulation._assign_dataset_loaders_and_network_model`
+  already unpacks 2 values, so any future routing of
+  `FederatedDatasetLoader` through the factory would have thrown
+  `ValueError: too many values to unpack`. Four call sites in
+  `test_federated_dataset_loader.py` updated; new `loader.num_classes
+  is None` post-construction assertion added. `text_classification_loader`
+  also returns a 3-tuple, but it's slated for deletion in Phase 3
+  (Dataset System Rework Phase 3E) — not normalizing now to avoid
+  wasted churn.
 - [x] **0A: Drop `its`, `flair`, `lung_photos`** — shipped 2026-05-21.
   Deleted 3 transformer files + 3 GPU sim configs, removed from
   `federated_simulation.py` (imports, registry, dispatch),
@@ -149,8 +176,6 @@ deliberately out of scope:
   to frontend (backend already supports it via the text-dataset path).
   Filed `cifar10` and `cinic10` frontend additions as part of Phase 1A
   (config expansion) where the backend wiring lands first.
-- [ ] **0B: Add `_initialize_weights()` to `DynamicCNN`** (`dynamic_cnn.py`)
-- [ ] **0C: Normalize `FederatedDatasetLoader.load_datasets()` return type** — currently returns 3 values `(trainloaders, valloaders, num_classes)`, should return 2 and store `num_classes` as instance attribute
 - [ ] ~~**0D: Rename `cifar100_image_transformer` → `cifar_image_transformer`**~~ — Skip: Phase 5 plans to eliminate all transformer files via declarative JSON transforms. Renaming first is wasted churn.
 
 ### Phase 1 — Config Expansion & Config-Driven Dispatch

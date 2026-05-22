@@ -34,6 +34,8 @@ class TestFederatedDatasetLoaderInit:
         assert loader.training_subset_fraction == 0.8
         assert loader.partitioning_strategy == "iid"
         assert loader.partitioning_params == {}
+        # num_classes is initialized as None and set after load_datasets()
+        assert loader.num_classes is None
 
     def test_initialization_with_partitioning_params(self):
         """Should initialize with custom partitioning parameters."""
@@ -175,12 +177,14 @@ class TestLoadDatasets:
             training_subset_fraction=0.8,
         )
 
-        trainloaders, valloaders, num_classes = loader.load_datasets()
+        trainloaders, valloaders = loader.load_datasets()
 
         assert len(trainloaders) == 5
         assert len(valloaders) == 5
         assert all(isinstance(tl, DataLoader) for tl in trainloaders)
         assert all(isinstance(vl, DataLoader) for vl in valloaders)
+        # num_classes is exposed on the instance, not in the return tuple
+        assert hasattr(loader, "num_classes")
 
     @patch("intellifl.dataset_loaders.federated_dataset_loader.FederatedDataset")
     def test_load_datasets_uses_correct_partitioner(self, mock_federated_dataset):
@@ -448,7 +452,7 @@ class TestIntegration:
             partitioning_strategy="iid",
         )
 
-        trainloaders, valloaders, num_classes = loader.load_datasets()
+        trainloaders, valloaders = loader.load_datasets()
 
         assert len(trainloaders) == 3
         assert len(valloaders) == 3
@@ -473,7 +477,7 @@ class TestIntegration:
             partitioning_params={"alpha": 0.1},
         )
 
-        trainloaders, valloaders, num_classes = loader.load_datasets()
+        trainloaders, valloaders = loader.load_datasets()
 
         assert len(trainloaders) == 5
         assert len(valloaders) == 5
@@ -498,7 +502,7 @@ class TestIntegration:
             partitioning_params={"num_classes_per_partition": 3},
         )
 
-        trainloaders, valloaders, num_classes = loader.load_datasets()
+        trainloaders, valloaders = loader.load_datasets()
 
         assert len(trainloaders) == 4
         assert len(valloaders) == 4
