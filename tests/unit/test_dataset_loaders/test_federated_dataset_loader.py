@@ -1022,5 +1022,5 @@ class TestPartitionByParam:
             training_subset_fraction=0.8,
             partitioning_strategy="natural_id",
         )
-        with pytest.raises(ValueError, match="natural_id strategy requires"):
+        with pytest.raises(ValueError, match="requires `partition_by`"):
             loader._create_partitioner()
