@@ -14,169 +14,27 @@ its source doc. Items already implemented in source code have been removed.
 
 ## Recently shipped
 
-- **Aggregation math refinements** (2026-04-10) — Krum / Multi-Krum use squared
-  Euclidean distance per NIPS 2017 (not L2 norm); Krum / Multi-Krum / Bulyan
-  scoring sums the *k* other closest neighbors (excluding self-distance);
-  all strategies record `aggregation_participation=1` only for clients actually
-  included in the round's global update, enabling accurate precision/recall.
-- **Network models — Transformer merge** (2026-04-06) — Merged
-  `bert_model_definition.py` and `text_classifier_model.py` into
-  `transformer_models.py`; unified `load_hf_model(model_name, task, ...)` with
-  task dispatch (`mlm` vs `seq_cls`); backward-compat wrappers delegate to it.
-  All 344 tests pass. (Source: `NETWORK_MODELS_DRY_REFACTOR.md`.)
+- **2026-05-22** — Dataset System Rework Phase 0B+0C: `DynamicCNN._initialize_weights()` matches `cnn_models.py` Kaiming/Xavier convention; `FederatedDatasetLoader.load_datasets()` returns 2-tuple with `num_classes` as instance attribute.
+- **2026-05-22** — File-consolidation pass closed out. `simulation_strategies/` (shipped 2026-05-21) and `dataset_loaders/` (shipped 2026-05-22) collapsed their if/elif dispatch chains into registry+factory shape; remaining `*_handlers/` and `client_models/` audited as N/A — no dispatch surface to consolidate.
+- **2026-05-21** — `ray_logger.py` audited against Flower 1.28+ native observability. Keep + document the gap: covers strategy-level timing aggregation, classified event taxonomy (CRASH/OOM/TIMEOUT/NODE_DEATH), persistent `ray_simulation_summary_*.json`, and `ray.nodes()` snapshot — none of which Flower provides natively.
+- **2026-04-22** — ECOSYSTEM.md dependency audit. Celery+Redis kept (serialisation, not scale); `utils/ray_config.py` removed (Flower 1.28+ handles the 1.9-era quirks natively); `mutmut` + `huggingface_hub[hf_xet]` dropped (aspirational / unmeasured).
+- **2026-04-10** — Aggregation math: Krum / Multi-Krum use squared Euclidean per NIPS 2017; Krum / Multi-Krum / Bulyan sum the *k* closest neighbors excluding self; all strategies record `aggregation_participation=1` only when actually included in the round's global update.
+- **2026-04-06** — Network models transformer merge: `bert_model_definition.py` + `text_classifier_model.py` → `transformer_models.py`; unified `load_hf_model(model_name, task, ...)` with `mlm` / `seq_cls` task dispatch.
 
----
-
-## Dependency hygiene
-
-Captured from the ECOSYSTEM.md audit (2026-04-22). Decisions reached
-during that pass are logged inline; remaining items need real work
-before they close.
-
-### Resolved (2026-04-22)
-
-- **Celery+Redis stays.** The load-bearing use case is *serialisation*,
-  not scale: without it, concurrent frontend users clicking "run sim"
-  would crash the box. Celery with single-worker concurrency enforces
-  "one sim at a time, durable queue across restarts". BackgroundTasks
-  wouldn't survive a server restart mid-queue, and a bare semaphore
-  wouldn't either.
-- **Ray stays as a hard dep; `utils/ray_config.py` removed.** The
-  platform-workaround shim covered Flower 1.9 quirks that Flower 1.28+
-  now handles natively. `simulation_runner` and `utils/ray_logger`
-  still import Ray directly; those stay.
-- **`mutmut` dropped.** Aspirational tooling; no cadence defined, no
-  runs recorded. `uv add --group dev mutmut` revives it if and when a
-  real schedule materialises.
-- **`huggingface_hub[hf_xet]` dropped.** The Xet-protocol boost is
-  unmeasured for our download pattern (MNIST + CIFAR-10 + FEMNIST +
-  maybe a Llama checkpoint) and the motivation was curiosity rather
-  than observed savings. Re-add if a real bottleneck shows up.
-
-### Resolved (2026-05-21)
-
-- **`utils/ray_logger.py` evaluation (369 lines).** Re-read against
-  Flower >= 1.28 native observability (web-search verified, May 2026).
-  Verdict: **keep, document the gap**. Flower covers driver-side
-  worker log streaming + per-client `client_resources` + raw OOM
-  propagation, but does not provide (1) strategy-level timing
-  aggregation — `RaySimulationMonitor.record_round` works at
-  phalanx-fl's multi-FL-round "strategy" granularity which Flower
-  doesn't know about; (2) classified event taxonomy
-  (`CRASH / OOM / TIMEOUT / NODE_DEATH`) for structured grepping;
-  (3) a persistent `ray_simulation_summary_<id>.json` artifact for
-  post-mortem; (4) closing cluster-health snapshot via `ray.nodes()`.
-  Added module-header docstring naming each unique surface vs the
-  shadows. No code deletion warranted; the module earns its 369 lines.
-
-### Still open
-
-- **File-consolidation pass (in progress)** — apply the `network_models`
-  precedent to the other one-class-per-file packages. Each is a
-  standalone refactor; all follow the same shape (registry dict +
-  dispatch function). Big diff, small semantic change.
-  - [x] `intellifl/simulation_strategies/` — shipped 2026-05-21.
-    `__init__.py` now exports `build_strategy()` + `STRATEGY_REGISTRY`;
-    the 80-line `if/elif` dispatch in
-    `federated_simulation._assign_aggregation_strategy` collapsed to a
-    single `build_strategy()` call. Strategy class files unchanged
-    (each is too substantial to inline cleanly). PID variants
-    consolidated into one builder reading the variant off the keyword.
-  - [x] `intellifl/dataset_loaders/` — shipped 2026-05-22.
-    `__init__.py` exports `build_dataset_loader_and_model()` +
-    `LOADER_REGISTRY` + the `get_hf_dataset_config` /
-    `resolve_image_transformer` helpers that used to live in
-    `federated_simulation`. The 170-line `if/elif` chain in
-    `_assign_dataset_loaders_and_network_model` collapsed to one
-    factory call returning `(loader, model)`. Also collapsed three
-    near-identical LLM-construction blocks (medquad / HF text / medal)
-    into one private `_build_llm_model()` helper. Tests now patch
-    `intellifl.dataset_loaders.{ImageDatasetLoader, MedQuADDatasetLoader,
-    build_cnn_model, load_model}` instead of the prior
-    `intellifl.federated_simulation.*` paths. Cleanup follow-on:
-    `config/test_hf_datasets.py` delegates to
-    `resolve_image_transformer` instead of carrying its own stale
-    copy of the transformer registry (Phase 0A drift fix).
-  - [N/A] `intellifl/*_handlers/` and `intellifl/client_models/` —
-    audited 2026-05-22 after `simulation_strategies` and
-    `dataset_loaders` landed. None of these packages carries a
-    keyword-dispatch chain in `federated_simulation` or anywhere else:
-    `dataset_handlers/` is a single `DatasetHandler` class,
-    `output_handlers/` is one `DirectoryHandler` + utility plotting
-    functions, `client_models/` is one `FlowerClient`. `attack_handlers/`
-    was a ROADMAP placeholder that doesn't exist in the tree. The
-    registry+dispatch pattern doesn't apply — no consolidation surface
-    to collapse. File-consolidation pass closes out here; if a future
-    dispatch surface accretes in any of these packages, file a new
-    item rather than reviving this one.
-
-The two remaining keyword-dispatch sites in the codebase are
-deliberately out of scope:
-  - `simulation_strategies/pid_based_removal_strategy.py` branches
-    on the PID variant inside the strategy implementation, not at the
-    construction seam.
-  - `config_loaders/validate_strategy_config.py` dispatches
-    per-strategy validation rules. Moving these to be co-located with
-    each strategy builder is a different shape of refactor
-    (decentralization, not the centralization the consolidation pass
-    targets); revisit only if validation rules start drifting from
-    builder expectations.
+Out-of-scope dispatch sites (deliberately left as-is):
+- `simulation_strategies/pid_based_removal_strategy.py` — branches inside the strategy impl, not at the construction seam.
+- `config_loaders/validate_strategy_config.py` — per-strategy validation rules; moving these would be decentralization, not the centralization the consolidation pass targeted.
 
 ## Dataset System Rework
 
 > Source: `demo/DATASET_REWORK_PLAN.md` (Phases 0-5)
 > Ref: [HuggingFace Datasets](https://huggingface.co/docs/datasets) | [flwr-datasets v0.6.0](https://flower.ai/docs/datasets/index.html)
 
-### Phase 0 — Cleanup & Foundation
+### Phase 0 — Cleanup & Foundation — shipped 2026-05-21/22
 
-- [x] **0B: Add `_initialize_weights()` to `DynamicCNN`** — shipped 2026-05-22.
-  Matches the established `cnn_models.py` convention: Kaiming uniform on
-  Conv2d (`nonlinearity="relu"`), Xavier uniform on Linear, zeros on
-  biases. Closes the silent-default gap where `DynamicCNN` (used by the
-  cifar100 path) leaned on PyTorch's `kaiming_uniform_(a=sqrt(5))`
-  default — which is also Kaiming but with a different fan mode that
-  isn't ReLU-tuned. Verified by two new tests in
-  `test_dynamic_cnn.py::TestDynamicCNNInitialization` asserting
-  biases-zero + non-zero weights post-construction. 2180 unit tests
-  pass.
-- [x] **0C: Normalize `FederatedDatasetLoader.load_datasets()` return type**
-  — shipped 2026-05-22. Returns `(trainloaders, valloaders)` only;
-  `num_classes` is stored as `self.num_classes` (initialized `None`,
-  populated by `_detect_num_classes` inside `load_datasets`). Brings
-  the loader into line with `image_dataset_loader`,
-  `medquad_dataset_loader`, `huggingface_image_dataset_loader`, and
-  `huggingface_text_dataset_loader` (all 2-tuple). The 3-tuple form
-  was a latent footgun: production call site
-  `federated_simulation._assign_dataset_loaders_and_network_model`
-  already unpacks 2 values, so any future routing of
-  `FederatedDatasetLoader` through the factory would have thrown
-  `ValueError: too many values to unpack`. Four call sites in
-  `test_federated_dataset_loader.py` updated; new `loader.num_classes
-  is None` post-construction assertion added. `text_classification_loader`
-  also returns a 3-tuple, but it's slated for deletion in Phase 3
-  (Dataset System Rework Phase 3E) — not normalizing now to avoid
-  wasted churn.
-- [x] **0A: Drop `its`, `flair`, `lung_photos`** — shipped 2026-05-21.
-  Deleted 3 transformer files + 3 GPU sim configs, removed from
-  `federated_simulation.py` (imports, registry, dispatch),
-  `network_models/__init__.py` (3 dataset configs),
-  `config_loaders/validate_strategy_config.py` (validation enum),
-  `frontend/src/constants/datasets.js`, and
-  `frontend/src/utils/configValidation.js` (modality maps + pattern
-  list — also corrected a miscategorization of `flair` as a text
-  dataset). Test cleanup: 130 reference touchpoints across the test
-  suite — placeholder `dataset_keyword: "its"` mocks rewritten to
-  `bloodmnist`, parametrize rows for the dropped datasets dropped, a
-  `test_high_resolution_datasets` helper that only had 224×224
-  coverage retired (no remaining 224×224 datasets in the supported
-  set). 2178 unit + 151 integration tests pass; lint clean.
-  **`cifar10` / `cinic10` deliberately NOT added to frontend** — backend
-  has no `_cnn_loader_map` dispatch for either; adding to frontend
-  alone would create dead UX. `pubmed_classification_20k` WAS added
-  to frontend (backend already supports it via the text-dataset path).
-  Filed `cifar10` and `cinic10` frontend additions as part of Phase 1A
-  (config expansion) where the backend wiring lands first.
-- [ ] ~~**0D: Rename `cifar100_image_transformer` → `cifar_image_transformer`**~~ — Skip: Phase 5 plans to eliminate all transformer files via declarative JSON transforms. Renaming first is wasted churn.
+0A dropped `its`/`flair`/`lung_photos` (backend + frontend + tests). 0B added `DynamicCNN._initialize_weights()`. 0C normalized `FederatedDatasetLoader.load_datasets()` to 2-tuple with `num_classes` instance attr. 0D skipped — Phase 5 eliminates all transformer files via declarative JSON transforms; renaming first would be wasted churn.
+
+Known carry-overs into Phase 1A: `cifar10` and `cinic10` frontend dropdown entries (need backend `_cnn_loader_map` dispatch first). `text_classification_loader.load_datasets()` still returns a 3-tuple but is slated for Phase 3E deletion — leave as-is.
 
 ### Phase 1 — Config Expansion & Config-Driven Dispatch
 
@@ -260,7 +118,7 @@ the registry only needs to live in one place.
 
 - [ ] **1A: Update `docs/configuration.md`** — expand `partitioning_strategy` to list all supported keys with param tables
 - [ ] **1B: Update `docs/datasets.md`** — add config snippets showing each partitioner in action (especially Shard, Linear, Dirichlet with different α values). *(This also satisfies the Docs section item "Add JSON config snippets per dataset" — no separate task needed.)*
-- [ ] **1C: Add example simulation configs** — create 3-5 preset configs in `config/scenarios/` demonstrating researcher-grade scenarios. Original three: `pathological_2class.json`, `dirichlet_heterogeneous.json`, `shard_mcmahan.json`. Audit-of-audit additions (2026-05-21, Copilot-derived): `medical_imaging_iid_robust.json` (MedMNIST IID + Krum/Bulyan/RFA, "does robustness come free on IID data?"), `medical_imaging_non_iid_robust.json` (MedMNIST non-IID + Krum/Bulyan/Trust, "how does robustness degrade with heterogeneity?"), `femnist_label_flip_comparison.json` (FedAvg/Krum/Trust under 20% label-flip), `heterogeneous_byzantine_worst_case.json` (FEMNIST non-IID + gradient scaling + label-flip on overlapping clients). Each scenario file is strict JSON; explanatory text + research question + expected outcomes live in a sibling `.md` alongside (don't use JSON5/JSONC — `json.load` rejects comments). Pair with a CLI surface: `intellifl-dev sim --scenario NAME` + `--list-scenarios`, registry at `config/scenarios/registry.json`. Trigger: lower barrier to first experiment; newcomers see what's possible before wrestling with config.
+- [ ] **1C: Add example simulation configs** — 3-5 preset scenarios in `config/scenarios/` (`pathological_2class.json`, `dirichlet_heterogeneous.json`, `shard_mcmahan.json`, `medical_imaging_iid_robust.json`, `medical_imaging_non_iid_robust.json`, `femnist_label_flip_comparison.json`, `heterogeneous_byzantine_worst_case.json`). Each pairs with a sibling `.md` carrying the research question + expected outcomes (strict JSON has no comment syntax). Wire a CLI surface: `intellifl-dev sim --scenario NAME` + `--list-scenarios`, registry at `config/scenarios/registry.json`. Goal: lower barrier to first experiment.
 
 ### Phase 2 — Frontend Integration
 
