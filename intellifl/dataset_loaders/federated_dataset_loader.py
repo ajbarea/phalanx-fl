@@ -5,16 +5,11 @@ from typing import Any
 
 import torch
 from flwr_datasets import FederatedDataset
-from flwr_datasets.partitioner import (
-    DirichletPartitioner,
-    IidPartitioner,
-    NaturalIdPartitioner,
-    PathologicalPartitioner,
-)
 from torch.utils.data import DataLoader, random_split
 from torch.utils.data import Dataset as TorchDataset
 
 from datasets import Dataset  # type: ignore[attr-defined]
+from intellifl.dataset_loaders.partitioner_registry import create_partitioner
 
 
 class _TransformedImageDataset(TorchDataset):
@@ -220,51 +215,34 @@ class FederatedDatasetLoader:
 
     def _create_partitioner(self):
         """
-        Create partitioner based on strategy.
+        Create partitioner via the central registry.
+
+        Dirichlet / Pathological / Shard / Continuous / InnerDirichlet /
+        Distribution all default to ``label_column`` when ``partition_by``
+        is unset (label-skew shape); ``natural_id`` and
+        ``grouped_natural_id`` require ``partition_by`` to name a non-label
+        column and raise otherwise. Strategy-specific param defaults live
+        in ``partitioner_registry.PARTITIONER_REGISTRY``.
 
         Returns:
             Partitioner: flwr-datasets partitioner instance
 
         Raises:
-            ValueError: If partitioning_strategy is unknown or natural_id is
-                requested without a partition_by column.
+            ValueError: If ``partitioning_strategy`` is unknown or a
+                required param is missing.
         """
-        # Dirichlet / Pathological default to label_column (label-skew shape);
-        # natural_id requires partition_by to be set explicitly.
-        partition_col = self.partition_by or self.label_column
-
-        if self.partitioning_strategy == "iid":
-            return IidPartitioner(num_partitions=self.num_of_clients)
-
-        elif self.partitioning_strategy == "dirichlet":
-            alpha = self.partitioning_params.get("alpha", 0.5)
-            return DirichletPartitioner(
-                num_partitions=self.num_of_clients,
-                partition_by=partition_col,
-                alpha=alpha,
-            )
-
-        elif self.partitioning_strategy == "pathological":
-            num_classes = self.partitioning_params.get("num_classes_per_partition", 2)
-            return PathologicalPartitioner(
-                num_partitions=self.num_of_clients,
-                partition_by=partition_col,
-                num_classes_per_partition=num_classes,
-            )
-
-        elif self.partitioning_strategy == "natural_id":
-            # NaturalIdPartitioner auto-discovers partitions from the
-            # partition_by column's unique values (FEMNIST: ~3.5k writers).
-            # `num_of_clients` then indexes into the discovered partition
-            # list — load_partition(id=N) maps to the N-th natural id.
-            if not self.partition_by:
-                raise ValueError(
-                    "natural_id strategy requires `partition_by` (e.g. 'writer_id' for FEMNIST)"
-                )
-            return NaturalIdPartitioner(partition_by=self.partition_by)
-
+        # natural-id family must use the explicit partition_by; everyone
+        # else falls back to label_column for the standard label-skew shape.
+        if self.partitioning_strategy in ("natural_id", "grouped_natural_id"):
+            partition_col = self.partition_by
         else:
-            raise ValueError(f"Unknown partitioning strategy: {self.partitioning_strategy}")
+            partition_col = self.partition_by or self.label_column
+        return create_partitioner(
+            strategy=self.partitioning_strategy,
+            num_of_clients=self.num_of_clients,
+            partition_col=partition_col,
+            params=self.partitioning_params,
+        )
 
     def _standardize_columns(self, dataset: Dataset) -> Dataset:
         """

@@ -14,6 +14,7 @@ its source doc. Items already implemented in source code have been removed.
 
 ## Recently shipped
 
+- **2026-05-23** — Modular Partitioning System Phase 0. New `intellifl/dataset_loaders/partitioner_registry.py` carries a string-keyed registry over 13 `flwr_datasets.partitioner` classes (10 net-new wirings on top of the existing iid / dirichlet / pathological / natural_id quartet — `linear`, `exponential`, `square`, `shard`, `continuous`, `grouped_natural_id`, `size`, `inner_dirichlet`, `distribution`). Each registry entry is a per-class builder function that explicitly enumerates the params it reads + defaults, so the surface is auditable from one file. `_require(params, key, strategy)` and `_require_partition_col(col, strategy)` helpers raise uniform `ValueError`s with the strategy name + missing key inline. `FederatedDatasetLoader._create_partitioner` collapsed from a 47-line if/elif chain into a 7-line `partition_col` resolution + `create_partitioner(...)` delegate (natural-id family refuses the label-column fallback). 23 new unit tests in `tests/unit/test_dataset_loaders/test_partitioner_registry.py` cover happy paths, required-param surfaces, partition_by precedence, and the 13-key registry shape. Phase 1 (config + docs) + Phase 2 (frontend dropdown) deferred until first concrete UX surfacing.
 - **2026-05-23** — Dataset System Rework Phase 2B (MedMNIST family migration): the 11 MedMNIST keywords (`pneumoniamnist` / `bloodmnist` / `breastmnist` / `pathmnist` / `dermamnist` / `octmnist` / `retinamnist` / `tissuemnist` / `organamnist` / `organcmnist` / `organsmnist`) migrated from the local `ImageDatasetLoader` (pre-partitioned `datasets/<keyword>/client_N/` folders) to `FederatedDatasetLoader` reading `albertvillanova/medmnist-v2` + per-variant subset. New `_build_hf_medmnist_cnn` builder pairs the HF loader with the existing per-keyword `MedMNISTCNN` architecture via `build_cnn_model(keyword)`, so network shape stays identical across the migration. Loader construction extracted into `_build_federated_dataset_loader(keyword, config)` shared with `_build_hf_image_cnn`; same helper also wires JSON's `partition_by` so FEMNIST's eventual natural_id migration is one keyword-tuple change away. Latent bug fixed in passing: builders now read `partitioning_strategy` via `getattr` since `StrategyConfig` carries it as a Pydantic `extra="allow"` attribute that can be absent. Schema test grew two new assertions over `_HF_MEDMNIST_CNN_KEYWORDS` (resolvable transformer + canonical mirror + `_CNN_REGISTRY` coverage). FEMNIST migration deferred — `flwrlabs/femnist` gives 62 classes while `_CNN_REGISTRY["femnist_iid"]` carries `num_classes=10`; the resolution is logged in IMPL.md.
 - **2026-05-22** — Dataset System Rework Phase 2B (CIFAR family migration): `_build_hf_image_cnn` rewired from `HuggingFaceImageDatasetLoader` to `FederatedDatasetLoader` for the three keywords in `_HF_IMAGE_CNN_KEYWORDS` (`cifar100` / `cifar10` / `cinic10`). The new loader reads `partitioning_strategy` + `partitioning_params` from `StrategyConfig` instead of hard-coding Dirichlet alpha=0.5; when the config leaves both unset, the builder defaults to `("dirichlet", {"alpha": 0.5})` to preserve the OLD loader's label-skew non-IID shape. CIFAR family's per-keyword JSON (`hf_dataset_path`, `image_column`, `label_column`, `image_transformer`, shape params) is unchanged. All 2211 unit tests pass + lint clean post-migration; `HuggingFaceImageDatasetLoader` is now orphan code (no dispatch caller) awaiting Phase 2E deletion. MedMNIST + FEMNIST migration tiers remain.
 - **2026-05-22** — Dataset System Rework Phase 2A (`partition_by` slice + `natural_id` strategy): `FederatedDatasetLoader` gains `partition_by: str | None = None`; Dirichlet / Pathological partitioners use it when set, fall back to `label_column` otherwise. New `natural_id` partitioning strategy wraps `NaturalIdPartitioner(partition_by=...)` — the FEMNIST `femnist_niid` path partitions by `writer_id` (one client per writer, auto-discovered from the column's unique values). Raises `ValueError` if `natural_id` is requested without `partition_by`. Six new tests cover storage, Dirichlet override, default-None fallback, natural_id partitioner creation, and the missing-partition-by guard.
@@ -87,7 +88,7 @@ Known carry-overs into Phase 1A: `cifar10` and `cinic10` frontend dropdown entri
 ## Modular Partitioning System — Plug-and-Play
 
 > Source: [`flwr_datasets.partitioner` API](https://flower.ai/docs/datasets/ref-api/flwr_datasets.partitioner.html) | [Partitioner Tutorial](https://flower.ai/docs/datasets/tutorial-use-partitioners.html)
-> Currently only **3 of 15** usable partitioners are wired up (IID, Dirichlet, Pathological).
+> 13 of 15 usable partitioners wired via `intellifl/dataset_loaders/partitioner_registry.py` (Phase 0, 2026-05-23). The two vertical partitioners are out of scope; `IdToSizeFncPartitioner` is an abstract-ish parent for Linear/Exponential/Square and intentionally not surfaced.
 > Goal: let researchers pick any partitioner from a dropdown and configure its params via the UI.
 > flwr-datasets is at v0.6.0; all partitioners inherit from the `Partitioner` ABC.
 
@@ -99,11 +100,9 @@ Known carry-overs into Phase 1A: `cifar10` and `cinic10` frontend dropdown entri
 Once the Dataset System Rework (Phases 2-3) consolidates all loaders into `FederatedDatasetLoader`,
 the registry only needs to live in one place.
 
-### Phase 0 — Config-Driven Partitioner Registry
+### Phase 0 — Config-Driven Partitioner Registry — shipped 2026-05-23
 
-- [ ] **0A: Create partitioner registry** in `intellifl/dataset_loaders/partitioner_registry.py`
-  - Map string keys to `flwr_datasets.partitioner` classes with their default params and param schemas
-  - Cover all horizontal (sample-level) partitioners:
+- [x] **0A: Create partitioner registry** in `intellifl/dataset_loaders/partitioner_registry.py` — 13 horizontal partitioners wired via per-class builder functions; required-param validation raises clear `ValueError` keyed by strategy + missing key. Vertical partitioners + `IdToSizeFncPartitioner` documented under `OUT_OF_SCOPE_PARTITIONERS`.
 
   | Key | Class | Key Params | Use Case |
   |-----|-------|------------|----------|
@@ -123,8 +122,8 @@ the registry only needs to live in one place.
 
   - Vertical partitioners (`VerticalEvenPartitioner`, `VerticalSizePartitioner`) are out of scope for now (feature-split FL is a different paradigm)
 
-- [ ] **0B: Refactor `_create_partitioner()`** — replace if/elif chain with registry lookup + `**partitioning_params` pass-through
-- [ ] **0C: Update `partitioning_params` validation** — validate user-supplied params against the registry schema before constructing the partitioner; surface clear errors for missing/invalid params
+- [x] **0B: Refactor `_create_partitioner()`** — `FederatedDatasetLoader._create_partitioner` now delegates to `partitioner_registry.create_partitioner` after resolving `partition_col` from `self.partition_by or self.label_column` (natural-id family refuses the label-column fallback). 32 lines of if/elif replaced with a 7-line dispatch.
+- [x] **0C: Validation** — required-param surface is enforced per-builder via `_require(params, key, strategy)`; missing keys raise `ValueError` with the strategy name + missing key inline. No centralized JSON-schema validation today — each builder enumerates its own required + defaulted params, which keeps the surface auditable from one file. Pydantic schema layer deferred until Phase 2B's frontend dropdown needs a serializable schema.
 
 ### Phase 1 — Config & Docs
 
