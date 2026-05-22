@@ -864,3 +864,80 @@ class TestSubsetParam:
 
         kwargs = mock_fds_cls.call_args.kwargs
         assert kwargs.get("subset") == "pathmnist"
+
+
+class TestImageColumnParam:
+    """Phase 2A: `image_column` overrides the auto-detect in _standardize_columns."""
+
+    def test_image_column_default_is_none(self):
+        loader = FederatedDatasetLoader(
+            dataset_name="mnist",
+            num_of_clients=2,
+            batch_size=8,
+            training_subset_fraction=0.8,
+        )
+        assert loader.image_column is None
+
+    def test_image_column_stored_when_provided(self):
+        loader = FederatedDatasetLoader(
+            dataset_name="uoft-cs/cifar10",
+            num_of_clients=2,
+            batch_size=8,
+            training_subset_fraction=0.8,
+            image_column="img",
+        )
+        assert loader.image_column == "img"
+
+    def test_explicit_image_column_wins_over_auto_detect(self):
+        """When both 'image' and 'img' exist, explicit picks the named one."""
+        loader = FederatedDatasetLoader(
+            dataset_name="some/multi-image-dataset",
+            num_of_clients=2,
+            batch_size=8,
+            training_subset_fraction=0.8,
+            image_column="img",
+        )
+        mock_dataset = MagicMock()
+        mock_dataset.column_names = ["image", "img", "labels"]
+        mock_dataset.rename_columns = Mock(return_value=mock_dataset)
+        mock_dataset.remove_columns = Mock(return_value=mock_dataset)
+
+        loader._standardize_columns(mock_dataset)
+
+        mock_dataset.rename_columns.assert_called_once_with({"img": "pixel_values"})
+
+    def test_auto_detect_still_runs_when_image_column_is_none(self):
+        """Default behavior preserved: with image_column=None, auto-detect picks
+        the first matching alias ('image' before 'img')."""
+        loader = FederatedDatasetLoader(
+            dataset_name="mnist",
+            num_of_clients=2,
+            batch_size=8,
+            training_subset_fraction=0.8,
+        )
+        mock_dataset = MagicMock()
+        mock_dataset.column_names = ["image", "labels"]
+        mock_dataset.rename_columns = Mock(return_value=mock_dataset)
+        mock_dataset.remove_columns = Mock(return_value=mock_dataset)
+
+        loader._standardize_columns(mock_dataset)
+
+        mock_dataset.rename_columns.assert_called_once_with({"image": "pixel_values"})
+
+    def test_image_column_falls_back_when_named_column_missing(self):
+        """If image_column names a column the dataset doesn't have, fall back to auto-detect."""
+        loader = FederatedDatasetLoader(
+            dataset_name="some/dataset",
+            num_of_clients=2,
+            batch_size=8,
+            training_subset_fraction=0.8,
+            image_column="picture",
+        )
+        mock_dataset = MagicMock()
+        mock_dataset.column_names = ["image", "labels"]
+        mock_dataset.rename_columns = Mock(return_value=mock_dataset)
+        mock_dataset.remove_columns = Mock(return_value=mock_dataset)
+
+        loader._standardize_columns(mock_dataset)
+
+        mock_dataset.rename_columns.assert_called_once_with({"image": "pixel_values"})
