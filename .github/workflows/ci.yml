@@ -78,7 +78,7 @@ jobs:
           uv run coverage report --show-missing
           uv run coverage xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v6.0.0
+        uses: codecov/codecov-action@v6.0.1
         if: matrix.python-version == '3.12'
         with:
           token: '${{ secrets.CODECOV_TOKEN }}'
