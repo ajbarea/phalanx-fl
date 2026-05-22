@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import json
 import logging
-import os
-import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -21,29 +18,10 @@ from intellifl.client_models.flower_client import FlowerClient
 from intellifl.data_models.simulation_strategy_config import StrategyConfig
 from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
 from intellifl.dataset_handlers.dataset_handler import DatasetHandler
-from intellifl.dataset_loaders.huggingface_image_dataset_loader import (
-    HuggingFaceImageDatasetLoader,
+from intellifl.dataset_loaders import (
+    build_dataset_loader_and_model,
+    get_hf_dataset_config,
 )
-from intellifl.dataset_loaders.huggingface_text_dataset_loader import (
-    HuggingFaceTextDatasetLoader,
-)
-from intellifl.dataset_loaders.image_dataset_loader import ImageDatasetLoader
-from intellifl.dataset_loaders.image_transformers.cifar100_image_transformer import (
-    cifar100_image_transformer,
-)
-from intellifl.dataset_loaders.image_transformers.femnist_image_transformer import (
-    femnist_image_transformer,
-)
-from intellifl.dataset_loaders.image_transformers.medmnist_2d_grayscale_image_transformer import (
-    medmnist_2d_grayscale_image_transformer,
-)
-from intellifl.dataset_loaders.image_transformers.medmnist_2d_rgb_image_transformer import (
-    medmnist_2d_rgb_image_transformer,
-)
-from intellifl.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
-from intellifl.network_models import build_cnn_model
-from intellifl.network_models.dynamic_cnn import DynamicCNN
-from intellifl.network_models.transformer_models import load_model, load_model_with_lora
 from intellifl.simulation_strategies import build_strategy
 from intellifl.utils.gpu_monitor import GPUMemoryMonitor
 from intellifl.utils.status_tracker import StatusTracker
@@ -99,47 +77,6 @@ def run_simulation(
         enable_tf_gpu_growth=enable_tf_gpu_growth,
         verbose_logging=verbose_logging,
     )
-
-
-def get_hf_dataset_config(dataset_keyword: str) -> dict:
-    """
-    Load HuggingFace dataset config for a given keyword from config/huggingface_datasets.json.
-    """
-    config_path = os.path.join(os.path.dirname(__file__), "../config/huggingface_datasets.json")
-    with open(config_path, encoding="utf-8") as f:
-        all_configs = json.load(f)
-    return all_configs[dataset_keyword]
-
-
-# Registry of image transformer names to their actual transform objects.
-# Keeps the JSON config declarative — transformer values are string keys resolved here.
-_IMAGE_TRANSFORMER_REGISTRY: dict[str, Any] = {}
-
-
-def _build_image_transformer_registry() -> dict[str, Any]:
-    """Lazily build the image transformer registry on first use."""
-    if not _IMAGE_TRANSFORMER_REGISTRY:
-        _IMAGE_TRANSFORMER_REGISTRY.update(
-            {
-                "cifar100_image_transformer": cifar100_image_transformer,
-                "medmnist_2d_rgb_image_transformer": medmnist_2d_rgb_image_transformer,
-                "medmnist_2d_grayscale_image_transformer": medmnist_2d_grayscale_image_transformer,
-                "femnist_image_transformer": femnist_image_transformer,
-            }
-        )
-    return _IMAGE_TRANSFORMER_REGISTRY
-
-
-def _resolve_image_transformer(name: str | None) -> Any:
-    """Resolve an image transformer string key from the JSON config to its transform object."""
-    if name is None:
-        return None
-    registry = _build_image_transformer_registry()
-    if name not in registry:
-        raise ValueError(
-            f"Unknown image_transformer '{name}'. Available: {sorted(registry.keys())}"
-        )
-    return registry[name]
 
 
 def weighted_average(metrics: list[tuple[int, dict[str, Any]]]) -> dict[str, Any]:
@@ -236,13 +173,12 @@ class FederatedSimulation:
 
         self._network_model: nn.Module | None = None
         self._aggregation_strategy: flwr.server.strategy.Strategy | None = None
-        self._dataset_loader: (
-            ImageDatasetLoader
-            | MedQuADDatasetLoader
-            | HuggingFaceTextDatasetLoader
-            | HuggingFaceImageDatasetLoader
-            | None
-        ) = None
+        # Loader is one of {ImageDatasetLoader, MedQuADDatasetLoader,
+        # HuggingFaceTextDatasetLoader, HuggingFaceImageDatasetLoader}, but
+        # the concrete shape comes back from
+        # `dataset_loaders.build_dataset_loader_and_model`; we don't need to
+        # name the union here.
+        self._dataset_loader: Any = None
 
         self._trainloaders: list[DataLoader[Any]] | None = None
         self._valloaders: list[DataLoader[Any]] | None = None
@@ -312,185 +248,17 @@ class FederatedSimulation:
 
     def _assign_dataset_loaders_and_network_model(self) -> None:
         """Configure dataset loader and network model based on dataset_keyword."""
-        dataset_keyword = self.strategy_config.dataset_keyword
-
         assert self.strategy_config.num_of_clients is not None, "num_of_clients must be set"
         assert self.strategy_config.batch_size is not None, "batch_size must be set"
         assert self.strategy_config.training_subset_fraction is not None, (
             "training_subset_fraction must be set"
         )
 
-        num_of_clients = self.strategy_config.num_of_clients
-        batch_size = self.strategy_config.batch_size
-        training_subset_fraction = self.strategy_config.training_subset_fraction
-
-        dataset_loader: (
-            ImageDatasetLoader
-            | MedQuADDatasetLoader
-            | HuggingFaceTextDatasetLoader
-            | HuggingFaceImageDatasetLoader
+        dataset_loader, self._network_model = build_dataset_loader_and_model(
+            keyword=self.strategy_config.dataset_keyword,
+            config=self.strategy_config,
+            dataset_dir=self._dataset_dir,
         )
-
-        def create_image_loader(transformer: Any) -> ImageDatasetLoader:
-            return ImageDatasetLoader(
-                transformer=transformer,
-                dataset_dir=self._dataset_dir,
-                num_of_clients=num_of_clients,
-                batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction,
-            )
-
-        # ── CNN datasets ─────────────────────────────────────────────────────
-        # Maps each dataset keyword to its image transformer. Model is built
-        # via the registry in intellifl.network_models (build_cnn_model).
-        _cnn_loader_map: dict[str, Any] = {
-            "femnist_iid": femnist_image_transformer,
-            "femnist_niid": femnist_image_transformer,
-            "pneumoniamnist": medmnist_2d_grayscale_image_transformer,
-            "bloodmnist": medmnist_2d_rgb_image_transformer,
-            "breastmnist": medmnist_2d_grayscale_image_transformer,
-            "pathmnist": medmnist_2d_rgb_image_transformer,
-            "dermamnist": medmnist_2d_rgb_image_transformer,
-            "octmnist": medmnist_2d_grayscale_image_transformer,
-            "retinamnist": medmnist_2d_rgb_image_transformer,
-            "tissuemnist": medmnist_2d_grayscale_image_transformer,
-            "organamnist": medmnist_2d_grayscale_image_transformer,
-            "organcmnist": medmnist_2d_grayscale_image_transformer,
-            "organsmnist": medmnist_2d_grayscale_image_transformer,
-        }
-
-        if dataset_keyword in _cnn_loader_map:
-            dataset_loader = create_image_loader(_cnn_loader_map[dataset_keyword])
-            self._network_model = build_cnn_model(dataset_keyword)
-
-        elif dataset_keyword == "medquad":
-            dataset_loader = MedQuADDatasetLoader(
-                dataset_dir=self._dataset_dir,
-                num_of_clients=num_of_clients,
-                training_subset_fraction=training_subset_fraction,
-                model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
-                batch_size=batch_size,
-                chunk_size=cast(int, getattr(self.strategy_config, "llm_chunk_size", 512)),
-                mlm_probability=cast(float, getattr(self.strategy_config, "mlm_probability", 0.15)),
-                num_poisoned_clients=self.strategy_config.num_of_malicious_clients or 0,
-                attack_schedule=self.strategy_config.attack_schedule,
-            )
-            if getattr(self.strategy_config, "llm_finetuning", None) == "lora":
-                self._network_model = load_model_with_lora(
-                    model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
-                    lora_rank=cast(int, getattr(self.strategy_config, "lora_rank", 8)),
-                    lora_alpha=cast(int, getattr(self.strategy_config, "lora_alpha", 16)),
-                    lora_dropout=cast(float, getattr(self.strategy_config, "lora_dropout", 0.05)),
-                    lora_target_modules=cast(
-                        list, getattr(self.strategy_config, "lora_target_modules", None)
-                    ),
-                )
-            else:
-                self._network_model = load_model(
-                    model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
-                )
-
-        elif dataset_keyword in ["financial_phrasebank", "lexglue", "pubmed_classification_20k"]:
-            hf_cfg = get_hf_dataset_config(dataset_keyword)
-            dataset_loader = HuggingFaceTextDatasetLoader(
-                hf_dataset_path=hf_cfg["hf_dataset_path"],
-                hf_dataset_name=hf_cfg["hf_dataset_name"],
-                tokenize_columns=hf_cfg.get("tokenize_columns"),
-                remove_columns=hf_cfg.get("remove_columns"),
-                dataset_dir=self._dataset_dir,
-                num_of_clients=num_of_clients,
-                training_subset_fraction=training_subset_fraction,
-                model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
-                batch_size=batch_size,
-                chunk_size=cast(int, getattr(self.strategy_config, "llm_chunk_size", 512)),
-                mlm_probability=cast(float, getattr(self.strategy_config, "mlm_probability", 0.15)),
-                num_poisoned_clients=self.strategy_config.num_of_malicious_clients or 0,
-                attack_schedule=self.strategy_config.attack_schedule,
-            )
-            if getattr(self.strategy_config, "llm_finetuning", None) == "lora":
-                self._network_model = load_model_with_lora(
-                    model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
-                    lora_rank=cast(int, getattr(self.strategy_config, "lora_rank", 8)),
-                    lora_alpha=cast(int, getattr(self.strategy_config, "lora_alpha", 16)),
-                    lora_dropout=cast(float, getattr(self.strategy_config, "lora_dropout", 0.05)),
-                    lora_target_modules=cast(
-                        list, getattr(self.strategy_config, "lora_target_modules", None)
-                    ),
-                )
-            else:
-                self._network_model = load_model(
-                    model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
-                )
-
-        elif dataset_keyword == "medal":
-            max_samples = getattr(self.strategy_config, "max_dataset_samples", None)
-
-            dataset_loader = HuggingFaceTextDatasetLoader(
-                hf_dataset_path="cyrilzakka/pubmed-medline",
-                hf_dataset_name=None,
-                tokenize_columns=["content"],
-                remove_columns=[
-                    "id",
-                    "title",
-                    "authors",
-                    "journal",
-                    "content",
-                    "source_url",
-                    "publication_types",
-                    "pubmed_id",
-                    "split",
-                ],
-                dataset_dir=self._dataset_dir,
-                num_of_clients=num_of_clients,
-                training_subset_fraction=training_subset_fraction,
-                model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
-                batch_size=batch_size,
-                chunk_size=cast(int, getattr(self.strategy_config, "llm_chunk_size", 512)),
-                mlm_probability=cast(float, getattr(self.strategy_config, "mlm_probability", 0.15)),
-                attack_schedule=self.strategy_config.attack_schedule,
-                max_samples=max_samples,
-            )
-            if getattr(self.strategy_config, "llm_finetuning", None) == "lora":
-                self._network_model = load_model_with_lora(
-                    model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
-                    lora_rank=cast(int, getattr(self.strategy_config, "lora_rank", 8)),
-                    lora_alpha=cast(int, getattr(self.strategy_config, "lora_alpha", 16)),
-                    lora_dropout=cast(float, getattr(self.strategy_config, "lora_dropout", 0.05)),
-                    lora_target_modules=cast(
-                        list, getattr(self.strategy_config, "lora_target_modules", None)
-                    ),
-                )
-            else:
-                self._network_model = load_model(
-                    model_name=cast(str, getattr(self.strategy_config, "llm_model", "")),
-                )
-
-        elif dataset_keyword == "cifar100":
-            hf_cfg = get_hf_dataset_config(dataset_keyword)
-            transformer = _resolve_image_transformer(hf_cfg.get("image_transformer"))
-            dataset_loader = HuggingFaceImageDatasetLoader(
-                hf_dataset_path=hf_cfg["hf_dataset_path"],
-                hf_dataset_name=hf_cfg.get("hf_dataset_name"),
-                transformer=transformer,
-                num_of_clients=num_of_clients,
-                batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction,
-                image_column=hf_cfg.get("image_column", "image"),
-                label_column=hf_cfg.get("label_column", "label"),
-            )
-            self._network_model = DynamicCNN(
-                num_classes=hf_cfg.get("num_classes", 100),
-                input_channels=hf_cfg.get("input_channels", 3),
-                input_height=hf_cfg.get("input_height", 32),
-                input_width=hf_cfg.get("input_width", 32),
-            )
-
-        else:
-            logging.error(
-                f"You are parsing a strategy for dataset: {dataset_keyword}. "
-                f"Check that you assign a correct dataset_loader at the code above."
-            )
-            sys.exit(-1)
 
         self._dataset_loader = dataset_loader
         self._trainloaders, self._valloaders = dataset_loader.load_datasets()

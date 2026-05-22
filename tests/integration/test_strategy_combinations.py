@@ -333,8 +333,8 @@ class TestByzantineFaultTolerance:
     @pytest.fixture
     def mock_federated_simulation_with_byzantine(self):
         with (
-            patch("intellifl.federated_simulation.ImageDatasetLoader") as mock_loader,
-            patch("intellifl.federated_simulation.build_cnn_model") as mock_build_cnn,
+            patch("intellifl.dataset_loaders.ImageDatasetLoader") as mock_loader,
+            patch("intellifl.dataset_loaders.build_cnn_model") as mock_build_cnn,
             patch("intellifl.federated_simulation.run_simulation") as mock_run_sim,
             patch(
                 "intellifl.federated_simulation.FederatedSimulation._assign_aggregation_strategy"

@@ -27,54 +27,19 @@ sys.path.insert(0, str(REPO_ROOT))
 CONFIG_PATH = REPO_ROOT / "config" / "huggingface_datasets.json"
 
 # ------------------------------------------------------------------
-# Image transformer registry (mirrors federated_simulation.py)
+# Image transformer registry — delegates to the canonical resolver in
+# `intellifl.dataset_loaders` so this script doesn't carry its own (stale)
+# copy of the mapping. The Phase 0A dataset cleanup retired three
+# transformers (its / flair / lung_photos); without the delegation, this
+# script kept its own list of imports that pointed at deleted modules.
 # ------------------------------------------------------------------
-_IMAGE_TRANSFORMERS: dict[str, object] = {}
 
 
 def _get_image_transformer(name: str | None):
-    """Lazily import and cache image transformers by config key."""
-    if name is None:
-        return None
-    if not _IMAGE_TRANSFORMERS:
-        from intellifl.dataset_loaders.image_transformers.cifar100_image_transformer import (
-            cifar100_image_transformer,
-        )
-        from intellifl.dataset_loaders.image_transformers.femnist_image_transformer import (
-            femnist_image_transformer,
-        )
-        from intellifl.dataset_loaders.image_transformers.flair_image_transformer import (
-            flair_image_transformer,
-        )
-        from intellifl.dataset_loaders.image_transformers.its_image_transformer import (
-            its_image_transformer,
-        )
-        from intellifl.dataset_loaders.image_transformers.lung_photos_image_transformer import (
-            lung_cancer_image_transformer,
-        )
-        from intellifl.dataset_loaders.image_transformers.medmnist_2d_grayscale_image_transformer import (
-            medmnist_2d_grayscale_image_transformer,
-        )
-        from intellifl.dataset_loaders.image_transformers.medmnist_2d_rgb_image_transformer import (
-            medmnist_2d_rgb_image_transformer,
-        )
+    """Resolve an image-transformer config key via the canonical registry."""
+    from intellifl.dataset_loaders import resolve_image_transformer
 
-        _IMAGE_TRANSFORMERS.update(
-            {
-                "cifar100_image_transformer": cifar100_image_transformer,
-                "medmnist_2d_rgb_image_transformer": medmnist_2d_rgb_image_transformer,
-                "medmnist_2d_grayscale_image_transformer": medmnist_2d_grayscale_image_transformer,
-                "femnist_image_transformer": femnist_image_transformer,
-                "flair_image_transformer": flair_image_transformer,
-                "its_image_transformer": its_image_transformer,
-                "lung_cancer_image_transformer": lung_cancer_image_transformer,
-            }
-        )
-    if name not in _IMAGE_TRANSFORMERS:
-        raise ValueError(
-            f"Unknown image_transformer '{name}'. Available: {sorted(_IMAGE_TRANSFORMERS)}"
-        )
-    return _IMAGE_TRANSFORMERS[name]
+    return resolve_image_transformer(name)
 
 
 # ------------------------------------------------------------------

@@ -78,8 +78,8 @@ def _create_simulation_with_mocks(
 ) -> FederatedSimulation:
     """Create a FederatedSimulation instance with mocked dependencies for testing."""
     with (
-        patch("intellifl.federated_simulation.ImageDatasetLoader") as mock_loader,
-        patch("intellifl.federated_simulation.build_cnn_model") as mock_build_cnn,
+        patch("intellifl.dataset_loaders.ImageDatasetLoader") as mock_loader,
+        patch("intellifl.dataset_loaders.build_cnn_model") as mock_build_cnn,
     ):
         mock_loader_instance = Mock()
         mock_loader_instance.load_datasets.return_value = (

@@ -54,8 +54,8 @@ def _create_simulation_with_mocks(
 ) -> FederatedSimulation:
     """Create a FederatedSimulation instance with mocked dependencies for testing."""
     with (
-        patch("intellifl.federated_simulation.ImageDatasetLoader") as mock_loader,
-        patch("intellifl.federated_simulation.build_cnn_model") as mock_build_cnn,
+        patch("intellifl.dataset_loaders.ImageDatasetLoader") as mock_loader,
+        patch("intellifl.dataset_loaders.build_cnn_model") as mock_build_cnn,
     ):
         mock_loader_instance = Mock()
         mock_loader_instance.load_datasets.return_value = (
@@ -401,8 +401,8 @@ class TestFederatedSimulationClientFunction:
         )
         strategy_config = StrategyConfig.from_dict(config_dict)
 
-        with patch("intellifl.federated_simulation.MedQuADDatasetLoader") as mock_loader:
-            with patch("intellifl.federated_simulation.load_model") as mock_load_model:
+        with patch("intellifl.dataset_loaders.MedQuADDatasetLoader") as mock_loader:
+            with patch("intellifl.dataset_loaders.load_model") as mock_load_model:
                 mock_loader_instance = Mock()
                 mock_loader_instance.load_datasets.return_value = (
                     [Mock() for _ in range(5)],
@@ -495,8 +495,8 @@ class TestFederatedSimulationErrorHandling:
         mock_dataset_handler.setup_dataset(num_clients=5)
 
         with (
-            patch("intellifl.federated_simulation.ImageDatasetLoader") as mock_loader,
-            patch("intellifl.federated_simulation.build_cnn_model") as mock_build_cnn,
+            patch("intellifl.dataset_loaders.ImageDatasetLoader") as mock_loader,
+            patch("intellifl.dataset_loaders.build_cnn_model") as mock_build_cnn,
         ):
             mock_loader_instance = Mock()
             mock_loader_instance.load_datasets.return_value = (

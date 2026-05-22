@@ -82,8 +82,21 @@ before they close.
     single `build_strategy()` call. Strategy class files unchanged
     (each is too substantial to inline cleanly). PID variants
     consolidated into one builder reading the variant off the keyword.
-  - [ ] `intellifl/dataset_loaders/` — 8 files, 1357 lines. Same
-    treatment: registry mapping `dataset_keyword` → loader class.
+  - [x] `intellifl/dataset_loaders/` — shipped 2026-05-22.
+    `__init__.py` exports `build_dataset_loader_and_model()` +
+    `LOADER_REGISTRY` + the `get_hf_dataset_config` /
+    `resolve_image_transformer` helpers that used to live in
+    `federated_simulation`. The 170-line `if/elif` chain in
+    `_assign_dataset_loaders_and_network_model` collapsed to one
+    factory call returning `(loader, model)`. Also collapsed three
+    near-identical LLM-construction blocks (medquad / HF text / medal)
+    into one private `_build_llm_model()` helper. Tests now patch
+    `intellifl.dataset_loaders.{ImageDatasetLoader, MedQuADDatasetLoader,
+    build_cnn_model, load_model}` instead of the prior
+    `intellifl.federated_simulation.*` paths. Cleanup follow-on:
+    `config/test_hf_datasets.py` delegates to
+    `resolve_image_transformer` instead of carrying its own stale
+    copy of the transformer registry (Phase 0A drift fix).
   - [ ] `intellifl/*_handlers/` (`attack_handlers`, `output_handlers`,
     `dataset_handlers`) — smaller surfaces, registry+dispatch where
     a dispatch site exists.
