@@ -182,7 +182,18 @@ addopts = [
     "-W", "error::DeprecationWarning",
     "-W", "ignore::RuntimeWarning:numpy",
     "-p", "randomly",
-    "--randomly-seed=last",
+    # Default to a fresh random seed each session. Pytest-randomly's
+    # xdist hook propagates that seed to every worker at controller
+    # startup, so all workers shuffle identically and xdist's
+    # "Different tests were collected between gw0 and gw1" collection
+    # mismatch can't trigger.
+    #
+    # Previously `--randomly-seed=last` lived here for local
+    # reproducibility, but on fresh CI runs (no .randomly-seed-cache
+    # file) each worker resolved "last" independently → diverging
+    # seeds → collection mismatch. Surface flake hit phalanx-fl PR #17
+    # on Python 3.13 (2026-05-22). To reproduce a specific session
+    # locally, copy the printed seed and run: `pytest --randomly-seed=N`.
 ]
 markers = [
     "unit: Unit tests",
