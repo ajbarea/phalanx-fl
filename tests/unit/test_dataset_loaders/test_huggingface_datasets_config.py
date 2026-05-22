@@ -163,3 +163,17 @@ def test_local_cnn_keywords_have_resolvable_transformer(config):
             f"in huggingface_datasets.json"
         )
         assert resolve_image_transformer(name) is not None
+
+
+def test_hf_image_cnn_keywords_have_resolvable_transformer(config):
+    """Phase 2A contract: every keyword in `_HF_IMAGE_CNN_KEYWORDS` must point
+    at a registered `image_transformer` so `_build_hf_image_cnn` resolves
+    cleanly. cifar10 / cinic10 / cifar100 cover the current set.
+    """
+    from intellifl.dataset_loaders import _HF_IMAGE_CNN_KEYWORDS, resolve_image_transformer
+
+    for keyword in _HF_IMAGE_CNN_KEYWORDS:
+        entry = config[keyword]
+        name = entry.get("image_transformer")
+        assert name, f"{keyword}: HF-image-CNN dispatch requires a non-null image_transformer"
+        assert resolve_image_transformer(name) is not None

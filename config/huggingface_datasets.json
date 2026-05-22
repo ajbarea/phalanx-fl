@@ -63,7 +63,7 @@
     "input_channels": 3,
     "input_height": 32,
     "input_width": 32,
-    "image_transformer": null,
+    "image_transformer": "cifar10_image_transformer",
     "ref_url": "https://huggingface.co/datasets/uoft-cs/cifar10"
   },
   "cinic10": {
@@ -76,7 +76,7 @@
     "input_channels": 3,
     "input_height": 32,
     "input_width": 32,
-    "image_transformer": null,
+    "image_transformer": "cinic10_image_transformer",
     "ref_url": "https://huggingface.co/datasets/flwrlabs/cinic10"
   },
   "femnist_iid": {

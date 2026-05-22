@@ -36,8 +36,14 @@ from intellifl.dataset_loaders.huggingface_text_dataset_loader import (
     HuggingFaceTextDatasetLoader,
 )
 from intellifl.dataset_loaders.image_dataset_loader import ImageDatasetLoader
+from intellifl.dataset_loaders.image_transformers.cifar10_image_transformer import (
+    cifar10_image_transformer,
+)
 from intellifl.dataset_loaders.image_transformers.cifar100_image_transformer import (
     cifar100_image_transformer,
+)
+from intellifl.dataset_loaders.image_transformers.cinic10_image_transformer import (
+    cinic10_image_transformer,
 )
 from intellifl.dataset_loaders.image_transformers.femnist_image_transformer import (
     femnist_image_transformer,
@@ -83,10 +89,12 @@ def _build_image_transformer_registry() -> dict[str, Any]:
     if not _IMAGE_TRANSFORMER_REGISTRY:
         _IMAGE_TRANSFORMER_REGISTRY.update(
             {
+                "cifar10_image_transformer": cifar10_image_transformer,
                 "cifar100_image_transformer": cifar100_image_transformer,
-                "medmnist_2d_rgb_image_transformer": medmnist_2d_rgb_image_transformer,
-                "medmnist_2d_grayscale_image_transformer": medmnist_2d_grayscale_image_transformer,
+                "cinic10_image_transformer": cinic10_image_transformer,
                 "femnist_image_transformer": femnist_image_transformer,
+                "medmnist_2d_grayscale_image_transformer": medmnist_2d_grayscale_image_transformer,
+                "medmnist_2d_rgb_image_transformer": medmnist_2d_rgb_image_transformer,
             }
         )
     return _IMAGE_TRANSFORMER_REGISTRY
@@ -256,7 +264,15 @@ def _build_medal(keyword: str, config: StrategyConfig, dataset_dir: str) -> tupl
     return loader, _build_llm_model(config)
 
 
-def _build_cifar100(keyword: str, config: StrategyConfig, dataset_dir: str) -> tuple[Any, Any]:
+def _build_hf_image_cnn(keyword: str, config: StrategyConfig, dataset_dir: str) -> tuple[Any, Any]:
+    """HF-backed image CNN builder — JSON-driven, generic across CIFAR / CINIC.
+
+    Phase 2A (2026-05-22) generalised the previous `_build_cifar100` to
+    cover `cifar10` and `cinic10` too. Every shape parameter (num_classes,
+    input dims, image / label columns, transformer name) lives in the
+    JSON entry, so adding the next HF-backed CNN dataset is a JSON-only
+    change once its transformer is registered.
+    """
     del dataset_dir
     hf_cfg = get_hf_dataset_config(keyword)
     transformer = resolve_image_transformer(hf_cfg.get("image_transformer"))
@@ -271,7 +287,7 @@ def _build_cifar100(keyword: str, config: StrategyConfig, dataset_dir: str) -> t
         label_column=hf_cfg.get("label_column", "label"),
     )
     model = DynamicCNN(
-        num_classes=hf_cfg.get("num_classes", 100),
+        num_classes=hf_cfg["num_classes"],
         input_channels=hf_cfg.get("input_channels", 3),
         input_height=hf_cfg.get("input_height", 32),
         input_width=hf_cfg.get("input_width", 32),
@@ -284,19 +300,23 @@ def _build_cifar100(keyword: str, config: StrategyConfig, dataset_dir: str) -> t
 # --------------------------------------------------------------------------
 
 _HF_TEXT_KEYWORDS = ("financial_phrasebank", "lexglue", "pubmed_classification_20k")
+_HF_IMAGE_CNN_KEYWORDS = ("cifar100", "cifar10", "cinic10")
 
 
 LOADER_REGISTRY: dict[str, LoaderBuilder] = {
-    # CNN datasets — one builder; keyword indexes both the per-dataset
-    # `image_transformer` in `config/huggingface_datasets.json` and the
-    # network shape in `intellifl.network_models`.
+    # Local-CNN datasets — `ImageDatasetLoader` reading local files; keyword
+    # indexes both the per-dataset `image_transformer` in
+    # `config/huggingface_datasets.json` and the network shape in
+    # `intellifl.network_models`.
     **dict.fromkeys(_LOCAL_CNN_KEYWORDS, _build_cnn),
     # Text datasets
     "medquad": _build_medquad,
     **dict.fromkeys(_HF_TEXT_KEYWORDS, _build_hf_text),
     "medal": _build_medal,
-    # Image dataset on the HuggingFace path
-    "cifar100": _build_cifar100,
+    # HF-backed CNN datasets — `HuggingFaceImageDatasetLoader` + `DynamicCNN`,
+    # entirely shaped from the JSON entry. Adding the next dataset is a JSON
+    # update + a transformer registration; no Python builder code needed.
+    **dict.fromkeys(_HF_IMAGE_CNN_KEYWORDS, _build_hf_image_cnn),
 }
 
 
