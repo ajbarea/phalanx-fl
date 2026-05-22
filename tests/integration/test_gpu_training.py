@@ -145,7 +145,6 @@ class TestGPUTraining:
             loss.backward()
             optimizer.step()
 
-        # Verify GPU was utilized
         peak_memory = torch.cuda.max_memory_allocated()
         assert peak_memory > initial_memory, "GPU memory should increase during training"
 
