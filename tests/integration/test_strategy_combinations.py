@@ -334,6 +334,7 @@ class TestByzantineFaultTolerance:
     def mock_federated_simulation_with_byzantine(self):
         with (
             patch("intellifl.dataset_loaders.ImageDatasetLoader") as mock_loader,
+            patch("intellifl.dataset_loaders.FederatedDatasetLoader") as mock_fds_loader,
             patch("intellifl.dataset_loaders.build_cnn_model") as mock_build_cnn,
             patch("intellifl.federated_simulation.run_simulation") as mock_run_sim,
             patch(
@@ -346,6 +347,7 @@ class TestByzantineFaultTolerance:
                 [Mock() for _ in range(10)],  # valloaders
             )
             mock_loader.return_value = mock_loader_instance
+            mock_fds_loader.return_value = mock_loader_instance
 
             mock_network_instance = MockNetwork()
             mock_build_cnn.return_value = mock_network_instance

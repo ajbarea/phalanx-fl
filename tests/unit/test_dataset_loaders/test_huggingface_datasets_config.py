@@ -177,3 +177,38 @@ def test_hf_image_cnn_keywords_have_resolvable_transformer(config):
         name = entry.get("image_transformer")
         assert name, f"{keyword}: HF-image-CNN dispatch requires a non-null image_transformer"
         assert resolve_image_transformer(name) is not None
+
+
+def test_hf_medmnist_cnn_keywords_have_resolvable_transformer(config):
+    """Phase 2B contract: every keyword in `_HF_MEDMNIST_CNN_KEYWORDS` must
+    point at a registered `image_transformer` and share the canonical HF
+    mirror (`albertvillanova/medmnist-v2` with per-variant subset) so
+    `_build_hf_medmnist_cnn` resolves cleanly.
+    """
+    from intellifl.dataset_loaders import _HF_MEDMNIST_CNN_KEYWORDS, resolve_image_transformer
+
+    for keyword in _HF_MEDMNIST_CNN_KEYWORDS:
+        entry = config[keyword]
+        name = entry.get("image_transformer")
+        assert name, f"{keyword}: HF-MedMNIST dispatch requires a non-null image_transformer"
+        assert resolve_image_transformer(name) is not None
+        assert entry["hf_dataset_path"] == "albertvillanova/medmnist-v2"
+        assert entry["hf_dataset_name"] == keyword
+
+
+def test_hf_medmnist_cnn_keywords_have_cnn_registry_entry(config):
+    """Phase 2B contract: every MedMNIST keyword routed through
+    `_build_hf_medmnist_cnn` must also be wired in `_CNN_REGISTRY` so the
+    paired `build_cnn_model(keyword)` returns a configured ``MedMNISTCNN``.
+    """
+    del config
+    from intellifl.dataset_loaders import _HF_MEDMNIST_CNN_KEYWORDS
+    from intellifl.network_models import _CNN_REGISTRY, build_cnn_model
+
+    for keyword in _HF_MEDMNIST_CNN_KEYWORDS:
+        assert keyword in _CNN_REGISTRY, (
+            f"{keyword}: HF-MedMNIST dispatch needs `_CNN_REGISTRY[{keyword!r}]` "
+            f"so the paired model construction resolves"
+        )
+        # Construction smoke — fails fast if the registered shape is invalid.
+        assert build_cnn_model(keyword) is not None

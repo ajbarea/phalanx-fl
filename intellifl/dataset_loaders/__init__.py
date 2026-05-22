@@ -111,30 +111,17 @@ def resolve_image_transformer(name: str | None) -> Any:
 
 
 # --------------------------------------------------------------------------
-# CNN dataset keywords (use ImageDatasetLoader + local files)
+# CNN dataset keywords still on the local ImageDatasetLoader path
 # --------------------------------------------------------------------------
 #
-# Phase 1B (2026-05-22) — `image_transformer` moved from this Python dict
-# into `config/huggingface_datasets.json`, where the same field already
-# carried cifar100's transformer name. The keyword tuple stays here as the
-# source of truth for "which datasets use the local ImageDatasetLoader path"
-# — that property isn't yet expressed in the JSON. Phase 2 migrates these
-# datasets to FederatedDatasetLoader and removes this list entirely.
+# Phase 2B (2026-05-23) — MedMNIST family graduated to
+# `_HF_MEDMNIST_CNN_KEYWORDS` below. The remaining FEMNIST keywords stay
+# on the local-file path while the 10-vs-62-class semantic shift gets
+# decided (see IMPL.md). Phase 2E deletes this list outright.
 
 _LOCAL_CNN_KEYWORDS: tuple[str, ...] = (
     "femnist_iid",
     "femnist_niid",
-    "pneumoniamnist",
-    "bloodmnist",
-    "breastmnist",
-    "pathmnist",
-    "dermamnist",
-    "octmnist",
-    "retinamnist",
-    "tissuemnist",
-    "organamnist",
-    "organcmnist",
-    "organsmnist",
 )
 
 
@@ -262,26 +249,25 @@ def _build_medal(keyword: str, config: StrategyConfig, dataset_dir: str) -> tupl
     return loader, _build_llm_model(config)
 
 
-def _build_hf_image_cnn(keyword: str, config: StrategyConfig, dataset_dir: str) -> tuple[Any, Any]:
-    """HF-backed image CNN builder — JSON-driven, generic across CIFAR / CINIC.
+def _build_federated_dataset_loader(keyword: str, config: StrategyConfig) -> FederatedDatasetLoader:
+    """Common FederatedDatasetLoader construction for every HF-image family.
 
-    Phase 2A generalised the previous `_build_cifar100` to cover `cifar10`
-    and `cinic10` too. Phase 2B migrated the underlying loader from
-    `HuggingFaceImageDatasetLoader` to `FederatedDatasetLoader`, which
-    makes the partitioning strategy configurable via `StrategyConfig`
-    instead of hard-coded. The default preserves the previous behavior:
-    Dirichlet alpha=0.5 (label-skew non-IID).
+    Reads the JSON entry for ``keyword``, resolves the image transformer,
+    applies the partitioning precedence (config > Dirichlet alpha=0.5
+    fallback that matches the OLD HuggingFaceImageDatasetLoader hardcoded
+    shape), and forwards ``partition_by`` from JSON so FEMNIST-style
+    natural_id wiring works without per-builder branching.
     """
-    del dataset_dir
     hf_cfg = get_hf_dataset_config(keyword)
     transformer = resolve_image_transformer(hf_cfg.get("image_transformer"))
-    if config.partitioning_strategy is None:
+    config_partitioning_strategy = getattr(config, "partitioning_strategy", None)
+    if config_partitioning_strategy is None:
         partitioning_strategy = "dirichlet"
         partitioning_params: dict[str, Any] = {"alpha": 0.5}
     else:
-        partitioning_strategy = config.partitioning_strategy
-        partitioning_params = config.partitioning_params or {}
-    loader = FederatedDatasetLoader(
+        partitioning_strategy = config_partitioning_strategy
+        partitioning_params = getattr(config, "partitioning_params", None) or {}
+    return FederatedDatasetLoader(
         dataset_name=hf_cfg["hf_dataset_path"],
         subset=hf_cfg.get("hf_dataset_name"),
         num_of_clients=cast(int, config.num_of_clients),
@@ -292,7 +278,15 @@ def _build_hf_image_cnn(keyword: str, config: StrategyConfig, dataset_dir: str) 
         label_column=hf_cfg.get("label_column", "label"),
         image_transform=transformer,
         image_column=hf_cfg.get("image_column"),
+        partition_by=hf_cfg.get("partition_by"),
     )
+
+
+def _build_hf_image_cnn(keyword: str, config: StrategyConfig, dataset_dir: str) -> tuple[Any, Any]:
+    """HF-backed CIFAR-family CNN builder — JSON-driven loader + DynamicCNN."""
+    del dataset_dir
+    hf_cfg = get_hf_dataset_config(keyword)
+    loader = _build_federated_dataset_loader(keyword, config)
     model = DynamicCNN(
         num_classes=hf_cfg["num_classes"],
         input_channels=hf_cfg.get("input_channels", 3),
@@ -302,28 +296,71 @@ def _build_hf_image_cnn(keyword: str, config: StrategyConfig, dataset_dir: str) 
     return loader, model
 
 
+def _build_hf_medmnist_cnn(
+    keyword: str, config: StrategyConfig, dataset_dir: str
+) -> tuple[Any, Any]:
+    """HF-backed MedMNIST CNN builder — JSON-driven loader + per-keyword MedMNISTCNN.
+
+    Phase 2B (2026-05-23): migrates the 11 MedMNIST keywords from the local
+    ``ImageDatasetLoader`` (which read pre-partitioned files under
+    ``datasets/<keyword>/client_N/``) to ``FederatedDatasetLoader``, which
+    pulls from ``albertvillanova/medmnist-v2`` + per-variant subset and
+    partitions in-loader. The model side keeps the existing
+    ``build_cnn_model(keyword)`` dispatch — each MedMNIST variant retains
+    its registered ``MedMNISTCNN`` conv/fc shape from
+    ``intellifl.network_models._CNN_REGISTRY``, so the network architecture
+    is unchanged across the migration.
+
+    Partitioning behavior change: the OLD path used externally pre-
+    partitioned files (Dirichlet-shaped, baked into the S3 tarball);
+    the NEW path partitions Dirichlet alpha=0.5 in-loader. The shape
+    matches but the seed differs, so per-client sample assignment will
+    drift from prior baselines. Acceptable — the CIFAR-family migration
+    (#27) made the same trade.
+    """
+    del dataset_dir
+    loader = _build_federated_dataset_loader(keyword, config)
+    model = build_cnn_model(keyword)
+    return loader, model
+
+
 # --------------------------------------------------------------------------
 # Registry + factory
 # --------------------------------------------------------------------------
 
 _HF_TEXT_KEYWORDS = ("financial_phrasebank", "lexglue", "pubmed_classification_20k")
 _HF_IMAGE_CNN_KEYWORDS = ("cifar100", "cifar10", "cinic10")
+_HF_MEDMNIST_CNN_KEYWORDS = (
+    "pneumoniamnist",
+    "bloodmnist",
+    "breastmnist",
+    "pathmnist",
+    "dermamnist",
+    "octmnist",
+    "retinamnist",
+    "tissuemnist",
+    "organamnist",
+    "organcmnist",
+    "organsmnist",
+)
 
 
 LOADER_REGISTRY: dict[str, LoaderBuilder] = {
-    # Local-CNN datasets — `ImageDatasetLoader` reading local files; keyword
-    # indexes both the per-dataset `image_transformer` in
-    # `config/huggingface_datasets.json` and the network shape in
-    # `intellifl.network_models`.
+    # Local-CNN datasets — `ImageDatasetLoader` reading local files; FEMNIST
+    # remains here pending the partitioning + num_classes decision (see
+    # IMPL.md). MedMNIST graduated to `_HF_MEDMNIST_CNN_KEYWORDS` below.
     **dict.fromkeys(_LOCAL_CNN_KEYWORDS, _build_cnn),
     # Text datasets
     "medquad": _build_medquad,
     **dict.fromkeys(_HF_TEXT_KEYWORDS, _build_hf_text),
     "medal": _build_medal,
-    # HF-backed CNN datasets — `FederatedDatasetLoader` + `DynamicCNN`,
-    # entirely shaped from the JSON entry. Adding the next dataset is a JSON
-    # update + a transformer registration; no Python builder code needed.
+    # HF-backed CIFAR family — `FederatedDatasetLoader` + `DynamicCNN`,
+    # entirely shaped from the JSON entry.
     **dict.fromkeys(_HF_IMAGE_CNN_KEYWORDS, _build_hf_image_cnn),
+    # HF-backed MedMNIST family — `FederatedDatasetLoader` reading
+    # `albertvillanova/medmnist-v2` + per-variant subset, paired with the
+    # registered per-keyword `MedMNISTCNN` architecture.
+    **dict.fromkeys(_HF_MEDMNIST_CNN_KEYWORDS, _build_hf_medmnist_cnn),
 }
 
 
