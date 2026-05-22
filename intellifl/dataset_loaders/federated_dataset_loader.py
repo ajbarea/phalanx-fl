@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
 import torch
 from flwr_datasets import FederatedDataset
 from flwr_datasets.partitioner import (
@@ -8,8 +11,33 @@ from flwr_datasets.partitioner import (
     PathologicalPartitioner,
 )
 from torch.utils.data import DataLoader, random_split
+from torch.utils.data import Dataset as TorchDataset
 
 from datasets import Dataset  # type: ignore[attr-defined]
+
+
+class _TransformedImageDataset(TorchDataset):
+    """Apply a torchvision-style transform to an inner HF dataset partition lazily.
+
+    HF dataset partitions with ``set_format("torch")`` yield
+    ``{"pixel_values": Tensor, "labels": int}``, but ``pixel_values`` is the
+    raw image (PIL-converted, often uint8 [0, 255]). Training expects a
+    normalized float32 tensor. Apply the transform per ``__getitem__``
+    rather than materialising the whole transformed dataset to keep memory
+    flat for 32×32 RGB datasets.
+    """
+
+    def __init__(self, inner: Any, transform: Callable[[Any], torch.Tensor]) -> None:
+        self.inner = inner
+        self.transform = transform
+
+    def __len__(self) -> int:
+        return len(self.inner)
+
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        item = dict(self.inner[idx])
+        item["pixel_values"] = self.transform(item["pixel_values"])
+        return item
 
 
 class FederatedDatasetLoader:
@@ -28,6 +56,7 @@ class FederatedDatasetLoader:
         partitioning_strategy: str = "iid",
         partitioning_params: dict | None = None,
         label_column: str = "label",
+        image_transform: Callable[[Any], torch.Tensor] | None = None,
     ) -> None:
         """
         Initialize FederatedDatasetLoader.
@@ -40,6 +69,11 @@ class FederatedDatasetLoader:
             partitioning_strategy: "iid", "dirichlet", or "pathological"
             partitioning_params: Strategy-specific parameters (e.g., {"alpha": 0.5})
             label_column: Name of the label column in the dataset (default: "label")
+            image_transform: Optional torchvision-style transform applied per
+                sample to ``pixel_values`` after partitioning. Used to normalize
+                raw HF image tensors against per-dataset channel statistics
+                (e.g. ``cifar10_image_transformer``). None = no transformation;
+                callers downstream must handle raw uint8 tensors.
         """
         self.dataset_name = dataset_name
         self.num_of_clients = num_of_clients
@@ -48,6 +82,7 @@ class FederatedDatasetLoader:
         self.partitioning_strategy = partitioning_strategy
         self.partitioning_params = partitioning_params or {}
         self.label_column = label_column
+        self.image_transform = image_transform
         self.num_classes: int | None = None
 
     def load_datasets(self) -> tuple[list[DataLoader], list[DataLoader]]:
@@ -79,17 +114,24 @@ class FederatedDatasetLoader:
             partition = self._standardize_columns(partition)
             partition.set_format("torch")
 
-            train_size = int(len(partition) * self.training_subset_fraction)
-            val_size = len(partition) - train_size
+            # Wrap with a per-access transform when one was supplied. The
+            # wrapper keeps the dataset shape (pixel_values + labels) and
+            # only intercepts pixel_values to apply normalization.
+            wrapped: Any = partition
+            if self.image_transform is not None:
+                wrapped = _TransformedImageDataset(partition, self.image_transform)
+
+            train_size = int(len(wrapped) * self.training_subset_fraction)
+            val_size = len(wrapped) - train_size
 
             # Ensure at least 1 sample in validation if possible
-            if val_size == 0 and len(partition) > 1:
+            if val_size == 0 and len(wrapped) > 1:
                 train_size -= 1
                 val_size = 1
 
             # HuggingFace Dataset with format "torch" is compatible with random_split
             train_dataset, val_dataset = random_split(
-                partition,  # pyright: ignore[reportArgumentType]
+                wrapped,  # pyright: ignore[reportArgumentType]
                 [train_size, val_size],
                 torch.Generator().manual_seed(42),
             )
