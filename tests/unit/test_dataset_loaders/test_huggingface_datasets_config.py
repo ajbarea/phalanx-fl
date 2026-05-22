@@ -181,23 +181,58 @@ def test_hf_image_cnn_keywords_have_resolvable_transformer(config):
 
 def test_hf_medmnist_cnn_keywords_have_resolvable_transformer(config):
     """Phase 2B contract: every keyword in `_HF_MEDMNIST_CNN_KEYWORDS` must
-    point at a registered `image_transformer` and share the canonical HF
-    mirror (`albertvillanova/medmnist-v2` with per-variant subset) so
-    `_build_hf_medmnist_cnn` resolves cleanly.
+    point at a registered `image_transformer` so the family-wide
+    `_build_hf_medmnist_cnn` dispatch resolves cleanly. Per-family
+    canonical-mirror assertions live in the two siblings below.
     """
     from intellifl.dataset_loaders import _HF_MEDMNIST_CNN_KEYWORDS, resolve_image_transformer
 
     for keyword in _HF_MEDMNIST_CNN_KEYWORDS:
         entry = config[keyword]
         name = entry.get("image_transformer")
-        assert name, f"{keyword}: HF-MedMNIST dispatch requires a non-null image_transformer"
+        assert name, f"{keyword}: HF-MedMNIST family dispatch requires a non-null image_transformer"
         assert resolve_image_transformer(name) is not None
+
+
+def test_medmnist_variants_share_canonical_mirror(config):
+    """11 MedMNIST variants all share `albertvillanova/medmnist-v2` +
+    per-variant subset; FEMNIST entries are checked in a sibling test.
+    """
+    medmnist_variants = (
+        "pneumoniamnist",
+        "bloodmnist",
+        "breastmnist",
+        "pathmnist",
+        "dermamnist",
+        "octmnist",
+        "retinamnist",
+        "tissuemnist",
+        "organamnist",
+        "organcmnist",
+        "organsmnist",
+    )
+    for keyword in medmnist_variants:
+        entry = config[keyword]
         assert entry["hf_dataset_path"] == "albertvillanova/medmnist-v2"
         assert entry["hf_dataset_name"] == keyword
 
 
+def test_femnist_variants_share_canonical_mirror(config):
+    """femnist_iid + femnist_niid both pull from `flwrlabs/femnist`; iid
+    declares `partitioning_strategy="iid"`, niid declares
+    `partitioning_strategy="natural_id"` + `partition_by="writer_id"`.
+    """
+    for keyword in ("femnist_iid", "femnist_niid"):
+        entry = config[keyword]
+        assert entry["hf_dataset_path"] == "flwrlabs/femnist"
+        assert entry["hf_dataset_name"] is None
+    assert config["femnist_iid"]["partitioning_strategy"] == "iid"
+    assert config["femnist_niid"]["partitioning_strategy"] == "natural_id"
+    assert config["femnist_niid"]["partition_by"] == "writer_id"
+
+
 def test_hf_medmnist_cnn_keywords_have_cnn_registry_entry(config):
-    """Phase 2B contract: every MedMNIST keyword routed through
+    """Phase 2B contract: every keyword routed through
     `_build_hf_medmnist_cnn` must also be wired in `_CNN_REGISTRY` so the
     paired `build_cnn_model(keyword)` returns a configured ``MedMNISTCNN``.
     """
