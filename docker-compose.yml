@@ -65,12 +65,12 @@ services:
   # ============================================================================
 
   docs:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: docs.Dockerfile
     container_name: intellifl-docs
     restart: unless-stopped
     working_dir: /app
-    command: >
-      sh -c "pip install --quiet zensical && zensical serve --dev-addr 0.0.0.0:8000"
     ports:
       - "${DOCS_PORT:-8080}:8000"
     volumes:

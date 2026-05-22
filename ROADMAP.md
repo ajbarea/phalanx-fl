@@ -197,7 +197,7 @@ Current `Dockerfile` uses `curl | sh` to install uv. Update to match [official u
 
 ### Infrastructure Improvements
 
-- [ ] Bake Zensical into a `docs.Dockerfile` using `uv` (not `pip install` on every startup) — current docs container installs via pip each restart, inconsistent with project tooling
+- [x] **Zensical bake into `docs.Dockerfile`** — shipped 2026-05-23. The `docs` service in `docker-compose.yml` now builds from `docs.Dockerfile` instead of `pip install`ing zensical on every container start. Uses the same uv distroless pattern as the main Dockerfile (`COPY --from=ghcr.io/astral-sh/uv:0.11.16 /uv /uvx /bin/`); pins zensical to `0.0.32` (cross-sister `/techne:sisters` audit catches drift). Trade-off: ~15s one-time build cost vs ~5s saved per restart + version reproducibility.
 - [ ] Reduce API healthcheck `start_period` once dataset download moves out of entrypoint (currently 120s in compose, 60s in Dockerfile — should be consistent)
 
 ---
