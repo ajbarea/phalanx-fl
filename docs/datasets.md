@@ -16,44 +16,22 @@ The `dataset_keyword` field in your config selects the dataset and automatically
 
 ### :material-draw: FEMNIST
 
-Federated version of the EMNIST handwritten character dataset.
+Federated version of the EMNIST handwritten character dataset (62 classes: 10 digits + 26 lowercase + 26 uppercase letters).
 
 | Keyword | Partitioning | Classes | Network |
 |---|---|---|---|
-| `femnist_iid` | IID (reduced) | 10 | `MedMNISTCNN` (28×28 grayscale) |
-| `femnist_niid` | Non-IID (full) | 62 | `MedMNISTCNN` (28×28 grayscale) |
+| `femnist_iid` | IID | 62 | `MedMNISTCNN` (28×28 grayscale) |
+| `femnist_niid` | Non-IID (natural-id, partitioned by `writer_id`) | 62 | `MedMNISTCNN` (28×28 grayscale) |
 
-### :material-satellite-variant: FLAIR
+### :material-grid: CIFAR family
 
-Federated Learning Annotated Image Recognition dataset (satellite imagery).
+32×32 RGB image classification, all downloaded automatically from HuggingFace Hub.
 
-| Keyword | Classes | Network |
-|---|---|---|
-| `flair` | 2 | `MedMNISTCNN` (256×256 RGB) |
-
-### :material-car-connected: ITS (Intelligent Transportation Systems)
-
-Traffic scene image classification.
-
-| Keyword | Classes | Network |
-|---|---|---|
-| `its` | 10 | `MedMNISTCNN` (224×224 RGB) |
-
-### :material-grid: CIFAR-100
-
-100 classes of 32×32 RGB images (fine-grained classification). Downloaded automatically from HuggingFace Hub (`uoft-cs/cifar100`).
-
-| Keyword | Classes | Network | Source |
+| Keyword | Classes | Network | HF path |
 |---|---|---|---|
-| `cifar100` | 100 (fine labels) | `DynamicCNN` | HuggingFace Hub |
-
-### :material-lungs: Lung Cancer Photos
-
-Chest CT scan images for lung cancer classification.
-
-| Keyword | Classes | Network |
-|---|---|---|
-| `lung_photos` | 4 | `MedMNISTCNN` (224×224 grayscale) |
+| `cifar100` | 100 (fine labels) | `DynamicCNN` | `uoft-cs/cifar100` |
+| `cifar10` | 10 | `DynamicCNN` | `uoft-cs/cifar10` |
+| `cinic10` | 10 (CIFAR-10 + downsampled ImageNet) | `DynamicCNN` | `flwrlabs/cinic10` |
 
 ### :material-hospital-box-outline: MedMNIST
 
@@ -116,12 +94,13 @@ HuggingFace and custom text datasets support configurable partitioning via the `
 | `iid` | Balanced, shuffled, even distribution across clients. | — |
 | `dirichlet` | Heterogeneous (non-IID) distribution using a Dirichlet prior. | `alpha` (default `0.5`; lower = more heterogeneous, higher = more uniform) |
 | `pathological` | Extreme non-IID — each client receives only K classes. | `num_classes_per_partition` (default `2`) |
+| `natural_id` | One client per natural identifier (e.g. FEMNIST's `writer_id`). Auto-discovers the partition count from the column's unique values. | `partition_by` (column name; required) |
 
 **Example:**
 
 ```json title="Dirichlet partitioning config"
 {
-  "dataset_keyword": "uoft-cs/cifar10",
+  "dataset_keyword": "cifar10",
   "partitioning_strategy": "dirichlet",
   "partitioning_params": {
     "alpha": 0.5
@@ -135,4 +114,6 @@ The mapping between `dataset_keyword` and its local directory is defined in `con
 
 !!! info "Adding a new dataset"
 
-    To add a custom dataset, create a directory under `datasets/`, add an entry to `config/dataset_keyword_to_dataset_dir.json`, and implement a matching dataset handler in `intellifl/dataset_handlers/`.
+    **HuggingFace-backed:** add an entry to `config/huggingface_datasets.json` with `modality`, `hf_dataset_path`, label / image columns, and shape (`num_classes`, `input_channels`, `input_height`, `input_width`). Register an `image_transformer` if the dataset needs custom normalization (see `intellifl/dataset_loaders/image_transformers/`). Add the keyword to `LOADER_REGISTRY` in `intellifl/dataset_loaders/__init__.py`.
+
+    **Local files:** create a directory under `datasets/`, add an entry to `config/dataset_keyword_to_dataset_dir.json`, and implement a matching dataset handler in `intellifl/dataset_handlers/`.
