@@ -8,6 +8,7 @@ from flwr_datasets import FederatedDataset
 from flwr_datasets.partitioner import (
     DirichletPartitioner,
     IidPartitioner,
+    NaturalIdPartitioner,
     PathologicalPartitioner,
 )
 from torch.utils.data import DataLoader, random_split
@@ -59,6 +60,7 @@ class FederatedDatasetLoader:
         image_transform: Callable[[Any], torch.Tensor] | None = None,
         subset: str | None = None,
         image_column: str | None = None,
+        partition_by: str | None = None,
     ) -> None:
         """
         Initialize FederatedDatasetLoader.
@@ -68,7 +70,9 @@ class FederatedDatasetLoader:
             num_of_clients: Number of federated learning clients
             batch_size: Batch size for DataLoaders
             training_subset_fraction: Fraction of data for training (0.0-1.0)
-            partitioning_strategy: "iid", "dirichlet", or "pathological"
+            partitioning_strategy: "iid", "dirichlet", "pathological", or
+                "natural_id" (the last splits on a non-label column such as
+                FEMNIST's `writer_id`).
             partitioning_params: Strategy-specific parameters (e.g., {"alpha": 0.5})
             label_column: Name of the label column in the dataset (default: "label")
             image_transform: Optional torchvision-style transform applied per
@@ -90,6 +94,13 @@ class FederatedDatasetLoader:
                 standardization. None falls back to the existing auto-detect
                 over ("image", "img"); set explicitly when a dataset has
                 both columns or when the auto-detect picks the wrong one.
+            partition_by: Override the column the partitioner partitions on.
+                Dirichlet / Pathological default to `label_column` (the
+                standard label-skew shape); the `natural_id` strategy
+                requires this to name a non-label column like FEMNIST's
+                ``writer_id``. None falls back to `label_column` for the
+                label-driven strategies; `natural_id` raises if both are
+                None.
         """
         self.dataset_name = dataset_name
         self.num_of_clients = num_of_clients
@@ -101,6 +112,7 @@ class FederatedDatasetLoader:
         self.image_transform = image_transform
         self.subset = subset
         self.image_column = image_column
+        self.partition_by = partition_by
         self.num_classes: int | None = None
 
     def load_datasets(self) -> tuple[list[DataLoader], list[DataLoader]]:
@@ -214,8 +226,13 @@ class FederatedDatasetLoader:
             Partitioner: flwr-datasets partitioner instance
 
         Raises:
-            ValueError: If partitioning_strategy is unknown
+            ValueError: If partitioning_strategy is unknown or natural_id is
+                requested without a partition_by column.
         """
+        # Dirichlet / Pathological default to label_column (label-skew shape);
+        # natural_id requires partition_by to be set explicitly.
+        partition_col = self.partition_by or self.label_column
+
         if self.partitioning_strategy == "iid":
             return IidPartitioner(num_partitions=self.num_of_clients)
 
@@ -223,7 +240,7 @@ class FederatedDatasetLoader:
             alpha = self.partitioning_params.get("alpha", 0.5)
             return DirichletPartitioner(
                 num_partitions=self.num_of_clients,
-                partition_by=self.label_column,
+                partition_by=partition_col,
                 alpha=alpha,
             )
 
@@ -231,9 +248,20 @@ class FederatedDatasetLoader:
             num_classes = self.partitioning_params.get("num_classes_per_partition", 2)
             return PathologicalPartitioner(
                 num_partitions=self.num_of_clients,
-                partition_by=self.label_column,
+                partition_by=partition_col,
                 num_classes_per_partition=num_classes,
             )
+
+        elif self.partitioning_strategy == "natural_id":
+            # NaturalIdPartitioner auto-discovers partitions from the
+            # partition_by column's unique values (FEMNIST: ~3.5k writers).
+            # `num_of_clients` then indexes into the discovered partition
+            # list — load_partition(id=N) maps to the N-th natural id.
+            if not self.partition_by:
+                raise ValueError(
+                    "natural_id strategy requires `partition_by` (e.g. 'writer_id' for FEMNIST)"
+                )
+            return NaturalIdPartitioner(partition_by=self.partition_by)
 
         else:
             raise ValueError(f"Unknown partitioning strategy: {self.partitioning_strategy}")

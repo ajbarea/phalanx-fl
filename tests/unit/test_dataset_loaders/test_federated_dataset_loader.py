@@ -11,6 +11,7 @@ import pytest
 from flwr_datasets.partitioner import (
     DirichletPartitioner,
     IidPartitioner,
+    NaturalIdPartitioner,
     PathologicalPartitioner,
 )
 from torch.utils.data import DataLoader
@@ -941,3 +942,85 @@ class TestImageColumnParam:
         loader._standardize_columns(mock_dataset)
 
         mock_dataset.rename_columns.assert_called_once_with({"image": "pixel_values"})
+
+
+class TestPartitionByParam:
+    """Phase 2A: `partition_by` overrides the column the partitioner partitions on.
+
+    Dirichlet / Pathological default to `label_column`; the new `natural_id`
+    strategy needs an explicit non-label column (FEMNIST's `writer_id`).
+    """
+
+    def test_partition_by_default_is_none(self):
+        loader = FederatedDatasetLoader(
+            dataset_name="mnist",
+            num_of_clients=2,
+            batch_size=8,
+            training_subset_fraction=0.8,
+        )
+        assert loader.partition_by is None
+
+    def test_partition_by_stored_when_provided(self):
+        loader = FederatedDatasetLoader(
+            dataset_name="flwrlabs/femnist",
+            num_of_clients=10,
+            batch_size=32,
+            training_subset_fraction=0.8,
+            partition_by="writer_id",
+        )
+        assert loader.partition_by == "writer_id"
+
+    def test_dirichlet_uses_partition_by_when_set(self):
+        """Dirichlet's partition_by should follow the explicit override, not label_column."""
+        loader = FederatedDatasetLoader(
+            dataset_name="some/dataset",
+            num_of_clients=4,
+            batch_size=8,
+            training_subset_fraction=0.8,
+            partitioning_strategy="dirichlet",
+            partitioning_params={"alpha": 0.3},
+            label_column="label",
+            partition_by="writer_id",
+        )
+        partitioner = loader._create_partitioner()
+        assert isinstance(partitioner, DirichletPartitioner)
+        assert partitioner._partition_by == "writer_id"
+
+    def test_dirichlet_falls_back_to_label_column_when_partition_by_none(self):
+        """Default behavior preserved when partition_by is None."""
+        loader = FederatedDatasetLoader(
+            dataset_name="mnist",
+            num_of_clients=4,
+            batch_size=8,
+            training_subset_fraction=0.8,
+            partitioning_strategy="dirichlet",
+            label_column="label",
+        )
+        partitioner = loader._create_partitioner()
+        assert partitioner._partition_by == "label"
+
+    def test_natural_id_strategy_creates_natural_id_partitioner(self):
+        """`natural_id` strategy is the femnist_niid path."""
+        loader = FederatedDatasetLoader(
+            dataset_name="flwrlabs/femnist",
+            num_of_clients=10,
+            batch_size=32,
+            training_subset_fraction=0.8,
+            partitioning_strategy="natural_id",
+            partition_by="writer_id",
+        )
+        partitioner = loader._create_partitioner()
+        assert isinstance(partitioner, NaturalIdPartitioner)
+        assert partitioner._partition_by == "writer_id"
+
+    def test_natural_id_strategy_raises_without_partition_by(self):
+        """natural_id requires partition_by — the failure should be explicit."""
+        loader = FederatedDatasetLoader(
+            dataset_name="flwrlabs/femnist",
+            num_of_clients=10,
+            batch_size=32,
+            training_subset_fraction=0.8,
+            partitioning_strategy="natural_id",
+        )
+        with pytest.raises(ValueError, match="natural_id strategy requires"):
+            loader._create_partitioner()
