@@ -11,19 +11,23 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.local/bin:$PATH"
+# research(2026-05): pull uv from the official distroless image instead of
+# `curl | sh`. The pinned `0.11.16` tag matches the current stable release;
+# bump in sync with the local toolchain and the other sisters via the
+# cross-repo audit (see /techne:sisters). `--compile-bytecode` on `uv sync`
+# precompiles `.pyc` files at install time, trading a small image-size
+# increase for faster Python cold start in the runner stage.
+COPY --from=ghcr.io/astral-sh/uv:0.11.16 /uv /uvx /bin/
 
 WORKDIR /app
 RUN uv venv
 
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    UV_LINK_MODE=copy uv sync --frozen --no-dev
+    UV_LINK_MODE=copy uv sync --frozen --no-dev --compile-bytecode
 
 # ==============================================================================
 # Runner Stage: Create the final production image
