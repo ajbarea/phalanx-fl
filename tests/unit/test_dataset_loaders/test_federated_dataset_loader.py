@@ -677,3 +677,113 @@ class TestStandardizeColumns:
         loader._standardize_columns(mock_dataset)
 
         mock_dataset.rename_columns.assert_called_once_with({"label": "labels"})
+
+
+class TestTransformedImageDatasetWrapper:
+    """Phase 2A: `image_transform` applies a torchvision-style transform per access."""
+
+    def test_image_transform_default_is_none(self):
+        loader = FederatedDatasetLoader(
+            dataset_name="mnist",
+            num_of_clients=2,
+            batch_size=8,
+            training_subset_fraction=0.8,
+        )
+        assert loader.image_transform is None
+
+    def test_image_transform_stored_when_provided(self):
+        import torch
+
+        transform = torch.nn.Identity()  # any callable
+        loader = FederatedDatasetLoader(
+            dataset_name="mnist",
+            num_of_clients=2,
+            batch_size=8,
+            training_subset_fraction=0.8,
+            image_transform=transform,
+        )
+        assert loader.image_transform is transform
+
+    def test_wrapper_invokes_transform_on_pixel_values(self):
+        import torch
+
+        from intellifl.dataset_loaders.federated_dataset_loader import (
+            _TransformedImageDataset,
+        )
+
+        sentinel = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
+
+        class InnerStub:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def __len__(self) -> int:
+                return 2
+
+            def __getitem__(self, idx: int) -> dict:
+                self.calls += 1
+                return {"pixel_values": torch.zeros((2, 2)), "labels": idx}
+
+        def transform(_x: torch.Tensor) -> torch.Tensor:
+            return sentinel
+
+        inner = InnerStub()
+        wrapped = _TransformedImageDataset(inner, transform)
+
+        assert len(wrapped) == 2
+        item = wrapped[0]
+        assert torch.equal(item["pixel_values"], sentinel)
+        assert item["labels"] == 0
+        # `__getitem__` was invoked exactly once on the inner dataset.
+        assert inner.calls == 1
+
+    def test_wrapper_preserves_labels(self):
+        """Transform applies only to pixel_values; labels pass through."""
+        import torch
+
+        from intellifl.dataset_loaders.federated_dataset_loader import (
+            _TransformedImageDataset,
+        )
+
+        class InnerStub:
+            def __getitem__(self, idx: int) -> dict:
+                return {"pixel_values": torch.tensor([float(idx)]), "labels": idx + 100}
+
+            def __len__(self) -> int:
+                return 3
+
+        def double(t: torch.Tensor) -> torch.Tensor:
+            return t * 2
+
+        wrapped = _TransformedImageDataset(InnerStub(), double)
+        for i in range(3):
+            item = wrapped[i]
+            assert item["labels"] == i + 100
+            assert item["pixel_values"].item() == float(i) * 2
+
+    def test_wrapper_does_not_mutate_inner_item(self):
+        """`dict(self.inner[idx])` copies — the inner partition is read-only."""
+        import torch
+
+        from intellifl.dataset_loaders.federated_dataset_loader import (
+            _TransformedImageDataset,
+        )
+
+        original = {"pixel_values": torch.tensor([1.0, 2.0]), "labels": 7}
+
+        class InnerStub:
+            def __getitem__(self, _idx: int) -> dict:
+                return original
+
+            def __len__(self) -> int:
+                return 1
+
+        def zero(_t: torch.Tensor) -> torch.Tensor:
+            return torch.zeros_like(_t)
+
+        wrapped = _TransformedImageDataset(InnerStub(), zero)
+        item = wrapped[0]
+        # Returned dict has the transformed value...
+        assert torch.equal(item["pixel_values"], torch.zeros(2))
+        # ...but the inner item we'd hand back next iteration is untouched.
+        assert torch.equal(original["pixel_values"], torch.tensor([1.0, 2.0]))
