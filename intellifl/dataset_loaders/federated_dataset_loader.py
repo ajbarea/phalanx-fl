@@ -58,6 +58,7 @@ class FederatedDatasetLoader:
         label_column: str = "label",
         image_transform: Callable[[Any], torch.Tensor] | None = None,
         subset: str | None = None,
+        image_column: str | None = None,
     ) -> None:
         """
         Initialize FederatedDatasetLoader.
@@ -83,6 +84,12 @@ class FederatedDatasetLoader:
                 (``coastalcph/lex_glue`` + subset ``"ledgar"`` / ``"eurlex"``).
                 None = use the dataset's default config (CIFAR-10, MNIST,
                 FEMNIST all have no named config).
+            image_column: Explicit name of the image column in the source
+                dataset (e.g. ``"img"`` for CIFAR variants, ``"image"`` for
+                MedMNIST). Renamed to ``"pixel_values"`` during column
+                standardization. None falls back to the existing auto-detect
+                over ("image", "img"); set explicitly when a dataset has
+                both columns or when the auto-detect picks the wrong one.
         """
         self.dataset_name = dataset_name
         self.num_of_clients = num_of_clients
@@ -93,6 +100,7 @@ class FederatedDatasetLoader:
         self.label_column = label_column
         self.image_transform = image_transform
         self.subset = subset
+        self.image_column = image_column
         self.num_classes: int | None = None
 
     def load_datasets(self) -> tuple[list[DataLoader], list[DataLoader]]:
@@ -247,12 +255,20 @@ class FederatedDatasetLoader:
         """
         rename_mapping = {}
 
-        # Detect and rename image column
-        image_cols = ["image", "img"]
-        for col in image_cols:
-            if col in dataset.column_names and col != "pixel_values":
-                rename_mapping[col] = "pixel_values"
-                break
+        # Detect and rename image column. Explicit `self.image_column` wins
+        # over the auto-detect — caller-supplied takes priority over the
+        # alias-list fallback the same way `self.label_column` does below.
+        if (
+            self.image_column
+            and self.image_column in dataset.column_names
+            and self.image_column != "pixel_values"
+        ):
+            rename_mapping[self.image_column] = "pixel_values"
+        else:
+            for col in ("image", "img"):
+                if col in dataset.column_names and col != "pixel_values":
+                    rename_mapping[col] = "pixel_values"
+                    break
 
         # Detect and rename label column
         # Priority: self.label_column > common label columns
