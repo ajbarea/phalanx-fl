@@ -373,6 +373,9 @@ def show_inter_strategy_plots(
         return
 
     rounds = executed_simulation_strategies[0].strategy_history.get_all_clients()[0].rounds
+    # Inter-strategy plots compare strategies on the same setup, so the
+    # attack schedule on strategy[0] is shared across the comparison.
+    attack_schedule = executed_simulation_strategies[0].strategy_config.attack_schedule or []
 
     # line plots
     plottable_metrics = executed_simulation_strategies[
@@ -401,6 +404,7 @@ def show_inter_strategy_plots(
         plt.ylabel(metric_name)
         plt.title(f"{metric_name} across strategies")
         ax = plt.gca()
+        _add_attack_background_shading(ax, attack_schedule)
         # Only show legend if there are labeled artists
         if any(ax.get_legend_handles_labels()):
             plt.legend(title="strategies", loc="upper center", bbox_to_anchor=(0.5, -0.1))
@@ -444,6 +448,7 @@ def show_inter_strategy_plots(
         plt.ylabel(metric_name)
         plt.title(f"{metric_name} across strategies")
         ax = plt.gca()
+        _add_attack_background_shading(ax, attack_schedule)
         # Only show legend if there are labeled artists
         if any(ax.get_legend_handles_labels()):
             plt.legend(title="strategies", loc="upper center", bbox_to_anchor=(0.5, -0.1))

@@ -1435,3 +1435,73 @@ class TestShowPlotsWithAttackShading:
 
         # axvspan should not be called
         mock_ax.axvspan.assert_not_called()
+
+    @patch("matplotlib.pyplot.figure")
+    @patch("matplotlib.pyplot.show")
+    @patch("matplotlib.pyplot.savefig")
+    @patch("matplotlib.pyplot.gca")
+    def test_inter_strategy_attack_shading_called_with_schedule(
+        self,
+        mock_gca,
+        mock_savefig,
+        mock_show,
+        mock_figure,
+        simulation_with_attacks,
+        dir_handler,
+    ):
+        """Inter-strategy plots apply the same attack-round shading as per-client plots."""
+        mock_ax = Mock()
+        mock_ax.xaxis = Mock()
+        mock_ax.xaxis.set_major_locator = Mock()
+        mock_ax.get_legend_handles_labels.return_value = ([], [])
+        mock_gca.return_value = mock_ax
+
+        # `attack_schedule` is sourced from strategies[0].strategy_config, so
+        # both members of the list share the same schedule (the comparison
+        # axis is the strategy, not the attack).
+        simulation_with_attacks.strategy_history.rounds_history.plottable_metrics = [
+            "aggregated_loss_history"
+        ]
+        simulation_with_attacks.strategy_history.rounds_history.barable_metrics = []
+        simulation_with_attacks.strategy_history.rounds_history.get_metric_by_name = Mock(
+            return_value=[0.5, 0.4, 0.3, 0.25, 0.2]
+        )
+
+        show_inter_strategy_plots([simulation_with_attacks], dir_handler)
+
+        # axvspan was called by _add_attack_background_shading
+        assert mock_ax.axvspan.called
+
+    @patch("matplotlib.pyplot.figure")
+    @patch("matplotlib.pyplot.show")
+    @patch("matplotlib.pyplot.savefig")
+    @patch("matplotlib.pyplot.gca")
+    def test_no_inter_strategy_attack_shading_without_schedule(
+        self,
+        mock_gca,
+        mock_savefig,
+        mock_show,
+        mock_figure,
+        simulation_with_attacks,
+        dir_handler,
+    ):
+        """Inter-strategy plots without an attack schedule render no shading."""
+        simulation_with_attacks.strategy_config.attack_schedule = []
+
+        mock_ax = Mock()
+        mock_ax.xaxis = Mock()
+        mock_ax.xaxis.set_major_locator = Mock()
+        mock_ax.get_legend_handles_labels.return_value = ([], [])
+        mock_gca.return_value = mock_ax
+
+        simulation_with_attacks.strategy_history.rounds_history.plottable_metrics = [
+            "aggregated_loss_history"
+        ]
+        simulation_with_attacks.strategy_history.rounds_history.barable_metrics = []
+        simulation_with_attacks.strategy_history.rounds_history.get_metric_by_name = Mock(
+            return_value=[0.5, 0.4, 0.3, 0.25, 0.2]
+        )
+
+        show_inter_strategy_plots([simulation_with_attacks], dir_handler)
+
+        mock_ax.axvspan.assert_not_called()
