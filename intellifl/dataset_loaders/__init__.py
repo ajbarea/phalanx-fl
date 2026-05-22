@@ -29,9 +29,7 @@ import sys
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
-from intellifl.dataset_loaders.huggingface_image_dataset_loader import (
-    HuggingFaceImageDatasetLoader,
-)
+from intellifl.dataset_loaders.federated_dataset_loader import FederatedDatasetLoader
 from intellifl.dataset_loaders.huggingface_text_dataset_loader import (
     HuggingFaceTextDatasetLoader,
 )
@@ -267,24 +265,33 @@ def _build_medal(keyword: str, config: StrategyConfig, dataset_dir: str) -> tupl
 def _build_hf_image_cnn(keyword: str, config: StrategyConfig, dataset_dir: str) -> tuple[Any, Any]:
     """HF-backed image CNN builder — JSON-driven, generic across CIFAR / CINIC.
 
-    Phase 2A (2026-05-22) generalised the previous `_build_cifar100` to
-    cover `cifar10` and `cinic10` too. Every shape parameter (num_classes,
-    input dims, image / label columns, transformer name) lives in the
-    JSON entry, so adding the next HF-backed CNN dataset is a JSON-only
-    change once its transformer is registered.
+    Phase 2A generalised the previous `_build_cifar100` to cover `cifar10`
+    and `cinic10` too. Phase 2B migrated the underlying loader from
+    `HuggingFaceImageDatasetLoader` to `FederatedDatasetLoader`, which
+    makes the partitioning strategy configurable via `StrategyConfig`
+    instead of hard-coded. The default preserves the previous behavior:
+    Dirichlet alpha=0.5 (label-skew non-IID).
     """
     del dataset_dir
     hf_cfg = get_hf_dataset_config(keyword)
     transformer = resolve_image_transformer(hf_cfg.get("image_transformer"))
-    loader = HuggingFaceImageDatasetLoader(
-        hf_dataset_path=hf_cfg["hf_dataset_path"],
-        hf_dataset_name=hf_cfg.get("hf_dataset_name"),
-        transformer=transformer,
+    if config.partitioning_strategy is None:
+        partitioning_strategy = "dirichlet"
+        partitioning_params: dict[str, Any] = {"alpha": 0.5}
+    else:
+        partitioning_strategy = config.partitioning_strategy
+        partitioning_params = config.partitioning_params or {}
+    loader = FederatedDatasetLoader(
+        dataset_name=hf_cfg["hf_dataset_path"],
+        subset=hf_cfg.get("hf_dataset_name"),
         num_of_clients=cast(int, config.num_of_clients),
         batch_size=cast(int, config.batch_size),
         training_subset_fraction=cast(float, config.training_subset_fraction),
-        image_column=hf_cfg.get("image_column", "image"),
+        partitioning_strategy=partitioning_strategy,
+        partitioning_params=partitioning_params,
         label_column=hf_cfg.get("label_column", "label"),
+        image_transform=transformer,
+        image_column=hf_cfg.get("image_column"),
     )
     model = DynamicCNN(
         num_classes=hf_cfg["num_classes"],
@@ -313,7 +320,7 @@ LOADER_REGISTRY: dict[str, LoaderBuilder] = {
     "medquad": _build_medquad,
     **dict.fromkeys(_HF_TEXT_KEYWORDS, _build_hf_text),
     "medal": _build_medal,
-    # HF-backed CNN datasets — `HuggingFaceImageDatasetLoader` + `DynamicCNN`,
+    # HF-backed CNN datasets — `FederatedDatasetLoader` + `DynamicCNN`,
     # entirely shaped from the JSON entry. Adding the next dataset is a JSON
     # update + a transformer registration; no Python builder code needed.
     **dict.fromkeys(_HF_IMAGE_CNN_KEYWORDS, _build_hf_image_cnn),
