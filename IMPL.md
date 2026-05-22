@@ -11,6 +11,41 @@ ROADMAP's "Recently shipped" and clear the relevant block below.
 _None active — pick the next item from `ROADMAP.md` and note it here with a
 short plan of attack._
 
+## Just shipped
+
+**Dataset System Rework Phase 0B + 0C** (2026-05-22). Two surgical
+prework items that close out Phase 0 of the Dataset System Rework.
+
+- **0B** — `DynamicCNN._initialize_weights()` now matches the
+  established `cnn_models.py` convention: Kaiming uniform on Conv2d
+  with `nonlinearity="relu"`, Xavier uniform on Linear, zeros on
+  biases. Previously the model leaned on PyTorch's default
+  `kaiming_uniform_(a=sqrt(5))` which is also Kaiming but not
+  ReLU-tuned. Two new tests cover biases-zero and non-zero-weights
+  post-construction. The cifar100 path (the only consumer today via
+  `_build_cifar100` in `dataset_loaders/__init__.py`) now starts from
+  proper ReLU-fan-in scaled weights.
+
+- **0C** — `FederatedDatasetLoader.load_datasets()` returns
+  `(trainloaders, valloaders)` only; `num_classes` is initialized to
+  `None` on `__init__` and populated by `_detect_num_classes` inside
+  `load_datasets`. Brings the loader into line with the four other
+  loaders (`image_dataset_loader`, `medquad_dataset_loader`,
+  `huggingface_image_dataset_loader`, `huggingface_text_dataset_loader`)
+  that all return 2-tuples. Closes a latent footgun:
+  `federated_simulation._assign_dataset_loaders_and_network_model`
+  already unpacks 2 values, so if `FederatedDatasetLoader` were ever
+  routed through the factory it would have thrown `ValueError`. Four
+  test sites in `test_federated_dataset_loader.py` updated;
+  `loader.num_classes is None` post-construction assertion added.
+
+`text_classification_loader.load_datasets()` also returns a 3-tuple,
+but Phase 3E plans to delete the file entirely — not normalizing now
+to avoid wasted churn.
+
+2180 unit tests pass (up from 2178). `make lint` green (ruff format,
+ruff check, ty, frontend eslint).
+
 ---
 
 ## Open bugs & findings

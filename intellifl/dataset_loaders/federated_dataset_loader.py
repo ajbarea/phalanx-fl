@@ -48,16 +48,19 @@ class FederatedDatasetLoader:
         self.partitioning_strategy = partitioning_strategy
         self.partitioning_params = partitioning_params or {}
         self.label_column = label_column
+        self.num_classes: int | None = None
 
-    def load_datasets(self) -> tuple[list[DataLoader], list[DataLoader], int | None]:
+    def load_datasets(self) -> tuple[list[DataLoader], list[DataLoader]]:
         """
         Load and partition dataset from HuggingFace Hub.
 
+        Number of detected classes is stored on ``self.num_classes`` (None
+        if not detectable from the dataset features).
+
         Returns:
-            tuple: (trainloaders, valloaders, num_classes)
+            tuple: (trainloaders, valloaders)
                 - trainloaders: List of PyTorch DataLoaders for training
                 - valloaders: List of PyTorch DataLoaders for validation
-                - num_classes: Number of classification labels (None if not detected)
         """
         # Create partitioner based on strategy
         partitioner = self._create_partitioner()
@@ -65,7 +68,7 @@ class FederatedDatasetLoader:
         # Load federated dataset from HuggingFace Hub
         fds = FederatedDataset(dataset=self.dataset_name, partitioners={"train": partitioner})
 
-        num_classes = self._detect_num_classes(fds)
+        self.num_classes = self._detect_num_classes(fds)
 
         trainloaders = []
         valloaders = []
@@ -109,7 +112,7 @@ class FederatedDatasetLoader:
                 )
             )
 
-        return trainloaders, valloaders, num_classes
+        return trainloaders, valloaders
 
     def _detect_num_classes(self, fds: FederatedDataset) -> int | None:
         """
