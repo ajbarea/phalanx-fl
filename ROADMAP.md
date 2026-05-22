@@ -97,11 +97,30 @@ before they close.
     `config/test_hf_datasets.py` delegates to
     `resolve_image_transformer` instead of carrying its own stale
     copy of the transformer registry (Phase 0A drift fix).
-  - [ ] `intellifl/*_handlers/` (`attack_handlers`, `output_handlers`,
-    `dataset_handlers`) — smaller surfaces, registry+dispatch where
-    a dispatch site exists.
-  - [ ] `intellifl/client_models/` — 2 files, 819 lines; less obvious
-    consolidation surface, audit before refactoring.
+  - [N/A] `intellifl/*_handlers/` and `intellifl/client_models/` —
+    audited 2026-05-22 after `simulation_strategies` and
+    `dataset_loaders` landed. None of these packages carries a
+    keyword-dispatch chain in `federated_simulation` or anywhere else:
+    `dataset_handlers/` is a single `DatasetHandler` class,
+    `output_handlers/` is one `DirectoryHandler` + utility plotting
+    functions, `client_models/` is one `FlowerClient`. `attack_handlers/`
+    was a ROADMAP placeholder that doesn't exist in the tree. The
+    registry+dispatch pattern doesn't apply — no consolidation surface
+    to collapse. File-consolidation pass closes out here; if a future
+    dispatch surface accretes in any of these packages, file a new
+    item rather than reviving this one.
+
+The two remaining keyword-dispatch sites in the codebase are
+deliberately out of scope:
+  - `simulation_strategies/pid_based_removal_strategy.py` branches
+    on the PID variant inside the strategy implementation, not at the
+    construction seam.
+  - `config_loaders/validate_strategy_config.py` dispatches
+    per-strategy validation rules. Moving these to be co-located with
+    each strategy builder is a different shape of refactor
+    (decentralization, not the centralization the consolidation pass
+    targets); revisit only if validation rules start drifting from
+    builder expectations.
 
 ## Dataset System Rework
 
