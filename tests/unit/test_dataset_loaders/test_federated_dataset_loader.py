@@ -4,6 +4,7 @@ Tests for FederatedDatasetLoader.
 
 from __future__ import annotations
 
+import contextlib
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -787,3 +788,79 @@ class TestTransformedImageDatasetWrapper:
         assert torch.equal(item["pixel_values"], torch.zeros(2))
         # ...but the inner item we'd hand back next iteration is untouched.
         assert torch.equal(original["pixel_values"], torch.tensor([1.0, 2.0]))
+
+
+class TestSubsetParam:
+    """Phase 2A: `subset` forwards to FederatedDataset for multi-config HF datasets."""
+
+    def test_subset_default_is_none(self):
+        loader = FederatedDatasetLoader(
+            dataset_name="mnist",
+            num_of_clients=2,
+            batch_size=8,
+            training_subset_fraction=0.8,
+        )
+        assert loader.subset is None
+
+    def test_subset_stored_when_provided(self):
+        loader = FederatedDatasetLoader(
+            dataset_name="albertvillanova/medmnist-v2",
+            num_of_clients=2,
+            batch_size=8,
+            training_subset_fraction=0.8,
+            subset="pathmnist",
+        )
+        assert loader.subset == "pathmnist"
+
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.FederatedDataset")
+    def test_subset_omitted_from_federated_dataset_call_when_none(self, mock_fds_cls):
+        """No `subset` kwarg should be passed when the loader has subset=None.
+
+        Ensures the bare-minimum FederatedDataset signature still works for
+        single-config datasets (CIFAR-10, MNIST, FEMNIST).
+        """
+        mock_fds = MagicMock()
+        mock_partition = MagicMock()
+        mock_partition.column_names = ["pixel_values", "labels"]
+        mock_partition.features = {}
+        mock_partition.__len__ = Mock(return_value=10)
+        mock_fds.load_partition.return_value = mock_partition
+        mock_fds_cls.return_value = mock_fds
+
+        loader = FederatedDatasetLoader(
+            dataset_name="mnist",
+            num_of_clients=1,
+            batch_size=8,
+            training_subset_fraction=0.8,
+        )
+        # Implementation details past FederatedDataset call are unrelated;
+        # only the constructor kwargs matter for this test.
+        with contextlib.suppress(Exception):
+            loader.load_datasets()
+
+        kwargs = mock_fds_cls.call_args.kwargs
+        assert "subset" not in kwargs, f"subset should be omitted when None, got {kwargs}"
+
+    @patch("intellifl.dataset_loaders.federated_dataset_loader.FederatedDataset")
+    def test_subset_forwarded_to_federated_dataset_when_set(self, mock_fds_cls):
+        """When subset is set, it must reach the FederatedDataset constructor."""
+        mock_fds = MagicMock()
+        mock_partition = MagicMock()
+        mock_partition.column_names = ["pixel_values", "labels"]
+        mock_partition.features = {}
+        mock_partition.__len__ = Mock(return_value=10)
+        mock_fds.load_partition.return_value = mock_partition
+        mock_fds_cls.return_value = mock_fds
+
+        loader = FederatedDatasetLoader(
+            dataset_name="albertvillanova/medmnist-v2",
+            num_of_clients=1,
+            batch_size=8,
+            training_subset_fraction=0.8,
+            subset="pathmnist",
+        )
+        with contextlib.suppress(Exception):
+            loader.load_datasets()
+
+        kwargs = mock_fds_cls.call_args.kwargs
+        assert kwargs.get("subset") == "pathmnist"
