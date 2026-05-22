@@ -57,6 +57,7 @@ class FederatedDatasetLoader:
         partitioning_params: dict | None = None,
         label_column: str = "label",
         image_transform: Callable[[Any], torch.Tensor] | None = None,
+        subset: str | None = None,
     ) -> None:
         """
         Initialize FederatedDatasetLoader.
@@ -74,6 +75,14 @@ class FederatedDatasetLoader:
                 raw HF image tensors against per-dataset channel statistics
                 (e.g. ``cifar10_image_transformer``). None = no transformation;
                 callers downstream must handle raw uint8 tensors.
+            subset: Optional HuggingFace dataset config name. Passed through to
+                ``FederatedDataset(subset=...)``, which forwards it to
+                ``load_dataset(name=...)``. Required for multi-config datasets
+                like MedMNIST v2 (``albertvillanova/medmnist-v2`` + subset
+                ``"pathmnist"`` / ``"dermamnist"`` / etc.) and lex_glue
+                (``coastalcph/lex_glue`` + subset ``"ledgar"`` / ``"eurlex"``).
+                None = use the dataset's default config (CIFAR-10, MNIST,
+                FEMNIST all have no named config).
         """
         self.dataset_name = dataset_name
         self.num_of_clients = num_of_clients
@@ -83,6 +92,7 @@ class FederatedDatasetLoader:
         self.partitioning_params = partitioning_params or {}
         self.label_column = label_column
         self.image_transform = image_transform
+        self.subset = subset
         self.num_classes: int | None = None
 
     def load_datasets(self) -> tuple[list[DataLoader], list[DataLoader]]:
@@ -100,8 +110,18 @@ class FederatedDatasetLoader:
         # Create partitioner based on strategy
         partitioner = self._create_partitioner()
 
-        # Load federated dataset from HuggingFace Hub
-        fds = FederatedDataset(dataset=self.dataset_name, partitioners={"train": partitioner})
+        # Load federated dataset from HuggingFace Hub. Forward `subset` as
+        # an explicit kwarg when set; flwr-datasets accepts None but the
+        # explicit `subset=None` default would still hit FederatedDataset's
+        # kwarg-only signature, so we route through a small kwargs dict
+        # rather than branching twice on the call site.
+        fds_kwargs: dict[str, Any] = {
+            "dataset": self.dataset_name,
+            "partitioners": {"train": partitioner},
+        }
+        if self.subset is not None:
+            fds_kwargs["subset"] = self.subset
+        fds = FederatedDataset(**fds_kwargs)
 
         self.num_classes = self._detect_num_classes(fds)
 
