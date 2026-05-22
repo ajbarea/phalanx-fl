@@ -44,24 +44,7 @@ from intellifl.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoade
 from intellifl.network_models import build_cnn_model
 from intellifl.network_models.dynamic_cnn import DynamicCNN
 from intellifl.network_models.transformer_models import load_model, load_model_with_lora
-from intellifl.simulation_strategies.arkrum_strategy import ArKrumStrategy
-from intellifl.simulation_strategies.bulyan_strategy import BulyanStrategy
-from intellifl.simulation_strategies.fedavg_strategy import FedAvgStrategy
-from intellifl.simulation_strategies.krum_based_removal_strategy import (
-    KrumBasedRemovalStrategy,
-)
-from intellifl.simulation_strategies.multi_krum_based_removal_strategy import (
-    MultiKrumBasedRemovalStrategy,
-)
-from intellifl.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
-from intellifl.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
-from intellifl.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
-from intellifl.simulation_strategies.trimmed_mean_based_removal_strategy import (
-    TrimmedMeanBasedRemovalStrategy,
-)
-from intellifl.simulation_strategies.trust_based_removal_strategy import (
-    TrustBasedRemovalStrategy,
-)
+from intellifl.simulation_strategies import build_strategy
 from intellifl.utils.gpu_monitor import GPUMemoryMonitor
 from intellifl.utils.status_tracker import StatusTracker
 
@@ -540,90 +523,15 @@ class FederatedSimulation:
             "status_tracker": self.status_tracker,
         }
 
-        if aggregation_strategy_keyword == "trust":
-            self._aggregation_strategy = TrustBasedRemovalStrategy(
-                beta_value=self.strategy_config.beta_value,
-                trust_threshold=self.strategy_config.trust_threshold,
-                **common_kwargs,
-            )
-        elif aggregation_strategy_keyword in (
-            "pid",
-            "pid_scaled",
-            "pid_standardized",
-            "pid_standardized_score_based",
-        ):
-            self._aggregation_strategy = PIDBasedRemovalStrategy(
-                ki=self.strategy_config.Ki,
-                kp=self.strategy_config.Kp,
-                kd=self.strategy_config.Kd,
-                num_std_dev=self.strategy_config.num_std_dev,
-                network_model=self._network_model,
-                aggregation_strategy_keyword=aggregation_strategy_keyword,
-                use_lora=bool(
-                    getattr(self.strategy_config, "use_llm", None)
-                    and getattr(self.strategy_config, "llm_finetuning", None) == "lora"
-                ),
-                **common_kwargs,
-            )
-        elif aggregation_strategy_keyword == "krum":
-            self._aggregation_strategy = KrumBasedRemovalStrategy(
-                num_malicious_clients=self.strategy_config.num_of_malicious_clients,
-                num_krum_selections=self.strategy_config.num_krum_selections,
-                **common_kwargs,
-            )
-        elif aggregation_strategy_keyword == "multi-krum-based":
-            self._aggregation_strategy = MultiKrumBasedRemovalStrategy(
-                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
-                num_krum_selections=self.strategy_config.num_krum_selections,
-                **common_kwargs,
-            )
-        elif aggregation_strategy_keyword == "multi-krum":
-            self._aggregation_strategy = MultiKrumStrategy(
-                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
-                num_krum_selections=self.strategy_config.num_krum_selections,
-                **common_kwargs,
-            )
-        elif aggregation_strategy_keyword == "trimmed_mean":
-            self._aggregation_strategy = TrimmedMeanBasedRemovalStrategy(
-                trim_ratio=self.strategy_config.trim_ratio,
-                **common_kwargs,
-            )
-
-        elif aggregation_strategy_keyword == "rfa":
-            self._aggregation_strategy = RFABasedRemovalStrategy(
-                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
-                **common_kwargs,
-            )
-
-        elif aggregation_strategy_keyword == "bulyan":
-            self._aggregation_strategy = BulyanStrategy(
-                num_krum_selections=self.strategy_config.num_krum_selections,
-                **common_kwargs,
-            )
-
-        elif aggregation_strategy_keyword == "arkrum":
-            self._aggregation_strategy = ArKrumStrategy(
-                **common_kwargs,
-            )
-
-        elif aggregation_strategy_keyword == "fedavg":
-            self._aggregation_strategy = FedAvgStrategy(
-                strategy_history=self.strategy_history,
-                status_tracker=self.status_tracker,
-                initial_parameters=ndarrays_to_parameters(
-                    self._get_model_params(self._network_model)
-                ),
-                min_fit_clients=self.strategy_config.min_fit_clients,
-                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
-                min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=eval_fn,
-                fit_metrics_aggregation_fn=weighted_average,
-            )
-
-        else:
-            raise NotImplementedError(
-                f"The strategy {aggregation_strategy_keyword} not implemented!"
-            )
+        self._aggregation_strategy = build_strategy(
+            keyword=aggregation_strategy_keyword,
+            config=self.strategy_config,
+            common_kwargs=common_kwargs,
+            ctx={
+                "network_model": self._network_model,
+                "keyword": aggregation_strategy_keyword,
+            },
+        )
 
     def client_fn(self, context: Context) -> Client:
         """Create a Flower client for the given partition.

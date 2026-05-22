@@ -71,14 +71,24 @@ before they close.
 
 ### Still open
 
-- **File-consolidation pass** — apply the `network_models` precedent
-  (dozens of files → one `transformer_models.py` dispatcher, shipped
-  2026-04-06) to the other one-class-per-file packages:
-  `intellifl/*_handlers/`, `intellifl/simulation_strategies/`,
-  `intellifl/dataset_loaders/`, `intellifl/client_models/`. Each is a
+- **File-consolidation pass (in progress)** — apply the `network_models`
+  precedent to the other one-class-per-file packages. Each is a
   standalone refactor; all follow the same shape (registry dict +
-  dispatch function + dataclass config). Big diff, small semantic
-  change.
+  dispatch function). Big diff, small semantic change.
+  - [x] `intellifl/simulation_strategies/` — shipped 2026-05-21.
+    `__init__.py` now exports `build_strategy()` + `STRATEGY_REGISTRY`;
+    the 80-line `if/elif` dispatch in
+    `federated_simulation._assign_aggregation_strategy` collapsed to a
+    single `build_strategy()` call. Strategy class files unchanged
+    (each is too substantial to inline cleanly). PID variants
+    consolidated into one builder reading the variant off the keyword.
+  - [ ] `intellifl/dataset_loaders/` — 8 files, 1357 lines. Same
+    treatment: registry mapping `dataset_keyword` → loader class.
+  - [ ] `intellifl/*_handlers/` (`attack_handlers`, `output_handlers`,
+    `dataset_handlers`) — smaller surfaces, registry+dispatch where
+    a dispatch site exists.
+  - [ ] `intellifl/client_models/` — 2 files, 819 lines; less obvious
+    consolidation surface, audit before refactoring.
 
 ## Dataset System Rework
 
