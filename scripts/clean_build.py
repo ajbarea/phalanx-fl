@@ -9,11 +9,15 @@ the --out flag.
 import argparse
 import shutil
 import sys
+import time
 from pathlib import Path
 
 from logging_utils import setup_logger
 
 logger = setup_logger(__name__, "clean_build.log")
+
+LOG_ARCHIVE_GLOB = "dev-*-*.log"
+LOG_ARCHIVE_MAX_AGE_DAYS = 30
 
 
 def clean_build(clean_out: bool = False) -> None:
@@ -28,15 +32,8 @@ def clean_build(clean_out: bool = False) -> None:
     logger.info("Starting cleanup...")
     root = Path(".")
 
-    # Close logger handlers before cleaning logs directory
-    for handler in logger.handlers[:]:
-        handler.close()
-        logger.removeHandler(handler)
-
     # Clearing directories
     dirs_to_clear = [
-        root / "logs",
-        root / "tests" / "logs",
         root / "test-results",
     ]
     existing_dirs_to_clear = [d for d in dirs_to_clear if d.exists()]
@@ -53,6 +50,27 @@ def clean_build(clean_out: bool = False) -> None:
                     print(f"  ⚠ Skipped (locked): {item}")
             print(f"  ✓ Cleared {d}")
             logger.info(f"Cleaned {d} directory")
+
+    # Pruning stale dev-runner log archives (keep *-latest.log + recent runs)
+    log_dirs = [root / "logs", root / "tests" / "logs"]
+    cutoff = time.time() - LOG_ARCHIVE_MAX_AGE_DAYS * 86400
+    pruned = 0
+    for log_dir in log_dirs:
+        if not log_dir.is_dir():
+            continue
+        for log_file in log_dir.glob(LOG_ARCHIVE_GLOB):
+            if log_file.name.endswith("-latest.log"):
+                continue
+            try:
+                if log_file.stat().st_mtime < cutoff:
+                    log_file.unlink()
+                    pruned += 1
+            except (PermissionError, FileNotFoundError):
+                pass
+    if pruned:
+        print("\n▶ Pruning stale log archives...")
+        print(f"  ✓ Pruned {pruned} archive(s) older than {LOG_ARCHIVE_MAX_AGE_DAYS} days")
+        logger.info(f"Pruned {pruned} stale dev-runner log archives")
 
     # Removing cache directories
     dirs_to_remove = [
