@@ -39,22 +39,13 @@ def apply_label_flipping(
     num_classes: int,
     client_id: int | None = None,
 ) -> torch.Tensor:
-    """Apply bijective label flipping where each class maps to exactly one other class.
+    """Bijective label flipping; each class maps to exactly one other.
 
-    Args:
-        labels: Input label tensor to flip.
-        num_classes: Total number of classes in the dataset.
-        client_id: When provided, seeds the permutation with `42 + client_id` so
-            every call from the same malicious client produces the same flip
-            mapping. Without this, `attack_schedule`-based runs draw a fresh
-            permutation per batch and the model averages the noise out.
-
-    Returns:
-        Modified label tensor with all classes remapped.
+    `client_id`, when set, seeds the permutation via `42 + client_id` so a
+    malicious client gets a stable flip across batches. Unseeded calls draw
+    a fresh permutation per batch — the model averages it out as label noise.
     """
-    # research(2026-05): per-client deterministic RNG stream matches BlazeFL's
-    # isolated-generator pattern (arXiv:2604.03606). Same client_id ⇒ stable
-    # per-client mapping; None preserves legacy global-RNG behavior.
+    # research(2026-05): per-client isolated-RNG stream per BlazeFL (arXiv:2604.03606).
     if client_id is not None:
         generator = torch.Generator().manual_seed(42 + int(client_id))
         perm = torch.randperm(num_classes, generator=generator).tolist()
@@ -618,26 +609,14 @@ def apply_poisoning_attack(
     num_classes: int | None = None,
     client_id: int | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Apply a poisoning attack to dataset based on attack configuration.
+    """Dispatch a poisoning attack against `attack_config['attack_type']`.
 
-    Supports label_flipping, targeted_label_flipping, gaussian_noise,
-    token_replacement, and backdoor_trigger attack types.
+    Supported types: label_flipping, targeted_label_flipping, gaussian_noise,
+    token_replacement, backdoor_trigger. `client_id` only feeds the
+    label_flipping dispatcher today; other dispatchers accept and ignore it
+    so the registry call stays uniform.
 
-    Args:
-        data: Input data tensor (images or token IDs).
-        labels: Input label tensor.
-        attack_config: Attack configuration dict with 'attack_type' and type-specific params.
-        tokenizer: HuggingFace tokenizer for token_replacement attacks.
-        num_classes: Number of classes for label_flipping attacks.
-        client_id: Forwarded to per-attack dispatchers that need a stable
-            per-client RNG (currently only `label_flipping`). Other dispatchers
-            accept and ignore it so the registry call stays uniform.
-
-    Returns:
-        Tuple of (poisoned_data, poisoned_labels).
-
-    Raises:
-        ValueError: If old nested attack config format detected or required params missing.
+    Raises `ValueError` on the legacy nested-params config shape.
     """
     if "params" in attack_config or (
         "type" in attack_config and "attack_type" not in attack_config
