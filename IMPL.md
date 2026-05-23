@@ -8,10 +8,15 @@ ROADMAP's "Recently shipped" and clear the relevant block below.
 
 ## Current focus
 
-_Nothing currently open. Phase 2E first-tier cleanup shipped 2026-05-23
-([#34]) — see ROADMAP "Recently shipped". Phase 2E second-tier
-(`huggingface_image_dataset_loader.py` deletion + `config/test_hf_datasets.py`
-rewire) remains queued under the Dataset System Rework block._
+_Nothing currently open. Today's shipped slice (2026-05-23):_
+
+- _Phase 2E first-tier [#34] + second-tier [#36] — `image_dataset_loader.py`
+  and `huggingface_image_dataset_loader.py` retired; `config/test_hf_datasets.py`
+  rewired to `FederatedDatasetLoader`._
+- _Per-attack specialized visuals in composites [PR queued] — composite
+  runs now emit each attack's `*_visual.png` alongside `composite_synopsis.png`._
+- _ROADMAP cleanup [#35, #38] — Phase 2 closeout items rolled into Shipped;
+  stale lint-scope verify [#37], stale Phase 0/2E references all closed._
 
 ---
 

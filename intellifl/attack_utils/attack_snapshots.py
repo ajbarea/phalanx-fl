@@ -14,7 +14,7 @@ from typing import Any
 import numpy as np
 import torch
 
-from ._helpers import extract_attack_type
+from ._helpers import extract_attack_type, extract_individual_attack_types
 from .snapshot_image_viz import (
     save_backdoor_trigger_grid,
     save_composite_synopsis,
@@ -324,13 +324,20 @@ def save_visual_snapshot(
         visualization method.
     """
     attack_type = extract_attack_type(attack_config)
+    individual_types = extract_individual_attack_types(attack_config)
+    is_composite = isinstance(attack_config, list) and len(attack_config) > 1
     snapshot_dir = _get_snapshot_dir(output_dir, client_id, round_num, strategy_number)
+
+    def _per_type_filename(itype: str, suffix: str) -> str:
+        # Composites get one file per individual attack so per-type visuals
+        # don't collide; singles keep the legacy "{joined}_<suffix>" name
+        # for downstream consumers that grep by attack_type.
+        prefix = itype if is_composite else attack_type
+        return f"{prefix}_{suffix}"
 
     try:
         if len(data_sample.shape) == 4:
-            filename = f"{attack_type}_visual.png"
-
-            if isinstance(attack_config, list) and len(attack_config) > 1:
+            if is_composite:
                 synopsis_filename = "composite_synopsis.png"
                 save_composite_synopsis(
                     data_sample,
@@ -342,88 +349,105 @@ def save_visual_snapshot(
                 )
                 logging.debug(f"Saved composite synopsis plate: {snapshot_dir / synopsis_filename}")
 
-            # Specialized visualizations
-            if attack_type == "label_flipping":
-                save_label_flipping_grid(
-                    data_sample,
-                    labels_sample,
-                    original_labels_sample,
-                    snapshot_dir / filename,
-                    attack_config,
-                )
-            elif attack_type == "targeted_label_flipping":
-                save_targeted_label_flipping_grid(
-                    data_sample,
-                    labels_sample,
-                    original_labels_sample,
-                    snapshot_dir / filename,
-                    attack_config,
-                )
-            elif attack_type == "backdoor_trigger":
-                save_backdoor_trigger_grid(
-                    data_sample,
-                    labels_sample,
-                    original_labels_sample,
-                    snapshot_dir / filename,
-                    attack_config,
-                    original_images=original_data_sample,
-                )
-            else:
-                # Default side-by-side comparison as the primary visual
-                save_image_grid(
-                    data_sample,
-                    labels_sample,
-                    original_labels_sample,
-                    snapshot_dir / filename,
-                    attack_config,
-                    original_images=original_data_sample,
-                )
+            # Specialized visualizations: one per individual attack in a
+            # composite (or the single attack for non-composite configs).
+            # Composite runs previously fell through to save_image_grid
+            # because the joined attack_type ("label_flipping_gaussian_noise")
+            # didn't equal any single name — each per-type visual was lost.
+            default_emitted = False
+            for itype, sub_cfg in individual_types:
+                filename = _per_type_filename(itype, "visual.png")
+                if itype == "label_flipping":
+                    save_label_flipping_grid(
+                        data_sample,
+                        labels_sample,
+                        original_labels_sample,
+                        snapshot_dir / filename,
+                        sub_cfg,
+                    )
+                elif itype == "targeted_label_flipping":
+                    save_targeted_label_flipping_grid(
+                        data_sample,
+                        labels_sample,
+                        original_labels_sample,
+                        snapshot_dir / filename,
+                        sub_cfg,
+                    )
+                elif itype == "backdoor_trigger":
+                    save_backdoor_trigger_grid(
+                        data_sample,
+                        labels_sample,
+                        original_labels_sample,
+                        snapshot_dir / filename,
+                        sub_cfg,
+                        original_images=original_data_sample,
+                    )
+                elif not is_composite and not default_emitted:
+                    # Default side-by-side comparison for un-specialized
+                    # singles; composites already have the synopsis plate
+                    # so no need for an additional generic grid.
+                    save_image_grid(
+                        data_sample,
+                        labels_sample,
+                        original_labels_sample,
+                        snapshot_dir / filename,
+                        sub_cfg,
+                        original_images=original_data_sample,
+                    )
+                    default_emitted = True
 
             # Generate standard comparison grid if specialized visual was used
-            if original_data_sample is not None and attack_type in [
-                "label_flipping",
-                "targeted_label_flipping",
-            ]:
-                standard_filename = f"{attack_type}_comparison.png"
-                save_image_grid(
-                    data_sample,
-                    labels_sample,
-                    original_labels_sample,
-                    snapshot_dir / standard_filename,
-                    attack_config,
-                    original_images=original_data_sample,
-                )
+            if original_data_sample is not None:
+                for itype, sub_cfg in individual_types:
+                    if itype not in ("label_flipping", "targeted_label_flipping"):
+                        continue
+                    standard_filename = _per_type_filename(itype, "comparison.png")
+                    save_image_grid(
+                        data_sample,
+                        labels_sample,
+                        original_labels_sample,
+                        snapshot_dir / standard_filename,
+                        sub_cfg,
+                        original_images=original_data_sample,
+                    )
 
-            if "label_flipping" in attack_type:
-                confusion_filename = f"{attack_type}_confusion_matrix.png"
+            for itype, sub_cfg in individual_types:
+                if "label_flipping" not in itype:
+                    continue
+                confusion_filename = _per_type_filename(itype, "confusion_matrix.png")
                 save_label_confusion_matrix(
                     original_labels_sample,
                     labels_sample,
                     snapshot_dir / confusion_filename,
-                    attack_config=attack_config,
+                    attack_config=sub_cfg,
                 )
                 logging.debug(
                     f"Saved label flipping confusion matrix: {snapshot_dir / confusion_filename}"
                 )
 
-                summary_filename = f"{attack_type}_summary.json"
+                summary_filename = _per_type_filename(itype, "summary.json")
                 save_label_flipping_summary(
                     original_labels_sample,
                     labels_sample,
                     snapshot_dir / summary_filename,
-                    attack_config=attack_config,
+                    attack_config=sub_cfg,
                 )
                 logging.debug(f"Saved label flipping summary: {snapshot_dir / summary_filename}")
 
-            if "gaussian_noise" in attack_type and original_data_sample is not None:
-                heatmap_filename = f"{attack_type}_difference_heatmap.png"
-                save_noise_difference_heatmap(
-                    original_data_sample,
-                    data_sample,
-                    snapshot_dir / heatmap_filename,
-                    attack_config=attack_config,
-                )
-                logging.debug(f"Saved noise difference heatmap: {snapshot_dir / heatmap_filename}")
+            if original_data_sample is not None:
+                for itype, sub_cfg in individual_types:
+                    if "gaussian_noise" not in itype:
+                        continue
+                    heatmap_filename = _per_type_filename(itype, "difference_heatmap.png")
+                    save_noise_difference_heatmap(
+                        original_data_sample,
+                        data_sample,
+                        snapshot_dir / heatmap_filename,
+                        attack_config=sub_cfg,
+                    )
+                    logging.debug(
+                        f"Saved noise difference heatmap: {snapshot_dir / heatmap_filename}"
+                    )
         else:
             filename = f"{attack_type}_samples.txt"
             save_text_samples(

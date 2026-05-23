@@ -5,11 +5,14 @@ from __future__ import annotations
 import pickle
 from unittest.mock import patch
 
+import numpy as np
+
 from intellifl.attack_utils.attack_snapshots import (
     get_snapshot_summary,
     list_attack_snapshots,
     load_attack_snapshot,
     save_attack_snapshot,
+    save_visual_snapshot,
 )
 from tests.common import (
     create_attack_config,
@@ -631,3 +634,165 @@ class TestGetSnapshotSummary:
         assert summary["clients_attacked"] == sorted(summary["clients_attacked"])
         assert summary["rounds_with_attacks"] == sorted(summary["rounds_with_attacks"])
         assert summary["attack_types"] == sorted(summary["attack_types"])
+
+
+# =============================================================================
+# save_visual_snapshot — composite-attack specialization
+# =============================================================================
+
+
+class TestSaveVisualSnapshotComposite:
+    """Composite (list) attack configs must emit each per-type visual.
+
+    Pre-fix, the composite path joined attack types with `_` and the
+    if/elif equality dispatch never matched any single-attack name, so
+    only the composite synopsis (and a fallback `save_image_grid`) got
+    written — `label_flipping_visual.png` / `backdoor_trigger_visual.png`
+    were silently dropped.
+    """
+
+    @staticmethod
+    def _patch_specialized():
+        """Patch every viz function `save_visual_snapshot` may invoke."""
+        patches = {
+            target: patch(f"intellifl.attack_utils.attack_snapshots.{target}")
+            for target in (
+                "save_composite_synopsis",
+                "save_label_flipping_grid",
+                "save_targeted_label_flipping_grid",
+                "save_backdoor_trigger_grid",
+                "save_image_grid",
+                "save_label_confusion_matrix",
+                "save_label_flipping_summary",
+                "save_noise_difference_heatmap",
+            )
+        }
+        return patches
+
+    def _make_image_sample(self):
+        # 4D HWC sample — triggers the image branch of save_visual_snapshot.
+        data = np.zeros((2, 1, 8, 8), dtype=np.float32)
+        labels = np.zeros((2,), dtype=np.int64)
+        return data, labels
+
+    def test_composite_invokes_each_specialized_visualizer(self, tmp_path):
+        data, labels = self._make_image_sample()
+        composite_cfg = [
+            {"attack_type": "label_flipping", "flip_ratio": 0.5},
+            {"attack_type": "backdoor_trigger", "pattern": "checkerboard"},
+        ]
+
+        patches = self._patch_specialized()
+        with (
+            patches["save_composite_synopsis"] as mock_synopsis,
+            patches["save_label_flipping_grid"] as mock_label_grid,
+            patches["save_backdoor_trigger_grid"] as mock_backdoor_grid,
+            patches["save_image_grid"] as mock_image_grid,
+            patches["save_label_confusion_matrix"],
+            patches["save_label_flipping_summary"],
+            patches["save_noise_difference_heatmap"],
+            patches["save_targeted_label_flipping_grid"],
+        ):
+            save_visual_snapshot(
+                client_id=0,
+                round_num=1,
+                attack_config=composite_cfg,
+                data_sample=data,
+                labels_sample=labels,
+                original_labels_sample=labels.copy(),
+                output_dir=str(tmp_path),
+                original_data_sample=data.copy(),
+            )
+
+        # Composite synopsis still emits exactly once (existing behavior).
+        assert mock_synopsis.call_count == 1
+        # Each specialized visualizer fires once for its matching member.
+        assert mock_label_grid.call_count == 1
+        assert mock_backdoor_grid.call_count == 1
+
+        # Filenames carry the per-attack-type prefix so the visuals can't
+        # collide when written into the same snapshot dir.
+        label_path = mock_label_grid.call_args[0][3]
+        backdoor_path = mock_backdoor_grid.call_args[0][3]
+        assert label_path.name == "label_flipping_visual.png"
+        assert backdoor_path.name == "backdoor_trigger_visual.png"
+
+        # save_image_grid is the "standard comparison" follow-up that
+        # label_flipping (and targeted_label_flipping) trigger when
+        # original_data_sample is provided. It must NOT fire for the
+        # composite as a fallback — only as the per-type comparison grid.
+        comparison_calls = [call.args[3].name for call in mock_image_grid.call_args_list]
+        assert comparison_calls == ["label_flipping_comparison.png"]
+
+    def test_composite_label_flip_plus_noise_emits_both_artifact_sets(self, tmp_path):
+        data, labels = self._make_image_sample()
+        composite_cfg = [
+            {"attack_type": "label_flipping", "flip_ratio": 0.3},
+            {"attack_type": "gaussian_noise", "std_dev": 0.1},
+        ]
+
+        patches = self._patch_specialized()
+        with (
+            patches["save_composite_synopsis"],
+            patches["save_label_flipping_grid"] as mock_label_grid,
+            patches["save_label_confusion_matrix"] as mock_confusion,
+            patches["save_label_flipping_summary"] as mock_summary,
+            patches["save_noise_difference_heatmap"] as mock_noise,
+            patches["save_targeted_label_flipping_grid"],
+            patches["save_backdoor_trigger_grid"],
+            patches["save_image_grid"],
+        ):
+            save_visual_snapshot(
+                client_id=0,
+                round_num=1,
+                attack_config=composite_cfg,
+                data_sample=data,
+                labels_sample=labels,
+                original_labels_sample=labels.copy(),
+                output_dir=str(tmp_path),
+                original_data_sample=data.copy(),
+            )
+
+        # label_flipping member → visual + confusion matrix + summary.
+        assert mock_label_grid.call_count == 1
+        assert mock_confusion.call_count == 1
+        assert mock_summary.call_count == 1
+        confusion_path = mock_confusion.call_args[0][2]
+        assert confusion_path.name == "label_flipping_confusion_matrix.png"
+
+        # gaussian_noise member → difference heatmap.
+        assert mock_noise.call_count == 1
+        heatmap_path = mock_noise.call_args[0][2]
+        assert heatmap_path.name == "gaussian_noise_difference_heatmap.png"
+
+    def test_single_attack_keeps_legacy_filename(self, tmp_path):
+        """Singles preserve `{attack_type}_visual.png` naming."""
+        data, labels = self._make_image_sample()
+        single_cfg = {"attack_type": "label_flipping", "flip_ratio": 0.5}
+
+        patches = self._patch_specialized()
+        with (
+            patches["save_composite_synopsis"] as mock_synopsis,
+            patches["save_label_flipping_grid"] as mock_label_grid,
+            patches["save_label_confusion_matrix"],
+            patches["save_label_flipping_summary"],
+            patches["save_noise_difference_heatmap"],
+            patches["save_targeted_label_flipping_grid"],
+            patches["save_backdoor_trigger_grid"],
+            patches["save_image_grid"],
+        ):
+            save_visual_snapshot(
+                client_id=0,
+                round_num=1,
+                attack_config=single_cfg,
+                data_sample=data,
+                labels_sample=labels,
+                original_labels_sample=labels.copy(),
+                output_dir=str(tmp_path),
+                original_data_sample=data.copy(),
+            )
+
+        assert mock_synopsis.call_count == 0  # singles don't get a synopsis
+        assert mock_label_grid.call_count == 1
+        path = mock_label_grid.call_args[0][3]
+        assert path.name == "label_flipping_visual.png"
