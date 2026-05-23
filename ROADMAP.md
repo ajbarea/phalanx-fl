@@ -52,17 +52,17 @@ Known carry-overs into Phase 1A: `cifar10` and `cinic10` frontend dropdown entri
 
 - [x] **1A:** Expand `config/huggingface_datasets.json` with all 21 datasets — shipped 2026-05-22 (see Recently shipped above).
 - [x] **1B (CNN slice, shipped 2026-05-22):** `_build_cnn` reads `image_transformer` from `config/huggingface_datasets.json` instead of the now-deleted `_CNN_DATASET_TRANSFORMER_MAP` Python dict. The CNN keyword tuple stays in code (`_LOCAL_CNN_KEYWORDS`) as the source of truth for "which datasets use `ImageDatasetLoader` + local files" — that property will move into JSON in Phase 2A alongside the migration to `FederatedDatasetLoader`. Schema test extended to assert every `_LOCAL_CNN_KEYWORDS` entry has a resolvable, non-null transformer name.
-- [ ] **1B (text + cifar100 collapse):** `_build_cifar100` and `_build_hf_text` both already read the JSON; the remaining work is consolidating them with `_build_cnn` once Phase 2 migrates all image datasets to `FederatedDatasetLoader` (eliminating the dual `ImageDatasetLoader` / `HuggingFaceImageDatasetLoader` split). The dispatch becomes a small per-modality function set rather than per-keyword.
+- [x] **1B (text + cifar100 collapse, subsumed):** `_build_cnn` is gone (Phase 2E); the per-keyword dispatch already collapsed to a per-family shape with `_build_hf_text`, `_build_hf_image_cnn`, and `_build_hf_medmnist_cnn` all routed via `LOADER_REGISTRY`. No further consolidation work remains here.
 - [x] **2A (cifar10 / cinic10 wiring, shipped 2026-05-22):** transformers registered, JSON entries' `image_transformer` set, `LOADER_REGISTRY` extended via `_HF_IMAGE_CNN_KEYWORDS` tuple (cifar100 / cifar10 / cinic10). `_build_cifar100` renamed `_build_hf_image_cnn` since it's now generic across the HF-backed CNN family.
-- [ ] **1B (femnist partitioner):** resolve `femnist_iid` vs `femnist_niid` partitioner from JSON's new `partition_by` field (`writer_id` for niid → `NaturalIdPartitioner`; default IID otherwise). Currently the FEMNIST loader handles both via the existing `_CNN_DATASET_TRANSFORMER_MAP` keyword check; Phase 2 will route through `FederatedDatasetLoader` partitioner registry.
+- [x] **1B (femnist partitioner, subsumed):** Phase 2B FEMNIST migration shipped `femnist_iid` + `femnist_niid` through `_build_federated_dataset_loader`, which reads `partitioning_strategy` + `partition_by` directly from JSON. The `_CNN_DATASET_TRANSFORMER_MAP` keyword check no longer exists.
 - [ ] **1C:** Use `load_hf_model()` from the Transformer Merge (above) instead of duplicating LoRA/non-LoRA BERT loading here
 
 ### Phase 2 — Migrate Image Datasets to FederatedDatasetLoader
 
 - [x] **2A (shipped 2026-05-22):** `FederatedDatasetLoader` gained `subset`, `image_column`, `image_transform`, `partition_by` + `natural_id` strategy across slices #22-#25. `load_dataset_kwargs` deferred until first concrete caller (YAGNI).
 - [x] **2B:** All three tiers shipped. CIFAR family (cifar100 + cifar10 + cinic10) 2026-05-22; 11 MedMNIST + FEMNIST (iid/niid as 62-class with per-dataset `partitioning_strategy` default in JSON — iid for femnist_iid, natural_id with partition_by=writer_id for femnist_niid) 2026-05-23.
-- [ ] **2C:** Simplify `_create_image_loader()` to single `FederatedDatasetLoader` call
-- [x] **2E (partial — image_dataset_loader.py):** `image_dataset_loader.py` + `_LOCAL_CNN_KEYWORDS` + `_build_cnn` deleted; 4 test files dropped the dead `ImageDatasetLoader` mock-patches. `huggingface_image_dataset_loader.py` deletion deferred — `config/test_hf_datasets.py` still imports it and needs separate scoping.
+- [x] **2C (subsumed):** `_create_image_loader()` no longer exists — image-loader dispatch now flows through `_build_hf_image_cnn` / `_build_hf_medmnist_cnn` and the shared `_build_federated_dataset_loader` helper. The 2C scope collapsed into 2A/2B work.
+- [x] **2E (closed):** `image_dataset_loader.py` + `_LOCAL_CNN_KEYWORDS` + `_build_cnn` deleted in [#34] (first tier, 2026-05-23). `huggingface_image_dataset_loader.py` + its 467-line test suite deleted in second tier (2026-05-23); `config/test_hf_datasets.py::_test_image_dataset` rewired to `FederatedDatasetLoader` with the same JSON-precedence rules as production builders.
 
 ### Phase 3 — Migrate Text Datasets to FederatedDatasetLoader
 
