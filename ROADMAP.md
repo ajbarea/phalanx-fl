@@ -96,11 +96,13 @@ Known carry-overs into Phase 1A: `cifar10` and `cinic10` frontend dropdown entri
 
 ### Current State
 
-`FederatedDatasetLoader._create_partitioner()` (line ~136) has a hard-coded `if/elif` chain for
-`iid`, `dirichlet`, and `pathological`. The same pattern is duplicated in the legacy loaders
-(`text_classification_loader.py`, `huggingface_image_dataset_loader.py`, `huggingface_text_dataset_loader.py`).
-Once the Dataset System Rework (Phases 2-3) consolidates all loaders into `FederatedDatasetLoader`,
-the registry only needs to live in one place.
+`FederatedDatasetLoader._create_partitioner()` now delegates to the
+`partitioner_registry` (Phase 0 shipped 2026-05-23); the old hard-coded
+`if/elif` chain is gone. The image-loader side of the consolidation
+finished with Phase 2E (`huggingface_image_dataset_loader.py` deleted in
+[#36]). The text loaders (`text_classification_loader.py`,
+`huggingface_text_dataset_loader.py`) still carry their own partitioner
+dispatch and will collapse into the registry as Phase 3 lands.
 
 ### Phase 0 — Config-Driven Partitioner Registry — shipped 2026-05-23
 
@@ -293,7 +295,6 @@ the registry only needs to live in one place.
 
 - [ ] Audit `zensical.toml` nav against actual `docs/` file structure — ensure new strategies/attacks/datasets are reflected in sidebar
 - [ ] Auto-generate `api.md` from FastAPI routers/Pydantic models (or link to `/docs` Swagger endpoint). Ref: [FastAPI Reference](https://fastapi.tiangolo.com/reference/)
-- [ ] ~~Add JSON config snippets per dataset in `docs/datasets.md`~~ — Covered by Partitioning System Phase 1B
 
 ---
 
@@ -302,7 +303,7 @@ the registry only needs to live in one place.
 > Source: `demo/plans-and-specs/gemini-review/`
 > Ref: [Ruff](https://docs.astral.sh/ruff/) | [ty](https://docs.astral.sh/ty/) (already configured in pyproject.toml)
 
-- [ ] Break up `FederatedSimulation` god object (691 lines) — extract `StrategyFactory`, `ModelLoader`, or similar focused managers
+- [ ] Break up `FederatedSimulation` (currently 392 lines, down from 691 in earlier audit) — extract `StrategyFactory`, `ModelLoader`, or similar focused managers if the class grows again or the per-method responsibilities blur. Less urgent now; revisit when adding the next major orchestration concern.
 - [ ] TypeScript migration for frontend — all core files are still `.jsx`, no `.tsx` exists yet
 - [ ] Add custom API exception classes (`SimulationNotFoundError`, etc.) instead of generic `Exception` catches in routers
 - [ ] Move in-scope Celery imports in routers to FastAPI dependency injection for testability
