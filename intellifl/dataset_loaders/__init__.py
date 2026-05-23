@@ -33,7 +33,6 @@ from intellifl.dataset_loaders.federated_dataset_loader import FederatedDatasetL
 from intellifl.dataset_loaders.huggingface_text_dataset_loader import (
     HuggingFaceTextDatasetLoader,
 )
-from intellifl.dataset_loaders.image_dataset_loader import ImageDatasetLoader
 from intellifl.dataset_loaders.image_transformers.cifar10_image_transformer import (
     cifar10_image_transformer,
 )
@@ -111,20 +110,6 @@ def resolve_image_transformer(name: str | None) -> Any:
 
 
 # --------------------------------------------------------------------------
-# CNN dataset keywords still on the local ImageDatasetLoader path
-# --------------------------------------------------------------------------
-#
-# Phase 2B (2026-05-23) — all 13 image-CNN keywords (CIFAR family +
-# MedMNIST family + FEMNIST iid/niid) have graduated to
-# `FederatedDatasetLoader`. This tuple is empty but kept here for the
-# `_build_cnn` dispatch surface that may resurrect for a new local-only
-# tier in the future; Phase 2E deletes both this tuple and
-# `_build_cnn` itself once we're confident no caller surfaces it again.
-
-_LOCAL_CNN_KEYWORDS: tuple[str, ...] = ()
-
-
-# --------------------------------------------------------------------------
 # LLM-model construction (used by every text builder)
 # --------------------------------------------------------------------------
 
@@ -157,25 +142,6 @@ def _build_llm_model(config: StrategyConfig) -> Any:
 # keyword is forwarded so a single builder can serve multiple registered
 # aliases (e.g. CNN datasets, the three HF text variants).
 LoaderBuilder = Callable[[str, "StrategyConfig", str], tuple[Any, Any]]
-
-
-def _build_cnn(keyword: str, config: StrategyConfig, dataset_dir: str) -> tuple[Any, Any]:
-    hf_cfg = get_hf_dataset_config(keyword)
-    transformer = resolve_image_transformer(hf_cfg.get("image_transformer"))
-    if transformer is None:
-        raise ValueError(
-            f"CNN dataset {keyword!r} requires an `image_transformer` value in "
-            f"config/huggingface_datasets.json (got null/missing)"
-        )
-    loader = ImageDatasetLoader(
-        transformer=transformer,
-        dataset_dir=dataset_dir,
-        num_of_clients=cast(int, config.num_of_clients),
-        batch_size=cast(int, config.batch_size),
-        training_subset_fraction=cast(float, config.training_subset_fraction),
-    )
-    model = build_cnn_model(keyword)
-    return loader, model
 
 
 def _build_medquad(keyword: str, config: StrategyConfig, dataset_dir: str) -> tuple[Any, Any]:
@@ -306,15 +272,11 @@ def _build_hf_medmnist_cnn(
 ) -> tuple[Any, Any]:
     """HF-backed MedMNIST CNN builder — JSON-driven loader + per-keyword MedMNISTCNN.
 
-    Phase 2B (2026-05-23): migrates the 11 MedMNIST keywords from the local
-    ``ImageDatasetLoader`` (which read pre-partitioned files under
-    ``datasets/<keyword>/client_N/``) to ``FederatedDatasetLoader``, which
-    pulls from ``albertvillanova/medmnist-v2`` + per-variant subset and
-    partitions in-loader. The model side keeps the existing
-    ``build_cnn_model(keyword)`` dispatch — each MedMNIST variant retains
-    its registered ``MedMNISTCNN`` conv/fc shape from
-    ``intellifl.network_models._CNN_REGISTRY``, so the network architecture
-    is unchanged across the migration.
+    Pulls from ``albertvillanova/medmnist-v2`` + per-variant subset via
+    ``FederatedDatasetLoader``, which partitions in-loader. The model side
+    keeps the existing ``build_cnn_model(keyword)`` dispatch — each MedMNIST
+    variant retains its registered ``MedMNISTCNN`` conv/fc shape from
+    ``intellifl.network_models._CNN_REGISTRY``.
 
     Partitioning behavior change: the OLD path used externally pre-
     partitioned files (Dirichlet-shaped, baked into the S3 tarball);
@@ -360,10 +322,6 @@ _HF_MEDMNIST_CNN_KEYWORDS = (
 
 
 LOADER_REGISTRY: dict[str, LoaderBuilder] = {
-    # Local-CNN datasets — `ImageDatasetLoader` reading local files; FEMNIST
-    # remains here pending the partitioning + num_classes decision (see
-    # IMPL.md). MedMNIST graduated to `_HF_MEDMNIST_CNN_KEYWORDS` below.
-    **dict.fromkeys(_LOCAL_CNN_KEYWORDS, _build_cnn),
     # Text datasets
     "medquad": _build_medquad,
     **dict.fromkeys(_HF_TEXT_KEYWORDS, _build_hf_text),

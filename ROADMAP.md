@@ -61,7 +61,7 @@ Known carry-overs into Phase 1A: `cifar10` and `cinic10` frontend dropdown entri
 - [x] **2A (shipped 2026-05-22):** `FederatedDatasetLoader` gained `subset`, `image_column`, `image_transform`, `partition_by` + `natural_id` strategy across slices #22-#25. `load_dataset_kwargs` deferred until first concrete caller (YAGNI).
 - [x] **2B:** All three tiers shipped. CIFAR family (cifar100 + cifar10 + cinic10) 2026-05-22; 11 MedMNIST + FEMNIST (iid/niid as 62-class with per-dataset `partitioning_strategy` default in JSON — iid for femnist_iid, natural_id with partition_by=writer_id for femnist_niid) 2026-05-23.
 - [ ] **2C:** Simplify `_create_image_loader()` to single `FederatedDatasetLoader` call
-- [ ] **2E:** Delete `image_dataset_loader.py`, `huggingface_image_dataset_loader.py`, and their tests
+- [x] **2E (partial — image_dataset_loader.py):** `image_dataset_loader.py` + `_LOCAL_CNN_KEYWORDS` + `_build_cnn` deleted; 4 test files dropped the dead `ImageDatasetLoader` mock-patches. `huggingface_image_dataset_loader.py` deletion deferred — `config/test_hf_datasets.py` still imports it and needs separate scoping.
 
 ### Phase 3 — Migrate Text Datasets to FederatedDatasetLoader
 

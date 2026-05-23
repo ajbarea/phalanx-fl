@@ -333,7 +333,6 @@ class TestByzantineFaultTolerance:
     @pytest.fixture
     def mock_federated_simulation_with_byzantine(self):
         with (
-            patch("intellifl.dataset_loaders.ImageDatasetLoader") as mock_loader,
             patch("intellifl.dataset_loaders.FederatedDatasetLoader") as mock_fds_loader,
             patch("intellifl.dataset_loaders.build_cnn_model") as mock_build_cnn,
             patch("intellifl.federated_simulation.run_simulation") as mock_run_sim,
@@ -346,7 +345,6 @@ class TestByzantineFaultTolerance:
                 [Mock() for _ in range(10)],  # trainloaders
                 [Mock() for _ in range(10)],  # valloaders
             )
-            mock_loader.return_value = mock_loader_instance
             mock_fds_loader.return_value = mock_loader_instance
 
             mock_network_instance = MockNetwork()
@@ -360,7 +358,7 @@ class TestByzantineFaultTolerance:
             mock_run_sim.return_value = None
 
             yield {
-                "loader": mock_loader,
+                "loader": mock_fds_loader,
                 "network": mock_build_cnn,
                 "run_simulation": mock_run_sim,
                 "assign_strategy": mock_assign_strategy,

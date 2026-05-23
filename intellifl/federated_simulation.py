@@ -173,11 +173,10 @@ class FederatedSimulation:
 
         self._network_model: nn.Module | None = None
         self._aggregation_strategy: flwr.server.strategy.Strategy | None = None
-        # Loader is one of {ImageDatasetLoader, MedQuADDatasetLoader,
-        # HuggingFaceTextDatasetLoader, HuggingFaceImageDatasetLoader}, but
-        # the concrete shape comes back from
-        # `dataset_loaders.build_dataset_loader_and_model`; we don't need to
-        # name the union here.
+        # Concrete loader type comes back from
+        # `dataset_loaders.build_dataset_loader_and_model` — the union of
+        # FederatedDatasetLoader / MedQuADDatasetLoader / HuggingFaceTextDatasetLoader
+        # is wider than this attribute needs to know.
         self._dataset_loader: Any = None
 
         self._trainloaders: list[DataLoader[Any]] | None = None

@@ -147,24 +147,6 @@ def test_dispatch_registry_keywords_have_json_entries(config):
         assert keyword in config, f"LOADER_REGISTRY references {keyword!r} but no JSON entry exists"
 
 
-def test_local_cnn_keywords_have_resolvable_transformer(config):
-    """Phase 1B contract: every keyword in `_LOCAL_CNN_KEYWORDS` must point at
-    a non-null `image_transformer` field that resolves via
-    `resolve_image_transformer` — otherwise `_build_cnn` raises at
-    construction time.
-    """
-    from intellifl.dataset_loaders import _LOCAL_CNN_KEYWORDS, resolve_image_transformer
-
-    for keyword in _LOCAL_CNN_KEYWORDS:
-        entry = config[keyword]
-        name = entry.get("image_transformer")
-        assert name, (
-            f"{keyword}: local-CNN dispatch requires a non-null image_transformer "
-            f"in huggingface_datasets.json"
-        )
-        assert resolve_image_transformer(name) is not None
-
-
 def test_hf_image_cnn_keywords_have_resolvable_transformer(config):
     """Phase 2A contract: every keyword in `_HF_IMAGE_CNN_KEYWORDS` must point
     at a registered `image_transformer` so `_build_hf_image_cnn` resolves
