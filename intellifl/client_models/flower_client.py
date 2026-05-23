@@ -349,6 +349,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                                 attack_config,
                                 tokenizer=self.tokenizer,
                                 num_classes=num_classes,
+                                client_id=self.client_id,
                             )
 
                         if epoch == 0 and not snapshot_saved:
@@ -438,6 +439,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                                     batch["labels"],
                                     attack_config,
                                     tokenizer=self.tokenizer,
+                                    client_id=self.client_id,
                                 )
 
                         if epoch == 0 and not snapshot_saved:
@@ -560,6 +562,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                                 attack_config,
                                 tokenizer=self.tokenizer,
                                 num_classes=num_classes,
+                                client_id=self.client_id,
                             )
 
                     images, labels = (
@@ -595,6 +598,7 @@ class FlowerClient(fl.client.NumPyClient):  # type: ignore[name-defined]
                                     batch["labels"],
                                     attack_config,
                                     tokenizer=self.tokenizer,
+                                    client_id=self.client_id,
                                 )
 
                     batch = self._to_device_only_tensors(batch)
