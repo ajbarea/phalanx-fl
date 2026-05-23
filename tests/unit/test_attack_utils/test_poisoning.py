@@ -93,6 +93,76 @@ class TestApplyLabelFlipping:
         assert torch.all(result[labels == 0] == 1)
         assert torch.all(result[labels == 1] == 0)
 
+    def test_same_client_id_yields_stable_permutation(self):
+        """Same client_id must produce identical flip mapping across calls.
+
+        The dynamic attack_schedule path invokes apply_label_flipping once per
+        batch; without seeding, every batch saw a fresh permutation and the
+        model averaged the noise out. A stable per-client mapping is the
+        whole point of the client_id parameter.
+        """
+        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        num_classes = 10
+
+        first = apply_label_flipping(labels, num_classes=num_classes, client_id=7)
+        torch.randperm(num_classes)
+        second = apply_label_flipping(labels, num_classes=num_classes, client_id=7)
+        third = apply_label_flipping(labels, num_classes=num_classes, client_id=7)
+
+        assert torch.equal(first, second)
+        assert torch.equal(first, third)
+
+    def test_different_client_ids_diverge(self):
+        """Different malicious clients must (overwhelmingly) get different mappings.
+
+        With 10 classes and no self-mapping, the chance of two arbitrary seeds
+        landing on the same permutation is ~1/9! — collision is theoretically
+        possible but vanishingly rare for the small fixed seeds used here.
+        """
+        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        num_classes = 10
+
+        result_client_0 = apply_label_flipping(labels, num_classes=num_classes, client_id=0)
+        result_client_1 = apply_label_flipping(labels, num_classes=num_classes, client_id=1)
+        result_client_2 = apply_label_flipping(labels, num_classes=num_classes, client_id=2)
+
+        assert not torch.equal(result_client_0, result_client_1)
+        assert not torch.equal(result_client_0, result_client_2)
+        assert not torch.equal(result_client_1, result_client_2)
+
+    def test_client_id_independent_of_global_rng(self):
+        """Seeded permutation must not be perturbed by global RNG state changes.
+
+        Direct verification of the bug: if the function leaked into the global
+        generator (or read from it), advancing torch.manual_seed between calls
+        would change the result.
+        """
+        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        num_classes = 10
+
+        torch.manual_seed(1)
+        seeded_call = apply_label_flipping(labels, num_classes=num_classes, client_id=3)
+
+        torch.manual_seed(999)
+        same_after_global_reseed = apply_label_flipping(
+            labels, num_classes=num_classes, client_id=3
+        )
+
+        assert torch.equal(seeded_call, same_after_global_reseed)
+
+    def test_client_id_none_preserves_legacy_random_behavior(self):
+        """client_id=None must use the global RNG, matching pre-fix behavior."""
+        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        num_classes = 10
+
+        torch.manual_seed(42)
+        first = apply_label_flipping(labels, num_classes=num_classes)
+
+        torch.manual_seed(42)
+        second = apply_label_flipping(labels, num_classes=num_classes)
+
+        assert torch.equal(first, second)
+
 
 class TestApplyGaussianNoise:
     """Tests for apply_gaussian_noise."""
@@ -417,6 +487,31 @@ class TestApplyPoisoningAttack:
 
         assert torch.all(result_labels >= 0)
         assert torch.all(result_labels < num_classes)
+
+    def test_label_flipping_attack_threads_client_id(self):
+        """apply_poisoning_attack must forward client_id to the dispatcher."""
+        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        original_labels = labels.clone()
+        num_classes = 10
+
+        attack_config = {"attack_type": "label_flipping"}
+
+        _, first = apply_poisoning_attack(
+            torch.rand(10, 1, 28, 28),
+            original_labels.clone(),
+            attack_config,
+            num_classes=num_classes,
+            client_id=4,
+        )
+        _, second = apply_poisoning_attack(
+            torch.rand(10, 1, 28, 28),
+            original_labels.clone(),
+            attack_config,
+            num_classes=num_classes,
+            client_id=4,
+        )
+
+        assert torch.equal(first, second)
 
     def test_gaussian_noise_attack_with_snr(self):
         """Tests Gaussian noise attack with SNR parameter."""

@@ -37,17 +37,29 @@ DATA_ATTACK_TYPES = frozenset(DATA_ATTACK_TYPE_NAMES)
 def apply_label_flipping(
     labels: torch.Tensor,
     num_classes: int,
+    client_id: int | None = None,
 ) -> torch.Tensor:
     """Apply bijective label flipping where each class maps to exactly one other class.
 
     Args:
         labels: Input label tensor to flip.
         num_classes: Total number of classes in the dataset.
+        client_id: When provided, seeds the permutation with `42 + client_id` so
+            every call from the same malicious client produces the same flip
+            mapping. Without this, `attack_schedule`-based runs draw a fresh
+            permutation per batch and the model averages the noise out.
 
     Returns:
         Modified label tensor with all classes remapped.
     """
-    perm = torch.randperm(num_classes).tolist()
+    # research(2026-05): per-client deterministic RNG stream matches BlazeFL's
+    # isolated-generator pattern (arXiv:2604.03606). Same client_id ⇒ stable
+    # per-client mapping; None preserves legacy global-RNG behavior.
+    if client_id is not None:
+        generator = torch.Generator().manual_seed(42 + int(client_id))
+        perm = torch.randperm(num_classes, generator=generator).tolist()
+    else:
+        perm = torch.randperm(num_classes).tolist()
 
     # Ensure no class maps to itself
     for i in range(num_classes):
@@ -448,10 +460,11 @@ def _dispatch_label_flipping(
     config: dict,
     tokenizer=None,
     num_classes: int | None = None,
+    client_id: int | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     if num_classes is None:
         raise ValueError("Label flipping attack requires 'num_classes' parameter to be provided.")
-    labels = apply_label_flipping(labels, num_classes=num_classes)
+    labels = apply_label_flipping(labels, num_classes=num_classes, client_id=client_id)
     return data, labels
 
 
@@ -461,6 +474,7 @@ def _dispatch_targeted_label_flipping(
     config: dict,
     tokenizer=None,
     num_classes: int | None = None,
+    client_id: int | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     source_class = config.get("source_class")
     target_class = config.get("target_class")
@@ -483,6 +497,7 @@ def _dispatch_gaussian_noise(
     config: dict,
     tokenizer=None,
     num_classes: int | None = None,
+    client_id: int | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     target_noise_snr = config.get("target_noise_snr")
     attack_ratio = config.get("attack_ratio", 1.0)
@@ -507,6 +522,7 @@ def _dispatch_token_replacement(
     config: dict,
     tokenizer=None,
     num_classes: int | None = None,
+    client_id: int | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     target_token_ids = config.get("target_token_ids")
     replacement_token_ids = config.get("replacement_token_ids")
@@ -562,6 +578,7 @@ def _dispatch_backdoor_trigger(
     config: dict,
     tokenizer=None,
     num_classes: int | None = None,
+    client_id: int | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     target_class = config.get("target_class")
     if target_class is None:
@@ -599,6 +616,7 @@ def apply_poisoning_attack(
     attack_config: dict,
     tokenizer=None,
     num_classes: int | None = None,
+    client_id: int | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Apply a poisoning attack to dataset based on attack configuration.
 
@@ -611,6 +629,9 @@ def apply_poisoning_attack(
         attack_config: Attack configuration dict with 'attack_type' and type-specific params.
         tokenizer: HuggingFace tokenizer for token_replacement attacks.
         num_classes: Number of classes for label_flipping attacks.
+        client_id: Forwarded to per-attack dispatchers that need a stable
+            per-client RNG (currently only `label_flipping`). Other dispatchers
+            accept and ignore it so the registry call stays uniform.
 
     Returns:
         Tuple of (poisoned_data, poisoned_labels).
@@ -638,4 +659,4 @@ def apply_poisoning_attack(
         logging.warning(f"Unknown data attack type: {attack_type!r}, skipping.")
         return data, labels
 
-    return dispatch_fn(data, labels, attack_config, tokenizer, num_classes)
+    return dispatch_fn(data, labels, attack_config, tokenizer, num_classes, client_id)
