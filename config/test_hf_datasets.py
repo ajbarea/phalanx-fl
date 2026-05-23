@@ -70,22 +70,35 @@ def _test_text_dataset(keyword: str, cfg: dict, max_samples: int = 100) -> None:
 
 
 def _test_image_dataset(keyword: str, cfg: dict, max_samples: int = 100) -> None:
-    """Smoke-test a HuggingFace **image** dataset entry."""
-    from intellifl.dataset_loaders.huggingface_image_dataset_loader import (
-        HuggingFaceImageDatasetLoader,
-    )
+    """Smoke-test a HuggingFace **image** dataset entry via FederatedDatasetLoader.
+
+    Mirrors the JSON precedence used by ``_build_federated_dataset_loader`` in
+    production: explicit ``partitioning_strategy`` from JSON wins, otherwise
+    fall back to ``dirichlet`` alpha=0.5 (the pre-Phase-2E hardcoded shape).
+    ``max_samples`` is ignored — FederatedDatasetLoader uses
+    ``training_subset_fraction`` instead of an explicit sample cap.
+    """
+    del max_samples  # FederatedDatasetLoader uses training_subset_fraction instead
+    from intellifl.dataset_loaders.federated_dataset_loader import FederatedDatasetLoader
 
     transformer = _get_image_transformer(cfg.get("image_transformer"))
+    partitioning_strategy = cfg.get("partitioning_strategy", "dirichlet")
+    partitioning_params = cfg.get("partitioning_params") or (
+        {"alpha": 0.5} if partitioning_strategy == "dirichlet" else {}
+    )
 
-    loader = HuggingFaceImageDatasetLoader(
-        hf_dataset_path=cfg["hf_dataset_path"],
-        hf_dataset_name=cfg.get("hf_dataset_name"),
-        transformer=transformer,
+    loader = FederatedDatasetLoader(
+        dataset_name=cfg["hf_dataset_path"],
+        subset=cfg.get("hf_dataset_name"),
         num_of_clients=2,
         batch_size=8,
-        max_samples=max_samples,
-        image_column=cfg.get("image_column", "image"),
+        training_subset_fraction=0.8,
+        partitioning_strategy=partitioning_strategy,
+        partitioning_params=partitioning_params,
         label_column=cfg.get("label_column", "label"),
+        image_transform=transformer,
+        image_column=cfg.get("image_column"),
+        partition_by=cfg.get("partition_by"),
     )
     trainloaders, valloaders = loader.load_datasets()
 
@@ -93,7 +106,6 @@ def _test_image_dataset(keyword: str, cfg: dict, max_samples: int = 100) -> None
     assert len(valloaders) == 2, f"Expected 2 valloaders, got {len(valloaders)}"
     print(f"  loaders: {len(trainloaders)} train, {len(valloaders)} val")
 
-    # Verify a batch has the right shape if dimensions are declared
     if cfg.get("input_channels") and cfg.get("input_height") and cfg.get("input_width"):
         batch = next(iter(trainloaders[0]))
         images, labels = batch

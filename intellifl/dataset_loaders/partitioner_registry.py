@@ -12,13 +12,11 @@ out of `params` so the surface is auditable from this file alone.
 research(2026-05): registry shape mirrors
 `intellifl.dataset_loaders.LOADER_REGISTRY` (the dataset-loader builder
 registry) and `intellifl.simulation_strategies.STRATEGY_REGISTRY`. The
-partitioner-side registry was the third copy of the if/elif chain —
-`FederatedDatasetLoader._create_partitioner()` and the orphaned legacy
-loaders (`huggingface_image_dataset_loader.py`,
-`huggingface_text_dataset_loader.py`, `text_classification_loader.py`)
-all duplicated the same iid/dirichlet/pathological dispatch. Once Phase
-2E deletes the legacy loaders, this registry is the single source of
-truth across the codebase.
+partitioner-side registry replaced an if/elif chain that previously
+duplicated across `FederatedDatasetLoader._create_partitioner()` and
+several legacy loaders (since deleted in Phase 2E). The registry is now
+the single source of truth for partitioner construction across the
+codebase.
 
 Source: https://flower.ai/docs/datasets/ref-api/flwr_datasets.partitioner.html
 (flwr-datasets v0.6.0; 13 horizontal partitioners wired, 2 vertical

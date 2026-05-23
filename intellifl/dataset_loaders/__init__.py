@@ -218,10 +218,11 @@ def _build_federated_dataset_loader(keyword: str, config: StrategyConfig) -> Fed
     """Common FederatedDatasetLoader construction for every HF-image family.
 
     Reads the JSON entry for ``keyword``, resolves the image transformer,
-    applies the partitioning precedence (config > Dirichlet alpha=0.5
-    fallback that matches the OLD HuggingFaceImageDatasetLoader hardcoded
-    shape), and forwards ``partition_by`` from JSON so FEMNIST-style
-    natural_id wiring works without per-builder branching.
+    applies the partitioning precedence (config > JSON default > Dirichlet
+    alpha=0.5 fallback — the alpha=0.5 default carries over from the legacy
+    pre-Phase-2E loader's hardcoded label-skew shape), and forwards
+    ``partition_by`` from JSON so FEMNIST-style natural_id wiring works
+    without per-builder branching.
     """
     hf_cfg = get_hf_dataset_config(keyword)
     transformer = resolve_image_transformer(hf_cfg.get("image_transformer"))
