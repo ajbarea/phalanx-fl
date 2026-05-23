@@ -51,7 +51,7 @@ def clean_build(clean_out: bool = False) -> None:
             print(f"  ✓ Cleared {d}")
             logger.info(f"Cleaned {d} directory")
 
-    # Pruning stale dev-runner log archives (keep dev-latest.log + recent runs)
+    # Pruning stale dev-runner log archives (keep *-latest.log + recent runs)
     log_dirs = [root / "logs", root / "tests" / "logs"]
     cutoff = time.time() - LOG_ARCHIVE_MAX_AGE_DAYS * 86400
     pruned = 0
@@ -59,6 +59,8 @@ def clean_build(clean_out: bool = False) -> None:
         if not log_dir.is_dir():
             continue
         for log_file in log_dir.glob(LOG_ARCHIVE_GLOB):
+            if log_file.name.endswith("-latest.log"):
+                continue
             try:
                 if log_file.stat().st_mtime < cutoff:
                     log_file.unlink()
