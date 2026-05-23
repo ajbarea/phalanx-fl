@@ -52,6 +52,24 @@ class ArKrumStrategy(FedAvg):
     - Theoretical Guarantees: ArKrum maintains Byzantine resilience under
       honest majority assumption (f < n/2) with automatic f estimation providing
       robustness to changing attack intensity.
+
+    Known weaknesses (research(2026-05), confirmed against vFL's nightly):
+    - **Dense colluding cluster** — inherited from rKrum/Krum: if the malicious
+      cluster has tighter intra-cluster spread than honest, the Krum score on
+      a byzantine `u_i` becomes lower than on an honest one and `u*` lands on
+      the byzantine side.
+    - **Fang-style aggregator-aware attacks** (Fang et al. USENIX 2020,
+      arXiv:1911.11815) — when attackers know the aggregator's score function
+      and optimise a perturbation placing malicious updates near the honest
+      cluster, the parameter-free f̂ estimator typically returns 0 (no big
+      gap, no outliers above τ) and ArKrum degrades to FedAvg over all
+      clients including attackers. vFL's MNIST nightly (n=11/f=2) shows
+      ArKrum at 9.6% accuracy under Fang-Krum vs 94-96% under non-aggregator-
+      aware attacks. This is a property of every Krum-family selector
+      (Krum/MultiKrum/Bulyan/ArKrum/SpectralKrum-2025) — SpectralKrum
+      (arXiv:2512.11760) itself acknowledges the same min-max limit. For
+      Fang-robust federation, prefer GeometricMedian (Pillutla IEEE TSP 2022)
+      or coordinate-wise statistics (FedMedian / TrimmedMean).
     """
 
     def __init__(
