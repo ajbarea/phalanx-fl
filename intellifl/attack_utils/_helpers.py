@@ -19,6 +19,33 @@ def extract_attack_type(attack_config: dict | list[dict]) -> str:
         return attack_config.get("attack_type") or attack_config.get("type", "unknown")
 
 
+def extract_individual_attack_types(
+    attack_config: dict | list[dict],
+) -> list[tuple[str, dict]]:
+    """Return one ``(attack_type, sub_config)`` pair per attack in a config.
+
+    Singles wrap into a one-element list; composites unfold so callers can
+    iterate per-attack without re-implementing the dict-vs-list branch.
+
+    Used by ``save_visual_snapshot`` to emit each composite member's
+    specialized visualization (``label_flipping_visual.png``,
+    ``backdoor_trigger_visual.png``, …) alongside the composite synopsis
+    plate, instead of dropping per-type visuals because the joined
+    ``attack_type`` string ("label_flipping_gaussian_noise") didn't match
+    any of the single-attack equality branches.
+    """
+    if isinstance(attack_config, list):
+        return [
+            (cfg.get("attack_type") or cfg.get("type", "unknown"), cfg) for cfg in attack_config
+        ]
+    return [
+        (
+            attack_config.get("attack_type") or attack_config.get("type", "unknown"),
+            attack_config,
+        )
+    ]
+
+
 def extract_attack_param(
     attack_config: dict | list[dict], *attack_parameters: str, default: Any = "?"
 ) -> Any:

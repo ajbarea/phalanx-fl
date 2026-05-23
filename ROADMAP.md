@@ -214,7 +214,7 @@ the registry only needs to live in one place.
 - [ ] Add `AttackIntermediateState` dataclass + `apply_poisoning_attack_with_intermediates()` in `poisoning.py`
 - [ ] Implement `save_composite_synopsis_v2()` — N+2 column layout: `[Original] → [Attack₁] → ... → [Final]`
 - [ ] Wire intermediate state capture through `flower_client.py` → `attack_snapshots.py`
-- [ ] **Preserve per-attack specialized visuals in composites** — `save_visual_snapshot` (`attack_snapshots.py:333-360`) emits `composite_synopsis.png` for list configs but `label_flipping_visual.png` (and other per-type visuals) are silently dropped: `extract_attack_type` (`_helpers.py:8-15`) joins composite types with `_` (e.g. `label_flipping_gaussian_noise`), so the per-type branch (`if attack_type == "label_flipping"`) never matches. Trigger: composite runs should still emit each attack's specialized visual alongside the synopsis.
+- [x] **Per-attack specialized visuals in composites — shipped 2026-05-23.** New `extract_individual_attack_types` helper unfolds a list config into `[(itype, sub_cfg), …]`; `save_visual_snapshot` iterates and dispatches per-type so `label_flipping_visual.png`, `backdoor_trigger_visual.png`, `gaussian_noise_difference_heatmap.png`, the per-type confusion matrix and summary all emit alongside `composite_synopsis.png`. Singles preserve their legacy `{attack_type}_visual.png` naming. Coverage: 13 new helper tests + 3 composite-dispatch tests verifying call_count + per-type filenames.
 
 ### Domain Entity Evaluator
 
