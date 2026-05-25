@@ -43,8 +43,8 @@ dev = [
     "pytest-randomly",
     "pytest-repeat",
     "pytest-xdist>=3.6.1",
-    "ruff>=0.9",
-    "ty>=0.0.25,<0.1",
+    "ruff>=0.15.14",
+    "ty>=0.0.39,<0.1",
     "zensical",
 ]
 
