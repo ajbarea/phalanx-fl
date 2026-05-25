@@ -1,62 +1,66 @@
+# Canonical config: techne templates/dependabot.yml.example. /techne:sisters
+# audits drift. phalanx-fl: uv + npm(/frontend) + docker + github-actions.
 version: 2
+
 updates:
-  # Enable Dependabot for pip/uv dependencies
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
-      time: "03:00"
     open-pull-requests-limit: 10
-    groups:
-      # Group all patch and minor updates together
-      development-dependencies:
-        dependency-type: "development"
-        update-types:
-          - "minor"
-          - "patch"
-      production-dependencies:
-        dependency-type: "production"
-        update-types:
-          - "minor"
-          - "patch"
-    labels:
-      - "dependencies"
-      - "automated"
-    # Review security updates immediately
-    reviewers:
-      - "ajbarea"
+    labels: ["dependencies"]
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
+    groups:
+      uv:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
 
-  # Keep GitHub Actions up to date
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    labels:
-      - "dependencies"
-      - "github-actions"
-    commit-message:
-      prefix: "ci"
-
-  # Frontend npm dependencies
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
       day: "monday"
-      time: "03:00"
     open-pull-requests-limit: 10
-    groups:
-      npm-minor-patch:
-        update-types:
-          - "minor"
-          - "patch"
-    labels:
-      - "dependencies"
-      - "frontend"
+    labels: ["dependencies"]
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
+    groups:
+      npm:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # research(2026-05): docker auto-detects literal "Dockerfile" only; root +
+  # frontend/ Dockerfiles qualify, docs.Dockerfile (custom name) does not.
+  - package-ecosystem: "docker"
+    directories: ["/", "/frontend"]
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    groups:
+      docker:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "ci(deps)"
+      include: "scope"
+    groups:
+      github-actions:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
