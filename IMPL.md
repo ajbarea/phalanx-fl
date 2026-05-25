@@ -8,9 +8,7 @@ ROADMAP's "Recently shipped" and clear the relevant block below.
 
 ## Current focus
 
-_Nothing currently open. See ROADMAP `## Recently shipped` for the
-2026-05-23 slice (label-flip determinism, Phase 2E closure, composite
-attack visuals)._
+_Nothing currently open._
 
 ---
 
