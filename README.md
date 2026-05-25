@@ -162,18 +162,6 @@ See the [CLI Reference](https://ajbarea.github.io/phalanx-fl/cli/) for the compl
 
 ---
 
-## Sister ecosystem
-
-Part of a family of repos exploring agentic AI and federated learning from complementary angles. phalanx-fl is the Research bench; the others occupy different roles.
-
-- **[kourai-khryseai](https://github.com/ajbarea/kourai-khryseai)** — Innovation. Multi-agent software-development forge: maidens-as-specialists over A2A, MCP sidecars, transparent human-on-the-loop.
-- **[vFL](https://github.com/ajbarea/vFL)** — Performance. Same aggregation strategies as Rust kernels via PyO3 + FastMCP + Prefect Horizon. The Rust ports are first prototyped here.
-- **[ldqis](https://github.com/ajbarea/ldqis)** — Lab identity. Public website for the Laboratory of Data Quality and Intelligent Security at RIT.
-- **[techne](https://github.com/ajbarea/techne)** — Governance. Claude Code skills plugin: audits, lint/test gates, cross-repo drift detection.
-- **[ajbarea.github.io](https://github.com/ajbarea/ajbarea.github.io)** — Visibility. Portfolio that tells the ecosystem story end-to-end.
-
----
-
 ## Documentation
 
 Full docs at **[ajbarea.github.io/phalanx-fl](https://ajbarea.github.io/phalanx-fl/)**, built with [Zensical](https://zensical.dev).
