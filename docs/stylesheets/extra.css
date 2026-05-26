@@ -1232,7 +1232,8 @@ body[data-md-color-scheme="slate"] .mermaid svg .edgeLabel span {
   box-shadow: 0 6px 24px color-mix(in srgb, var(--intefl-teal) 28%, transparent);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }/* Brand mark in the footer copyright (inverted to light on the dark footer) */
-.md-copyright .brand-mark {
+.md-copyright .brand-mark,
+.landing-footer .brand-mark {
   height: 1em;
   width: auto;
   vertical-align: -0.18em;
