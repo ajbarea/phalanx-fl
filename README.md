@@ -187,6 +187,10 @@ Full docs at **[ajbarea.github.io/phalanx-fl](https://ajbarea.github.io/phalanx-
 
 </div>
 
+## Why "phalanx"
+
+Greek φάλαγξ: the infantry line of interlocked shields, where each guards the man beside him and no single break undoes the wall. That's the wager of robust federated learning — strength in many clients, the line holding even when some shields turn (Byzantine faults, poisoned updates).
+
 ---
 
 <div align="center">
