@@ -44,7 +44,7 @@ def run_simulation(
     """Run Flower simulation without relying on deprecated public shim when possible.
 
     Flower is deprecating `flwr.simulation.run_simulation` in favor of `flwr run`.
-    Until InteFL fully migrates to CLI-managed runs, call the underlying
+    Until Phalanx fully migrates to CLI-managed runs, call the underlying
     simulation engine entrypoint used by Flower CLI and fall back for compatibility.
     """
     try:

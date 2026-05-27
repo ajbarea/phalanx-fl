@@ -2,7 +2,7 @@
 
 ## Option A — Docker Compose :material-star:{ title="Recommended" }
 
-The fastest way to run InteFL. Docker Compose brings up the full stack — API, frontend, Redis, Celery worker, documentation site, and optional Celery monitor — with a single command. No Python environment or Node.js install required.
+The fastest way to run Phalanx. Docker Compose brings up the full stack — API, frontend, Redis, Celery worker, documentation site, and optional Celery monitor — with a single command. No Python environment or Node.js install required.
 
 !!! info "Prerequisites"
 

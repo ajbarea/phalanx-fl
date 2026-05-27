@@ -57,7 +57,7 @@ def main() -> int:
     Returns:
         0 if all checks pass, 1 if any fail.
     """
-    print("\n✅ IntelliFL Validate")
+    print("\n✅ Phalanx Validate")
     print("=" * 60)
     logger.info("Starting validation...")
 

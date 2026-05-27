@@ -1,4 +1,4 @@
-"""Shared runtime for the IntelliFL developer workflow.
+"""Shared runtime for the Phalanx developer workflow.
 
 Provides the primitives that every `intellifl-dev` invocation uses:
 

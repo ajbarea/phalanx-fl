@@ -27,7 +27,7 @@ def clean_build(clean_out: bool = False) -> None:
         clean_out: If True, also clean the out/ directory containing
             experiment results. Preserves .gitkeep file.
     """
-    print("\n🧹 IntelliFL Cleanup")
+    print("\n🧹 Phalanx Cleanup")
     print("=" * 60)
     logger.info("Starting cleanup...")
     root = Path(".")

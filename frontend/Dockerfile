@@ -15,12 +15,12 @@ RUN npm run build
 # Production stage
 FROM nginx:alpine
 
-LABEL org.opencontainers.image.title="IntelliFL" \
+LABEL org.opencontainers.image.title="Phalanx" \
       org.opencontainers.image.description="Web UI for federated learning simulations" \
       org.opencontainers.image.source="https://github.com/dmitrykoro/fl-execution-framework" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.documentation="https://intellifl.readthedocs.io" \
-      org.opencontainers.image.vendor="IntelliFL Contributors" \
+      org.opencontainers.image.vendor="Phalanx Contributors" \
       com.docker.scout.disable="false"
 
 RUN rm /etc/nginx/conf.d/default.conf

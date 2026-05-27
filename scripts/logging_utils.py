@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Shared logging utilities for IntelliFL scripts.
+"""Shared logging utilities for Phalanx scripts.
 
 Provides consistent logging across all scripts with file and console output.
 """

@@ -1,4 +1,4 @@
-# IntelliFL — Active Implementation Log
+# Phalanx — Active Implementation Log
 
 Rolling notes on in-flight work. See `ROADMAP.md` for the stable plan.
 When a roadmap item ships, collapse its notes here into a one-liner under

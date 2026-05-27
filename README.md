@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="docs/assets/phalanx-hero.png" alt="InteFL" width="600">
+<img src="docs/assets/phalanx-hero.png" alt="Phalanx" width="600">
 
-# InteFL
+# Phalanx
 
 ### Federated Learning Execution & Research Framework
 
@@ -21,7 +21,7 @@
 
 ## What is this?
 
-InteFL is a full-stack platform for running federated learning simulations with configurable aggregation strategies, adversarial attacks, and comprehensive metrics collection. Define experiments in JSON, execute them with one command, and compare results across strategies.
+Phalanx is a full-stack platform for running federated learning simulations with configurable aggregation strategies, adversarial attacks, and comprehensive metrics collection. Define experiments in JSON, execute them with one command, and compare results across strategies.
 
 ```bash
 $ uv run intellifl-dev sim

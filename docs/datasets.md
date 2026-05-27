@@ -4,7 +4,7 @@ The `dataset_keyword` field in your config selects the dataset and automatically
 
 !!! tip "Quick start"
 
-    Pick a keyword from the tables below, drop it into `"dataset_keyword"` in your config, and InteFL handles the rest — partitioning, transforms, and model selection.
+    Pick a keyword from the tables below, drop it into `"dataset_keyword"` in your config, and Phalanx handles the rest — partitioning, transforms, and model selection.
 
 ---
 

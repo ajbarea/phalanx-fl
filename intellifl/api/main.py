@@ -1,4 +1,4 @@
-"""IntelliFL API - FastAPI application for federated learning simulation management."""
+"""Phalanx API - FastAPI application for federated learning simulation management."""
 
 from __future__ import annotations
 
@@ -139,7 +139,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(title="Phalanx API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

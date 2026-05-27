@@ -1,6 +1,6 @@
 # :material-api: API Reference
 
-The InteFL backend is a FastAPI application running on port `8000`. Start it with:
+The Phalanx backend is a FastAPI application running on port `8000`. Start it with:
 
 ```bash title="Start the API server"
 uv run intellifl-dev dev

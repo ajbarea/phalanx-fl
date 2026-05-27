@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Setup script for IntelliFL framework.
+"""Setup script for Phalanx framework.
 
 Orchestrates the complete project setup including dependency installation,
 dataset preparation, and optional frontend setup. Gracefully handles missing
@@ -83,9 +83,9 @@ def main() -> int:
     Returns:
         0 on success, 1 on failure.
     """
-    print("\n⚙️  IntelliFL Setup")
+    print("\n⚙️  Phalanx Setup")
     print("=" * 60)
-    logger.info("Starting IntelliFL setup...")
+    logger.info("Starting Phalanx setup...")
 
     project_root = Path(__file__).parent.parent
 

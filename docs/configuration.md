@@ -50,7 +50,7 @@ This runs two strategies back-to-back, differing only in `num_std_dev`. See `con
 
 ## :material-shield-search: Research Integrity & Validation
 
-InteFL enforces a **Scientific Integrity First** policy. To ensure experimental transparency and reproducibility (aligned with IEEE Std and NeurIPS/ICML checklists), the framework uses a "fail-fast" validation approach: it **rejects** incompatible or mathematically unsound configurations rather than attempting to silently auto-correct them.
+Phalanx enforces a **Scientific Integrity First** policy. To ensure experimental transparency and reproducibility (aligned with IEEE Std and NeurIPS/ICML checklists), the framework uses a "fail-fast" validation approach: it **rejects** incompatible or mathematically unsound configurations rather than attempting to silently auto-correct them.
 
 ### Key Constraints
 

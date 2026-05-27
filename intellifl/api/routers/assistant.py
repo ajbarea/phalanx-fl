@@ -1,5 +1,5 @@
 """
-Assistant chat endpoint for IntelliFL.
+Assistant chat endpoint for Phalanx.
 
 Placeholder implementation - will be replaced with Dima's FL Agent integration.
 """
@@ -44,4 +44,4 @@ async def chat(request: ChatRequest) -> ChatResponse:
         if content and isinstance(content, list) and len(content) > 0:
             last_msg = content[0].get("text", "")
 
-    return ChatResponse(message=f"[IntelliFL Assistant] You said: {last_msg}")
+    return ChatResponse(message=f"[Phalanx Assistant] You said: {last_msg}")

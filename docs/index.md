@@ -8,7 +8,7 @@ hide:
 
 <div class="hero" markdown>
 
-# <span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 8px; font-size: 1.2em;">scatter_plot</span> InteFL
+# <span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 8px; font-size: 1.2em;">scatter_plot</span> Phalanx
 
 **Federated learning execution & research framework**
 { .hero-subtitle }
@@ -35,15 +35,15 @@ hide:
 
 <section class="landing-section landing-section--intro">
   <div class="section-inner">
-    <h2 class="section-title">What Is InteFL?</h2>
-    <p class="section-lead">InteFL is a full-stack federated learning platform for running, attacking, and defending distributed ML simulations. Configure a JSON file, launch a simulation, and get CSV metrics, PDF plots, and attack snapshot reports &mdash; all orchestrated through a React dashboard or CLI.</p>
+    <h2 class="section-title">What Is Phalanx?</h2>
+    <p class="section-lead">Phalanx is a full-stack federated learning platform for running, attacking, and defending distributed ML simulations. Configure a JSON file, launch a simulation, and get CSV metrics, PDF plots, and attack snapshot reports &mdash; all orchestrated through a React dashboard or CLI.</p>
   </div>
 </section>
 
 <section class="landing-section landing-section--promise">
   <div class="section-inner">
     <h2 class="section-title">Configure. Simulate. Analyse.</h2>
-    <p class="section-lead">Define your experiment in a single JSON config. InteFL handles dataset partitioning, client orchestration, adversarial injection, and results collection. Compare strategies side-by-side. Reproduce every run.<br><strong>Research-grade reproducibility, out of the box.</strong></p>
+    <p class="section-lead">Define your experiment in a single JSON config. Phalanx handles dataset partitioning, client orchestration, adversarial injection, and results collection. Compare strategies side-by-side. Reproduce every run.<br><strong>Research-grade reproducibility, out of the box.</strong></p>
   </div>
 </section>
 

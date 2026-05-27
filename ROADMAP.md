@@ -1,4 +1,4 @@
-# IntelliFL — Active TODO
+# Phalanx — Active TODO
 
 Extracted from planning docs across `demo/`, root, and `.kiro/`. Each item references
 its source doc. Items already implemented in source code have been removed.
@@ -9,6 +9,38 @@ its source doc. Items already implemented in source code have been removed.
 - [uv](https://docs.astral.sh/uv/) | [uv Docker Guide](https://docs.astral.sh/uv/guides/integration/docker/) | [Ruff](https://docs.astral.sh/ruff/) | [ty](https://docs.astral.sh/ty/)
 - [Celery User Guide](https://docs.celeryq.dev/en/stable/userguide/index.html)
 - [FastAPI Reference](https://fastapi.tiangolo.com/reference/) | [HuggingFace Docs](https://huggingface.co/docs)
+
+---
+
+## Rebrand: InteFL / IntelliFL → Phalanx (de-fork) — display rebrand shipped 2026-05-27
+
+> Decision 2026-05-27 (AJ): phalanx-fl has diverged far enough from the team's **InteFL**
+> RIT-capstone fork that it is its own project, not a fork. The **user-facing** brand is now
+> **Phalanx** everywhere; the internal Python package keeps the name `intellifl` (see "Deliberately
+> kept" — the package rename was considered and declined).
+
+**Shipped — display de-brand (2026-05-27):** every `IntelliFL` / `InteFL` display string → **Phalanx**
+across README, `docs/**` prose, `frontend/` (`index.html` `<title>`, `App.jsx` logo alt, assistant adapter),
+the FastAPI app (`title="Phalanx API"`), dev-CLI `--help` text + script banners (setup / clean / validate /
+upgrade), `Dockerfile` + `frontend/Dockerfile` OCI labels, and the `Makefile` / `.shellcheckrc` / `.env.example` /
+`IMPL.md` headers. Verified: lowercase-`intellifl` count unchanged (1037, package untouched); no test asserts
+the old brand strings; `make lint` green. The generated `CITATION.bib` was **left crediting the team framework** —
+see "Preserve" below.
+
+**Deliberately kept — NOT drift, do not re-flag:** the package rename was **declined** (AJ, 2026-05-27). The
+internal identifier `intellifl` is invisible to users, and a ~1037-reference rename (package dir, every import,
+`tests/`, `pyproject.toml` `name`, the `intellifl-dev` console script) is high-risk for zero user-visible gain.
+These stay as-is on purpose: the `intellifl/` package + `intellifl-dev` CLI, the `--intefl-*` CSS variables in
+`docs/stylesheets/extra.css` (awaiting a from-scratch stylesheet rewrite), and `sonar.projectKey=fl-execution-framework`.
+Repo = `phalanx-fl`, brand = "Phalanx", package = `intellifl` is a normal and fine split.
+
+**Preserve (lineage / correct attribution — never rebrand):** `docs/research/rit-capstone-2025-intellifl/`, the
+capstone nav label in `zensical.toml`, and the "IntelliFL predecessor" prose in `docs/research/index.md` document
+the project's *origin* as the RIT IntelliFL/InteFL capstone. **Generated `CITATION.bib` keeps `author = {IntelliFL
+Execution Framework}` + the team repo `dmitrykoro/fl-execution-framework`** (AJ, 2026-05-27): that is the real,
+team-published framework the experiments actually run on, and there is no separate Phalanx paper — so crediting
+IntelliFL is the scholarly-correct attribution, not fork residue. The de-fork story is "Phalanx grew out of the
+InteFL capstone," not "InteFL never existed."
 
 ---
 

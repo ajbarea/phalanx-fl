@@ -9,7 +9,7 @@ import { useLocalRuntime } from '@assistant-ui/react';
 import PropTypes from 'prop-types';
 
 /**
- * Custom adapter for IntelliFL backend.
+ * Custom adapter for Phalanx backend.
  * Connects to /api/agent/chat endpoint (placeholder for FL Agent).
  */
 const USE_DEMO_RESPONSES = true;

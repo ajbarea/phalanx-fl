@@ -44,7 +44,7 @@ def main() -> int:
     Returns:
         0 on success, 1 on failure.
     """
-    print("\n🔄 IntelliFL Upgrade")
+    print("\n🔄 Phalanx Upgrade")
     print("=" * 60)
     logger.info("Starting dependency upgrade...")
 

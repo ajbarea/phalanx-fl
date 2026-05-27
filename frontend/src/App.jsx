@@ -70,7 +70,7 @@ function App() {
               <Navbar.Brand as={Link} to="/" className="d-flex align-items-center gap-2">
                 <img
                   src="/intellifl.png"
-                  alt="IntelliFL Logo"
+                  alt="Phalanx Logo"
                   height={56}
                   width={56}
                   style={{ objectFit: 'contain' }}

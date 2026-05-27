@@ -65,11 +65,11 @@ RUN mkdir -p /app/out /app/datasets && chown -R appuser:appuser /app/out /app/da
 USER appuser
 
 # Validate that Python can import the package (catches missing dependencies early)
-RUN python -c "import intellifl; print(f'IntelliFL {intellifl.__name__} loaded successfully')"
+RUN python -c "import intellifl; print(f'Phalanx {intellifl.__name__} loaded successfully')"
 
 # OCI labels for artifact identification and citation
 # Includes provenance and SBOM hints for vulnerability scanning
-LABEL org.opencontainers.image.title="IntelliFL" \
+LABEL org.opencontainers.image.title="Phalanx" \
       org.opencontainers.image.description="Federated Learning simulation framework for Byzantine-resilient aggregation research" \
       org.opencontainers.image.authors="AJ Barea <ajbareaa@gmail.com>" \
       org.opencontainers.image.source="https://github.com/ajbarea/phalanx-fl" \
@@ -77,7 +77,7 @@ LABEL org.opencontainers.image.title="IntelliFL" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.created="2025-01-01" \
       org.opencontainers.image.documentation="https://ajbarea.github.io/phalanx-fl/" \
-      org.opencontainers.image.vendor="IntelliFL Contributors" \
+      org.opencontainers.image.vendor="Phalanx Contributors" \
       com.docker.sbom.scan-token="no-token" \
       com.docker.scout.disable="false"
 

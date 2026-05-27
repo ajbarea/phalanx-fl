@@ -1,4 +1,4 @@
-"""Cross-platform developer entrypoints for IntelliFL.
+"""Cross-platform developer entrypoints for Phalanx.
 
 The canonical local workflow is:
 
@@ -265,7 +265,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(
         prog="intellifl-dev",
-        description="Cross-platform developer entrypoints for IntelliFL.",
+        description="Cross-platform developer entrypoints for Phalanx.",
     )
     parser.add_argument("command", nargs="?", default="help")
     parser.add_argument("args", nargs=argparse.REMAINDER)

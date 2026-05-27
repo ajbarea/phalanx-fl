@@ -1,5 +1,5 @@
 ##
-## IntelliFL — Federated Learning Framework
+## Phalanx — Federated Learning Framework
 ## Multi-client federated learning with Ray, Flower, and PyTorch
 ##
 ## Usage:

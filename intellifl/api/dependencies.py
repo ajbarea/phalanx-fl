@@ -1,4 +1,4 @@
-"""Shared dependencies and utilities for the IntelliFL API."""
+"""Shared dependencies and utilities for the Phalanx API."""
 
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 # :material-bug-outline: Attacks
 
-InteFL supports injecting adversarial attacks into simulations via an `attack_schedule` in the strategy config. The schedule is a list of attack entries, each active for a range of rounds and targeting a subset of clients.
+Phalanx supports injecting adversarial attacks into simulations via an `attack_schedule` in the strategy config. The schedule is a list of attack entries, each active for a range of rounds and targeting a subset of clients.
 
 ---
 
@@ -314,7 +314,7 @@ No extra parameters required.
 
 ### `alternating_min_poisoning`
 
-**What it does:** This is the most sophisticated model poisoning attack in InteFL. Instead of applying a fixed scaling factor or random noise, it uses an optimization algorithm (Projected Gradient Descent) to find the *worst possible* model update that still looks legitimate. It works in 5 steps:
+**What it does:** This is the most sophisticated model poisoning attack in Phalanx. Instead of applying a fixed scaling factor or random noise, it uses an optimization algorithm (Projected Gradient Descent) to find the *worst possible* model update that still looks legitimate. It works in 5 steps:
 
 1. Compute the honest local update (what the client would normally send).
 2. Calculate a "trust-region" budget — how far the update can deviate before defenses would flag it.
@@ -389,7 +389,7 @@ No extra parameters required.
 
 ## :material-camera-outline: Attack snapshots
 
-When `save_attack_snapshots: true`, InteFL saves before-and-after snapshots of attacked client data each round. This is useful for visualising and auditing what the attacks actually changed.
+When `save_attack_snapshots: true`, Phalanx saves before-and-after snapshots of attacked client data each round. This is useful for visualising and auditing what the attacks actually changed.
 
 | Config field | Description |
 |---|---|
