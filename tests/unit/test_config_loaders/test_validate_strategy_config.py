@@ -1673,3 +1673,72 @@ class TestStrictModeValidation:
             validate_strategy_config(config)
 
         assert "Trimmed Mean ratio must be < 0.5" in str(exc_info.value)
+
+
+class TestRemovalConfigRejections:
+    """remove_clients misconfigurations are hard rejections, not silent warnings.
+
+    These configs run with strict_mode=False (else the strict_mode+remove_clients
+    rejection fires first) so the removal-specific checks are reached.
+    """
+
+    @staticmethod
+    def _removal_config(**overrides: Any) -> dict[str, Any]:
+        config = {
+            "aggregation_strategy_keyword": "trust",
+            "remove_clients": True,
+            "strict_mode": False,
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": False,
+            "num_of_rounds": 5,
+            "num_of_clients": 10,
+            "num_of_malicious_clients": 2,
+            "attack_schedule": [],
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
+            "training_subset_fraction": 1.0,
+            "training_device": "cpu",
+            "cpus_per_client": 1,
+            "gpus_per_client": 0,
+            "min_fit_clients": 5,
+            "min_evaluate_clients": 5,
+            "min_available_clients": 5,
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 1,
+            "batch_size": 32,
+            "begin_removing_from_round": 2,
+            "trust_threshold": 0.7,
+            "beta_value": 0.5,
+            "num_of_clusters": 1,
+        }
+        config.update(overrides)
+        return config
+
+    def test_begin_removing_after_last_round_is_rejected(self):
+        """begin_removing_from_round >= num_of_rounds means removal never fires → reject."""
+        config = self._removal_config(begin_removing_from_round=5, num_of_rounds=5)
+        with pytest.raises(ValidationError) as exc_info:
+            validate_strategy_config(config)
+        message = str(exc_info.value)
+        assert "begin_removing_from_round" in message
+        assert "never" in message.lower()
+
+    def test_strict_termination_with_full_participation_is_rejected(self):
+        """STRICT termination + min_fit == num_of_clients means any removal ends the run → reject."""
+        config = self._removal_config(
+            termination_policy="strict",
+            min_fit_clients=10,
+            min_evaluate_clients=10,
+            min_available_clients=10,
+        )
+        with pytest.raises(ValidationError) as exc_info:
+            validate_strategy_config(config)
+        assert "terminate" in str(exc_info.value).lower()
+
+    def test_valid_removal_config_still_passes(self):
+        """A sane removal config (removal fires, graceful policy) must not raise."""
+        config = self._removal_config(begin_removing_from_round=2, num_of_rounds=5)
+        validate_strategy_config(config)

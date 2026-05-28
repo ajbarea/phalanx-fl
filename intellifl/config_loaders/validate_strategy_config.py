@@ -575,12 +575,15 @@ def _apply_strict_mode(config: dict) -> None:
         )
 
 
-def validate_removal_configuration(config: dict) -> tuple[dict, list[str]]:
+def validate_removal_configuration(config: dict) -> None:
     """
     Validate client removal configuration for consistency and conflicts.
 
     Byzantine-robust federated learning requires careful handling of client removal
-    to maintain minimum federation size for meaningful aggregation.
+    to maintain minimum federation size for meaningful aggregation. Misconfigurations
+    are hard rejections (stop-before-start), not warnings: a removal config that can
+    never fire, or that terminates the run on the first removal, wastes a full
+    GPU/LLM training run before the researcher sees anything is wrong.
     References:
     - Byzantine-Robust FL (arXiv 2024): https://arxiv.org/abs/2402.12780
     - Centralized FL Security (SpringerLink 2022): https://link.springer.com/chapter/10.1007/978-3-032-03705-3_10
@@ -588,14 +591,11 @@ def validate_removal_configuration(config: dict) -> tuple[dict, list[str]]:
     Args:
         config: Configuration dictionary to validate.
 
-    Returns:
-        (config, warnings): Validated config and list of warning messages.
+    Raises:
+        ValidationError: If the removal configuration is inconsistent.
     """
-    warnings: list[str] = []
-    modified_config = config.copy()
-
     if not config.get("remove_clients", False):
-        return modified_config, warnings  # No removal, no issues
+        return  # No removal, no issues
 
     num_clients = config["num_of_clients"]
     min_fit = config.get("min_fit_clients", num_clients)
@@ -603,19 +603,35 @@ def validate_removal_configuration(config: dict) -> tuple[dict, list[str]]:
     num_rounds = config["num_of_rounds"]
     termination_policy = config.get("termination_policy", "graceful")
 
-    # Check: begin_removing_from_round is before last round
+    # STRICT REJECTION: removal that can never fire wastes a full training run.
     if begin_removing >= num_rounds:
-        warnings.append(
-            f"begin_removing_from_round ({begin_removing}) >= num_of_rounds "
-            f"({num_rounds}). Removal will never trigger."
+        raise ValidationError(
+            "CONFIG REJECTED: client removal can never trigger\n"
+            "\n"
+            "Reason:\n"
+            f"  - begin_removing_from_round ({begin_removing}) >= num_of_rounds ({num_rounds})\n"
+            "  - removal would start at or after the final round, so it never fires\n"
+            "\n"
+            "Fix:\n"
+            f"  - Set 'begin_removing_from_round' < num_of_rounds ({num_rounds})\n"
+            "  - Or set 'remove_clients': false if removal is not intended\n"
         )
 
-    # Check: min_fit_clients feasible with removal
+    # STRICT REJECTION: STRICT termination + full participation ends the run on the
+    # first removal, so the experiment never actually exercises removal.
     if termination_policy == "strict" and min_fit == num_clients:
-        warnings.append(
-            "STRICT termination + min_fit_clients == num_of_clients "
-            "means any removal will terminate experiment. "
-            "Consider 'graceful' or 'adaptive' policy."
+        raise ValidationError(
+            "CONFIG REJECTED: STRICT termination ends the run on the first removal\n"
+            "\n"
+            "Reason:\n"
+            f"  - termination_policy='strict' with min_fit_clients ({min_fit}) == "
+            f"num_of_clients ({num_clients})\n"
+            "  - the first client removal drops below min_fit_clients and immediately "
+            "terminates the experiment\n"
+            "\n"
+            "Fix:\n"
+            "  - Use 'graceful' or 'adaptive' termination_policy\n"
+            f"  - Or set min_fit_clients < num_of_clients ({num_clients})\n"
         )
 
     # STRICT REJECTION: strict_mode incompatible with removal
@@ -639,8 +655,6 @@ def validate_removal_configuration(config: dict) -> tuple[dict, list[str]]:
             "Reference: https://arxiv.org/abs/2402.12780 (Byzantine-Robust FL)"
         )
 
-    return modified_config, warnings
-
 
 def validate_strategy_config(config: dict) -> None:
     """Validate simulation config against schema and strategy-specific constraints.
@@ -655,13 +669,8 @@ def validate_strategy_config(config: dict) -> None:
     # Validates config structure, types, and basic constraints against JSON schema
     validate(instance=config, schema=config_schema)
 
-    # Validate removal configuration conflicts
-    config_corrected, removal_warnings = validate_removal_configuration(config)
-    config.update(config_corrected)
-    if removal_warnings:
-        logging.warning("Client Removal Configuration Warnings:")
-        for warning in removal_warnings:
-            logging.warning(f"  - {warning}")
+    # Validate removal configuration conflicts (raises on misconfiguration)
+    validate_removal_configuration(config)
 
     _validate_dependent_params(config)
 
