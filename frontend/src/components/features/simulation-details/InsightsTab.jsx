@@ -1,5 +1,6 @@
 import { Card, Alert, ListGroup, Spinner } from 'react-bootstrap';
 import { formatAccuracy, formatChange, formatDetectionMetric } from '@utils/formatters';
+import { SimulationResultState } from '@components/common/Empty/SimulationResultState';
 
 export function InsightsTab({ details, csvData, status }) {
   // Check if CSV data is still loading (status is completed but no CSV data yet)
@@ -169,6 +170,10 @@ export function InsightsTab({ details, csvData, status }) {
 
   const insights = status === 'completed' ? generateInsights() : [];
 
+  if (!isLoadingCsvData && insights.length === 0) {
+    return <SimulationResultState noun="Insights" status={status} />;
+  }
+
   return (
     <Card className="mt-3">
       <Card.Body>
@@ -177,7 +182,7 @@ export function InsightsTab({ details, csvData, status }) {
             <Spinner animation="border" variant="primary" size="sm" className="me-2" />
             <span className="text-muted">Loading insights...</span>
           </div>
-        ) : insights.length > 0 ? (
+        ) : (
           <>
             <h5 className="mb-3">Educational Insights</h5>
             <p className="text-muted mb-3">
@@ -203,10 +208,6 @@ export function InsightsTab({ details, csvData, status }) {
               ))}
             </ListGroup>
           </>
-        ) : (
-          <Alert variant="info">
-            Insights will be generated once the simulation completes and metrics are available.
-          </Alert>
         )}
       </Card.Body>
     </Card>

@@ -18,6 +18,7 @@ import { Form, Button, ButtonGroup } from 'react-bootstrap';
 import { useTheme } from '../contexts/ThemeContext';
 import RoundMetricsPlot from './RoundMetricsPlot';
 import { getAllPlotData } from '@api/endpoints/simulations';
+import { SimulationResultState } from '@components/common/Empty/SimulationResultState';
 import { CHART_COLORS, CHART_UI_COLORS, MALICIOUS_COLORS } from '@constants/ui';
 import { useResponsiveChartHeight } from '@hooks/useResponsiveChartHeight';
 import { extractAttackPhases, getAttackPhaseColor, getChartColors } from './charts/chartUtils';
@@ -160,14 +161,7 @@ export default function InteractivePlots({ simulation }) {
 
   if (loading) return <div className="text-center p-4">Loading interactive plots...</div>;
   if (!plotData) {
-    if (simulation.status === 'running') {
-      return (
-        <div className="text-center p-4">
-          Plots will be available when the simulation completes...
-        </div>
-      );
-    }
-    return <div className="text-center p-4">No plot data available</div>;
+    return <SimulationResultState noun="Plots" status={simulation.status} />;
   }
 
   const metrics = getAvailableMetrics(plotData.per_client_metrics);

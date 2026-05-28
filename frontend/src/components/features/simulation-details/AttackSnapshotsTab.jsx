@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, Alert, Spinner, Badge, Row, Col, Form, Modal, Button, Nav } from 'react-bootstrap';
 import { apiClient } from '@api/client';
 import { ImageLightbox } from '@components/common/ImageLightbox';
+import { SimulationResultState } from '@components/common/Empty/SimulationResultState';
 import {
   ATTACK_DESCRIPTIONS,
   getOrderedVisualizationKeys,
@@ -211,15 +212,7 @@ export function AttackSnapshotsTab({ simulationId, status }) {
     : false;
 
   if (status !== 'completed') {
-    return (
-      <Card className="mt-3">
-        <Card.Body>
-          <Alert variant="info">
-            Attack snapshots will be available once the simulation completes.
-          </Alert>
-        </Card.Body>
-      </Card>
-    );
+    return <SimulationResultState noun="Attack snapshots" status={status} />;
   }
 
   if (loading) {
