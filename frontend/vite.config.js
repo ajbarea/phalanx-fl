@@ -60,5 +60,29 @@ export default defineConfig(({ mode }) => {
       },
     },
     base: '/',
+    build: {
+      // The shared chunk (react + router + query) is legitimately ~0.9MB; the leaf splits
+      // below are the real caching win. Bump the advisory limit rather than over-split.
+      chunkSizeWarningLimit: 1100,
+      rollupOptions: {
+        output: {
+          // research(2026-05): split only *leaf* vendor libs (charts/terminal/assistant/
+          // bootstrap) that depend on react one-way into cacheable chunks, so an app-only
+          // change no longer busts the whole ~1.7MB bundle's cache. React core is left in the
+          // shared chunk on purpose — pulling it into its own chunk produced a circular
+          // vendor<->vendor-react chunk. Vite 8 replaces manualChunks with `codeSplitting`.
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return undefined;
+            if (id.includes('recharts') || id.includes('/d3-')) return 'vendor-charts';
+            if (id.includes('@xterm')) return 'vendor-xterm';
+            if (id.includes('@assistant-ui') || id.includes('react-markdown'))
+              return 'vendor-assistant';
+            if (id.includes('react-bootstrap') || id.includes('/bootstrap/'))
+              return 'vendor-bootstrap';
+            return 'vendor';
+          },
+        },
+      },
+    },
   };
 });
