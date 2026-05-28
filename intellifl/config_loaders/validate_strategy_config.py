@@ -507,6 +507,15 @@ def _validate_attack_schedule(config: dict) -> None:
             "Config is the single source of truth - it must reflect intended execution."
         )
 
+    # research(2026-05): num_of_malicious_clients (static dataset-poisoning, baked in at
+    # load time) and attack_schedule (dynamic in-memory attacks) are orthogonal threat
+    # vectors (data-poisoning vs model/update-poisoning), and FL robustness work
+    # deliberately combines them (hybrid attacks; cf. arXiv:2004.10020). We intentionally
+    # do NOT gate their coexistence. The preserve_dataset rejection above is different: it
+    # fires on incompatible execution modes (pre-poisoned filesystem vs in-memory), not on
+    # two coexisting vectors. A "num_of_malicious_clients: 0 when attack_schedule is set"
+    # gate would break valid hybrid configs and the trust/rfa/trimmed_mean tests. See ROADMAP.
+
 
 def _validate_llm_parameters(strategy_config: dict) -> None:
     """Validate LLM-specific parameters are present and valid."""

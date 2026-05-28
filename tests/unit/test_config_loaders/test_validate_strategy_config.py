@@ -24,6 +24,10 @@ class TestValidateStrategyConfig:
 
     def test_validate_strategy_config_valid_trust_strategy(self):
         """Test validation of valid trust strategy configuration."""
+        # Decision-lock (ROADMAP "Static + dynamic attack coexistence", 2026-05-28):
+        # this config intentionally pairs num_of_malicious_clients: 2 (static dataset-
+        # poisoning) with a non-empty attack_schedule (dynamic). If a future change adds a
+        # gate rejecting that coexistence, THIS test breaks — fix the gate, not the config.
         config = {
             "aggregation_strategy_keyword": "trust",
             "remove_clients": False,
