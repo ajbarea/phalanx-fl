@@ -391,20 +391,24 @@ def get_simulations() -> list[SimulationMetadata]:
     return sorted(simulations, key=lambda s: s.simulation_id, reverse=True)
 
 
+def _read_simulation_config(sim_path: Path) -> dict[str, Any]:
+    """Read and parse a simulation's config.json, raising 404/500 on failure."""
+    config_path = sim_path / "config.json"
+    if not config_path.is_file():
+        raise HTTPException(status_code=404, detail="Simulation config.json not found.")
+    try:
+        with config_path.open("r") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        raise HTTPException(status_code=500, detail="Could not read simulation config.")
+
+
 @router.get("/api/simulations/{simulation_id}", response_model=SimulationDetails)
 def get_simulation_details(
     sim_path: Path = Depends(get_simulation_path), simulation_id: str = ""
 ) -> SimulationDetails:
     """Return config, result files, and current status for a simulation."""
-    config_path = sim_path / "config.json"
-    if not config_path.is_file():
-        raise HTTPException(status_code=404, detail="Simulation config.json not found.")
-
-    try:
-        with config_path.open("r") as f:
-            config = json.load(f)
-    except (OSError, json.JSONDecodeError):
-        raise HTTPException(status_code=500, detail="Could not read simulation config.")
+    config = _read_simulation_config(sim_path)
 
     result_files = []
     for item in sim_path.rglob("*"):
@@ -437,15 +441,7 @@ def get_simulation_config(
     sim_path: Path = Depends(get_simulation_path),
 ) -> dict[str, Any]:
     """Return the raw config.json for a simulation."""
-    config_path = sim_path / "config.json"
-    if not config_path.is_file():
-        raise HTTPException(status_code=404, detail="Simulation config.json not found.")
-
-    try:
-        with config_path.open("r") as f:
-            return json.load(f)
-    except (OSError, json.JSONDecodeError):
-        raise HTTPException(status_code=500, detail="Could not read simulation config.")
+    return _read_simulation_config(sim_path)
 
 
 @router.get(
