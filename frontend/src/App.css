@@ -2478,6 +2478,21 @@ body {
   color: #b3a7e8;
 }
 
+/* Mat attack-visualization images: the matplotlib PNGs are light-themed, so on
+   the dark theme they glare. Frame them on an intentional white mat with padding,
+   a soft edge, and depth so they read as framed exhibits, not UI bugs. */
+.attack-viz-image {
+  background-color: #fff;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme='dark'] .attack-viz-image {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+}
+
 .btn-outline-primary {
   color: #6856ba !important;
   border-color: #6856ba !important;

@@ -58,7 +58,7 @@ export function AttackVisualizationCard({ snapshot, simulationId, onImageClick }
       <img
         src={`/api/simulations/${simulationId}/results/${vizPath}`}
         alt={`${snapshot.attack_type} - ${VIZ_TYPES[activeTab]?.label || activeTab}`}
-        className="img-fluid rounded"
+        className="img-fluid attack-viz-image"
         style={{ maxHeight: '400px', width: '100%', objectFit: 'contain', cursor: 'pointer' }}
         onClick={() => onImageClick?.({ ...snapshot, currentViz: activeTab })}
       />
