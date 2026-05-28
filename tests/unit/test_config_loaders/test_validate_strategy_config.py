@@ -1810,3 +1810,72 @@ class TestRemovalConfigRejections:
         """A sane removal config (removal fires, graceful policy) must not raise."""
         config = self._removal_config(begin_removing_from_round=2, num_of_rounds=5)
         validate_strategy_config(config)
+
+
+class TestAggregatedErrors:
+    """validate_strategy_config reports all errors at once, not fail-on-first."""
+
+    @staticmethod
+    def _base(**overrides: Any) -> dict[str, Any]:
+        config: dict[str, Any] = {
+            "aggregation_strategy_keyword": "krum",
+            "remove_clients": False,
+            "dataset_keyword": "pneumoniamnist",
+            "model_type": "cnn",
+            "use_llm": False,
+            "num_of_rounds": 4,
+            "num_of_clients": 12,
+            "num_of_malicious_clients": 0,
+            "attack_schedule": [],
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
+            "training_subset_fraction": 0.9,
+            "training_device": "cpu",
+            "cpus_per_client": 1,
+            "gpus_per_client": 0.0,
+            "min_fit_clients": 12,
+            "min_evaluate_clients": 12,
+            "min_available_clients": 12,
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 2,
+            "batch_size": 16,
+            "num_krum_selections": 8,
+        }
+        config.update(overrides)
+        return config
+
+    def test_multiple_schema_errors_reported_together(self):
+        """Several missing required fields are reported in a single aggregate."""
+        with pytest.raises(ValidationError) as exc_info:
+            validate_strategy_config({})
+
+        message = str(exc_info.value)
+        assert "schema errors found" in message
+        assert message.count("is a required property") >= 2
+        assert "aggregation_strategy_keyword" in message
+        assert "dataset_keyword" in message
+
+    def test_multiple_semantic_errors_reported_together(self):
+        """Schema-valid config failing both the Krum floor and strict_mode reports both."""
+        config = self._base(num_of_malicious_clients=5, min_fit_clients=8)
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_strategy_config(config)
+
+        message = str(exc_info.value)
+        assert "2 validation errors found" in message
+        assert "Krum aggregation requires n > 2f + 2" in message
+        assert "strict_mode requires all clients to participate" in message
+
+    def test_single_error_raised_verbatim_without_aggregate_header(self):
+        """A lone error keeps its original message and gains no aggregate wrapper."""
+        config = self._base(training_device="quantum")
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_strategy_config(config)
+
+        message = str(exc_info.value)
+        assert "is not one of ['cpu', 'gpu']" in message
+        assert "errors found" not in message

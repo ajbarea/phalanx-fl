@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
-from jsonschema import ValidationError, validate
+from jsonschema import Draft202012Validator, ValidationError
 
 config_schema = {
     "type": "object",
@@ -680,8 +681,27 @@ def validate_removal_configuration(config: dict) -> None:
         )
 
 
+def _raise_aggregated(errors: list[ValidationError], noun: str) -> None:
+    """Raise the collected validation errors as one.
+
+    A lone error is re-raised verbatim (message and schema context unchanged);
+    multiple errors are combined into a single numbered report so the researcher
+    fixes every problem in one pass instead of one error per run.
+    """
+    if not errors:
+        return
+    if len(errors) == 1:
+        raise errors[0]
+    summary = "\n\n".join(f"({i}) {e.message}" for i, e in enumerate(errors, 1))
+    raise ValidationError(f"CONFIG REJECTED: {len(errors)} {noun} found\n\n{summary}")
+
+
 def validate_strategy_config(config: dict) -> None:
     """Validate simulation config against schema and strategy-specific constraints.
+
+    Errors are aggregated, not fail-on-first: all schema violations are reported
+    together, and (when the schema is clean) all semantic/strategy violations are
+    reported together. A single error is raised verbatim.
 
     Args:
         config: Configuration dictionary to validate and populate.
@@ -689,18 +709,39 @@ def validate_strategy_config(config: dict) -> None:
     Raises:
         ValidationError: If config fails schema or constraint validation.
     """
+    # Phase 1 — structural/type validation. Collect every schema error at once.
+    schema_errors = sorted(
+        Draft202012Validator(config_schema).iter_errors(config),
+        key=lambda e: (str(list(e.path)), e.message),
+    )
+    _raise_aggregated(schema_errors, "schema errors")
 
-    # Validates config structure, types, and basic constraints against JSON schema
-    validate(instance=config, schema=config_schema)
+    # Phase 2 — semantic/strategy validation. The schema is valid here, so these
+    # checks can't crash on missing or mistyped fields; run them all and collect
+    # every failure. Order is load-bearing: validate_removal_configuration reads
+    # strict_mode before _apply_strict_mode assigns its default, and the schedule
+    # population mutates config on success.
+    semantic_errors: list[ValidationError] = []
 
-    # Validate removal configuration conflicts (raises on misconfiguration)
-    validate_removal_configuration(config)
+    def _collect(check: Callable[[dict], None]) -> None:
+        try:
+            check(config)
+        except ValidationError as e:
+            semantic_errors.append(e)
 
-    _validate_dependent_params(config)
-
+    _collect(validate_removal_configuration)
+    _collect(_validate_dependent_params)
     if config["use_llm"] is True:
-        _validate_llm_parameters(config)
+        _collect(_validate_llm_parameters)
 
-    _validate_attack_schedule(config)
-    _populate_client_selection(config)
-    _apply_strict_mode(config)
+    # _populate_client_selection assumes the per-entry fields validated by
+    # _validate_attack_schedule are present, so the two run as a dependent pair:
+    # a failed schedule skips population instead of crashing on its missing fields.
+    def _validate_and_populate_schedule(cfg: dict) -> None:
+        _validate_attack_schedule(cfg)
+        _populate_client_selection(cfg)
+
+    _collect(_validate_and_populate_schedule)
+    _collect(_apply_strict_mode)
+
+    _raise_aggregated(semantic_errors, "validation errors")
