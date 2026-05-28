@@ -1212,6 +1212,39 @@ class TestSavePlotDataJson:
 
         assert data["rounds"] == [1, 2, 3]
 
+    def test_json_export_includes_termination_when_present(
+        self, mock_simulation_for_json, mock_directory_handler_for_json, tmp_path
+    ):
+        """The interactive frontend reads plotData.termination to mark the round."""
+        (tmp_path / "termination.json").write_text(
+            json.dumps(
+                {
+                    "terminated_early": True,
+                    "termination_round": 7,
+                    "termination_reason": "GRACEFUL: 0 clients remain",
+                    "termination_policy": "graceful",
+                }
+            )
+        )
+        save_plot_data_json(mock_simulation_for_json, mock_directory_handler_for_json)
+
+        with open(tmp_path / "plot_data_0.json") as f:
+            data = json.load(f)
+
+        assert data["termination"]["terminated_early"] is True
+        assert data["termination"]["termination_round"] == 7
+
+    def test_json_export_termination_none_when_absent(
+        self, mock_simulation_for_json, mock_directory_handler_for_json, tmp_path
+    ):
+        """A run that didn't terminate early carries termination: null."""
+        save_plot_data_json(mock_simulation_for_json, mock_directory_handler_for_json)
+
+        with open(tmp_path / "plot_data_0.json") as f:
+            data = json.load(f)
+
+        assert data["termination"] is None
+
     def test_json_export_with_attack_schedule(
         self, mock_simulation_for_json, mock_directory_handler_for_json, tmp_path
     ):

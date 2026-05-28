@@ -239,6 +239,7 @@ def save_plot_data_json(
         if simulation_strategy.strategy_history.rounds_history.average_accuracy_std_history
         else None,
         "strategy_number": simulation_strategy.strategy_config.strategy_number,
+        "termination": _read_termination_event(directory_handler),
     }
 
     output_path = (

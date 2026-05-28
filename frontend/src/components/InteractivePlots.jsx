@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
+import { toast } from 'sonner';
 import {
   LineChart,
   Line,
@@ -97,6 +98,12 @@ export default function InteractivePlots({ simulation }) {
         const apiData = response.data;
         const data = apiData.strategies ? apiData.strategies[0].data : apiData;
         setPlotData(data);
+
+        if (data.termination?.terminated_early) {
+          toast.warning(`Run terminated early at round ${data.termination.termination_round}`, {
+            description: data.termination.termination_reason || undefined,
+          });
+        }
 
         const config = apiData.config?.shared_settings || apiData.config || simulation.config;
         setSimulationConfig(config);
@@ -323,6 +330,22 @@ export default function InteractivePlots({ simulation }) {
                     }}
                   />
                 )}
+                {plotData.termination?.terminated_early &&
+                  plotData.termination.termination_round != null && (
+                    <ReferenceLine
+                      x={plotData.termination.termination_round}
+                      stroke={theme === 'dark' ? '#f59e0b' : '#d97706'}
+                      strokeDasharray="2 4"
+                      strokeWidth={2}
+                      label={{
+                        value: `Terminated R${plotData.termination.termination_round}`,
+                        position: 'insideTopRight',
+                        fill: theme === 'dark' ? '#f59e0b' : '#d97706',
+                        fontSize: 9,
+                        fontWeight: 600,
+                      }}
+                    />
+                  )}
                 <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
                 <XAxis
                   dataKey="round"

@@ -66,6 +66,7 @@ function ChartPanel({
   visibleClients,
   attackPhases,
   defenseStartRound,
+  terminationRound,
   config,
   theme,
   chartColors,
@@ -116,6 +117,15 @@ function ChartPanel({
               stroke={defenseColors.removalStart}
               strokeDasharray="5 5"
               strokeWidth={1.5}
+            />
+          )}
+
+          {terminationRound != null && (
+            <ReferenceLine
+              x={terminationRound}
+              stroke={theme === 'dark' ? '#f59e0b' : '#d97706'}
+              strokeDasharray="2 4"
+              strokeWidth={2}
             />
           )}
 
@@ -191,6 +201,7 @@ ChartPanel.propTypes = {
   visibleClients: PropTypes.object.isRequired,
   attackPhases: PropTypes.array.isRequired,
   defenseStartRound: PropTypes.number,
+  terminationRound: PropTypes.number,
   config: PropTypes.object,
   theme: PropTypes.string.isRequired,
   chartColors: PropTypes.object.isRequired,
@@ -247,6 +258,11 @@ export default function SynchronizedMetricsChart({
     }
     return null;
   }, [config]);
+
+  const terminationRound = useMemo(
+    () => (plotData?.termination?.terminated_early ? plotData.termination.termination_round : null),
+    [plotData?.termination]
+  );
 
   const chartDataByMetric = useMemo(() => {
     const result = {};
@@ -352,6 +368,7 @@ export default function SynchronizedMetricsChart({
                 visibleClients={visibleClients}
                 attackPhases={attackPhases}
                 defenseStartRound={defenseStartRound}
+                terminationRound={terminationRound}
                 config={config}
                 theme={theme}
                 chartColors={chartColors}
