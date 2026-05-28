@@ -5,6 +5,33 @@ from collections.abc import Callable
 
 from jsonschema import Draft202012Validator, ValidationError
 
+# research(2026-05): cross-modal attack compatibility. Image-only attacks act on
+# (N,C,H,W) pixel tensors (poisoning.apply_gaussian_noise / apply_backdoor_trigger);
+# token_replacement acts on token IDs; label-flip + every weight/gradient-space attack
+# (weight_poisoning.*) is modality-agnostic. Allowlist-by-modality (whitelist > blocklist
+# for boundary validation: a new attack must be classified before it can run anywhere) per
+# arXiv:2603.20615's modality-segregated FL eval (TFLlib's image/text/tabular lanes) + 2026
+# input-validation surveys. SoT for the attack_type enum below; completeness-tested against
+# the data + weight dispatch registries in test_validate_attack_schedule.py.
+ATTACK_MODALITY: dict[str, str] = {
+    # data attacks — intellifl.attack_utils.poisoning
+    "label_flipping": "agnostic",
+    "targeted_label_flipping": "agnostic",
+    "gaussian_noise": "image",
+    "token_replacement": "text",
+    "backdoor_trigger": "image",
+    # weight/gradient-space attacks — intellifl.attack_utils.weight_poisoning
+    "model_poisoning": "agnostic",
+    "gradient_scaling": "agnostic",
+    "boosted_scaling": "agnostic",
+    "byzantine_perturbation": "agnostic",
+    "inner_product_manipulation": "agnostic",
+    "alternating_min_poisoning": "agnostic",
+}
+
+# cnn trains on image tensors, transformer on tokenized text; phalanx has no ViT path.
+_MODEL_TYPE_MODALITY: dict[str, str] = {"cnn": "image", "transformer": "text"}
+
 config_schema = {
     "type": "object",
     "properties": {
@@ -129,19 +156,7 @@ config_schema = {
                     "end_round": {"type": "integer", "minimum": 1},
                     "attack_type": {
                         "type": "string",
-                        "enum": [
-                            "label_flipping",
-                            "targeted_label_flipping",
-                            "gaussian_noise",
-                            "token_replacement",
-                            "backdoor_trigger",
-                            "model_poisoning",
-                            "gradient_scaling",
-                            "boosted_scaling",
-                            "byzantine_perturbation",
-                            "inner_product_manipulation",
-                            "alternating_min_poisoning",
-                        ],
+                        "enum": list(ATTACK_MODALITY),
                     },
                     "selection_strategy": {
                         "type": "string",
@@ -401,6 +416,33 @@ def _validate_attack_schedule(config: dict) -> None:
             )
 
         attack_type = entry.get("attack_type")
+
+        # Cross-modal compatibility: a model only ever sees its own modality's
+        # inputs, so an image-only attack on a text model (or vice versa) either
+        # silently no-ops or crashes mid-run. Agnostic (label/weight-space) attacks
+        # pass on any model_type. Stop-before-start beats wasting a GPU/LLM run.
+        attack_modality = ATTACK_MODALITY.get(attack_type)
+        model_modality = _MODEL_TYPE_MODALITY.get(config["model_type"])
+        if (
+            attack_modality in ("image", "text")
+            and model_modality is not None
+            and attack_modality != model_modality
+        ):
+            raise ValidationError(
+                f"{entry_desc}: attack {attack_type!r} is {attack_modality}-only and "
+                f"cannot run on a {config['model_type']} ({model_modality}) model.\n"
+                f"\n"
+                f"Reason:\n"
+                f"  - {attack_modality}-only attacks operate on {attack_modality} inputs; "
+                f"a {model_modality} model never sees them, so the attack silently "
+                f"no-ops or crashes mid-run.\n"
+                f"\n"
+                f"Fix:\n"
+                f"  - Use an attack compatible with model_type={config['model_type']!r}, "
+                f"or a modality-agnostic one (label_flipping, model_poisoning, "
+                f"gradient_scaling, ...).\n"
+                f"  - Or set model_type to match the attack's modality."
+            )
 
         if attack_type == "gaussian_noise":
             if "target_noise_snr" not in entry:

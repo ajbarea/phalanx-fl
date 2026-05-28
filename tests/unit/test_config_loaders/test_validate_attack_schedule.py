@@ -1252,3 +1252,139 @@ class TestPopulateClientSelection:
 
         with pytest.raises(ValidationError, match="Must select at least 1 malicious client"):
             _populate_client_selection(config)
+
+
+def _modality_config(model_type: str, attack_type: str) -> dict:
+    """Build a valid single-strategy config with one attack_schedule entry.
+
+    The only intentionally variable axes are model_type and the scheduled
+    attack_type, so the lone validation outcome under test is the cross-modal
+    compatibility check. Per-entry required params are filled in so a modality
+    mismatch is what surfaces, not a missing-param error.
+    """
+    entry: dict = {
+        "start_round": 1,
+        "end_round": 5,
+        "attack_type": attack_type,
+        "selection_strategy": "percentage",
+        "malicious_percentage": 0.2,
+    }
+    if attack_type == "gaussian_noise":
+        entry["target_noise_snr"] = 20
+        entry["attack_ratio"] = 1.0
+    elif attack_type == "targeted_label_flipping":
+        entry["source_class"] = 0
+        entry["target_class"] = 1
+    elif attack_type == "backdoor_trigger":
+        entry["target_class"] = 1
+    elif attack_type in ("boosted_scaling", "alternating_min_poisoning"):
+        entry["n_total"] = 5
+
+    return {
+        "aggregation_strategy_keyword": "trust",
+        "remove_clients": False,
+        "dataset_keyword": "medquad" if model_type == "transformer" else "femnist_iid",
+        "model_type": model_type,
+        "use_llm": False,
+        "num_of_rounds": 5,
+        "num_of_clients": 10,
+        "num_of_malicious_clients": 2,
+        "attack_schedule": [entry],
+        "show_plots": False,
+        "save_plots": True,
+        "save_csv": True,
+        "preserve_dataset": False,
+        "training_subset_fraction": 0.8,
+        "training_device": "cpu",
+        "cpus_per_client": 1,
+        "gpus_per_client": 0.0,
+        "min_fit_clients": 10,
+        "min_evaluate_clients": 10,
+        "min_available_clients": 10,
+        "evaluate_metrics_aggregation_fn": "weighted_average",
+        "num_of_client_epochs": 3,
+        "batch_size": 32,
+        "begin_removing_from_round": 2,
+        "trust_threshold": 0.7,
+        "beta_value": 0.5,
+        "num_of_clusters": 1,
+    }
+
+
+class TestCrossModalAttackValidation:
+    """Reject attacks whose data modality is incompatible with the model_type.
+
+    cnn == image modality, transformer == text modality. Image-only attacks
+    (gaussian_noise, backdoor_trigger) operate on (N,C,H,W) pixel tensors;
+    token_replacement operates on token IDs; label/weight-space attacks are
+    modality-agnostic.
+    """
+
+    def test_image_attack_rejected_on_transformer(self):
+        config = _modality_config("transformer", "gaussian_noise")
+        with pytest.raises(
+            ValidationError,
+            match="attack 'gaussian_noise' is image-only and cannot run on a transformer",
+        ):
+            validate_strategy_config(config)
+
+    def test_backdoor_trigger_rejected_on_transformer(self):
+        config = _modality_config("transformer", "backdoor_trigger")
+        with pytest.raises(
+            ValidationError,
+            match="attack 'backdoor_trigger' is image-only and cannot run on a transformer",
+        ):
+            validate_strategy_config(config)
+
+    def test_text_attack_rejected_on_cnn(self):
+        config = _modality_config("cnn", "token_replacement")
+        with pytest.raises(
+            ValidationError,
+            match="attack 'token_replacement' is text-only and cannot run on a cnn",
+        ):
+            validate_strategy_config(config)
+
+    def test_image_attack_allowed_on_cnn(self):
+        validate_strategy_config(_modality_config("cnn", "gaussian_noise"))
+
+    def test_backdoor_trigger_allowed_on_cnn(self):
+        validate_strategy_config(_modality_config("cnn", "backdoor_trigger"))
+
+    def test_text_attack_allowed_on_transformer(self):
+        validate_strategy_config(_modality_config("transformer", "token_replacement"))
+
+    def test_label_flipping_agnostic_on_both(self):
+        validate_strategy_config(_modality_config("cnn", "label_flipping"))
+        validate_strategy_config(_modality_config("transformer", "label_flipping"))
+
+    def test_weight_attacks_agnostic_on_both(self):
+        validate_strategy_config(_modality_config("transformer", "model_poisoning"))
+        validate_strategy_config(_modality_config("cnn", "gradient_scaling"))
+        validate_strategy_config(_modality_config("transformer", "byzantine_perturbation"))
+
+    def test_attack_modality_map_covers_every_dispatchable_attack(self):
+        """ATTACK_MODALITY must classify every attack the runtime can dispatch
+        and every attack the schema permits, so a new attack can't slip through
+        unclassified (and silently modality-unchecked)."""
+        from intellifl.attack_utils.poisoning import _DATA_ATTACK_FUNCTIONS
+        from intellifl.attack_utils.weight_poisoning import _WEIGHT_ATTACK_FUNCTIONS
+        from intellifl.config_loaders.validate_strategy_config import (
+            _MODEL_TYPE_MODALITY,
+            ATTACK_MODALITY,
+            config_schema,
+        )
+
+        dispatchable = set(_DATA_ATTACK_FUNCTIONS) | set(_WEIGHT_ATTACK_FUNCTIONS)
+        schema_enum = set(
+            config_schema["properties"]["attack_schedule"]["items"]["properties"]["attack_type"][
+                "enum"
+            ]
+        )
+
+        assert set(ATTACK_MODALITY) == dispatchable
+        assert set(ATTACK_MODALITY) == schema_enum
+        assert set(ATTACK_MODALITY.values()) <= {"image", "text", "agnostic"}
+
+        # The gate keys off model_type; a new model_type left unclassified would
+        # silently fail-open (no modality check), so lock that mapping too.
+        assert set(_MODEL_TYPE_MODALITY) == set(config_schema["properties"]["model_type"]["enum"])
