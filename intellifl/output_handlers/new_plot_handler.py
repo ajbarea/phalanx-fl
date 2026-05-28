@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import matplotlib
 
@@ -248,6 +249,38 @@ def save_plot_data_json(
         json.dump(plot_data, f, indent=2)
 
 
+def _read_termination_event(directory_handler: DirectoryHandler) -> dict | None:
+    """Read ``<run>/termination.json`` written in-worker by TerminationHandler.
+
+    Returns the parsed summary, or None when the run didn't terminate early (no
+    file) or the file is unreadable/malformed. Read from disk because the
+    in-memory handler state doesn't survive Flower's simulation boundary.
+    """
+    path = Path(directory_handler.dirname) / "termination.json"
+    try:
+        with path.open() as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _add_termination_marker(ax: Axes, termination_event: dict | None) -> None:
+    """Draw a vertical marker at the early-termination round (no-op otherwise)."""
+    if not termination_event or not termination_event.get("terminated_early"):
+        return
+    round_num = termination_event.get("termination_round")
+    if round_num is None:
+        return
+    reason = termination_event.get("termination_reason") or "early termination"
+    ax.axvline(
+        x=round_num,
+        color="black",
+        linestyle=":",
+        linewidth=1.5,
+        label=f"terminated (round {round_num}): {reason}",
+    )
+
+
 def show_plots_within_strategy(
     simulation_strategy: FederatedSimulation, directory_handler: DirectoryHandler
 ) -> None:
@@ -268,6 +301,7 @@ def show_plots_within_strategy(
         save_plot_data_json(simulation_strategy, directory_handler)
 
     plottable_metrics = list_of_client_histories[0].plottable_metrics
+    termination_event = _read_termination_event(directory_handler)
 
     for metric_name in plottable_metrics:
         plt.figure(figsize=plot_size, layout="constrained")
@@ -279,6 +313,8 @@ def show_plots_within_strategy(
                 simulation_strategy.strategy_config.attack_schedule,
                 client_id=None,
             )
+
+        _add_termination_marker(ax, termination_event)
 
         removal_threshold_history = (
             simulation_strategy.strategy_history.rounds_history.removal_threshold_history

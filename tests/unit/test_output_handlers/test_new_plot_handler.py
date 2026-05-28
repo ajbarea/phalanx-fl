@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest.mock import patch
 
 import matplotlib
@@ -1505,3 +1506,106 @@ class TestShowPlotsWithAttackShading:
         show_inter_strategy_plots([simulation_with_attacks], dir_handler)
 
         mock_ax.axvspan.assert_not_called()
+
+
+class TestTerminationMarker:
+    """Annotate accuracy/loss plots with the early-termination round/reason.
+
+    The reliable source is <run>/termination.json (written in-worker by the
+    TerminationHandler); the in-memory handler state does not survive Flower's
+    simulation boundary, so the plot layer reads it back from disk.
+    """
+
+    @staticmethod
+    def _write_termination(dirpath, **overrides):
+        payload = {
+            "terminated_early": True,
+            "termination_round": 7,
+            "termination_reason": "GRACEFUL: 0 clients remain",
+            "termination_policy": "graceful",
+        }
+        payload.update(overrides)
+        (Path(dirpath) / "termination.json").write_text(json.dumps(payload))
+
+    def test_read_termination_event_returns_payload(self, tmp_path):
+        from intellifl.output_handlers.new_plot_handler import _read_termination_event
+
+        self._write_termination(tmp_path)
+        handler = Mock()
+        handler.dirname = str(tmp_path)
+
+        event = _read_termination_event(handler)
+
+        assert event is not None
+        assert event["terminated_early"] is True
+        assert event["termination_round"] == 7
+
+    def test_read_termination_event_missing_file_returns_none(self, tmp_path):
+        from intellifl.output_handlers.new_plot_handler import _read_termination_event
+
+        handler = Mock()
+        handler.dirname = str(tmp_path)
+
+        assert _read_termination_event(handler) is None
+
+    def test_read_termination_event_malformed_returns_none(self, tmp_path):
+        from intellifl.output_handlers.new_plot_handler import _read_termination_event
+
+        (Path(tmp_path) / "termination.json").write_text("{not json")
+        handler = Mock()
+        handler.dirname = str(tmp_path)
+
+        assert _read_termination_event(handler) is None
+
+    def test_add_termination_marker_draws_axvline_at_round(self):
+        import matplotlib.pyplot as plt
+
+        from intellifl.output_handlers.new_plot_handler import _add_termination_marker
+
+        fig, ax = plt.subplots()
+        before = len(ax.lines)
+        _add_termination_marker(
+            ax,
+            {
+                "terminated_early": True,
+                "termination_round": 7,
+                "termination_reason": "GRACEFUL: 0 clients remain",
+                "termination_policy": "graceful",
+            },
+        )
+
+        assert len(ax.lines) == before + 1
+        assert list(ax.lines[-1].get_xdata()) == [7, 7]
+        plt.close(fig)
+
+    def test_add_termination_marker_noop_when_none(self):
+        import matplotlib.pyplot as plt
+
+        from intellifl.output_handlers.new_plot_handler import _add_termination_marker
+
+        fig, ax = plt.subplots()
+        before = len(ax.lines)
+        _add_termination_marker(ax, None)
+
+        assert len(ax.lines) == before
+        plt.close(fig)
+
+    def test_add_termination_marker_noop_when_not_terminated_early(self):
+        import matplotlib.pyplot as plt
+
+        from intellifl.output_handlers.new_plot_handler import _add_termination_marker
+
+        fig, ax = plt.subplots()
+        before = len(ax.lines)
+        _add_termination_marker(
+            ax,
+            {
+                "terminated_early": False,
+                "termination_round": None,
+                "termination_reason": None,
+                "termination_policy": "graceful",
+            },
+        )
+
+        assert len(ax.lines) == before
+        plt.close(fig)
