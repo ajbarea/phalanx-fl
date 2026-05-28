@@ -75,9 +75,7 @@ function App() {
                   width={56}
                   style={{ objectFit: 'contain' }}
                 />
-                <span className="brand-text">
-                  Inte<span className="brand-text-fl">FL</span>
-                </span>
+                <span className="brand-text">Phalanx</span>
               </Navbar.Brand>
               <Navbar.Toggle aria-controls="navbar-nav" />
               <Navbar.Collapse id="navbar-nav">
