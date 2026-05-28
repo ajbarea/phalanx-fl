@@ -276,9 +276,22 @@ class KrumBasedRemovalStrategy(Krum):
         }
 
         if self.remove_clients:
-            client_id = max(client_scores, key=lambda x: client_scores[x])
-            logging.info(f"Removing client with highest Krum score: {client_id}")
-            self.removed_client_ids.add(client_id)
+            # Krum's score sums distances to (n - f - 2) neighbors, so a valid score
+            # needs n_effective >= f + 3 (at least one neighbor). Stop removing at that
+            # floor instead of silently driving the score to 0 neighbors / NaN — mirrors
+            # multi_krum_based_removal's removal cap. The stricter starting bound
+            # (n >= 2f + 3) is enforced at config time; this guards the runtime count.
+            effective = sum(1 for cid in available_clients if cid not in self.removed_client_ids)
+            krum_floor = (self.num_malicious_clients or 0) + 3
+            if effective - 1 >= krum_floor:
+                client_id = max(client_scores, key=lambda x: client_scores[x])
+                logging.info(f"Removing client with highest Krum score: {client_id}")
+                self.removed_client_ids.add(client_id)
+            else:
+                logging.info(
+                    f"Krum removal floor reached: {effective} clients remain "
+                    f"(f+3={krum_floor}); skipping removal to keep the Krum score valid"
+                )
 
         logging.info(f"removed clients are : {self.removed_client_ids}")
 

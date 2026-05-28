@@ -293,16 +293,36 @@ class TestKrumBasedRemovalStrategy:
         }
 
         mock_client_manager = Mock()
-        mock_clients = {f"client_{i}": Mock() for i in range(5)}
+        mock_clients = {f"client_{i}": Mock() for i in range(8)}
         mock_client_manager.all.return_value = mock_clients
 
         mock_parameters = Mock()
 
         result = krum_strategy.configure_fit(3, mock_parameters, mock_client_manager)
 
-        # Should remove client with highest Krum score
+        # Should remove client with highest Krum score (8 clients, f=2 -> floor 5, 8-1=7 >= 5)
         assert "client_1" in krum_strategy.removed_client_ids
-        assert len(result) == 5  # Still returns all clients for training
+        assert len(result) == 8  # Still returns all clients for training
+
+    def test_configure_fit_respects_removal_floor(self, krum_strategy):
+        """Removal stops at Krum's floor so the score keeps >= 1 neighbor.
+
+        Krum's score sums distances to (n - f - 2) neighbors, so a valid score
+        needs n_effective >= f + 3. With f=2 the floor is 5; given 8 clients with
+        3 already removed (effective=5), a further removal would leave 0 neighbors,
+        so configure_fit must skip it (mirrors multi_krum_based_removal's cap).
+        """
+        krum_strategy.current_round = 3  # after begin_removing_from_round=2
+        krum_strategy.removed_client_ids = {"client_0", "client_2", "client_4"}
+        krum_strategy.client_scores = {f"client_{i}": 0.1 * i for i in range(8)}
+
+        mock_client_manager = Mock()
+        mock_client_manager.all.return_value = {f"client_{i}": Mock() for i in range(8)}
+
+        krum_strategy.configure_fit(3, Mock(), mock_client_manager)
+
+        # effective = 8 - 3 = 5 == floor (f+3); no further removal
+        assert krum_strategy.removed_client_ids == {"client_0", "client_2", "client_4"}
 
     def test_configure_fit_no_removal_when_disabled(self, krum_strategy):
         """Test configure_fit doesn't remove clients when removal is disabled."""
