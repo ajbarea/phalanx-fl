@@ -5,6 +5,7 @@ Pure-logic tests of the policy decision matrix; no Flower or Ray dependencies.
 
 from __future__ import annotations
 
+import json
 import logging
 from unittest.mock import Mock
 
@@ -211,11 +212,42 @@ class TestTerminationSummary:
         assert summary["termination_policy"] == "strict"
 
     def test_summary_serializable_to_json(self):
-        import json
-
         h = TerminationHandler(policy=TerminationPolicy.ADAPTIVE, min_clients_threshold=1)
         # Must round-trip through json without TypeError
         json.dumps(h.get_termination_summary())
+
+
+class TestTerminationSummaryPersistence:
+    def test_writes_termination_json_on_early_termination(self, tmp_path):
+        h = TerminationHandler(
+            policy=TerminationPolicy.STRICT,
+            min_clients_threshold=5,
+            logger=Mock(),
+            output_dir=str(tmp_path),
+        )
+        h.should_terminate(available_clients=2, total_clients=10, round_num=4, removed_count=8)
+
+        summary_file = tmp_path / "termination.json"
+        assert summary_file.is_file()
+        assert json.loads(summary_file.read_text()) == h.get_termination_summary()
+
+    def test_no_file_written_before_termination(self, tmp_path):
+        TerminationHandler(
+            policy=TerminationPolicy.STRICT,
+            min_clients_threshold=5,
+            logger=Mock(),
+            output_dir=str(tmp_path),
+        )
+        assert not (tmp_path / "termination.json").exists()
+
+    def test_termination_without_output_dir_does_not_raise(self):
+        h = TerminationHandler(
+            policy=TerminationPolicy.STRICT, min_clients_threshold=5, logger=Mock()
+        )
+        stop, _ = h.should_terminate(
+            available_clients=2, total_clients=10, round_num=4, removed_count=8
+        )
+        assert stop is True
 
 
 class TestMarkTerminationLogging:

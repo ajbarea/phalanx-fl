@@ -128,6 +128,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             min_clients_threshold=kwargs.get("min_fit_clients", 1),
             min_clients_ratio=min_clients_ratio,
             logger=self.logger,
+            output_dir=out_dir,
         )
 
     def calculate_single_client_pid_scaled(self, client_id, distance):

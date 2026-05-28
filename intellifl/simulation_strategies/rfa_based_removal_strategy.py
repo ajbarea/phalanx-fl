@@ -15,6 +15,7 @@ from flwr.server.strategy.fedavg import FedAvg
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
 
+from intellifl.output_handlers.directory_handler import DirectoryHandler
 from intellifl.simulation_strategies.termination_policies import (
     TerminationHandler,
     TerminationPolicy,
@@ -92,6 +93,7 @@ class RFABasedRemovalStrategy(FedAvg):
             min_clients_threshold=kwargs.get("min_fit_clients", 1),
             min_clients_ratio=min_clients_ratio,
             logger=logging.getLogger(f"rfa_strategy_{id(self)}"),
+            output_dir=DirectoryHandler.dirname,
         )
 
     def aggregate_fit(

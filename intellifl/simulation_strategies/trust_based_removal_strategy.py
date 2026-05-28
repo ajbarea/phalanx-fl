@@ -15,6 +15,7 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
 
 from intellifl.data_models.simulation_strategy_history import SimulationStrategyHistory
+from intellifl.output_handlers.directory_handler import DirectoryHandler
 from intellifl.simulation_strategies.termination_policies import (
     TerminationHandler,
     TerminationPolicy,
@@ -98,6 +99,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             min_clients_threshold=kwargs.get("min_fit_clients", 1),
             min_clients_ratio=min_clients_ratio,
             logger=logging.getLogger(f"trust_strategy_{id(self)}"),
+            output_dir=DirectoryHandler.dirname,
         )
 
     def calculate_reputation(self, client_id, truth_value):

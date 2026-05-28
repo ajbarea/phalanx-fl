@@ -20,8 +20,10 @@ References:
 
 from __future__ import annotations
 
+import json
 import logging
 from enum import StrEnum
+from pathlib import Path
 
 
 class TerminationPolicy(StrEnum):
@@ -79,12 +81,15 @@ class TerminationHandler:
         ...     print(f"Terminating: {reason}")
     """
 
+    SUMMARY_FILENAME = "termination.json"
+
     def __init__(
         self,
         policy: TerminationPolicy | str,
         min_clients_threshold: int,
         min_clients_ratio: float = 0.3,  # 30% of original
         logger: logging.Logger | None = None,
+        output_dir: str | None = None,
     ):
         """
         Initialize termination handler.
@@ -96,6 +101,9 @@ class TerminationHandler:
                              Default 0.3 (30%) provides early warning while allowing
                              degradation study. Research shows 50%+ maintains accuracy.
             logger: Optional logger for recording termination decisions
+            output_dir: Optional run output directory; when set, a termination
+                summary is written to ``<output_dir>/termination.json`` on early
+                termination
         """
         self.policy = TerminationPolicy(policy) if isinstance(policy, str) else policy
         self.min_threshold = min_clients_threshold
@@ -104,6 +112,7 @@ class TerminationHandler:
         self.termination_triggered = False
         self.termination_round: int | None = None
         self.termination_reason = ""
+        self.output_dir = output_dir
 
     def should_terminate(
         self,
@@ -174,6 +183,23 @@ class TerminationHandler:
         self.termination_round = round_num
         self.termination_reason = reason
         self.logger.error(f"EXPERIMENT TERMINATION: {reason}")
+        self._persist_summary()
+
+    def _persist_summary(self) -> None:
+        """Write the termination summary to ``<output_dir>/termination.json``.
+
+        Surfaces the termination event in the run output so researchers don't
+        have to grep logs. Runs inside the simulation worker where output_dir is
+        on disk; a write failure must not abort an otherwise-complete run.
+        """
+        if not self.output_dir:
+            return
+        summary_path = Path(self.output_dir) / self.SUMMARY_FILENAME
+        try:
+            with summary_path.open("w") as f:
+                json.dump(self.get_termination_summary(), f, indent=2)
+        except OSError as e:
+            self.logger.warning(f"Failed to write termination summary to {summary_path}: {e}")
 
     def get_termination_summary(self) -> dict:
         """
