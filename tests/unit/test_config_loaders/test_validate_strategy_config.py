@@ -1674,6 +1674,70 @@ class TestStrictModeValidation:
 
         assert "Trimmed Mean ratio must be < 0.5" in str(exc_info.value)
 
+    def test_bulyan_mathematical_constraint_rejection(self):
+        """Test that Bulyan rejects configs where n < 4f + 3."""
+        config = {
+            "aggregation_strategy_keyword": "bulyan",
+            "num_of_clients": 10,
+            "num_of_malicious_clients": 2,  # n=10, f=2 -> needs n>=11; 10<11 -> fail
+            "remove_clients": False,
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": False,
+            "num_of_rounds": 5,
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
+            "training_subset_fraction": 1.0,
+            "training_device": "cpu",
+            "cpus_per_client": 1,
+            "gpus_per_client": 0,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
+            "min_available_clients": 10,
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 1,
+            "batch_size": 32,
+            "attack_schedule": [],
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_strategy_config(config)
+
+        assert "Bulyan aggregation requires n >= 4f + 3" in str(exc_info.value)
+        assert "n=10, f=2" in str(exc_info.value)
+
+    def test_bulyan_sufficient_clients_passes(self):
+        """Bulyan with n >= 4f + 3 validates (boundary: n == 4f + 3)."""
+        config = {
+            "aggregation_strategy_keyword": "bulyan",
+            "num_of_clients": 11,
+            "num_of_malicious_clients": 2,  # 11 >= 4*2 + 3 = 11 -> ok
+            "remove_clients": False,
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": False,
+            "num_of_rounds": 5,
+            "show_plots": False,
+            "save_plots": False,
+            "save_csv": False,
+            "preserve_dataset": False,
+            "training_subset_fraction": 1.0,
+            "training_device": "cpu",
+            "cpus_per_client": 1,
+            "gpus_per_client": 0,
+            "min_fit_clients": 11,
+            "min_evaluate_clients": 11,
+            "min_available_clients": 11,
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 1,
+            "batch_size": 32,
+            "attack_schedule": [],
+        }
+
+        validate_strategy_config(config)
+
 
 class TestRemovalConfigRejections:
     """remove_clients misconfigurations are hard rejections, not silent warnings.

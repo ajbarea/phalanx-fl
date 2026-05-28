@@ -291,6 +291,21 @@ def _validate_dependent_params(strategy_config: dict) -> None:
                 f"Reference: 'Machine Learning with Adversaries: Byzantine Tolerant Gradient Descent' (NIPS 2017)"
             )
 
+    elif aggregation_strategy_keyword == "bulyan":
+        # SCIENTIFIC INTEGRITY: Bulyan requires n >= 4f + 3
+        # Bulyan runs Multi-Krum (itself n >= 2f + 3) to select n - 2f updates,
+        # then a coordinate-wise trimmed mean over them; the trimming step needs
+        # the extra margin, giving the stricter 4f + 3 bound.
+        n = strategy_config.get("num_of_clients", 0)
+        f = strategy_config.get("num_of_malicious_clients", 0)
+        if n < 4 * f + 3:
+            raise ValidationError(
+                f"CONFIG REJECTED: Bulyan aggregation requires n >= 4f + 3\n"
+                f"Current config: n={n}, f={f}\n"
+                f"Requirement: {n} >= {4 * f + 3}\n"
+                f"Reference: 'The Hidden Vulnerability of Distributed Learning in Byzantium' (ICML 2018)"
+            )
+
     elif aggregation_strategy_keyword == "trimmed_mean":
         if "trim_ratio" not in strategy_config:
             raise ValidationError(

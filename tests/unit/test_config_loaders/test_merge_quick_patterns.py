@@ -509,14 +509,29 @@ class TestSweepMaliciousBaseStrategies:
             merge_via_file(config, tmp_path)
 
     def test_sweep_with_bulyan_base(self, tmp_path):
-        """FIXED: strategy defaults now include num_krum_selections for bulyan."""
-        strategies = gen_sweep_malicious("bulyan", 7, 4)
-        config = build_config_dict(INITIAL_CONFIG, strategies)
+        """Bulyan requires n >= 4f + 3, so the full sweep (f=0-5) needs 23 clients."""
+        many_clients = {
+            **INITIAL_CONFIG,
+            "num_of_clients": 23,
+            "min_fit_clients": 23,
+            "min_evaluate_clients": 23,
+            "min_available_clients": 23,
+        }
+        strategies = gen_sweep_malicious("bulyan", 23, 4)
+        config = build_config_dict(many_clients, strategies)
         merged = merge_via_file(config, tmp_path)
         assert len(merged) == len(strategies)
         for m in merged:
             assert m["aggregation_strategy_keyword"] == "bulyan"
             assert "num_krum_selections" in m
+
+    def test_sweep_with_bulyan_base_rejects_byzantine_violation(self, tmp_path):
+        """Bulyan correctly rejects configs that violate n >= 4f + 3.
+        With 7 clients the sweep hits f=2 where 7 >= 11 fails."""
+        strategies = gen_sweep_malicious("bulyan", 7, 4)
+        config = build_config_dict(INITIAL_CONFIG, strategies)
+        with pytest.raises(Exception, match="Bulyan aggregation requires n >= 4f"):
+            merge_via_file(config, tmp_path)
 
     def test_sweep_with_trimmed_mean_base(self, tmp_path):
         """FIXED: strategy defaults now include trim_ratio for trimmed_mean."""
