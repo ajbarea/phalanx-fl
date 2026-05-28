@@ -25,6 +25,25 @@ import logging
 from enum import StrEnum
 from pathlib import Path
 
+TERMINATION_SUMMARY_FILENAME = "termination.json"
+
+
+def read_termination_summary(output_dir: str | Path) -> dict | None:
+    """Read the termination summary written by :class:`TerminationHandler`.
+
+    Returns the parsed ``termination.json`` from ``output_dir``, or None when the
+    run didn't terminate early (no file) or the file is unreadable/malformed.
+    Shared by every consumer (plot handler, run dashboard) so they read from the
+    file on disk, not the in-memory handler whose mutations don't survive
+    Flower's ``run_simulation`` boundary.
+    """
+    path = Path(output_dir) / TERMINATION_SUMMARY_FILENAME
+    try:
+        with path.open() as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
+
 
 class TerminationPolicy(StrEnum):
     """Policy for handling insufficient client availability.
@@ -81,7 +100,7 @@ class TerminationHandler:
         ...     print(f"Terminating: {reason}")
     """
 
-    SUMMARY_FILENAME = "termination.json"
+    SUMMARY_FILENAME = TERMINATION_SUMMARY_FILENAME
 
     def __init__(
         self,

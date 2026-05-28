@@ -261,3 +261,42 @@ class TestMarkTerminationLogging:
         msg = mock_logger.error.call_args.args[0]
         assert "EXPERIMENT TERMINATION" in msg
         assert "test reason" in msg
+
+
+class TestReadTerminationSummary:
+    """read_termination_summary reads <output_dir>/termination.json back from disk.
+
+    Shared source of truth for consumers (plot handler, run dashboard); the
+    in-memory handler state doesn't survive Flower's simulation boundary, so
+    every reader goes through the file the writer leaves behind.
+    """
+
+    def test_returns_summary_when_present(self, tmp_path):
+        from intellifl.simulation_strategies.termination_policies import (
+            read_termination_summary,
+        )
+
+        h = TerminationHandler(
+            policy=TerminationPolicy.STRICT,
+            min_clients_threshold=5,
+            logger=Mock(),
+            output_dir=str(tmp_path),
+        )
+        h.should_terminate(available_clients=2, total_clients=10, round_num=4, removed_count=8)
+
+        assert read_termination_summary(tmp_path) == h.get_termination_summary()
+
+    def test_returns_none_when_absent(self, tmp_path):
+        from intellifl.simulation_strategies.termination_policies import (
+            read_termination_summary,
+        )
+
+        assert read_termination_summary(tmp_path) is None
+
+    def test_returns_none_when_malformed(self, tmp_path):
+        from intellifl.simulation_strategies.termination_policies import (
+            read_termination_summary,
+        )
+
+        (tmp_path / "termination.json").write_text("{broken")
+        assert read_termination_summary(tmp_path) is None

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import matplotlib
 
@@ -16,6 +15,7 @@ from matplotlib.ticker import MaxNLocator
 from intellifl.data_models.simulation_strategy_config import StrategyConfig
 from intellifl.federated_simulation import FederatedSimulation
 from intellifl.output_handlers.directory_handler import DirectoryHandler
+from intellifl.simulation_strategies.termination_policies import read_termination_summary
 
 plot_size = (11, 7)
 bar_width = 0.2
@@ -250,18 +250,8 @@ def save_plot_data_json(
 
 
 def _read_termination_event(directory_handler: DirectoryHandler) -> dict | None:
-    """Read ``<run>/termination.json`` written in-worker by TerminationHandler.
-
-    Returns the parsed summary, or None when the run didn't terminate early (no
-    file) or the file is unreadable/malformed. Read from disk because the
-    in-memory handler state doesn't survive Flower's simulation boundary.
-    """
-    path = Path(directory_handler.dirname) / "termination.json"
-    try:
-        with path.open() as f:
-            return json.load(f)
-    except (OSError, json.JSONDecodeError):
-        return None
+    """Read the run's termination summary (None when it didn't terminate early)."""
+    return read_termination_summary(directory_handler.dirname)
 
 
 def _add_termination_marker(ax: Axes, termination_event: dict | None) -> None:

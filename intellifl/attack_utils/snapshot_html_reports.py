@@ -11,6 +11,8 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from intellifl.simulation_strategies.termination_policies import read_termination_summary
+
 from .attack_snapshots import (
     get_snapshot_summary,
     list_attack_snapshots,
@@ -503,6 +505,7 @@ def generate_main_dashboard(output_dir: str) -> None:
         plot_categories=plot_categories,
         csv_files=[f.relative_to(output_path).as_posix() for f in csv_files],
         config_files=[f.relative_to(output_path).as_posix() for f in config_files],
+        termination=read_termination_summary(output_dir),
     )
 
     index_path = output_path / "index.html"
@@ -521,11 +524,24 @@ def _generate_main_dashboard_html(
     plot_categories: dict,
     csv_files: list,
     config_files: list,
+    termination: dict | None = None,
 ) -> str:
     """Generate HTML content for main dashboard."""
 
     total_snapshots = sum(s["total_snapshots"] for s in snapshot_info)
     num_strategies = len(snapshot_info)
+
+    termination_banner = ""
+    if termination and termination.get("terminated_early"):
+        round_num = termination.get("termination_round")
+        reason = termination.get("termination_reason") or "early termination"
+        termination_banner = (
+            '<div style="background:#fff3cd;border:1px solid #ffc107;'
+            "border-left:6px solid #ffc107;color:#7a5b00;padding:14px 20px;"
+            'margin:0 0 20px;border-radius:6px;font-weight:600;">'
+            f"⚠ This run terminated early at round {round_num} — {reason}"
+            "</div>"
+        )
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -686,6 +702,7 @@ def _generate_main_dashboard_html(
             </div>
         </div>
 
+        {termination_banner}
         <div class="stats">
             <div class="stat">
                 <div class="stat-value">{num_strategies}</div>

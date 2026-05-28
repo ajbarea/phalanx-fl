@@ -618,6 +618,44 @@ class TestGenerateMainDashboard:
         assert len(plot_categories["Client Analysis"]) > 0
         assert len(plot_categories["System Metrics"]) > 0
 
+    def test_should_pass_termination_summary_when_present(self, tmp_path: Path) -> None:
+        """Test that termination.json is read and forwarded to the HTML builder."""
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        (output_dir / "termination.json").write_text(
+            json.dumps(
+                {
+                    "terminated_early": True,
+                    "termination_round": 7,
+                    "termination_reason": "GRACEFUL: 0 clients remain",
+                    "termination_policy": "graceful",
+                }
+            )
+        )
+
+        with patch(
+            "intellifl.attack_utils.snapshot_html_reports._generate_main_dashboard_html"
+        ) as mock_gen:
+            mock_gen.return_value = "<html></html>"
+            generate_main_dashboard(str(output_dir))
+
+        termination = mock_gen.call_args[1]["termination"]
+        assert termination is not None
+        assert termination["termination_round"] == 7
+
+    def test_should_pass_none_termination_when_absent(self, tmp_path: Path) -> None:
+        """Test that the termination kwarg is None for a run that didn't terminate early."""
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+
+        with patch(
+            "intellifl.attack_utils.snapshot_html_reports._generate_main_dashboard_html"
+        ) as mock_gen:
+            mock_gen.return_value = "<html></html>"
+            generate_main_dashboard(str(output_dir))
+
+        assert mock_gen.call_args[1]["termination"] is None
+
 
 class TestGenerateMainDashboardHtml:
     """Test suite for _generate_main_dashboard_html function."""
@@ -695,6 +733,45 @@ class TestGenerateMainDashboardHtml:
         result = _generate_main_dashboard_html(**sample_dashboard_data)
 
         assert "strategy_config_0.json" in result
+
+    def test_should_render_termination_banner(self, sample_dashboard_data: dict) -> None:
+        """Test that an early-termination banner with round + reason is rendered."""
+        result = _generate_main_dashboard_html(
+            **sample_dashboard_data,
+            termination={
+                "terminated_early": True,
+                "termination_round": 7,
+                "termination_reason": "GRACEFUL: 0 clients remain",
+                "termination_policy": "graceful",
+            },
+        )
+
+        assert "terminated early at round 7" in result
+        assert "GRACEFUL: 0 clients remain" in result
+
+    def test_should_not_render_termination_banner_when_none(
+        self, sample_dashboard_data: dict
+    ) -> None:
+        """Test that no banner is rendered when the run didn't terminate early."""
+        result = _generate_main_dashboard_html(**sample_dashboard_data, termination=None)
+
+        assert "terminated early" not in result
+
+    def test_should_not_render_termination_banner_when_not_early(
+        self, sample_dashboard_data: dict
+    ) -> None:
+        """Test that a non-early-termination summary renders no banner."""
+        result = _generate_main_dashboard_html(
+            **sample_dashboard_data,
+            termination={
+                "terminated_early": False,
+                "termination_round": None,
+                "termination_reason": None,
+                "termination_policy": "graceful",
+            },
+        )
+
+        assert "terminated early" not in result
 
     def test_should_handle_empty_sections(self) -> None:
         """Test that empty sections are handled gracefully."""
