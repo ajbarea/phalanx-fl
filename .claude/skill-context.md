@@ -64,6 +64,16 @@ Sources of truth for numeric performance / scale claims:
 
 Any quantitative perf/scale claim not traceable to one of those is slop.
 
+## fragile_docs
+
+README / docs numbers that trace to code, gated by `scripts/check_readme_claims.py` (runs in the CI Security Audit job):
+
+- Strategy count — `len(set(STRATEGY_REGISTRY.values()))` (`intellifl/simulation_strategies/__init__.py`); asserted in README ("N Aggregation Strategies") and `docs/index.md` (hero tagline + feature card).
+- Attack count — `len(DATA_ATTACK_TYPE_NAMES) + len(WEIGHT_ATTACK_TYPE_NAMES)` (`attack_utils/poisoning.py` + `weight_poisoning.py`); asserted in README ("N Attack Types") and `docs/index.md`.
+- Python + Flower version badges — `requires-python` and the `flwr` floor in `pyproject.toml`; asserted in the README shields badges.
+
+Add a claim → append a check to `build_checks()` in that script. Roster name *lists* aren't auto-checked; the count gate flags when one needs an update.
+
 ## scan_scope
 
 Skip paths (vendored, generated, or out-of-scope):
