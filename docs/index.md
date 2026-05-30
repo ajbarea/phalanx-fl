@@ -22,7 +22,7 @@ hide:
 
 <div class="hero-tagline" markdown>
 
-<span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 4px;">shield</span> 9 Strategies | <span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 4px;">bug_report</span> 11 Attacks | <span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 4px;">database</span> 20+ Datasets
+<span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 4px;">shield</span> 10 Strategies | <span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 4px;">bug_report</span> 11 Attacks | <span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 4px;">database</span> 20+ Datasets
 { .hero-modes }
 
 </div>
@@ -133,8 +133,8 @@ hide:
     <h2 class="section-title">Key Features</h2>
     <div class="feature-grid feature-grid--compact">
       <div class="feature-card feature-card--flat">
-        <div class="feature-name"><span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 4px;">verified_user</span> 9 Aggregation Strategies</div>
-        <p>FedAvg, Krum, Multi-Krum, Bulyan, RFA, Trimmed Mean, PID-based, Trust-based, ArKrum &mdash; each with configurable parameters</p>
+        <div class="feature-name"><span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 4px;">verified_user</span> 10 Aggregation Strategies</div>
+        <p>FedAvg, Krum, Multi-Krum, Multi-Krum-based, Bulyan, RFA, Trimmed Mean, PID-based, Trust-based, ArKrum &mdash; each with configurable parameters</p>
       </div>
       <div class="feature-card feature-card--flat">
         <div class="feature-name"><span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 4px;">warning</span> 11 Attack Types</div>
