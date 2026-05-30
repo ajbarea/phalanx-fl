@@ -10,8 +10,8 @@
 
 [![CI Pipeline](https://github.com/ajbarea/phalanx-fl/actions/workflows/ci.yml/badge.svg)](https://github.com/ajbarea/phalanx-fl/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/ajbarea/phalanx-fl/graph/badge.svg?token=NTyqWs5w9l)](https://codecov.io/gh/ajbarea/phalanx-fl)
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Flower](https://img.shields.io/badge/Flower-v1.26.1-00C896?style=flat-square)](https://flower.ai)
+[![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![Flower](https://img.shields.io/badge/Flower-v1.28+-00C896?style=flat-square)](https://flower.ai)
 [![uv](https://img.shields.io/badge/uv-package_manager-DE5FE9?style=flat-square)](https://docs.astral.sh/uv/)
 [![Docs](https://img.shields.io/badge/Docs-Zensical-blue?style=flat-square)](https://ajbarea.github.io/phalanx-fl/)
 
@@ -76,7 +76,7 @@ See the [Getting Started](https://ajbarea.github.io/phalanx-fl/getting-started/)
 
 | | |
 |---|---|
-| **9 Aggregation Strategies** | FedAvg, Krum, Multi-Krum, Bulyan, RFA, Trimmed Mean, PID, Trust, ArKrum |
+| **10 Aggregation Strategies** | FedAvg, Krum, Multi-Krum, Multi-Krum-based, Bulyan, RFA, Trimmed Mean, PID, Trust, ArKrum |
 | **11 Attack Types** | Label flipping, backdoor triggers, model poisoning, gradient scaling, Byzantine perturbation, and more |
 | **20+ Datasets** | FEMNIST, CIFAR-100, 11 MedMNIST variants, HuggingFace text datasets |
 
