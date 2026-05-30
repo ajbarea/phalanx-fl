@@ -70,6 +70,40 @@ Out-of-scope dispatch sites (deliberately not consolidated):
 - `simulation_strategies/pid_based_removal_strategy.py` — branches inside the strategy impl, not at the construction seam.
 - `config_loaders/validate_strategy_config.py` — per-strategy validation rules; moving these would decentralize, not centralize.
 
+---
+
+## Flower Message API migration (1.29)
+
+> Audited 2026-05-30 against current Flower. Ref: [Flower changelog](https://flower.ai/docs/framework/ref-changelog.html) | [Upgrade to Message API](https://flower.ai/docs/framework/how-to-upgrade-to-message-api.html)
+
+Flower 1.29 (2026-04) is steering to the **Message API**: new strategies live in
+`flwr.serverapp.strategy`, the `ServerApp` constructor's direct
+`strategy`/`config`/`server` args are deprecated in favor of `server_fn` /
+`@app.main()`, `Context`/`ClientApp` move to `flwr.app`/`flwr.clientapp`, and
+`flwr.simulation.run_simulation` + the long-running `flwr-*` commands give way to
+`flwr run` / SuperExec. The legacy surfaces still work in 1.29 (migration
+*encouraged*, no hard removal date), so this is plan-ahead, not a fire-drill.
+
+**Where phalanx already is:** `federated_simulation.py` runs on the
+`ServerApp(server_fn=…)` + `ClientApp(client_fn=…)` pattern (so the deprecated
+constructor-args path doesn't apply) and already guards the `run_simulation`
+deprecation defensively (falls back to the private `_run_simulation`).
+
+**The gap — phalanx's core IP:** all ten Byzantine-robust strategies subclass the
+prior-generation `flwr.server.strategy.FedAvg` (`fedavg`, `multi_krum`, `bulyan`,
+`arkrum`, `trimmed_mean`, and the `trust`/`pid`/`rfa`/`krum`/`multi_krum`/`trimmed_mean`
+removal variants) and override `configure_fit` / `aggregate_fit` against
+`Parameters` / `FitRes`. The Message API reshapes that seam (Message/record-based,
+not the `Parameters`/`FitRes` contract), so porting the roster is a real interface
+migration, not a mechanical import swap. Gate on: (a) `flwr.serverapp.strategy`
+reaching parity with the legacy `FedAvg` hooks phalanx overrides; (b) an upstream
+legacy-removal signal; (c) a port-one-strategy-first spike (FedAvg) to size the
+per-strategy cost before committing the whole roster. `research(2026-05)`: Flower
+1.29 changelog + Upgrade-to-Message-API guide — legacy `flwr.server.strategy` is
+functional-but-superseded; new strategies in `flwr.serverapp.strategy`.
+
+---
+
 ## Dataset System Rework
 
 > Source: `demo/DATASET_REWORK_PLAN.md` (Phases 0-5)
@@ -317,7 +351,7 @@ dispatch and will collapse into the registry as Phase 3 lands.
 
 - [x] **`## Sister ecosystem` block in README — shipped 2026-05-21.** README.md:165 now carries the cross-sister narrative naming Kourai Khryseai / VelocityFL / ajbarea.github.io / techne / LDQIS with roles + one-line links.
 - [ ] **Cite Project Glasswing posture in README security framing** — Anthropic's April 2026 trustworthy-software initiative (AWS / Apple / Google / JPMorganChase / NVIDIA / Palo Alto Networks / Linux Foundation + 40 more) sets the 2026 frame for Byzantine-robust FL work. One-paragraph mention is enough; don't over-claim. Ref: <https://www.anthropic.com/glasswing>.
-- [ ] **Stale-assumption audit (whenever the FL ecosystem moves)** — Krum / Multi-Krum / Bulyan defenses were calibrated to specific attack assumptions; mock-client patterns and the (now-removed) `ray_config` shim were shaped around Flower 1.9-era API quirks; transformer-loader paths encode a particular HF Transformers generation. When Flower / a new aggregation paper / a new HF Transformers major / a new defense technique lands, audit which scaffolding exists to compensate for a now-closed gap and collapse what no longer earns its keep. **Inverse of speculative-generality YAGNI:** YAGNI polices new code being written; this audit polices existing code as the ecosystem moves around it. Captured as a recurring invariant — fires on external events, not on a fixed schedule. `research(2026-05)`: pattern adapted from [Anthropic engineering, Managed Agents](https://www.anthropic.com/engineering/managed-agents) (*"harnesses encode assumptions about what Claude can't do on its own. However, those assumptions need to be frequently questioned because they can go stale."*); mirrored cross-sister from kourai-khryseai's M22-M25 platform-reliability sweep.
+- [ ] **Stale-assumption audit (whenever the FL ecosystem moves)** — Krum / Multi-Krum / Bulyan defenses were calibrated to specific attack assumptions; mock-client patterns and the (now-removed) `ray_config` shim were shaped around Flower 1.9-era API quirks; transformer-loader paths encode a particular HF Transformers generation. When Flower / a new aggregation paper / a new HF Transformers major / a new defense technique lands, audit which scaffolding exists to compensate for a now-closed gap and collapse what no longer earns its keep. (Flower's 1.29 Message-API shift audited 2026-05-30 → tracked under `## Flower Message API migration`.) **Inverse of speculative-generality YAGNI:** YAGNI polices new code being written; this audit polices existing code as the ecosystem moves around it. Captured as a recurring invariant — fires on external events, not on a fixed schedule. `research(2026-05)`: pattern adapted from [Anthropic engineering, Managed Agents](https://www.anthropic.com/engineering/managed-agents) (*"harnesses encode assumptions about what Claude can't do on its own. However, those assumptions need to be frequently questioned because they can go stale."*); mirrored cross-sister from kourai-khryseai's M22-M25 platform-reliability sweep.
 
 ---
 
