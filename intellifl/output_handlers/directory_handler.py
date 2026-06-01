@@ -309,12 +309,12 @@ class DirectoryHandler:
         dataset = self.simulation_strategy_history.strategy_config.dataset_keyword
         strategy = self.simulation_strategy_history.strategy_config.aggregation_strategy_keyword
 
-        bib_content = f"""@misc{{intellifl_{run_id}_s{strategy_num},
+        bib_content = f"""@misc{{phalanx_{run_id}_s{strategy_num},
   title = {{Federated Learning Experiment Result: {run_id}}},
-  author = {{IntelliFL Execution Framework}},
+  author = {{Barea, AJ}},
   year = {{2026}},
-  howpublished = {{\\url{{https://github.com/dmitrykoro/fl-execution-framework}}}},
-  note = {{Dataset: {dataset}, Strategy: {strategy}, Run ID: {run_id}}}
+  howpublished = {{\\url{{https://github.com/ajbarea/phalanx-fl}}}},
+  note = {{Produced with Phalanx. Dataset: {dataset}, Strategy: {strategy}, Run ID: {run_id}}}
 }}
 """
         bib_path = Path(self.dirname) / "CITATION.bib"

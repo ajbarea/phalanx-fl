@@ -158,6 +158,23 @@ class TestDirectoryHandler:
         assert "Clients: 5" in content
         assert "Client removal: enabled" in content
 
+    def test_save_citation_bib_cites_phalanx_not_upstream(self, mock_simulation_history, tmp_path):
+        """CITATION.bib cites Phalanx / ajbarea, not the pre-de-fork upstream."""
+        test_dir = tmp_path / "cite_test"
+        handler = DirectoryHandler(output_dir=str(test_dir))
+        handler.simulation_strategy_history = mock_simulation_history
+
+        handler._save_citation_bib()
+
+        assert handler.dirname is not None
+        bib = (Path(handler.dirname) / "CITATION.bib").read_text()
+        assert "ajbarea/phalanx-fl" in bib
+        assert "Barea" in bib
+        assert "@misc{phalanx_" in bib
+        # Pre-de-fork upstream attribution is gone.
+        assert "dmitrykoro" not in bib
+        assert "IntelliFL Execution Framework" not in bib
+
     def test_save_simulation_config_creates_json_file(self, mock_simulation_history, tmp_path):
         """Verifies _save_simulation_config creates valid JSON with expected fields."""
         test_dir = tmp_path / "config_test"

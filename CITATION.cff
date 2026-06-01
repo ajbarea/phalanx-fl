@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use Phalanx in your research, please cite it as below."
+title: "Phalanx: A Federated Learning Framework with Ray, Flower, and PyTorch"
+abstract: "Phalanx is a federated learning framework for Byzantine-robust aggregation and attack-simulation research, built on Ray, Flower, and PyTorch."
+type: software
+authors:
+  - family-names: Barea
+    given-names: AJ
+repository-code: "https://github.com/ajbarea/phalanx-fl"
+url: "https://github.com/ajbarea/phalanx-fl"
+license: MIT
+version: "0.1.0"
+keywords:
+  - federated-learning
+  - byzantine-robustness
+  - attack-simulation
+  - machine-learning
+  - pytorch
+  - flower
+  - ray
