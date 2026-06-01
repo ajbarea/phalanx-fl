@@ -137,6 +137,27 @@ class TestDirectoryHandler:
         assert round_csv.exists()
         assert execution_csv.exists()
 
+    def test_save_run_readme_creates_summary(self, mock_simulation_history, tmp_path):
+        """Verifies _save_run_readme writes a README.md summarizing the run config."""
+        test_dir = tmp_path / "readme_test"
+        handler = DirectoryHandler(output_dir=str(test_dir))
+        handler.simulation_strategy_history = mock_simulation_history
+
+        handler._save_run_readme()
+
+        assert handler.dirname is not None
+        readme = Path(handler.dirname) / "README.md"
+        assert readme.exists()
+        content = readme.read_text()
+        assert "Federated Learning Experiment" in content
+        assert "MANIFEST.json" in content
+        assert "CITATION.bib" in content
+        # Config surfaced from the strategy_config fixture (trust / 3 rounds / 5 clients / removal on).
+        assert "trust" in content
+        assert "Rounds: 3" in content
+        assert "Clients: 5" in content
+        assert "Client removal: enabled" in content
+
     def test_save_simulation_config_creates_json_file(self, mock_simulation_history, tmp_path):
         """Verifies _save_simulation_config creates valid JSON with expected fields."""
         test_dir = tmp_path / "config_test"
