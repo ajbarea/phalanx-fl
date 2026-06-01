@@ -61,6 +61,7 @@ class DirectoryHandler:
         self._save_latex_tables()
         self._save_citation_bib()
         self._save_reproducibility_manifest()
+        self._save_run_readme()
 
     def _save_simulation_config(self, total_strategies: int):
         """Save simulation config to current directory"""
@@ -332,3 +333,59 @@ class DirectoryHandler:
             save_reproducibility_manifest(self.dirname, config_path)
         except Exception as e:
             logging.error(f"Failed to save reproducibility manifest in DirectoryHandler: {e}")
+
+    def _save_run_readme(self):
+        """Write a human-readable README.md summarizing this run.
+
+        Pairs with MANIFEST.json + CITATION.bib to make each output directory a
+        self-describing artifact (FAIR / IEEE artifact-evaluation "Reusable").
+        """
+        assert self.simulation_strategy_history is not None
+        assert self.dirname is not None
+        cfg = self.simulation_strategy_history.strategy_config
+        run_id = Path(self.dirname).name
+
+        lines = [
+            f"# Federated Learning Experiment — {run_id}",
+            "",
+            "Auto-generated run summary. See `MANIFEST.json` for full reproducibility "
+            "metadata (git commit, system info, config checksum) and `CITATION.bib` to "
+            "cite this run.",
+            "",
+            "## Configuration",
+            "",
+            f"- Dataset: `{cfg.dataset_keyword or '—'}`",
+            f"- Aggregation strategy: `{cfg.aggregation_strategy_keyword or '—'}`",
+        ]
+        if cfg.num_of_rounds is not None:
+            lines.append(f"- Rounds: {cfg.num_of_rounds}")
+        if cfg.num_of_clients is not None:
+            lines.append(f"- Clients: {cfg.num_of_clients}")
+        if cfg.remove_clients:
+            lines.append(f"- Client removal: enabled (from round {cfg.begin_removing_from_round})")
+
+        lines += [
+            "",
+            "## Files",
+            "",
+            "- `strategy_config_*.json` — the exact run configuration",
+            "- `MANIFEST.json` — reproducibility metadata (git commit, system, config checksum)",
+            "- `CITATION.bib` — BibTeX citation for this run",
+            "- `csv/` — per-client, per-round, and per-execution metrics",
+            "- `*.pdf` — accuracy / loss / removal plots",
+            "- `index.html` — interactive run dashboard",
+            "",
+            "## Reproduce",
+            "",
+            "Re-run with the bundled `strategy_config_*.json`. `MANIFEST.json` pins the "
+            "git commit, Python/system environment, and config checksum used to produce "
+            "these results.",
+            "",
+        ]
+
+        readme_path = Path(self.dirname) / "README.md"
+        try:
+            with open(readme_path, "w") as f:
+                f.write("\n".join(lines) + "\n")
+        except OSError as e:
+            logging.error(f"Failed to save run README in DirectoryHandler: {e}")
