@@ -45,7 +45,7 @@ Launch a new simulation.
 
 **Response:** `{ "simulation_id": "api_run_<timestamp>" }`
 
-Internally dispatches a Celery task (falls back to a subprocess if Redis is unavailable). The API returns immediately — poll `GET /api/simulations/{simulation_id}/status` or stream via `GET /api/simulations/{simulation_id}/stream` to track progress.
+Internally dispatches a Celery task (falls back to a subprocess if Redis is unavailable). The API returns immediately; poll `GET /api/simulations/{simulation_id}/status` or stream via `GET /api/simulations/{simulation_id}/stream` to track progress.
 
 ---
 

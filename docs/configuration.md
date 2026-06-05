@@ -44,7 +44,7 @@ Simulations are controlled entirely by a single JSON file. The file has two top-
 }
 ```
 
-This runs two strategies back-to-back, differing only in `num_std_dev`. See `config/simulation_strategies/example_strategy_config.json` for a full example with all 11 attack types.
+This runs two strategies back-to-back, differing only in `num_std_dev`. See `config/simulation_strategies/example_strategy_config.json` for a full example with a 10-round `attack_schedule` (one attack type per round).
 
 ---
 

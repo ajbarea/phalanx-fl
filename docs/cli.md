@@ -95,8 +95,7 @@ uv run intellifl-dev yolo
 | `lint` | Run code quality checks (ruff format, ruff check, ty) |
 | `validate` | Quick feedback: lint + unit tests only |
 | `test` | Full test suite: unit + integration + performance |
-| `audit` | Audit Python dependencies for known security vulnerabilities (pip-audit) |
-| `frontend-audit` | Fix frontend (npm) security vulnerabilities |
+| `audit` | Auto-fix and audit security vulnerabilities (backend + frontend) |
 
 ```bash title="Fast feedback loop"
 uv run intellifl-dev validate
@@ -108,7 +107,7 @@ uv run intellifl-dev test
 
 !!! info "Security scanning"
 
-    `audit` runs `pip-audit` against the locked dependency set. `frontend-audit` runs `npm audit fix` in the `frontend/` directory.
+    `audit` runs `pip-audit` against the locked Python dependencies and `npm audit fix` in `frontend/` in a single pass.
 
 ---
 
@@ -116,17 +115,14 @@ uv run intellifl-dev test
 
 | Command | Description |
 |---|---|
-| `deps` | Show the dependency tree |
 | `clean` | Remove build artifacts and caches |
 | `reset` | Clean artifacts **and** experiment results (`out/`) |
-| `cache-dir` | Show uv's cache directory location |
-| `cache-prune` | Prune unused entries from uv's cache |
 
 ```bash title="Clean up disk space"
 uv run intellifl-dev clean
 ```
 
-```bash title="Nuclear option — wipe everything including results"
+```bash title="Nuclear option: wipe everything including results"
 uv run intellifl-dev reset
 ```
 

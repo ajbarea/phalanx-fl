@@ -84,7 +84,7 @@ FastAPI application with routers for:
 
 ### `status_tracker.py`
 
-Writes a `status.json` file into the simulation output directory. This is the **sole writer** of status updates — all transitions (`queued → running → completed / failed / stopped`) go through `StatusTracker`, ensuring consistency and preventing race conditions. The UI polls this file and listens to SSE `status` events to display live progress.
+Writes a `status.json` file into the simulation output directory. This is the **sole writer** of status updates: all transitions (`queued → running → completed / failed / stopped`) go through `StatusTracker`, ensuring consistency and preventing race conditions. The UI polls this file and listens to SSE `status` events to display live progress.
 
 ---
 

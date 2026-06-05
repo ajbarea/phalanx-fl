@@ -4,13 +4,13 @@ The `dataset_keyword` field in your config selects the dataset and automatically
 
 !!! tip "Quick start"
 
-    Pick a keyword from the tables below, drop it into `"dataset_keyword"` in your config, and Phalanx handles the rest — partitioning, transforms, and model selection.
+    Pick a keyword from the tables below, drop it into `"dataset_keyword"` in your config, and Phalanx handles the rest: partitioning, transforms, and model selection.
 
 ---
 
 !!! info "Unified CNN architecture"
 
-    All image datasets (except CIFAR-100) use the `MedMNISTCNN` architecture — a configurable CNN with dataset-specific input dimensions, channel counts, and layer widths. The model registry in `intellifl/network_models/__init__.py` maps each `dataset_keyword` to the correct constructor parameters. CIFAR-100 uses `DynamicCNN`, which is configured from HuggingFace dataset metadata.
+    All image datasets (except CIFAR-100) use the `MedMNISTCNN` architecture, a configurable CNN with dataset-specific input dimensions, channel counts, and layer widths. The model registry in `intellifl/network_models/__init__.py` maps each `dataset_keyword` to the correct constructor parameters. CIFAR-100 uses `DynamicCNN`, which is configured from HuggingFace dataset metadata.
 
 ## :material-image-outline: Image datasets
 
@@ -43,9 +43,9 @@ A collection of standardised biomedical image classification benchmarks. All Med
 | `breastmnist` | Ultrasound (grayscale) | 2 | `MedMNISTCNN` |
 | `dermamnist` | Dermatoscopy (RGB) | 7 | `MedMNISTCNN` |
 | `octmnist` | Retinal OCT (grayscale) | 4 | `MedMNISTCNN` |
-| `organamnist` | Abdominal CT — axial (grayscale) | 11 | `MedMNISTCNN` |
-| `organcmnist` | Abdominal CT — coronal (grayscale) | 11 | `MedMNISTCNN` |
-| `organsmnist` | Abdominal CT — sagittal (grayscale) | 11 | `MedMNISTCNN` |
+| `organamnist` | Abdominal CT, axial (grayscale) | 11 | `MedMNISTCNN` |
+| `organcmnist` | Abdominal CT, coronal (grayscale) | 11 | `MedMNISTCNN` |
+| `organsmnist` | Abdominal CT, sagittal (grayscale) | 11 | `MedMNISTCNN` |
 | `pathmnist` | Colon pathology (RGB) | 9 | `MedMNISTCNN` |
 | `pneumoniamnist` | Chest X-ray (grayscale) | 2 | `MedMNISTCNN` |
 | `retinamnist` | Fundus photography (RGB) | 5 | `MedMNISTCNN` |
@@ -93,7 +93,7 @@ HuggingFace and custom text datasets support configurable partitioning via the `
 |---|---|---|
 | `iid` | Balanced, shuffled, even distribution across clients. | — |
 | `dirichlet` | Heterogeneous (non-IID) distribution using a Dirichlet prior. | `alpha` (default `0.5`; lower = more heterogeneous, higher = more uniform) |
-| `pathological` | Extreme non-IID — each client receives only K classes. | `num_classes_per_partition` (default `2`) |
+| `pathological` | Extreme non-IID; each client receives only K classes. | `num_classes_per_partition` (default `2`) |
 | `natural_id` | One client per natural identifier (e.g. FEMNIST's `writer_id`). Auto-discovers the partition count from the column's unique values. | `partition_by` (column name; required) |
 
 **Example:**

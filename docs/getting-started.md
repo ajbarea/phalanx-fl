@@ -2,12 +2,12 @@
 
 ## Option A — Docker Compose :material-star:{ title="Recommended" }
 
-The fastest way to run Phalanx. Docker Compose brings up the full stack — API, frontend, Redis, Celery worker, documentation site, and optional Celery monitor — with a single command. No Python environment or Node.js install required.
+The fastest way to run Phalanx. Docker Compose brings up the full stack (API, frontend, Redis, Celery worker, documentation site, and optional Celery monitor) with a single command. No Python environment or Node.js install required.
 
 !!! info "Prerequisites"
 
     - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (includes Compose)
-    - [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) *(optional — for GPU support)*
+    - [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) *(optional, for GPU support)*
 
 === ":material-server-network: Production"
 
@@ -65,7 +65,7 @@ Copy-Item .env.example .env
 
 !!! warning ".env is gitignored"
 
-    `.env` is never committed — safe for secrets like `HF_TOKEN`. Edit it to override any of the variables below:
+    `.env` is never committed, so it is safe for secrets like `HF_TOKEN`. Edit it to override any of the variables below:
 
 | Variable | Default | Description |
 |---|---|---|
@@ -86,10 +86,10 @@ Copy-Item .env.example .env
 
 | Volume | Description |
 |---|---|
-| `./out` | Simulation outputs (results, CSVs, plots) — persists across container restarts |
-| `./datasets` | Datasets — auto-downloaded on first run, persists across restarts |
+| `./out` | Simulation outputs (results, CSVs, plots); persists across container restarts |
+| `./datasets` | Datasets, auto-downloaded on first run; persists across restarts |
 | `./config` | Strategy configs (read-only inside container) |
-| `redis-data` | Redis task queue state — persists across restarts |
+| `redis-data` | Redis task queue state; persists across restarts |
 
 ---
 
@@ -102,7 +102,7 @@ Preferred if you are actively editing the codebase. Installs dependencies locall
     | Requirement | Version |
     |---|---|
     | :material-package-variant-closed: uv | 0.5.3+ |
-    | :material-language-python: CPython | 3.11 – 3.13 (uv-managed preferred) |
+    | :material-language-python: CPython | 3.12 – 3.13 (uv-managed preferred) |
     | :material-nodejs: Node.js | 20+ |
     | :material-docker: Docker Desktop / Docker Engine | Current |
     | :material-expansion-card: CUDA *(optional)* | For GPU acceleration |
@@ -138,7 +138,7 @@ uv run intellifl-dev sim
 uv run python -m intellifl.simulation_runner config/simulation_strategies/example_strategy_config.json
 ```
 
-The default config at `config/simulation_strategies/example_strategy_config.json` runs a 10-round FEMNIST simulation with a PID-based defence strategy and a comprehensive `attack_schedule` that demonstrates all 11 attack types (one per round).
+The default config at `config/simulation_strategies/example_strategy_config.json` runs a 10-round FEMNIST simulation with a PID-based defence strategy. Its `attack_schedule` fires a different attack each round, covering 10 of the 11 attack types (`token_replacement` is text-only and excluded from this image dataset).
 
 **CLI arguments:**
 
@@ -178,30 +178,23 @@ out/
 
 ```bash title="Quality and test commands"
 uv run intellifl-dev check-env        # Verify uv, Python, Docker
-uv run intellifl-dev lint             # Code quality checks (ruff, ty, eslint)
-uv run intellifl-dev audit            # Security audit with pip-audit
-uv run intellifl-dev frontend-audit   # Fix frontend security vulnerabilities
+uv run intellifl-dev lint             # Code quality checks (ruff, ty, frontend lint)
+uv run intellifl-dev audit            # Security audit (backend pip-audit + frontend npm)
 uv run intellifl-dev validate         # Quick feedback: lint + unit tests only
 uv run intellifl-dev test             # Full test suite: unit + integration + performance
 uv run intellifl-dev baselines        # Record fast simulation baselines for CI
 ```
 
 !!! tip "Security scanning"
-    `uv run intellifl-dev audit` runs `pip-audit` to scan for known vulnerabilities in Python dependencies. `uv run intellifl-dev frontend-audit` handles npm audit fixes.
+    `uv run intellifl-dev audit` runs `pip-audit` against the Python dependencies and `npm audit fix` in `frontend/`, in a single pass.
 
 ```bash title="Maintenance commands"
 uv run intellifl-dev upgrade       # Update all dependencies to latest versions
 uv run intellifl-dev clean         # Remove build artifacts and caches
 uv run intellifl-dev reset         # Clean artifacts AND experiment results (out/)
-uv run intellifl-dev deps          # Show dependency tree
 uv run intellifl-dev docs          # Serve documentation locally (Zensical)
-uv run intellifl-dev cache-dir     # Show uv's cache location
-uv run intellifl-dev cache-prune   # Remove unused uv cache entries
 uv run intellifl-dev yolo          # Nuke and rebuild: clean → setup → upgrade
 ```
-
-!!! tip "uv cache hygiene"
-    Keep uv's default shared cache unless you have a strong reason to move it. `uv run intellifl-dev cache-prune` is safe to run periodically on developer machines. In CI, prefer `uv cache prune --ci`.
 
 ---
 
@@ -269,4 +262,4 @@ If you see "Address already in use", either:
     npm install
     ```
 
-    This clears and reinstalls from `package-lock.json`. A plain `npm install` won't fix corruption because npm caches metadata — a full delete is required.
+    This clears and reinstalls from `package-lock.json`. A plain `npm install` won't fix corruption because npm caches metadata; a full delete is required.

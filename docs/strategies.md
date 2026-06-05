@@ -143,7 +143,7 @@ Sorts client updates by magnitude and trims `trim_ratio` from each end before av
 
 **Keyword:** `arkrum`
 
-Adaptive Robust Krum — an extended Krum variant with adaptive selection behaviour that incorporates median-based filtering (Yang & Imam, 2025).
+Adaptive Robust Krum, an extended Krum variant with adaptive selection behaviour that incorporates median-based filtering (Yang & Imam, 2025).
 
 **Required config fields:** none beyond the common fields.
 

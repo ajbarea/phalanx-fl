@@ -18,7 +18,7 @@ Phalanx supports injecting adversarial attacks into simulations via an `attack_s
 ]
 ```
 
-Multiple entries can overlap — a client can be subject to multiple **different** attack types in the same round. Overlapping entries with the **same** attack type are rejected by config validation.
+Multiple entries can overlap: a client can be subject to multiple **different** attack types in the same round. Overlapping entries with the **same** attack type are rejected by config validation.
 
 ---
 
@@ -70,8 +70,8 @@ An optional `"random_seed"` field can be added to any selection strategy for rep
 
 Attacks fall into two categories:
 
-- **Data poisoning** — corrupts the training data *before* local training. The model trains on bad data and learns the wrong thing. Attacks: `label_flipping`, `targeted_label_flipping`, `gaussian_noise`, `backdoor_trigger`, `token_replacement`.
-- **Model poisoning** — lets the client train normally, then corrupts the model weights *after* local training before sending them to the server. The server aggregates a poisoned update into the global model. Attacks: `model_poisoning`, `gradient_scaling`, `boosted_scaling`, `byzantine_perturbation`, `inner_product_manipulation`, `alternating_min_poisoning`.
+- **Data poisoning** corrupts the training data *before* local training. The model trains on bad data and learns the wrong thing. Attacks: `label_flipping`, `targeted_label_flipping`, `gaussian_noise`, `backdoor_trigger`, `token_replacement`.
+- **Model poisoning** lets the client train normally, then corrupts the model weights *after* local training before sending them to the server. The server aggregates a poisoned update into the global model. Attacks: `model_poisoning`, `gradient_scaling`, `boosted_scaling`, `byzantine_perturbation`, `inner_product_manipulation`, `alternating_min_poisoning`.
 
 | Keyword | Category | Primary Research Basis |
 | :--- | :--- | :--- |
@@ -91,9 +91,9 @@ Attacks fall into two categories:
 
 ### `label_flipping`
 
-**What it does:** Every training label on the malicious client is randomly changed to a different, incorrect class. The images themselves are untouched — only the labels are corrupted. For example, an image of a "3" might be relabeled as a "7".
+**What it does:** Every training label on the malicious client is randomly changed to a different, incorrect class. The images themselves are untouched; only the labels are corrupted. For example, an image of a "3" might be relabeled as a "7".
 
-**Why it matters:** The model learns wrong associations (e.g., "this shape is a 7" when it's really a 3). Over many rounds, the global model's accuracy degrades because it's being trained on contradictory information from the malicious client. This is the simplest data poisoning attack and serves as a baseline — if a defense can't catch this, it won't catch anything.
+**Why it matters:** The model learns wrong associations (e.g., "this shape is a 7" when it's really a 3). Over many rounds, the global model's accuracy degrades because it's being trained on contradictory information from the malicious client. This is the simplest data poisoning attack and serves as a baseline: if a defense can't catch this, it won't catch anything.
 
 ```json title="label_flipping"
 {
@@ -111,7 +111,7 @@ No extra parameters required.
 
 **What it does:** Instead of randomly scrambling all labels, this attack only changes labels of one specific class (the *source*) to another specific class (the *target*). All other labels are left alone. For example, every "9" in the malicious client's data gets relabeled as "1".
 
-**Why it matters:** This is more dangerous than random label flipping because it's *targeted* — the attacker wants the model to specifically confuse two classes. In safety-critical settings, this could mean a self-driving car confusing a stop sign for a speed limit sign. It's also harder to detect because most of the training data remains correct, so overall accuracy stays high while one specific class gets systematically misclassified.
+**Why it matters:** This is more dangerous than random label flipping because it's *targeted*: the attacker wants the model to specifically confuse two classes. In safety-critical settings, this could mean a self-driving car confusing a stop sign for a speed limit sign. It's also harder to detect because most of the training data remains correct, so overall accuracy stays high while one specific class gets systematically misclassified.
 
 ```json title="targeted_label_flipping"
 {
@@ -134,7 +134,7 @@ No extra parameters required.
 
 ### `gaussian_noise`
 
-**What it does:** Adds random Gaussian (bell-curve) noise directly to the pixel values of training images. The amount of noise is controlled by a signal-to-noise ratio (SNR) in decibels — lower SNR means more noise. Think of it like adding TV static to the images.
+**What it does:** Adds random Gaussian (bell-curve) noise directly to the pixel values of training images. The amount of noise is controlled by a signal-to-noise ratio (SNR) in decibels, where lower SNR means more noise. Think of it like adding TV static to the images.
 
 **Why it matters:** The model trains on noisy, corrupted images but with correct labels. It learns to associate noisy patterns with the right classes, which degrades the quality of the learned features. This simulates a classic "Byzantine" fault where a participant sends unreliable data, and is used to test whether aggregation defenses (like Krum or median-based aggregation) can filter out the noisy updates.
 
@@ -157,9 +157,9 @@ No extra parameters required.
 
 ### `backdoor_trigger`
 
-**What it does:** Stamps a small visual pattern (e.g., a 4x4 pixel square) onto a fraction of training images and relabels those images to the attacker's chosen target class. The trigger is like a secret "stamp" — during training, the model learns "whenever I see this pattern, predict the target class."
+**What it does:** Stamps a small visual pattern (e.g., a 4x4 pixel square) onto a fraction of training images and relabels those images to the attacker's chosen target class. The trigger is like a secret "stamp": during training, the model learns "whenever I see this pattern, predict the target class."
 
-**Why it matters:** This is one of the most insidious attacks because the model works perfectly on clean images — accuracy looks normal. But at inference time, anyone who knows the trigger pattern can stamp it onto any image and force the model to misclassify it as the target class. For example, a tiny sticker on a real-world stop sign could cause a model to classify it as "speed limit 60." The attack is stealthy because it doesn't hurt overall accuracy, so standard metrics won't flag it.
+**Why it matters:** This is one of the most insidious attacks because the model works perfectly on clean images, so accuracy looks normal. But at inference time, anyone who knows the trigger pattern can stamp it onto any image and force the model to misclassify it as the target class. For example, a tiny sticker on a real-world stop sign could cause a model to classify it as "speed limit 60." The attack is stealthy because it doesn't hurt overall accuracy, so standard metrics won't flag it.
 
 !!! info "Auto-contrast"
     The trigger intensity is automatically adjusted to contrast with the local background. For datasets with light backgrounds (like FEMNIST), the trigger is stamped as black instead of white to ensure it's actually visible to the model.
@@ -240,9 +240,9 @@ No extra parameters required.
 
 ### `boosted_scaling`
 
-**What it does:** Scales the model update by exactly `n_total / n_malicious` — the precise factor needed to cancel out FedAvg's averaging dilution. If there are 10 clients and 1 attacker, the update is scaled by 10x so that after averaging, the malicious update *replaces* the honest aggregate entirely.
+**What it does:** Scales the model update by exactly `n_total / n_malicious`, the precise factor needed to cancel out FedAvg's averaging dilution. If there are 10 clients and 1 attacker, the update is scaled by 10x so that after averaging, the malicious update *replaces* the honest aggregate entirely.
 
-**Why it matters:** This is the mathematically optimal version of gradient scaling. A naive scale factor is a guess — it might over- or under-shoot. Boosted scaling uses the exact formula from the research: since FedAvg divides each update by `n_total`, multiplying by `n_total / n_malicious` means the malicious contribution alone equals the full aggregate. The optional `boost_factor` lets you go even further (>1.0) or be more subtle (<1.0).
+**Why it matters:** This is the mathematically optimal version of gradient scaling. A naive scale factor is a guess; it might over- or under-shoot. Boosted scaling uses the exact formula from the research: since FedAvg divides each update by `n_total`, multiplying by `n_total / n_malicious` means the malicious contribution alone equals the full aggregate. The optional `boost_factor` lets you go even further (>1.0) or be more subtle (<1.0).
 
 ```json title="boosted_scaling"
 {
@@ -266,9 +266,9 @@ No extra parameters required.
 
 ### `byzantine_perturbation`
 
-**What it does:** After local training, adds random Gaussian noise to every weight in the model. The noise for each layer is scaled proportionally to that layer's standard deviation — layers with larger weights get larger perturbations, making the noise look more "natural." Optionally, the total perturbation can be clipped to a maximum L2 norm to stay within a plausible distance of a real update.
+**What it does:** After local training, adds random Gaussian noise to every weight in the model. The noise for each layer is scaled proportionally to that layer's standard deviation, so layers with larger weights get larger perturbations, making the noise look more "natural." Optionally, the total perturbation can be clipped to a maximum L2 norm to stay within a plausible distance of a real update.
 
-**Why it matters:** This simulates a "Byzantine" participant — one that sends arbitrary, unreliable model updates. Without norm clipping, the perturbation is detectable by simple norm-based defenses (like Krum, which picks the update closest to the others). With norm clipping enabled, the poisoned update stays within the normal range of update magnitudes, making it much harder to distinguish from honest updates. This is useful for testing whether a defense can detect *directionally* wrong updates, not just *large* ones.
+**Why it matters:** This simulates a "Byzantine" participant, one that sends arbitrary, unreliable model updates. Without norm clipping, the perturbation is detectable by simple norm-based defenses (like Krum, which picks the update closest to the others). With norm clipping enabled, the poisoned update stays within the normal range of update magnitudes, making it much harder to distinguish from honest updates. This is useful for testing whether a defense can detect *directionally* wrong updates, not just *large* ones.
 
 ```json title="byzantine_perturbation"
 {
@@ -290,9 +290,9 @@ No extra parameters required.
 
 ### `inner_product_manipulation`
 
-**What it does:** Instead of adding random noise (like `byzantine_perturbation`), this attack crafts a *deliberate* perturbation in a specific direction. It takes the client's honest update and either reverses it (`"negative"` — undo learning), zeroes it out (`"zero"` — prevent learning), or adds bounded random noise (`"random"`). Critically, the perturbation magnitude is scaled to stay within the natural range of inter-client variance, so its L2 norm looks normal.
+**What it does:** Instead of adding random noise (like `byzantine_perturbation`), this attack crafts a *deliberate* perturbation in a specific direction. It takes the client's honest update and either reverses it (`"negative"`, undo learning), zeroes it out (`"zero"`, prevent learning), or adds bounded random noise (`"random"`). Critically, the perturbation magnitude is scaled to stay within the natural range of inter-client variance, so its L2 norm looks normal.
 
-**Why it matters:** Defenses like Krum work by picking the update closest to other updates (measured by L2 distance). Random Byzantine noise is far from honest updates and gets filtered out. This attack is smarter — it stays close in L2 distance (looks normal) but points in the *wrong direction* (reverses or blocks learning). The inner product between this update and the honest direction is negative, which is why the paper calls it "inner product manipulation." It specifically targets and defeats distance-based defenses that don't check the *direction* of updates.
+**Why it matters:** Defenses like Krum work by picking the update closest to other updates (measured by L2 distance). Random Byzantine noise is far from honest updates and gets filtered out. This attack is smarter: it stays close in L2 distance (looks normal) but points in the *wrong direction* (reverses or blocks learning). The inner product between this update and the honest direction is negative, which is why the paper calls it "inner product manipulation." It specifically targets and defeats distance-based defenses that don't check the *direction* of updates.
 
 ```json title="inner_product_manipulation"
 {
@@ -317,18 +317,18 @@ No extra parameters required.
 **What it does:** This is the most sophisticated model poisoning attack in Phalanx. Instead of applying a fixed scaling factor or random noise, it uses an optimization algorithm (Projected Gradient Descent) to find the *worst possible* model update that still looks legitimate. It works in 5 steps:
 
 1. Compute the honest local update (what the client would normally send).
-2. Calculate a "trust-region" budget — how far the update can deviate before defenses would flag it.
+2. Calculate a "trust-region" budget: how far the update can deviate before defenses would flag it.
 3. Start from the exact opposite of the honest update (worst-case starting point).
 4. Iteratively optimize to maximize divergence from the honest direction while staying within the trust-region budget.
 5. Send the optimized malicious update to the server.
 
-**Why it matters:** This attack is specifically designed to be undetectable by norm-based defenses while causing maximum damage. Simpler attacks like `gradient_scaling` or `byzantine_perturbation` either have obvious large norms (easy to detect) or random directions (limited damage). This attack is the "best of both worlds" for the attacker — it causes the most damage per round while staying within the expected norm range. If a defense can withstand this attack, it's robust against a strong, adaptive adversary.
+**Why it matters:** This attack is specifically designed to be undetectable by norm-based defenses while causing maximum damage. Simpler attacks like `gradient_scaling` or `byzantine_perturbation` either have obvious large norms (easy to detect) or random directions (limited damage). This attack is the "best of both worlds" for the attacker: it causes the most damage per round while staying within the expected norm range. If a defense can withstand this attack, it's robust against a strong, adaptive adversary.
 
 **Research basis:**
 
-- **Bhagoji et al. (2019)** — *Analyzing Federated Learning through an Adversarial Lens* (ICML): Proposed alternating minimisation to jointly maximise task loss while satisfying stealth constraints.
-- **Fang et al. (2020)** — *Local Model Poisoning Attacks to Byzantine-Robust Federated Learning* (USENIX Security): Introduced the min-max formulation for optimal perturbation directions.
-- **Bagdasaryan et al. (2020)** — *How to Backdoor Federated Learning* (AISTATS): Defined the constrain-and-scale budget using `n_total / n_malicious`.
+- **Bhagoji et al. (2019)**, *Analyzing Federated Learning through an Adversarial Lens* (ICML): Proposed alternating minimisation to jointly maximise task loss while satisfying stealth constraints.
+- **Fang et al. (2020)**, *Local Model Poisoning Attacks to Byzantine-Robust Federated Learning* (USENIX Security): Introduced the min-max formulation for optimal perturbation directions.
+- **Bagdasaryan et al. (2020)**, *How to Backdoor Federated Learning* (AISTATS): Defined the constrain-and-scale budget using `n_total / n_malicious`.
 
 ```json title="alternating_min_poisoning"
 {
@@ -361,7 +361,7 @@ No extra parameters required.
 
 ### `token_replacement`
 
-**What it does:** For text/NLP tasks only. Scans the training text for domain-specific keywords (e.g., medical terms like "effective", "recommended") and replaces them with misleading alternatives (e.g., "harmful", "contraindicated"). The replacement is probabilistic — each matched token has a configurable chance of being swapped.
+**What it does:** For text/NLP tasks only. Scans the training text for domain-specific keywords (e.g., medical terms like "effective", "recommended") and replaces them with misleading alternatives (e.g., "harmful", "contraindicated"). The replacement is probabilistic: each matched token has a configurable chance of being swapped.
 
 **Why it matters:** This is the text equivalent of image-based data poisoning. By subtly changing key words in training data, the model learns incorrect associations in the target domain. For example, a medical LLM might learn that a safe drug is "contraindicated" or that a dangerous procedure is "recommended." Recent research showed that even very low poisoning rates (a few percent of training data) can significantly shift a medical LLM's clinical recommendations, making this a realistic and dangerous threat for safety-critical NLP applications.
 

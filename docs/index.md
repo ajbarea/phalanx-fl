@@ -36,7 +36,7 @@ hide:
 <section class="landing-section landing-section--intro">
   <div class="section-inner">
     <h2 class="section-title">What Is Phalanx?</h2>
-    <p class="section-lead">Phalanx is a full-stack federated learning platform for running, attacking, and defending distributed ML simulations. Configure a JSON file, launch a simulation, and get CSV metrics, PDF plots, and attack snapshot reports &mdash; all orchestrated through a React dashboard or CLI.</p>
+    <p class="section-lead">Phalanx is a full-stack federated learning platform for running, attacking, and defending distributed ML simulations. Configure a JSON file, launch a simulation, and get CSV metrics, PDF plots, and attack snapshot reports, all orchestrated through a React dashboard or CLI.</p>
   </div>
 </section>
 
@@ -92,7 +92,7 @@ hide:
       <a href="cli/" class="feature-card" style="--card-accent: #00897B">
         <span class="feature-icon material-symbols-outlined">terminal</span>
         <div class="feature-name">CLI Reference</div>
-        <p>Every <code>intellifl-dev</code> command &mdash; setup, dev, test, lint, and more</p>
+        <p>Every <code>intellifl-dev</code> command: setup, dev, test, lint, and more</p>
       </a>
       <a href="architecture/" class="feature-card" style="--card-accent: #26A69A">
         <span class="feature-icon material-symbols-outlined">account_tree</span>
@@ -102,7 +102,7 @@ hide:
       <a href="configuration/" class="feature-card" style="--card-accent: #4DB6AC">
         <span class="feature-icon material-symbols-outlined">settings</span>
         <div class="feature-name">Configuration</div>
-        <p>Full StrategyConfig field reference &mdash; every knob you can turn</p>
+        <p>Full StrategyConfig field reference: every knob you can turn</p>
       </a>
       <a href="datasets/" class="feature-card" style="--card-accent: #7C4DFF">
         <span class="feature-icon material-symbols-outlined">database</span>
@@ -134,7 +134,7 @@ hide:
     <div class="feature-grid feature-grid--compact">
       <div class="feature-card feature-card--flat">
         <div class="feature-name"><span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 4px;">verified_user</span> 10 Aggregation Strategies</div>
-        <p>FedAvg, Krum, Multi-Krum, Multi-Krum-based, Bulyan, RFA, Trimmed Mean, PID-based, Trust-based, ArKrum &mdash; each with configurable parameters</p>
+        <p>FedAvg, Krum, Multi-Krum, Multi-Krum-based, Bulyan, RFA, Trimmed Mean, PID-based, Trust-based, ArKrum, each with configurable parameters</p>
       </div>
       <div class="feature-card feature-card--flat">
         <div class="feature-name"><span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 4px;">warning</span> 11 Attack Types</div>
@@ -146,7 +146,7 @@ hide:
       </div>
       <div class="feature-card feature-card--flat">
         <div class="feature-name"><span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 4px;">layers</span> Full-Stack Platform</div>
-        <p>REST API + React dashboard, Celery task queue, SSE live streaming, Docker Compose deployment, and this docs site &mdash; all included</p>
+        <p>REST API + React dashboard, Celery task queue, SSE live streaming, Docker Compose deployment, and this docs site, all included</p>
       </div>
     </div>
   </div>
