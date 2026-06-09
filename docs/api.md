@@ -301,14 +301,21 @@ Send a chat message to the AI agent endpoint.
 
 The `status` field follows this lifecycle:
 
-```mermaid
-stateDiagram-v2
-    [*] --> queued
-    queued --> running
-    running --> completed
-    running --> failed
-    running --> stopped
-```
+<div class="pfig" markdown="0">
+  <div class="pfig-states">
+    <span class="pstate pstate--start">start</span>
+    <span class="pfig-arrow">→</span>
+    <span class="pstate">queued</span>
+    <span class="pfig-arrow">→</span>
+    <span class="pstate pstate--running">running</span>
+    <span class="pfig-arrow">→</span>
+    <span class="pstate-terminals">
+      <span class="pstate pstate--ok">completed</span>
+      <span class="pstate pstate--bad">failed</span>
+      <span class="pstate pstate--bad">stopped</span>
+    </span>
+  </div>
+</div>
 
 | Status | Meaning |
 |---|---|
