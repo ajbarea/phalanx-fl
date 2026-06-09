@@ -625,92 +625,6 @@ body.hero-page .md-content__inner {
 }
 
 /* ==========================================================================
-   Mermaid Diagram Theming — Teal on Slate
-   ========================================================================== */
-
-.md-typeset .mermaid {
-  margin: 1.5rem 0;
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-/* Node styling */
-[data-md-color-scheme="slate"] .mermaid .node rect,
-[data-md-color-scheme="slate"] .mermaid .node circle,
-[data-md-color-scheme="slate"] .mermaid .node polygon {
-  fill: color-mix(in srgb, var(--intefl-teal) 12%, transparent) !important;
-  stroke: var(--intefl-teal) !important;
-  stroke-width: 2px !important;
-}
-
-[data-md-color-scheme="slate"] .mermaid .node .label,
-[data-md-color-scheme="slate"] .mermaid .nodeLabel {
-  color: var(--intefl-teal-light) !important;
-  fill: var(--intefl-teal-light) !important;
-}
-
-/* Edge lines and arrows */
-[data-md-color-scheme="slate"] .mermaid .edgePath .path,
-[data-md-color-scheme="slate"] .mermaid .flowchart-link {
-  stroke: var(--intefl-teal-dark) !important;
-  stroke-width: 2px !important;
-}
-
-[data-md-color-scheme="slate"] .mermaid .arrowheadPath,
-[data-md-color-scheme="slate"] .mermaid marker path {
-  fill: var(--intefl-teal-dark) !important;
-  stroke: var(--intefl-teal-dark) !important;
-}
-
-/* Edge labels */
-[data-md-color-scheme="slate"] .mermaid .edgeLabel {
-  background-color: var(--md-default-bg-color) !important;
-  color: var(--intefl-teal-light) !important;
-}
-
-[data-md-color-scheme="slate"] .mermaid .edgeLabel rect {
-  fill: var(--md-default-bg-color) !important;
-  opacity: 0.9 !important;
-}
-
-[data-md-color-scheme="slate"] .mermaid .edgeLabel span {
-  color: var(--intefl-teal-light) !important;
-  fill: var(--intefl-teal-light) !important;
-}
-
-/* State diagrams */
-[data-md-color-scheme="slate"] .mermaid .statediagram-state rect {
-  fill: color-mix(in srgb, var(--intefl-teal) 12%, transparent) !important;
-  stroke: var(--intefl-teal) !important;
-}
-
-/* Sequence diagrams */
-[data-md-color-scheme="slate"] .mermaid .actor {
-  fill: color-mix(in srgb, var(--intefl-teal) 12%, transparent) !important;
-  stroke: var(--intefl-teal) !important;
-}
-
-[data-md-color-scheme="slate"] .mermaid text.actor,
-[data-md-color-scheme="slate"] .mermaid .actor text {
-  fill: var(--intefl-teal-light) !important;
-}
-
-[data-md-color-scheme="slate"] .mermaid .messageLine0,
-[data-md-color-scheme="slate"] .mermaid .messageLine1 {
-  stroke: var(--intefl-teal-dark) !important;
-}
-
-[data-md-color-scheme="slate"] .mermaid .messageText {
-  fill: var(--intefl-teal-light) !important;
-}
-
-/* Cluster / subgraph backgrounds */
-[data-md-color-scheme="slate"] .mermaid .cluster rect {
-  fill: color-mix(in srgb, var(--intefl-teal) 4%, transparent) !important;
-  stroke: var(--intefl-teal-dark) !important;
-}
-
-/* ==========================================================================
    Announcement Bar
    ========================================================================== */
 
@@ -832,13 +746,6 @@ html {
   /* Tech stack wrap tighter */
   .tech-stack {
     gap: 0.6rem;
-  }
-
-  /* Mermaid */
-  .mermaid {
-    max-width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
   }
 }
 
@@ -1137,78 +1044,6 @@ html {
 [data-md-color-scheme="default"] .md-typeset table:not([class]) th {
   background: color-mix(in srgb, var(--intefl-teal) 8%, #fff);
   border-bottom: 2px solid var(--intefl-teal);
-}
-
-/* ==========================================================================
-   Mermaid — Teal Theming (body-scoped + svg for specificity over inline styles)
-   These rules shadow the [data-md-color-scheme] .mermaid rules above; the
-   body prefix raises specificity enough to beat mermaid's programmatic fill.
-   ========================================================================== */
-
-body[data-md-color-scheme="default"] .mermaid svg .node rect,
-body[data-md-color-scheme="default"] .mermaid svg .node polygon,
-body[data-md-color-scheme="default"] .mermaid svg .node circle {
-  fill: color-mix(in srgb, var(--intefl-teal) 12%, white) !important;
-  stroke: var(--intefl-teal) !important;
-  stroke-width: 1.5px !important;
-}
-
-body[data-md-color-scheme="default"] .mermaid svg .nodeLabel,
-body[data-md-color-scheme="default"] .mermaid svg .node .label {
-  color: var(--intefl-teal-dark) !important;
-  fill: var(--intefl-teal-dark) !important;
-}
-
-body[data-md-color-scheme="default"] .mermaid svg .flowchart-link,
-body[data-md-color-scheme="default"] .mermaid svg .edgePath .path {
-  stroke: var(--intefl-teal) !important;
-  stroke-width: 1.5px !important;
-}
-
-body[data-md-color-scheme="default"] .mermaid svg marker path,
-body[data-md-color-scheme="default"] .mermaid svg .arrowheadPath {
-  fill: var(--intefl-teal) !important;
-  stroke: var(--intefl-teal) !important;
-}
-
-body[data-md-color-scheme="slate"] .mermaid svg .node rect,
-body[data-md-color-scheme="slate"] .mermaid svg .node polygon,
-body[data-md-color-scheme="slate"] .mermaid svg .node circle {
-  fill: color-mix(in srgb, var(--intefl-teal) 18%, var(--md-default-bg-color)) !important;
-  stroke: var(--intefl-teal) !important;
-  stroke-width: 1.5px !important;
-}
-
-body[data-md-color-scheme="slate"] .mermaid svg .nodeLabel,
-body[data-md-color-scheme="slate"] .mermaid svg .node .label {
-  color: var(--intefl-teal-light) !important;
-  fill: var(--intefl-teal-light) !important;
-}
-
-body[data-md-color-scheme="slate"] .mermaid svg .flowchart-link,
-body[data-md-color-scheme="slate"] .mermaid svg .edgePath .path {
-  stroke: var(--intefl-teal-dark) !important;
-  stroke-width: 1.5px !important;
-}
-
-body[data-md-color-scheme="slate"] .mermaid svg marker path,
-body[data-md-color-scheme="slate"] .mermaid svg .arrowheadPath {
-  fill: var(--intefl-teal-dark) !important;
-  stroke: var(--intefl-teal-dark) !important;
-}
-
-body[data-md-color-scheme="slate"] .mermaid svg .edgeLabel {
-  background-color: var(--md-default-bg-color) !important;
-  color: var(--intefl-teal-light) !important;
-}
-
-body[data-md-color-scheme="slate"] .mermaid svg .edgeLabel rect {
-  fill: var(--md-default-bg-color) !important;
-}
-
-body[data-md-color-scheme="slate"] .mermaid svg .edgeLabel span {
-  color: var(--intefl-teal-light) !important;
-  fill: var(--intefl-teal-light) !important;
 }
 
 /* ==========================================================================

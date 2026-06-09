@@ -2,30 +2,28 @@
 
 ## Component overview
 
-```mermaid
-flowchart TD
-    UI["React / Vite UI<br/>port 5173 (dev) / 80 (prod via nginx)"]
-    API["FastAPI Backend<br/>intellifl.api · port 8000"]
-    Redis[(Redis<br/>redis-data volume)]
-    Celery["Celery Worker<br/>intellifl.celery_app"]
-    SR["SimulationRunner<br/>simulation_runner.py"]
-    FedSim["FederatedSimulation<br/>federated_simulation.py"]
-    Strat["Aggregation Strategy<br/>FedAvg · Krum · PID · Trust…"]
-    Data["Dataset Loader<br/>+ Network Model"]
-    Flower["Flower / Ray Engine"]
-    Clients["FlowerClient × N<br/>train + evaluate"]
-
-    UI -->|HTTP / SSE| API
-    API -->|task.delay| Redis
-    Redis --> Celery
-    Celery --> SR
-    SR -->|one or more strategies| FedSim
-    FedSim --> Strat
-    FedSim --> Data
-    Strat --> Flower
-    Data --> Flower
-    Flower --> Clients
-```
+<div class="pfig" markdown="0">
+  <div class="pfig-row"><div class="pnode"><b>React / Vite UI</b><span>:5173 dev · :80 prod (nginx)</span></div></div>
+  <div class="pfig-flow">HTTP / SSE</div>
+  <div class="pfig-row"><div class="pnode"><b>FastAPI Backend</b><span>intellifl.api · :8000</span></div></div>
+  <div class="pfig-flow">task.delay</div>
+  <div class="pfig-row"><div class="pnode pnode--purple"><b>Redis</b><span>broker · redis-data volume</span></div></div>
+  <div class="pfig-flow"></div>
+  <div class="pfig-row"><div class="pnode"><b>Celery Worker</b><span>intellifl.celery_app</span></div></div>
+  <div class="pfig-flow"></div>
+  <div class="pfig-row"><div class="pnode"><b>SimulationRunner</b><span>simulation_runner.py</span></div></div>
+  <div class="pfig-flow">one or more strategies</div>
+  <div class="pfig-row"><div class="pnode"><b>FederatedSimulation</b><span>federated_simulation.py</span></div></div>
+  <div class="pfig-flow"></div>
+  <div class="pfig-row pfig-branch">
+    <div class="pnode pnode--purple"><b>Aggregation Strategy</b><span>FedAvg · Krum · PID · Trust…</span></div>
+    <div class="pnode"><b>Dataset Loader</b><span>+ Network Model</span></div>
+  </div>
+  <div class="pfig-flow"></div>
+  <div class="pfig-row"><div class="pnode"><b>Flower / Ray Engine</b></div></div>
+  <div class="pfig-flow"></div>
+  <div class="pfig-row"><div class="pnode"><b>FlowerClient × N</b><span>train + evaluate</span></div></div>
+</div>
 
 ---
 
@@ -90,20 +88,34 @@ Writes a `status.json` file into the simulation output directory. This is the **
 
 ## :material-swap-vertical: Data flow for a simulation
 
-```mermaid
-flowchart TD
-    S1["1. Config JSON parsed by ConfigLoader"]
-    S2["2. StrategyConfig validated by Pydantic"]
-    S3["3. DatasetHandler partitions dataset → N client shards"]
-    S4["4. FederatedSimulation initialises loaders,<br/>model, strategy, and Flower apps"]
-    S5["5. Flower simulation engine launches Ray actors"]
-    Round["For each round<br/>a&#41; Server sends global params<br/>b&#41; Clients train locally<br/>c&#41; Clients apply attack (opt.)<br/>d&#41; Strategy aggregates updates<br/>e&#41; Metrics recorded to history"]
-    S6["6. SimulationStrategyHistory → CSV"]
-    S7["7. Plots generated and saved"]
-    S8["8. Attack snapshots generated (if enabled)"]
-
-    S1 --> S2 --> S3 --> S4 --> S5 --> Round --> S6 --> S7 --> S8
-```
+<div class="pfig" markdown="0">
+  <div class="pfig-row"><div class="pnode"><b>1 · Config JSON</b><span>parsed by ConfigLoader</span></div></div>
+  <div class="pfig-flow"></div>
+  <div class="pfig-row"><div class="pnode"><b>2 · StrategyConfig</b><span>validated by Pydantic</span></div></div>
+  <div class="pfig-flow"></div>
+  <div class="pfig-row"><div class="pnode"><b>3 · DatasetHandler</b><span>partitions dataset → N client shards</span></div></div>
+  <div class="pfig-flow"></div>
+  <div class="pfig-row"><div class="pnode"><b>4 · FederatedSimulation</b><span>initialises loaders, model, strategy, Flower apps</span></div></div>
+  <div class="pfig-flow"></div>
+  <div class="pfig-row"><div class="pnode"><b>5 · Flower engine</b><span>launches Ray actors</span></div></div>
+  <div class="pfig-flow"></div>
+  <div class="pfig-loop">
+    <div class="pfig-loop-h">for each round</div>
+    <ol>
+      <li>Server sends global params</li>
+      <li>Clients train locally</li>
+      <li>Clients apply attack (optional)</li>
+      <li>Strategy aggregates updates</li>
+      <li>Metrics recorded to history</li>
+    </ol>
+  </div>
+  <div class="pfig-flow"></div>
+  <div class="pfig-row"><div class="pnode"><b>6 · History → CSV</b><span>SimulationStrategyHistory</span></div></div>
+  <div class="pfig-flow"></div>
+  <div class="pfig-row"><div class="pnode"><b>7 · Plots</b><span>generated + saved</span></div></div>
+  <div class="pfig-flow"></div>
+  <div class="pfig-row"><div class="pnode"><b>8 · Attack snapshots</b><span>if enabled</span></div></div>
+</div>
 
 ---
 
@@ -184,22 +196,21 @@ out/
 
 ## :material-tray-full: Task queuing with Celery + Redis
 
-```mermaid
-flowchart TD
-    UI["React UI"]
-    API["FastAPI"]
-    Redis["Redis Broker<br/>Task queue + Result backend"]
-    Worker["Celery Worker"]
-    SR["SimulationRunner"]
-    FS["FederatedSimulation"]
-
-    UI -->|POST /api/simulations| API
-    API -->|task.delay| Redis
-    Redis -->|pull task| Worker
-    Worker -->|exec| SR
-    SR --> FS
-    FS -->|write status| File["status.json<br/>output.log"]
-```
+<div class="pfig" markdown="0">
+  <div class="pfig-row"><div class="pnode"><b>React UI</b></div></div>
+  <div class="pfig-flow">POST /api/simulations</div>
+  <div class="pfig-row"><div class="pnode"><b>FastAPI</b></div></div>
+  <div class="pfig-flow">task.delay</div>
+  <div class="pfig-row"><div class="pnode pnode--purple"><b>Redis Broker</b><span>task queue + result backend</span></div></div>
+  <div class="pfig-flow">pull task</div>
+  <div class="pfig-row"><div class="pnode"><b>Celery Worker</b></div></div>
+  <div class="pfig-flow">exec</div>
+  <div class="pfig-row"><div class="pnode"><b>SimulationRunner</b></div></div>
+  <div class="pfig-flow"></div>
+  <div class="pfig-row"><div class="pnode"><b>FederatedSimulation</b></div></div>
+  <div class="pfig-flow">write status</div>
+  <div class="pfig-row"><div class="pnode"><b>status.json · output.log</b></div></div>
+</div>
 
 When you submit a simulation via the REST API:
 
