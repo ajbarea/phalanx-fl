@@ -64,8 +64,12 @@ jobs:
           version: 0.11.5
           enable-cache: true
           cache-suffix: 'py${{ matrix.python-version }}'
+      # No --frozen: torch comes from the explicit pytorch-cpu index, whose wheels
+      # aren't pinned in the lock, so --frozen can't fetch the per-Python wheel
+      # (e.g. cp313). Lock/pyproject consistency is already gated by the lint job's
+      # `uv lock --check`. Mirrors the velocity-fl convention.
       - name: Install dependencies (CPU torch + HF stack)
-        run: 'uv sync --frozen --extra hf --extra torch --python ${{ matrix.python-version }}'
+        run: 'uv sync --extra hf --extra torch --python ${{ matrix.python-version }}'
       - name: Run tests with coverage
         env:
           HF_HUB_DISABLE_TELEMETRY: '1'
@@ -101,8 +105,12 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: uv sync --frozen --extra hf --extra torch
+      # GHSA-537c-gmf6-5ccf: availability-only OOB read in the OpenSSL bundled in
+      # cryptography's wheels (no RCE/data impact), fixed in cryptography 48.0.1 — but
+      # flwr 1.31 caps cryptography <48, and phalanx has no direct cryptography use.
+      # Drop this ignore when flwr widens its pin.
       - name: Audit for known vulnerabilities
-        run: uv run pip-audit
+        run: uv run pip-audit --ignore-vuln GHSA-537c-gmf6-5ccf
       - name: Minimize uv cache
         if: always()
         run: uv cache prune --ci
