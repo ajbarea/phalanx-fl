@@ -53,9 +53,10 @@ def run_backend_audit() -> int:
     backend_logger.info("Starting backend audit...")
 
     # Unpatched-upstream ignore list — review before every release.
-    # Each entry's advisory reports "Patched versions: None" or has no fix
-    # listed in the pip-audit `Fix Versions` column. When upstream ships a
-    # patched release, drop the corresponding entry.
+    # Each entry is a vuln we cannot currently apply a fix for: either the advisory
+    # reports "Patched versions: None" / no `Fix Versions`, or a fixed release exists
+    # but a direct dependency caps the package below it. When the fix becomes
+    # installable (upstream patches, or the capping dep widens its pin), drop the entry.
     #
     # CVE-2026-3219 (pip): advisory GHSA-58qw-9mgm-455v updated 2026-04-25.
     # PYSEC-2024-277 (joblib 1.5.3, latest on PyPI 2026-05-20).
@@ -64,6 +65,11 @@ def run_backend_audit() -> int:
     #   in the same series; still unpatched in transformers 5.9.0 (latest on
     #   PyPI 2026-05-20). Filed against HuggingFace upstream — track via
     #   https://github.com/huggingface/transformers/security/advisories.
+    # GHSA-537c-gmf6-5ccf (cryptography 46.0.7): High (7.5) but availability-only — an
+    #   out-of-bounds read in the OpenSSL bundled in cryptography's wheels, not the
+    #   Python API (no RCE / data impact). Fixed in cryptography 48.0.1, but flwr caps
+    #   cryptography <48 (still capped at flwr 1.31.0, latest on PyPI 2026-06-16) and
+    #   phalanx has no direct cryptography use. Drop when flwr widens its pin.
     transformers_advisories = [f"--ignore-vuln=PYSEC-2025-{n}" for n in range(211, 219)]
     tools = [
         (
@@ -72,6 +78,7 @@ def run_backend_audit() -> int:
                 "--ignore-vuln=CVE-2026-3219",
                 "--ignore-vuln=PYSEC-2024-277",
                 "--ignore-vuln=PYSEC-2026-89",
+                "--ignore-vuln=GHSA-537c-gmf6-5ccf",
                 *transformers_advisories,
             ],
             "pip-audit",
