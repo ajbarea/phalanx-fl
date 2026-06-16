@@ -20,6 +20,7 @@ from phalanx.task import (
     get_model,
     load_data,
     set_adapter_state,
+    set_seed,
     test_fn,
     train_fn,
 )
@@ -49,8 +50,10 @@ def train(msg: Message, context: Context) -> Message:
     init_telemetry(service_name=str(cfg["otel-service-name"]))
     partition_id = int(node["partition-id"])
     num_partitions = int(node["num-partitions"])
+    rnd = _server_round(msg)
+    set_seed(1000 * rnd + partition_id)  # reproducible per (round, client)
 
-    with client_span(rnd=_server_round(msg), partition_id=partition_id, phase="train"):
+    with client_span(rnd=rnd, partition_id=partition_id, phase="train"):
         trainloader, _ = load_data(
             partition_id,
             num_partitions,
@@ -83,8 +86,10 @@ def evaluate(msg: Message, context: Context) -> Message:
     init_telemetry(service_name=str(cfg["otel-service-name"]))
     partition_id = int(node["partition-id"])
     num_partitions = int(node["num-partitions"])
+    rnd = _server_round(msg)
+    set_seed(1000 * rnd + partition_id)  # reproducible per (round, client)
 
-    with client_span(rnd=_server_round(msg), partition_id=partition_id, phase="evaluate"):
+    with client_span(rnd=rnd, partition_id=partition_id, phase="evaluate"):
         _, testloader = load_data(
             partition_id,
             num_partitions,

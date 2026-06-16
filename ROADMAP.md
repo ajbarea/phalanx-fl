@@ -28,6 +28,7 @@ The app-model core: `task.py` (HF+LoRA model, `flwr-datasets` non-IID), `client_
 - [x] `flwr run` simulation verified — federates adapters (0 failures) and emits round + client spans; IID accuracy improves monotonically (0.51 → 0.58).
 - [x] Clean-slate sweep — removed the retrofitted `intellifl` app + old infra; rebuilt Makefile/CI/docs around `flwr run` + ruff/ty/pytest.
 - [x] Quickstart docs — `flwr run`, the OTLP/Jaeger setup, console traces, the config knobs.
+- [x] Deterministic seeding — `set_seed` keys Python/NumPy/torch per `(round, client)`, so a run replays (the reproducibility floor a systems paper needs).
 
 **Scope discipline (YAGNI):** one scenario (IMDB sentiment), IID + Dirichlet
 partitioners, FedAvg. Strategies / datasets / partitioners grow only when a concrete
@@ -48,6 +49,14 @@ use lands.
   and view phalanx traces, so the differentiator is visible without external setup.
 - [ ] **OTel GenAI semconv alignment** — emit eval results as the
   `gen_ai.evaluation.result` event where it fits, paired with app-namespaced metrics.
+- [ ] **FL fault observability** — map client/worker failures to span `ERROR` status +
+  span events (the old `intellifl/utils/ray_logger.py` taxonomy: CRASH / OOM / TIMEOUT /
+  NODE_DEATH). Turns the observability layer from happy-path-only into a fault story —
+  worth extracting from the old app, re-expressed as OTel rather than bespoke logging.
+- [ ] **Run provenance manifest** — emit a per-run JSON (git SHA, resolved run-config,
+  final-round metrics, OTel run/trace id, timestamp) so every run is reproducible and
+  citable (FAIR / IEEE artifact-evaluation criteria). The old app's `MANIFEST.json` +
+  per-run README, slimmed and paired with the trace as the systems-paper provenance hook.
 
 ---
 

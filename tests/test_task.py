@@ -9,9 +9,17 @@ import pytest
 import torch
 from flwr.app import ArrayRecord
 
-from phalanx.task import get_adapter_state, get_model, set_adapter_state
+from phalanx.task import get_adapter_state, get_model, set_adapter_state, set_seed
 
 MODEL = "google/bert_uncased_L-2_H-128_A-2"
+
+
+def test_set_seed_makes_training_rng_deterministic() -> None:
+    set_seed(123)
+    a = torch.randn(8)
+    set_seed(123)
+    b = torch.randn(8)
+    assert torch.equal(a, b)
 
 
 @pytest.fixture(scope="module")

@@ -7,8 +7,10 @@ Anchored on Flower's quickstart-huggingface example (flwr 1.31 app-model), adapt
 
 from __future__ import annotations
 
+import random
 from typing import Any
 
+import numpy as np
 import torch
 from datasets.utils.logging import disable_progress_bar
 from evaluate import load as load_metric
@@ -28,6 +30,18 @@ disable_progress_bar()
 
 # Cache the FederatedDataset so each simulated client doesn't re-download/re-partition.
 _fds: FederatedDataset | None = None
+
+
+def set_seed(seed: int) -> None:
+    """Seed Python / NumPy / torch RNGs so a client's local training is reproducible.
+
+    Clients seed per-partition (see client_app) so each is deterministic yet distinct;
+    combined with the partitioner/split seeds, a whole run replays. CPU-only here, so
+    no CUDA-determinism caveats apply.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
 
 
 def _make_partitioner(name: str, num_partitions: int, alpha: float) -> Partitioner:

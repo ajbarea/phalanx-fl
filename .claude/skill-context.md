@@ -48,6 +48,15 @@ Tool error markers (extend the default grep set):
 
 Expected external PR checks: Codecov (see `codecov.yml`), GitGuardian.
 
+## slop_ground_truth
+
+The app ships no recorded performance/scale baselines (the old `make baselines`
+apparatus was removed in the clean-slate). Any quantitative claim about accuracy,
+loss, round time, or payload size must trace to an actual `flwr run` or a test
+assertion — there is no in-repo numeric SoT to cite yet. Adapter-payload-size and
+round-duration metrics are a v2 ROADMAP item; until they land, treat any such
+number in prose as slop unless it is reproduced from a run in the same change.
+
 ## fragile_docs
 
 README claims that trace to code (no automated gate yet — verify by hand on edit):
