@@ -70,12 +70,15 @@ jobs:
       # `uv lock --check`. Mirrors the velocity-fl convention.
       - name: Install dependencies (CPU torch + HF stack)
         run: 'uv sync --extra hf --extra torch --python ${{ matrix.python-version }}'
+      # The extras must be on `uv run` too: without them it re-syncs to the default
+      # groups and drops torch before pytest collects. Mirrors the Makefile.
       - name: Run tests with coverage
         env:
           HF_HUB_DISABLE_TELEMETRY: '1'
           TOKENIZERS_PARALLELISM: 'false'
         run: >
-          uv run python -m pytest --cov=phalanx --cov-report=xml
+          uv run --extra hf --extra torch --python ${{ matrix.python-version }}
+          python -m pytest --cov=phalanx --cov-report=xml
           --cov-report=term-missing --tb=short
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
