@@ -35,7 +35,8 @@ dependencies = [
 hf = [
     "transformers>=5.10",
     "peft>=0.10",
-    "datasets>=5",
+    # flwr-datasets 0.6.0 caps datasets <5; transformers 5 only needs >=2.15.
+    "datasets>=2.15,<5",
     "evaluate>=0.4",
     "scikit-learn>=1.3",
 ]
@@ -77,7 +78,10 @@ clientapp = "phalanx.client_app:app"
 
 [tool.flwr.app.config]
 num-server-rounds = 3
-model-name = "prajjwal1/bert-tiny"
+# Google's original tiny BERT (2-layer/128-hidden, ~4.4M params). Ships a complete
+# config.json with `model_type` — required by transformers >=5 (the older
+# prajjwal1/bert-tiny re-upload omits it and fails to load on transformers 5).
+model-name = "google/bert_uncased_L-2_H-128_A-2"
 dataset = "stanfordnlp/imdb"
 num-labels = 2
 # Non-IID partitioning over the HF dataset; lower alpha = more label skew.
@@ -89,6 +93,13 @@ fraction-evaluate = 0.1
 otel-service-name = "phalanx-fl"
 # OTLP endpoint is read from the OTEL_EXPORTER_OTLP_ENDPOINT env var when set.
 
+# =============================================================================
+# Local simulation federation. flwr 1.31 migrates this into ~/.flwr/config.toml
+# on the first `flwr run`, then comments this block out *locally* (see flwr
+# #6824). It is kept here un-commented so a fresh clone bootstraps a working
+# `local-simulation`; override per run with `--federation-config`, e.g.
+# `flwr run . local-simulation --federation-config 'options.num-supernodes=10'`.
+# =============================================================================
 [tool.flwr.federations]
 default = "local-simulation"
 

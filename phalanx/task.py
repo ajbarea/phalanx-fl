@@ -61,7 +61,7 @@ def load_data(
     partition = _fds.load_partition(partition_id)
     split = partition.train_test_split(test_size=0.2, seed=42)
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name, model_max_length=512)
+    tokenizer: Any = AutoTokenizer.from_pretrained(model_name, model_max_length=512)
 
     def tokenize(examples: dict[str, Any]) -> Any:
         return tokenizer(examples["text"], truncation=True, add_special_tokens=True)
@@ -70,18 +70,14 @@ def load_data(
     split = split.remove_columns("text").rename_column("label", "labels")
 
     collator = DataCollatorWithPadding(tokenizer=tokenizer)
-    trainloader = DataLoader(
-        split["train"], shuffle=True, batch_size=32, collate_fn=collator
-    )
+    trainloader = DataLoader(split["train"], shuffle=True, batch_size=32, collate_fn=collator)
     testloader = DataLoader(split["test"], batch_size=32, collate_fn=collator)
     return trainloader, testloader
 
 
 def get_model(model_name: str, num_labels: int = 2) -> Any:
     """A HF sequence-classification model wrapped with a LoRA adapter (PEFT)."""
-    base = AutoModelForSequenceClassification.from_pretrained(
-        model_name, num_labels=num_labels
-    )
+    base = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=num_labels)
     lora = LoraConfig(
         task_type=TaskType.SEQ_CLS,
         r=8,
@@ -93,12 +89,17 @@ def get_model(model_name: str, num_labels: int = 2) -> Any:
 
 
 def get_adapter_state(model: Any) -> dict[str, torch.Tensor]:
-    """The LoRA adapter tensors only — this is what gets federated (small payload)."""
+    """Trainable tensors that get federated: LoRA adapters + the task head.
+
+    PEFT adds the (randomly initialised) sequence-classification head to
+    ``modules_to_save``, so it is trained and aggregated alongside the LoRA adapters
+    while the BERT backbone stays frozen — a small payload, not the full model.
+    """
     return get_peft_model_state_dict(model)
 
 
 def set_adapter_state(model: Any, state: dict[str, torch.Tensor]) -> None:
-    """Load aggregated LoRA adapter tensors back into the model."""
+    """Load aggregated adapter + head tensors back into the model (mutates ``state``)."""
     set_peft_model_state_dict(model, state)
 
 
@@ -121,7 +122,7 @@ def train_fn(model: Any, trainloader: DataLoader[Any], epochs: int, device: torc
 
 def test_fn(model: Any, testloader: DataLoader[Any], device: torch.device) -> tuple[float, float]:
     """Local evaluation; returns (mean loss, accuracy)."""
-    metric = load_metric("accuracy")
+    metric: Any = load_metric("accuracy")
     model.eval()
     loss, steps = 0.0, 0
     for batch in testloader:
