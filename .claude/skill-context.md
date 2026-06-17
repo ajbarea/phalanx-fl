@@ -7,96 +7,91 @@ toolchain / path / tooling changes.
 ## repo
 
 - name: phalanx-fl
-- package_root: `intellifl/`
-- language: Python (plus React frontend under `frontend/`)
-- cli_entrypoint: `intellifl-dev` (module: `intellifl.dev_cli`)
-- runner_module: `intellifl/dev_runner.py::SessionLog.session_footer`
-- has: docker, frontend, datasets, attack vocabularies
+- package_root: `phalanx/`
+- language: Python (flwr 1.31 app-model)
+- cli_entrypoint: none — a plain `Makefile` dispatches tools directly (no dev-runner CLI)
+- app components: `phalanx.server_app:app` (ServerApp), `phalanx.client_app:app` (ClientApp)
+- has: flwr Message API, HuggingFace + PEFT/LoRA, OpenTelemetry, flwr-datasets
 
 ## audit
 
-Full audit = 10 `make` targets, in order:
+The Makefile calls tools directly (ruff/ty/pytest/flwr), so there is **no
+dev-runner log archive** (`logs/dev-*.log`) — read terminal output directly.
 
-1. `make clean` — wipes `__pycache__`, `.ruff_cache`, `.pytest_cache`, `out/`, stale logs.
-2. `make check-env` — uv / Python / Docker on PATH.
-3. `make setup` — `uv sync` + dataset download.
-4. `make lint` — ruff format, ruff check, ty.
-5. `make test-unit` — pytest on `tests/unit/`, parallelized.
-6. `make test-integration` — pytest on `tests/integration/`, serial.
-7. `make test-performance` — pytest on `tests/performance/`, serial.
-8. `make test` — combined suite.
-9. `make validate` — fast `lint + unit`. The "am I ready to push" probe.
-10. `make audit` — `pip-audit` + frontend advisories. Supply-chain gate.
+Targets, in dependency order:
 
-Fast audit = `clean → check-env → setup → validate`. Four commands.
+1. `make sync` — `uv sync --extra hf --extra torch` (CPU torch + HF stack + dev group).
+2. `make lint` — `ruff format --check` + `ruff check` + `ty check`.
+3. `make test` — `uv run --extra hf --extra torch python -m pytest`.
+4. `make audit` — `pip-audit` over the locked deps.
 
-Stop-early phase: Phase 1 (clean / check-env / setup). If any fails, abort.
+"Am I ready to push" probe = `make lint` then `make test`.
 
-Log archive: `logs/dev-<YYYYMMDDTHHMMSS>-<cmd>.log` + pointer `logs/dev-latest.log`.
-`SUMMARY` block is emitted by `intellifl/dev_runner.py::SessionLog.session_footer`.
-Do **not** read `dev-latest.log` (overwritten each invocation).
+Do-not-run targets (long-running / external state): `make run`, `make smoke`,
+`make trace` (each spins a local SuperLink + Ray simulation and downloads IMDB),
+`make docs` (zensical serve).
 
-Do-not-run targets (long-running / expensive / external-state):
-`make docs` (zensical serve), `make dev`, `make sim`, `make baselines`.
+Tests download `google/bert_uncased_L-2_H-128_A-2` (~18 MB) from the HF Hub; set
+`HF_HUB_DISABLE_TELEMETRY=1`. The full federated run additionally downloads IMDB.
 
 ## ci_audit
 
 Referenced configs a CI failure can trace to:
 - `pyproject.toml`
 - `Makefile`
-- `intellifl/dev_cli.py`
-- `scripts/*.py`
+- `.github/workflows/ci.yml` (lint / test / audit jobs)
+- `phalanx/*.py`
 
-Tool error markers that may appear in CI logs (extend the default grep set):
-- `pip-audit` (advisory findings)
-- `ty` (type-check errors)
-- `ruff` (lint errors)
-- `pytest` (test failures / collection errors)
+Tool error markers (extend the default grep set):
+- `ruff` (lint), `ty` (type-check), `pytest` (test failures / collection errors),
+  `pip-audit` (advisory findings).
 
-Expected external PR checks: codecov (see `codecov.yml`), GitGuardian.
+Expected external PR checks: Codecov (see `codecov.yml`), GitGuardian.
 
 ## slop_ground_truth
 
-Sources of truth for numeric performance / scale claims:
-
-- Performance tests: `tests/performance/test_memory_usage.py`, `tests/performance/test_scalability.py`
-- Recorded baselines: output of `make baselines`
-
-Any quantitative perf/scale claim not traceable to one of those is slop.
+The app ships no recorded performance/scale baselines (the old `make baselines`
+apparatus was removed in the clean-slate). Any quantitative claim about accuracy,
+loss, round time, or payload size must trace to an actual `flwr run` or a test
+assertion — there is no in-repo numeric SoT to cite yet. Adapter-payload-size and
+round-duration metrics are a v2 ROADMAP item; until they land, treat any such
+number in prose as slop unless it is reproduced from a run in the same change.
 
 ## fragile_docs
 
-README / docs numbers that trace to code, gated by `scripts/check_readme_claims.py` (runs in the CI Security Audit job):
-
-- Strategy count — `len(set(STRATEGY_REGISTRY.values()))` (`intellifl/simulation_strategies/__init__.py`); asserted in README ("N Aggregation Strategies") and `docs/index.md` (hero tagline + feature card).
-- Attack count — `len(DATA_ATTACK_TYPE_NAMES) + len(WEIGHT_ATTACK_TYPE_NAMES)` (`attack_utils/poisoning.py` + `weight_poisoning.py`); asserted in README ("N Attack Types") and `docs/index.md`.
-- Python + Flower version badges — `requires-python` and the `flwr` floor in `pyproject.toml`; asserted in the README shields badges.
-
-Add a claim → append a check to `build_checks()` in that script. Roster name *lists* aren't auto-checked; the count gate flags when one needs an update.
+README claims that trace to code (no automated gate yet — verify by hand on edit):
+- Python badge `3.12+` ← `requires-python` in `pyproject.toml`.
+- Flower badge `v1.31+` ← `flwr` floor in `pyproject.toml`.
+- The `[tool.flwr.app.config]` table in the README ← the keys in `pyproject.toml`.
 
 ## scan_scope
 
-Skip paths (vendored, generated, or out-of-scope):
-- `.venv/`, `node_modules/`, `dist/`, `build/`, `site/`, `out/`
+Skip paths (vendored / generated / out-of-scope):
+- `.venv/`, `dist/`, `build/`, `site/`
 - `__pycache__/`, `.ruff_cache/`, `.pytest_cache/`, `.hypothesis/`
-- `uv.lock`, `datasets/`, `cache/`
-- `frontend/node_modules/`, `intellifl/attack_utils/vocabularies/`
-- `docs/assets/`, `logs/`, `intellifl.egg-info/`
+- `uv.lock`, `~/.flwr/` (per-user flwr state, not in-repo)
 
 Subagent scan-area split:
-- Core package: `intellifl/**/*.py`
-- Scripts: `scripts/**/*.py`
+- Core package: `phalanx/**/*.py`
 - Tests: `tests/**/*.py`
-- Frontend: `frontend/**/*.{ts,tsx,js,jsx,vue,svelte}` (skip `frontend/node_modules/`)
-- Config/build: `pyproject.toml`, `Makefile`, `.github/workflows/**`, `zensical.toml`, `docker-compose*.yml`, `Dockerfile`, `.vscode/**`
+- Config/build: `pyproject.toml`, `Makefile`, `.github/workflows/**`, `zensical.toml`
 - Docs (opt-in): `docs/**/*.md`
 
 ## docs_site
 
 - config: `zensical.toml`
 - workflow: `.github/workflows/docs.yml`
-- css_files: single `docs/stylesheets/extra.css`
+- css_files: `docs/stylesheets/extra.css`
 - js_files: `docs/javascripts/*.js`
 - build_command: `uv run zensical build --clean`
-- site_url: `https://<owner>.github.io/phalanx-fl/`
-- action_pins (expected): pinned to tagged versions; audit against the workflow for drift.
+- site_url: `https://ajbarea.github.io/phalanx-fl/`
+- action_pins (expected): pinned to commit SHAs; audit against the workflow for drift.
+
+## theoros
+
+Interactive surface = the Flower simulation. Drive it observably with:
+`OTEL_TRACES_EXPORTER=console uv run flwr run . local-simulation --stream`
+(prints round + client OTel spans to the terminal as the run progresses).
+Spectator attaches read-only to the same tmux session. The run downloads IMDB on
+first use and trains on CPU, so a 2-round `--run-config "num-server-rounds=2"` is
+the quick play-through.
