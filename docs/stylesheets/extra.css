@@ -7,7 +7,7 @@
    Phalanx-FL rewrite, which will rework this stylesheet from scratch.
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=account_tree,api,bolt,bug_report,code,data_object,database,group,inbox,layers,local_fire_department,menu_book,photo_library,play_circle,psychology,rocket_launch,scatter_plot,settings,shield,smart_toy,terminal,trending_up,verified_user,warning&display=block');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=account_tree,api,bolt,bug_report,code,data_object,database,group,inbox,layers,local_fire_department,menu_book,photo_library,play_circle,psychology,rocket_launch,scatter_plot,science,settings,shield,smart_toy,terminal,trending_up,verified_user,warning&display=block');
 
 :root>* {
   --md-primary-fg-color: #009688;
@@ -405,7 +405,7 @@ body.hero-page .md-content__inner {
 
 .feature-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1rem;
   margin-top: 2rem;
 }

@@ -44,7 +44,7 @@ and the classification head are federated; the frozen backbone stays on each cli
 
 ## Explore
 
-<div class="feature-grid" markdown>
+<div class="feature-grid">
 
 <a href="getting-started/" class="feature-card" style="--card-accent: #009688">
 <span class="feature-icon material-symbols-outlined">rocket_launch</span>
