@@ -11,6 +11,7 @@ from phalanx.telemetry import (
     record_client_metrics,
     record_round_metrics,
     round_span,
+    shutdown_telemetry,
 )
 
 
@@ -60,3 +61,13 @@ def test_client_metrics_recorded() -> None:
     _, metric_reader = _setup()
     record_client_metrics(partition_id=0, num_examples=128, loss=0.4)
     assert "fl.client.examples" in _metric_names(metric_reader)
+
+
+def test_shutdown_flushes_and_is_idempotent() -> None:
+    span_exporter, _ = _setup()
+    with round_span(rnd=1):
+        pass
+    # Flush + shut down so buffered OTLP spans/metrics aren't lost on process exit.
+    shutdown_telemetry()
+    shutdown_telemetry()  # idempotent: a second call must not raise
+    assert any(s.name == "fl.round" for s in span_exporter.get_finished_spans())

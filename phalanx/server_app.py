@@ -16,7 +16,13 @@ from flwr.app import ArrayRecord, Context, Message, MetricRecord
 from flwr.serverapp import Grid, ServerApp
 from flwr.serverapp.strategy import FedAvg
 
-from phalanx.telemetry import init_telemetry, record_round_metrics, round_span
+from phalanx.provenance import run_manifest, write_manifest
+from phalanx.telemetry import (
+    init_telemetry,
+    record_round_metrics,
+    round_span,
+    shutdown_telemetry,
+)
 
 app = ServerApp()
 
@@ -84,8 +90,16 @@ def main(grid: Grid, context: Context) -> None:
         fraction_train=float(cfg["fraction-train"]),
         fraction_evaluate=float(cfg["fraction-evaluate"]),
     )
-    strategy.start(
-        grid=grid,
-        initial_arrays=initial_arrays,
-        num_rounds=int(cfg["num-server-rounds"]),
-    )
+    try:
+        result = strategy.start(
+            grid=grid,
+            initial_arrays=initial_arrays,
+            num_rounds=int(cfg["num-server-rounds"]),
+        )
+        # Static provenance for the run, beside the dynamic OTel trace.
+        eval_metrics = {
+            str(rnd): dict(rec) for rnd, rec in result.evaluate_metrics_clientapp.items()
+        }
+        write_manifest(run_manifest(run_config=dict(cfg), metrics=eval_metrics))
+    finally:
+        shutdown_telemetry()  # flush buffered OTLP spans/metrics before exit

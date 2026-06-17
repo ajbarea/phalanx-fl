@@ -11,6 +11,7 @@ between cases without the "Overriding current provider is not allowed" warning.
 
 from __future__ import annotations
 
+import atexit
 import os
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -31,6 +32,8 @@ _DEFAULT_SERVICE = "phalanx-fl"
 _tracer: Any = None
 _meter: Any = None
 _instruments: dict[str, Any] = {}
+_providers: list[Any] = []  # tracer + meter providers, for force-flush on shutdown
+_atexit_registered = False
 
 
 def init_telemetry(
@@ -46,7 +49,7 @@ def init_telemetry(
     ``OTEL_EXPORTER_OTLP_ENDPOINT`` (or pass ``otlp_endpoint``) to export over OTLP;
     with neither, telemetry is recorded but not exported (no-op, no connection noise).
     """
-    global _tracer, _meter, _instruments
+    global _tracer, _meter, _instruments, _atexit_registered
 
     resource = Resource.create({"service.name": service_name})
     endpoint = otlp_endpoint or os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
@@ -85,6 +88,29 @@ def init_telemetry(
         "client_examples": _meter.create_counter("fl.client.examples"),
         "client_loss": _meter.create_gauge("fl.client.loss"),
     }
+
+    # Track the providers so buffered spans/metrics get flushed on exit. The OTLP
+    # BatchSpanProcessor + PeriodicExportingMetricReader buffer, so without this the
+    # tail of a run can be lost when the ServerApp/ClientApp process exits.
+    _providers[:] = [tracer_provider, meter_provider]
+    if not _atexit_registered:
+        atexit.register(shutdown_telemetry)
+        _atexit_registered = True
+
+
+def shutdown_telemetry() -> None:
+    """Force-flush and shut down the tracer/meter providers (idempotent).
+
+    Called automatically at process exit and explicitly by the ServerApp so the
+    final round's OTLP spans/metrics are exported rather than dropped from the buffer.
+    """
+    while _providers:
+        provider = _providers.pop()
+        try:
+            provider.force_flush()
+            provider.shutdown()
+        except Exception:  # shutdown is best-effort; never raise on process exit
+            pass
 
 
 def _ensure_init() -> None:

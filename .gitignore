@@ -43,3 +43,6 @@ site/
 # skill-context.md is team-shared (injected into canonical skills at runtime).
 .claude/*
 !.claude/skill-context.md
+
+# Per-run provenance manifests (phalanx.provenance)
+runs/
