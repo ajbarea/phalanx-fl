@@ -26,6 +26,8 @@ from opentelemetry.sdk.trace.export import (
     SimpleSpanProcessor,
     SpanExporter,
 )
+from opentelemetry.trace import set_span_in_context
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 _DEFAULT_SERVICE = "phalanx-fl"
 
@@ -34,6 +36,7 @@ _meter: Any = None
 _instruments: dict[str, Any] = {}
 _providers: list[Any] = []  # tracer + meter providers, for force-flush on shutdown
 _atexit_registered = False
+_propagator = TraceContextTextMapPropagator()  # W3C trace-context across the FL boundary
 
 
 def init_telemetry(
@@ -125,19 +128,49 @@ def _ensure_init() -> None:
 
 @contextmanager
 def round_span(rnd: int) -> Iterator[Any]:
-    """Server-side span covering one FL round."""
+    """Server-side span covering one FL round (scoped; caller ends it on block exit)."""
     _ensure_init()
     with _tracer.start_as_current_span("fl.round", attributes={"fl.round": rnd}) as span:
         yield span
 
 
+def start_round_span(rnd: int) -> Any:
+    """Start a manual (non-current) round span; the caller must ``end()`` it.
+
+    The strategy keeps one span open across a whole round so its context can be
+    propagated to the clients (see ``traceparent_for``).
+    """
+    _ensure_init()
+    return _tracer.start_span("fl.round", attributes={"fl.round": rnd})
+
+
 @contextmanager
-def client_span(*, rnd: int, partition_id: int, phase: str) -> Iterator[Any]:
-    """Client-side span covering one local train/evaluate pass."""
+def client_span(
+    *, rnd: int, partition_id: int, phase: str, parent: Any | None = None
+) -> Iterator[Any]:
+    """Client-side span covering one local train/evaluate pass.
+
+    When ``parent`` (from ``context_from_traceparent``) is given, the span becomes a
+    child of the server's round span — one distributed trace per FL round.
+    """
     _ensure_init()
     attrs = {"fl.round": rnd, "fl.partition_id": partition_id, "fl.phase": phase}
-    with _tracer.start_as_current_span(f"fl.client.{phase}", attributes=attrs) as span:
+    with _tracer.start_as_current_span(
+        f"fl.client.{phase}", context=parent, attributes=attrs
+    ) as span:
         yield span
+
+
+def traceparent_for(span: Any) -> str:
+    """The W3C ``traceparent`` string for ``span``, to carry in a flwr ConfigRecord."""
+    carrier: dict[str, str] = {}
+    _propagator.inject(carrier, context=set_span_in_context(span))
+    return carrier.get("traceparent", "")
+
+
+def context_from_traceparent(traceparent: str) -> Any:
+    """Rebuild a parent context from a ``traceparent`` produced by ``traceparent_for``."""
+    return _propagator.extract({"traceparent": traceparent})
 
 
 def record_round_metrics(

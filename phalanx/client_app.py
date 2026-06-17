@@ -24,7 +24,12 @@ from phalanx.task import (
     test_fn,
     train_fn,
 )
-from phalanx.telemetry import client_span, init_telemetry, record_client_metrics
+from phalanx.telemetry import (
+    client_span,
+    context_from_traceparent,
+    init_telemetry,
+    record_client_metrics,
+)
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 hf_logging.set_verbosity_error()
@@ -36,9 +41,21 @@ def _device() -> torch.device:
     return torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
+def _config(msg: Message) -> Any:
+    return msg.content.config_records.get("config")
+
+
 def _server_round(msg: Message) -> int:
-    config: Any = msg.content.config_records.get("config")
+    config = _config(msg)
     return int(config["server-round"]) if config and "server-round" in config else 0
+
+
+def _parent_context(msg: Message) -> Any:
+    """The server round span's context, if the round broadcast a traceparent."""
+    config = _config(msg)
+    if config and "traceparent" in config:
+        return context_from_traceparent(str(config["traceparent"]))
+    return None
 
 
 @app.train()
@@ -53,7 +70,9 @@ def train(msg: Message, context: Context) -> Message:
     rnd = _server_round(msg)
     set_seed(1000 * rnd + partition_id)  # reproducible per (round, client)
 
-    with client_span(rnd=rnd, partition_id=partition_id, phase="train"):
+    with client_span(
+        rnd=rnd, partition_id=partition_id, phase="train", parent=_parent_context(msg)
+    ):
         trainloader, _ = load_data(
             partition_id,
             num_partitions,
@@ -89,7 +108,9 @@ def evaluate(msg: Message, context: Context) -> Message:
     rnd = _server_round(msg)
     set_seed(1000 * rnd + partition_id)  # reproducible per (round, client)
 
-    with client_span(rnd=rnd, partition_id=partition_id, phase="evaluate"):
+    with client_span(
+        rnd=rnd, partition_id=partition_id, phase="evaluate", parent=_parent_context(msg)
+    ):
         _, testloader = load_data(
             partition_id,
             num_partitions,

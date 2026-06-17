@@ -40,11 +40,13 @@ use lands.
 
 ## v2 — the observability research bit
 
-- [ ] **Trace-context propagation over `Message.metadata`** — inject the server's
-  round span context into the client `Message` so client spans become *children* of
-  the round span, yielding a single distributed trace per FL round across the Ray
-  simulation boundary. This is the genuinely novel piece (Flower ships no OTel↔FL
-  bridge); deferred from v1 as the highest-risk / highest-reward item.
+- [x] **Trace-context bridge — one distributed trace per FL round.** The round span
+  spans the whole round (`configure_train` → `aggregate_evaluate`); its W3C
+  `traceparent` rides the broadcast `ConfigRecord`, and each client extracts it so its
+  `fl.client.{train,evaluate}` span is a *child* of the round span. Server + all client
+  spans land in a single trace, viewable end-to-end in Jaeger. The genuinely novel
+  OTel↔FL piece (Flower ships no such bridge). `phalanx/telemetry.py` `traceparent_for`
+  / `context_from_traceparent`.
 - [ ] **Round wall-time + comm-cost metrics** — per-round duration histogram and
   bytes-on-the-wire (adapter payload size), alongside loss/accuracy/participation.
 - [ ] **Jaeger / OTel-Collector `compose` recipe** — one command to bring up a backend

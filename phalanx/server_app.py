@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from flwr.app import ArrayRecord, Context, Message, MetricRecord
+from flwr.app import ArrayRecord, ConfigRecord, Context, Message, MetricRecord
 from flwr.serverapp import Grid, ServerApp
 from flwr.serverapp.strategy import FedAvg
 from opentelemetry.trace import Status, StatusCode
@@ -21,8 +21,9 @@ from phalanx.provenance import run_manifest, write_manifest
 from phalanx.telemetry import (
     init_telemetry,
     record_round_metrics,
-    round_span,
     shutdown_telemetry,
+    start_round_span,
+    traceparent_for,
 )
 
 app = ServerApp()
@@ -40,26 +41,38 @@ def _round_summary(metrics: MetricRecord | None) -> tuple[float, float]:
 
 
 def observe_round(
-    *, server_round: int, metrics: MetricRecord | None, clients: int, failures: int = 0
+    *,
+    server_round: int,
+    metrics: MetricRecord | None,
+    clients: int,
+    failures: int = 0,
+    span: Any | None = None,
 ) -> None:
-    """Emit the per-round span + FL metrics from the aggregated evaluation record."""
+    """Decorate the round span with aggregated metrics + status, then end it.
+
+    The strategy passes the span it started in ``configure_train`` (so the clients'
+    spans are its children); with no span a fresh one is created and ended — the path
+    the unit tests exercise.
+    """
     loss, accuracy = _round_summary(metrics)
-    with round_span(server_round) as span:
-        span.set_attribute("fl.loss", loss)
-        span.set_attribute("fl.accuracy", accuracy)
-        span.set_attribute("fl.clients", clients)
-        span.set_attribute("fl.failures", failures)
-        if failures:
-            # Surface client/worker failures in the trace, not just the participation count.
-            span.add_event("fl.client_failures", {"count": failures})
-            span.set_status(Status(StatusCode.ERROR, f"{failures} client failure(s) this round"))
-        record_round_metrics(
-            rnd=server_round,
-            loss=loss,
-            accuracy=accuracy,
-            clients=clients,
-            failures=failures,
-        )
+    if span is None:
+        span = start_round_span(server_round)
+    span.set_attribute("fl.loss", loss)
+    span.set_attribute("fl.accuracy", accuracy)
+    span.set_attribute("fl.clients", clients)
+    span.set_attribute("fl.failures", failures)
+    if failures:
+        # Surface client/worker failures in the trace, not just the participation count.
+        span.add_event("fl.client_failures", {"count": failures})
+        span.set_status(Status(StatusCode.ERROR, f"{failures} client failure(s) this round"))
+    record_round_metrics(
+        rnd=server_round,
+        loss=loss,
+        accuracy=accuracy,
+        clients=clients,
+        failures=failures,
+    )
+    span.end()
 
 
 class ObservableFedAvg(FedAvg):
@@ -69,6 +82,25 @@ class ObservableFedAvg(FedAvg):
         super().__init__(*args, **kwargs)
         self._round_clients: dict[int, int] = {}
         self._round_failures: dict[int, int] = {}
+        self._round_spans: dict[int, Any] = {}
+
+    def configure_train(
+        self, server_round: int, arrays: ArrayRecord, config: ConfigRecord, grid: Grid
+    ) -> Iterable[Message]:
+        # Open the round span here so its context can ride to the clients as a W3C
+        # traceparent — their spans become children of this round (one trace per round).
+        span = start_round_span(server_round)
+        self._round_spans[server_round] = span
+        config["traceparent"] = traceparent_for(span)
+        return super().configure_train(server_round, arrays, config, grid)
+
+    def configure_evaluate(
+        self, server_round: int, arrays: ArrayRecord, config: ConfigRecord, grid: Grid
+    ) -> Iterable[Message]:
+        span = self._round_spans.get(server_round)
+        if span is not None:
+            config["traceparent"] = traceparent_for(span)
+        return super().configure_evaluate(server_round, arrays, config, grid)
 
     def aggregate_train(
         self, server_round: int, replies: Iterable[Message]
@@ -89,6 +121,7 @@ class ObservableFedAvg(FedAvg):
             metrics=metrics,
             clients=self._round_clients.pop(server_round, 0),
             failures=self._round_failures.pop(server_round, 0) + eval_failures,
+            span=self._round_spans.pop(server_round, None),
         )
         return metrics
 
