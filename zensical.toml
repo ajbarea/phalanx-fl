@@ -1,6 +1,6 @@
 [project]
 site_name = "Phalanx-FL"
-site_description = "A federated learning execution and research framework"
+site_description = "Federated learning on the latest Flower, with OpenTelemetry-native observability"
 site_author = "AJ Barea"
 site_url = "https://ajbarea.github.io/phalanx-fl/"
 repo_url = "https://github.com/ajbarea/phalanx-fl"
@@ -10,16 +10,10 @@ copyright = "AJ Barea"
 nav = [
   { "Home" = "index.md" },
   { "Getting Started" = "getting-started.md" },
-  { "CLI Reference" = "cli.md" },
   { "Architecture" = "architecture.md" },
-  { "Configuration" = "configuration.md" },
-  { "Datasets" = "datasets.md" },
-  { "Strategies" = "strategies.md" },
-  { "Attacks" = "attacks.md" },
-  { "API Reference" = "api.md" },
   { "Research" = [
       { "Overview" = "research/index.md" },
-      { "RIT Capstone 2025 — IntelliFL" = "research/rit-capstone-2025-intellifl/index.md" },
+      { "RIT Capstone 2025: IntelliFL" = "research/rit-capstone-2025-intellifl/index.md" },
   ]},
 ]
 

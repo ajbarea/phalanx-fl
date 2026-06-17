@@ -15,39 +15,35 @@ permissions:
   contents: read
 
 jobs:
-  audit:
-    name: Security Audit
+  lint:
+    name: Lint (ruff + ty)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
       - name: Set up uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          version: 0.9.26
+          version: 0.11.5
           enable-cache: true
       - name: Verify lockfile is in sync with pyproject.toml
         run: uv lock --check
-      - name: Install dependencies
+      # ty resolves torch/transformers via allowed-unresolved-imports, so lint
+      # needs no model stack — keep it fast with the dev group only.
+      - name: Install dev dependencies
         run: uv sync --frozen
-      - name: Verify README + docs claims match code
-        run: uv run python scripts/check_readme_claims.py
-      - name: Audit for security vulnerabilities
-        run: uv run intellifl-dev audit
-      - name: Upload audit logs
-        if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: audit-logs
-          path: |
-            logs/backend-audit.log
-            logs/frontend-audit.log
-          if-no-files-found: ignore
+      - name: ruff format
+        run: uv run ruff format --check .
+      - name: ruff check
+        run: uv run ruff check .
+      - name: ty type-check
+        run: uv run ty check
       - name: Minimize uv cache
         if: always()
         run: uv cache prune --ci
+
   test:
     name: 'Test (Python ${{ matrix.python-version }})'
     runs-on: ubuntu-latest
@@ -59,63 +55,88 @@ jobs:
       fail-fast: false
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
       - name: Set up uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          version: 0.9.26
+          version: 0.11.5
           enable-cache: true
           cache-suffix: 'py${{ matrix.python-version }}'
-      - name: Install dependencies
-        run: 'uv sync --frozen --python ${{ matrix.python-version }}'
-      - name: Run unit tests (parallel)
+      # No --frozen: torch comes from the explicit pytorch-cpu index, whose wheels
+      # aren't pinned in the lock, so --frozen can't fetch the per-Python wheel
+      # (e.g. cp313). Lock/pyproject consistency is already gated by the lint job's
+      # `uv lock --check`. Mirrors the velocity-fl convention.
+      - name: Install dependencies (CPU torch + HF stack)
+        run: 'uv sync --extra hf --extra torch --python ${{ matrix.python-version }}'
+      # The extras must be on `uv run` too: without them it re-syncs to the default
+      # groups and drops torch before pytest collects. Mirrors the Makefile.
+      - name: Run tests with coverage
+        env:
+          HF_HUB_DISABLE_TELEMETRY: '1'
+          TOKENIZERS_PARALLELISM: 'false'
         run: >
-          uv run pytest -n auto --cov=intellifl --cov-append --cov-report=
-          tests/unit/ --tb=short
-      - name: Run integration tests (serial)
-        run: >
-          uv run pytest --cov=intellifl --cov-append --cov-report=
-          tests/integration/ --tb=short
-      - name: Run performance tests (serial)
-        run: >
-          uv run pytest --cov=intellifl --cov-append --cov-report=
-          tests/performance/ --tb=short
-      - name: Generate final coverage report
-        run: |
-          uv run coverage report --show-missing
-          uv run coverage xml
+          uv run --extra hf --extra torch --python ${{ matrix.python-version }}
+          python -m pytest --cov=phalanx --cov-report=xml
+          --cov-report=term-missing --tb=short
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         if: matrix.python-version == '3.12'
         with:
           token: '${{ secrets.CODECOV_TOKEN }}'
           slug: ajbarea/phalanx-fl
-          files: tests/logs/coverage.xml
+          files: coverage.xml
           fail_ci_if_error: false
+          disable_search: true
       - name: Minimize uv cache
         if: always()
         run: uv cache prune --ci
-  smoke-test:
+
+  audit:
+    name: Security Audit
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
       - name: Set up uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          version: 0.9.26
+          version: 0.11.5
           enable-cache: true
       - name: Install dependencies
+        run: uv sync --frozen --extra hf --extra torch
+      # GHSA-537c-gmf6-5ccf: availability-only OOB read in the OpenSSL bundled in
+      # cryptography's wheels (no RCE/data impact), fixed in cryptography 48.0.1 — but
+      # flwr 1.31 caps cryptography <48, and phalanx has no direct cryptography use.
+      # Drop this ignore when flwr widens its pin.
+      - name: Audit for known vulnerabilities
+        run: uv run pip-audit --ignore-vuln GHSA-537c-gmf6-5ccf
+      - name: Minimize uv cache
+        if: always()
+        run: uv cache prune --ci
+
+  smoke-test:
+    name: smoke-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          version: 0.11.5
+          enable-cache: true
+      # Dep-light wiring gate: build the Flower app bundle (validates the
+      # [tool.flwr] config + components without downloading the model/dataset).
+      - name: Install dependencies
         run: uv sync --frozen
-      - name: Smoke check developer CLI
-        run: uv run intellifl-dev help
-      - name: Run smoke tests
-        run: |
-          uv run python -m tests.scripts.ci_smoke_test
+      - name: Build the Flower app bundle
+        run: uv run flwr build
       - name: Minimize uv cache
         if: always()
         run: uv cache prune --ci
