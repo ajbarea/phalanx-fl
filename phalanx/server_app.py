@@ -15,6 +15,7 @@ from typing import Any
 from flwr.app import ArrayRecord, Context, Message, MetricRecord
 from flwr.serverapp import Grid, ServerApp
 from flwr.serverapp.strategy import FedAvg
+from opentelemetry.trace import Status, StatusCode
 
 from phalanx.provenance import run_manifest, write_manifest
 from phalanx.telemetry import (
@@ -38,14 +39,27 @@ def _round_summary(metrics: MetricRecord | None) -> tuple[float, float]:
     return loss, accuracy
 
 
-def observe_round(*, server_round: int, metrics: MetricRecord | None, clients: int) -> None:
+def observe_round(
+    *, server_round: int, metrics: MetricRecord | None, clients: int, failures: int = 0
+) -> None:
     """Emit the per-round span + FL metrics from the aggregated evaluation record."""
     loss, accuracy = _round_summary(metrics)
     with round_span(server_round) as span:
         span.set_attribute("fl.loss", loss)
         span.set_attribute("fl.accuracy", accuracy)
         span.set_attribute("fl.clients", clients)
-        record_round_metrics(rnd=server_round, loss=loss, accuracy=accuracy, clients=clients)
+        span.set_attribute("fl.failures", failures)
+        if failures:
+            # Surface client/worker failures in the trace, not just the participation count.
+            span.add_event("fl.client_failures", {"count": failures})
+            span.set_status(Status(StatusCode.ERROR, f"{failures} client failure(s) this round"))
+        record_round_metrics(
+            rnd=server_round,
+            loss=loss,
+            accuracy=accuracy,
+            clients=clients,
+            failures=failures,
+        )
 
 
 class ObservableFedAvg(FedAvg):
@@ -54,22 +68,27 @@ class ObservableFedAvg(FedAvg):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._round_clients: dict[int, int] = {}
+        self._round_failures: dict[int, int] = {}
 
     def aggregate_train(
         self, server_round: int, replies: Iterable[Message]
     ) -> tuple[ArrayRecord | None, MetricRecord | None]:
         replies = list(replies)
         self._round_clients[server_round] = sum(1 for m in replies if not m.has_error())
+        self._round_failures[server_round] = sum(1 for m in replies if m.has_error())
         return super().aggregate_train(server_round, replies)
 
     def aggregate_evaluate(
         self, server_round: int, replies: Iterable[Message]
     ) -> MetricRecord | None:
+        replies = list(replies)
+        eval_failures = sum(1 for m in replies if m.has_error())
         metrics = super().aggregate_evaluate(server_round, replies)
         observe_round(
             server_round=server_round,
             metrics=metrics,
             clients=self._round_clients.pop(server_round, 0),
+            failures=self._round_failures.pop(server_round, 0) + eval_failures,
         )
         return metrics
 

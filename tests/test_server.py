@@ -12,6 +12,7 @@ from typing import Any
 from flwr.app import MetricRecord
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import StatusCode
 
 from phalanx.server_app import observe_round
 from phalanx.telemetry import init_telemetry
@@ -63,3 +64,25 @@ def test_observe_round_tolerates_missing_metrics() -> None:
     by_round = {_attrs(s)["fl.round"]: _attrs(s) for s in rounds}
     assert math.isnan(by_round[1]["fl.loss"])
     assert math.isnan(by_round[2]["fl.accuracy"])
+
+
+def test_observe_round_flags_client_failures() -> None:
+    span_exporter, metric_reader = _setup()
+    observe_round(
+        server_round=1,
+        metrics=MetricRecord({"loss": 0.5, "accuracy": 0.6}),
+        clients=2,
+        failures=1,
+    )
+    span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
+    assert span.status.status_code == StatusCode.ERROR
+    assert any(e.name == "fl.client_failures" for e in span.events)
+    assert _attrs(span)["fl.failures"] == 1
+    assert "fl.round.failures" in _metric_names(metric_reader)
+
+
+def test_observe_round_clean_round_is_not_error() -> None:
+    span_exporter, _ = _setup()
+    observe_round(server_round=1, metrics=MetricRecord({"loss": 0.5, "accuracy": 0.6}), clients=2)
+    span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
+    assert span.status.status_code != StatusCode.ERROR

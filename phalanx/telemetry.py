@@ -54,7 +54,9 @@ def init_telemetry(
     resource = Resource.create({"service.name": service_name})
     endpoint = otlp_endpoint or os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 
-    tracer_provider = TracerProvider(resource=resource)
+    # shutdown_on_exit=False: we own shutdown via shutdown_telemetry (explicit + our
+    # single atexit), so the providers don't also self-register a double-fire atexit.
+    tracer_provider = TracerProvider(resource=resource, shutdown_on_exit=False)
     if span_exporter is not None:
         tracer_provider.add_span_processor(SimpleSpanProcessor(span_exporter))
     elif os.getenv("OTEL_TRACES_EXPORTER") == "console":
@@ -78,13 +80,16 @@ def init_telemetry(
         )
 
         readers.append(PeriodicExportingMetricReader(OTLPMetricExporter(endpoint=endpoint)))
-    meter_provider = MeterProvider(resource=resource, metric_readers=readers)
+    meter_provider = MeterProvider(
+        resource=resource, metric_readers=readers, shutdown_on_exit=False
+    )
     _meter = meter_provider.get_meter("phalanx")
 
     _instruments = {
         "round_loss": _meter.create_gauge("fl.round.loss"),
         "round_accuracy": _meter.create_gauge("fl.round.accuracy"),
         "round_clients": _meter.create_gauge("fl.round.clients"),
+        "round_failures": _meter.create_counter("fl.round.failures"),
         "client_examples": _meter.create_counter("fl.client.examples"),
         "client_loss": _meter.create_gauge("fl.client.loss"),
     }
@@ -135,13 +140,16 @@ def client_span(*, rnd: int, partition_id: int, phase: str) -> Iterator[Any]:
         yield span
 
 
-def record_round_metrics(*, rnd: int, loss: float, accuracy: float, clients: int) -> None:
-    """Record aggregated server-round metrics (loss, accuracy, participation)."""
+def record_round_metrics(
+    *, rnd: int, loss: float, accuracy: float, clients: int, failures: int = 0
+) -> None:
+    """Record aggregated server-round metrics (loss, accuracy, participation, failures)."""
     _ensure_init()
     attrs = {"fl.round": rnd}
     _instruments["round_loss"].set(loss, attributes=attrs)
     _instruments["round_accuracy"].set(accuracy, attributes=attrs)
     _instruments["round_clients"].set(clients, attributes=attrs)
+    _instruments["round_failures"].add(failures, attributes=attrs)
 
 
 def record_client_metrics(*, partition_id: int, num_examples: int, loss: float) -> None:
