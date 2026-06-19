@@ -62,3 +62,4 @@ docs:                      ## Serve the Zensical docs site locally
 clean:                     ## Remove caches + build artifacts
 	rm -rf .ruff_cache .pytest_cache .hypothesis dist build site
 	find . -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
+	@find logs -name 'dev-*-*.log' ! -name '*-latest.log' -mtime +30 -delete 2>/dev/null || true
