@@ -112,8 +112,12 @@ jobs:
       # cryptography's wheels (no RCE/data impact), fixed in cryptography 48.0.1 — but
       # flwr 1.31 caps cryptography <48, and phalanx has no direct cryptography use.
       # Drop this ignore when flwr widens its pin.
+      # PYSEC-2026-2273 (GHSA-hhrp-gw25-jr43): unsafe deserialization RCE in ray's
+      # read_webdataset() reader, fixed in ray 2.56.0 - but flwr 1.31/1.32 pin
+      # ray==2.55.1 exactly, and phalanx never calls read_webdataset(). Drop this
+      # ignore once flwr ships a release that widens the ray pin.
       - name: Audit for known vulnerabilities
-        run: uv run pip-audit --ignore-vuln GHSA-537c-gmf6-5ccf
+        run: uv run pip-audit --ignore-vuln GHSA-537c-gmf6-5ccf --ignore-vuln GHSA-hhrp-gw25-jr43
       - name: Minimize uv cache
         if: always()
         run: uv cache prune --ci
