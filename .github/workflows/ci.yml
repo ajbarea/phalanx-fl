@@ -116,8 +116,30 @@ jobs:
       # read_webdataset() reader, fixed in ray 2.56.0 - but flwr 1.31/1.32 pin
       # ray==2.55.1 exactly, and phalanx never calls read_webdataset(). Drop this
       # ignore once flwr ships a release that widens the ray pin.
+      # PYSEC-2026-3552 / -3553 / -3554: three cryptography advisories in the X.509
+      # and PKCS#7 paths - a Bleichenbacher oracle in EnvelopedData decryption,
+      # exponential path-building on duplicate self-signed intermediates, and a
+      # wildcard-DNS escape from permittedSubtrees. Fixed in cryptography 49/50, but
+      # every published flwr through 1.36 caps cryptography <47.0.0, so no upgrade
+      # path exists while phalanx uses Flower. phalanx imports neither x509 nor pkcs7
+      # and validates no certificate chains; cryptography arrives only under flwr's
+      # gRPC. Drop these when flwr widens its cryptography pin.
+      # PYSEC-2026-3716 (CVE-2026-66007): path traversal in datasets' folder-based
+      # builders, where file_name metadata can escape the dataset root. Fixed in
+      # datasets 5.0.1, but flwr-datasets 0.6.0 (its newest) caps datasets <5.0.0.
+      # phalanx loads through flwr_datasets.FederatedDataset from the Hub and uses no
+      # folder builder, so the affected reader never runs. Drop this when
+      # flwr-datasets widens its datasets pin.
+      # Review all five ignores by 2026-12-05.
       - name: Audit for known vulnerabilities
-        run: uv run pip-audit --ignore-vuln GHSA-537c-gmf6-5ccf --ignore-vuln GHSA-hhrp-gw25-jr43
+        run: >
+          uv run pip-audit
+          --ignore-vuln GHSA-537c-gmf6-5ccf
+          --ignore-vuln GHSA-hhrp-gw25-jr43
+          --ignore-vuln PYSEC-2026-3552
+          --ignore-vuln PYSEC-2026-3553
+          --ignore-vuln PYSEC-2026-3554
+          --ignore-vuln PYSEC-2026-3716
       - name: Minimize uv cache
         if: always()
         run: uv cache prune --ci
