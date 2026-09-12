@@ -22,6 +22,8 @@ export UV_PROJECT_ENVIRONMENT ?= .venv
 UVX := uv run --no-active --extra hf --extra torch
 # Simulation Runtime settings: SuperLink state since flwr 1.28, so pass per run.
 FEDCFG := --federation-config "num-supernodes=5 client-resources-num-cpus=2 client-resources-num-gpus=0.0"
+# Fixes blocked by flwr/flwr-datasets pins and unreachable from phalanx; recheck by 2026-12-05.
+AUDIT_IGNORES := GHSA-537c-gmf6-5ccf GHSA-hhrp-gw25-jr43 PYSEC-2026-3552 PYSEC-2026-3553 PYSEC-2026-3554 PYSEC-2026-3716
 
 help:                      ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort \
@@ -55,7 +57,7 @@ trace:                     ## Run with console OTel traces (no collector needed)
 	OTEL_TRACES_EXPORTER=console $(UVX) flwr run . local --stream $(FEDCFG)
 
 audit:                     ## Security scan (pip-audit over the locked deps)
-	uv run --no-active pip-audit
+	$(UVX) pip-audit $(addprefix --ignore-vuln ,$(AUDIT_IGNORES))
 
 docs:                      ## Serve the Zensical docs site locally
 	uv run --no-active zensical serve
