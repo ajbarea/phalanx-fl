@@ -31,7 +31,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Model + data stack. Torch is CPU-only by default (see [tool.uv.sources]); GPU is opt-in.
+# Model + data stack. Torch wheel per platform: see [tool.uv.sources].
 hf = [
     "transformers>=5.10",
     "peft>=0.10",
@@ -98,26 +98,27 @@ otel-service-name = "phalanx-fl"
 # Makefile passes the federation per run instead.
 
 # =============================================================================
-# uv — torch CPU-only by default (mirrors velocity-fl): avoids ~2 GB of CUDA
-# wheels on CPU dev/CI. GPU is opt-in: swap the index below to cu128 and re-sync.
+# uv — torch: CUDA 13.0 on Linux aarch64 (GH200), CPU wheels everywhere else.
 # =============================================================================
 [[tool.uv.index]]
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
-# GPU (opt-in): comment out the cpu sources below, uncomment this index + the
-# cu128 sources, then `uv sync --extra hf --extra torch`.
-# [[tool.uv.index]]
-# name = "pytorch-cu128"
-# url = "https://download.pytorch.org/whl/cu128"
-# explicit = true
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
 
 [tool.uv.sources]
-torch = [{ index = "pytorch-cpu" }]
-torchvision = [{ index = "pytorch-cpu" }]
-# GPU: torch = [{ index = "pytorch-cu128" }]
-# GPU: torchvision = [{ index = "pytorch-cu128" }]
+torch = [
+    { index = "pytorch-cu130", marker = "sys_platform == 'linux' and platform_machine == 'aarch64'" },
+    { index = "pytorch-cpu", marker = "sys_platform != 'linux' or platform_machine != 'aarch64'" },
+]
+torchvision = [
+    { index = "pytorch-cu130", marker = "sys_platform == 'linux' and platform_machine == 'aarch64'" },
+    { index = "pytorch-cpu", marker = "sys_platform != 'linux' or platform_machine != 'aarch64'" },
+]
 
 # =============================================================================
 # Tooling (carried from the sister conventions)

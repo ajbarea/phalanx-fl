@@ -22,6 +22,22 @@ def test_set_seed_makes_training_rng_deterministic() -> None:
     assert torch.equal(a, b)
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="needs CUDA")
+def test_set_seed_makes_cuda_training_deterministic() -> None:
+    def grads() -> list[torch.Tensor]:
+        set_seed(123)
+        emb = torch.nn.Embedding(1000, 128).cuda()
+        head = torch.nn.Linear(128, 2).cuda()
+        idx = torch.randint(0, 1000, (64, 32), device="cuda")
+        head(emb(idx)).mean().backward()
+        assert emb.weight.grad is not None and head.weight.grad is not None
+        return [emb.weight.grad, head.weight.grad]
+
+    first, second = grads(), grads()
+    assert torch.are_deterministic_algorithms_enabled()
+    assert all(torch.equal(a, b) for a, b in zip(first, second, strict=True))
+
+
 @pytest.fixture(scope="module")
 def model():
     return get_model(MODEL, num_labels=2)
