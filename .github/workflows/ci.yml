@@ -108,15 +108,11 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: uv sync --frozen --extra hf --extra torch
-      # Ignored below: each is unreachable from phalanx and blocked by an upstream
-      # pin. Recheck by 2026-12-05.
-      #   GHSA-537c-gmf6-5ccf, PYSEC-2026-3552/-3553/-3554: cryptography OpenSSL OOB
-      #     read + X.509/PKCS#7 flaws. flwr 1.36 caps cryptography <47.0.0; phalanx
-      #     imports neither x509 nor pkcs7 and validates no certificate chains.
-      #   GHSA-hhrp-gw25-jr43: RCE in ray's read_webdataset(). flwr 1.36 pins
-      #     ray==2.55.1; phalanx never calls it.
-      #   PYSEC-2026-3716: path traversal in datasets' folder builders.
-      #     flwr-datasets 0.6.1 caps datasets <5.0.0; phalanx uses no folder builder.
+      # Each ignore is unreachable from phalanx and blocked by an upstream pin.
+      # Recheck by 2026-12-05.
+      #   cryptography (537c, 3552-3554): flwr caps <47.0.0; no x509/pkcs7 use.
+      #   ray (hhrp): flwr pins 2.55.1; read_webdataset() never called.
+      #   datasets (3716): flwr-datasets caps <5.0.0; no folder builder.
       - name: Audit for known vulnerabilities
         run: >
           uv run pip-audit
