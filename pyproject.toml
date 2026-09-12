@@ -93,11 +93,9 @@ fraction-evaluate = 0.1
 otel-service-name = "phalanx-fl"
 # OTLP endpoint is read from the OTEL_EXPORTER_OTLP_ENDPOINT env var when set.
 
-# Federation settings live outside this file: the SuperLink connection belongs to
-# the Flower config (~/.flwr/config.toml) as of flwr 1.26, and Simulation Runtime
-# settings became SuperLink state in 1.28. A [tool.flwr.federations] block left
-# here is migrated out on the first `flwr run`, rewriting this file (flwr #6824),
-# so the Makefile passes the federation per run instead.
+# Federation settings live outside this file: a [tool.flwr.federations] block is
+# migrated out on the first `flwr run`, rewriting this file (flwr #6824). The
+# Makefile passes the federation per run instead.
 
 # =============================================================================
 # uv — torch CPU-only by default (mirrors velocity-fl): avoids ~2 GB of CUDA
