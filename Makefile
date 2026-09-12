@@ -46,13 +46,13 @@ test-cov:                  ## Run the test suite with coverage
 	$(UVX) python -m pytest --cov=phalanx --cov-report=term-missing
 
 run:                       ## Full federated simulation (flwr run, streamed)
-	$(UVX) flwr run . --stream $(FEDCFG)
+	$(UVX) flwr run . local --stream $(FEDCFG)
 
 smoke:                     ## Fast 2-round federated simulation (sanity check)
-	$(UVX) flwr run . --stream $(FEDCFG) --run-config "num-server-rounds=2"
+	$(UVX) flwr run . local --stream $(FEDCFG) --run-config "num-server-rounds=2"
 
 trace:                     ## Run with console OTel traces (no collector needed)
-	OTEL_TRACES_EXPORTER=console $(UVX) flwr run . --stream $(FEDCFG)
+	OTEL_TRACES_EXPORTER=console $(UVX) flwr run . local --stream $(FEDCFG)
 
 audit:                     ## Security scan (pip-audit over the locked deps)
 	uv run --no-active pip-audit

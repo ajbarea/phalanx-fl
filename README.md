@@ -53,10 +53,10 @@ make trace       # run with OTel traces printed to the console (no collector nee
 
 ### Federation setup (flwr 1.36)
 
-Federation settings live outside `pyproject.toml`: the SuperLink connection belongs to the Flower config (`~/.flwr/config.toml`, or `$FLWR_HOME`), and Simulation Runtime settings are SuperLink state. The Makefile passes them per run, so a clone reproduces the default five-node federation with no bootstrap step. Override for a single run:
+Federation settings live outside `pyproject.toml`: the SuperLink connection belongs to the Flower config (`~/.flwr/config.toml`, or `$FLWR_HOME`), and Simulation Runtime settings are SuperLink state. The Makefile names the built-in `local` connection and passes the settings per run, so a clone reproduces the default five-node federation with no bootstrap step. Override for a single run:
 
 ```bash
-uv run flwr run . --federation-config 'num-supernodes=10 client-resources-num-cpus=2'
+uv run flwr run . local --federation-config 'num-supernodes=10 client-resources-num-cpus=2'
 ```
 
 ### Observability
@@ -104,7 +104,7 @@ Run config lives in `pyproject.toml` under `[tool.flwr.app.config]`, overridable
 | `otel-service-name` | `phalanx-fl` | OTel `service.name` resource attribute |
 
 ```bash
-uv run flwr run . --run-config 'num-server-rounds=5 partitioner=iid'
+uv run flwr run . local --run-config 'num-server-rounds=5 partitioner=iid'
 ```
 
 ---

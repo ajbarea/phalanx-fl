@@ -34,17 +34,18 @@ settings are SuperLink state. A `[tool.flwr.federations]` block left in
 `pyproject.toml` is migrated out on the first `flwr run`, rewriting the file in place
 ([flwr#6824](https://github.com/flwrlabs/flower/issues/6824)).
 
-The Makefile passes the federation per run instead, so a clone reproduces the default
-five-node federation with no bootstrap step. Override it for a single run:
+The Makefile names the built-in `local` connection and passes the settings per run, so
+a clone reproduces the default five-node federation with no bootstrap step. Override it
+for a single run:
 
 ```bash
-uv run flwr run . --federation-config 'num-supernodes=10 client-resources-num-cpus=2'
+uv run flwr run . local --federation-config 'num-supernodes=10 client-resources-num-cpus=2'
 ```
 
 Override app run-config (rounds, partitioner, model) similarly:
 
 ```bash
-uv run flwr run . --run-config 'num-server-rounds=5 partitioner=iid'
+uv run flwr run . local --run-config 'num-server-rounds=5 partitioner=iid'
 ```
 
 ## Observability

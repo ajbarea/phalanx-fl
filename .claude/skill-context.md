@@ -90,7 +90,7 @@ Subagent scan-area split:
 ## theoros
 
 Interactive surface = the Flower simulation. Drive it observably with:
-`OTEL_TRACES_EXPORTER=console uv run flwr run . --stream`
+`OTEL_TRACES_EXPORTER=console uv run flwr run . local --stream`
 (prints round + client OTel spans to the terminal as the run progresses).
 Spectator attaches read-only to the same tmux session. The run downloads IMDB on
 first use and trains on CPU, so a 2-round `--run-config "num-server-rounds=2"` is
