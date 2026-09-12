@@ -37,6 +37,7 @@ uv.lock.backup.*
 node_modules/
 test-results/
 site/
+*.fab
 .env
 
 # Claude Code — canonical skills live at ~/.claude/skills/; only the per-repo
