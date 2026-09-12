@@ -108,20 +108,8 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: uv sync --frozen --extra hf --extra torch
-      # Each ignore is unreachable from phalanx and blocked by an upstream pin.
-      # Recheck by 2026-12-05.
-      #   cryptography (537c, 3552-3554): flwr caps <47.0.0; no x509/pkcs7 use.
-      #   ray (hhrp): flwr pins 2.55.1; read_webdataset() never called.
-      #   datasets (3716): flwr-datasets caps <5.0.0; no folder builder.
       - name: Audit for known vulnerabilities
-        run: >
-          uv run pip-audit
-          --ignore-vuln GHSA-537c-gmf6-5ccf
-          --ignore-vuln GHSA-hhrp-gw25-jr43
-          --ignore-vuln PYSEC-2026-3552
-          --ignore-vuln PYSEC-2026-3553
-          --ignore-vuln PYSEC-2026-3554
-          --ignore-vuln PYSEC-2026-3716
+        run: make audit
       - name: Minimize uv cache
         if: always()
         run: uv cache prune --ci
