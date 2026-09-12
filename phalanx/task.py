@@ -1,6 +1,6 @@
 """phalanx-fl: model (HF transformer + LoRA), data (flwr-datasets non-IID), train/eval.
 
-Anchored on Flower's quickstart-huggingface example (flwr 1.31 app-model), adapted to:
+Anchored on Flower's quickstart-huggingface example (flwr 1.36 app-model), adapted to:
   - LoRA adapters via PEFT (only the adapters are federated — tiny, privacy-preserving);
   - non-IID partitioning via flwr-datasets' DirichletPartitioner (IID available as a fallback).
 """

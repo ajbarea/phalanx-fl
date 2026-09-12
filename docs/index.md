@@ -22,7 +22,7 @@ hide:
 
 <div class="hero-tagline" markdown>
 
-<span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 4px;">hub</span> flwr 1.31 Message API | <span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 4px;">tune</span> federated LoRA | <span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 4px;">monitoring</span> OTel traces + metrics
+<span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 4px;">hub</span> flwr 1.36 Message API | <span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 4px;">tune</span> federated LoRA | <span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 4px;">monitoring</span> OTel traces + metrics
 { .hero-modes }
 
 </div>

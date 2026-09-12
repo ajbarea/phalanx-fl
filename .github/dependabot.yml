@@ -1,5 +1,5 @@
 # Canonical config: techne templates/dependabot.yml.example. /techne:sisters
-# audits drift. phalanx-fl (flwr 1.31 app): uv + github-actions.
+# audits drift. phalanx-fl (flwr 1.36 app): uv + github-actions.
 version: 2
 
 updates:

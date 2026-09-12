@@ -1,6 +1,6 @@
 # Architecture
 
-Phalanx is a standard Flower **app-model** application (flwr 1.31 Message API) plus
+Phalanx is a standard Flower **app-model** application (flwr 1.36 Message API) plus
 an OpenTelemetry layer. Four modules, no framework of our own:
 
 | Module | Role |

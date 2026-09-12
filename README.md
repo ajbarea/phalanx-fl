@@ -11,7 +11,7 @@
 [![CI Pipeline](https://github.com/ajbarea/phalanx-fl/actions/workflows/ci.yml/badge.svg)](https://github.com/ajbarea/phalanx-fl/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/ajbarea/phalanx-fl/graph/badge.svg?token=NTyqWs5w9l)](https://codecov.io/gh/ajbarea/phalanx-fl)
 [![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Flower](https://img.shields.io/badge/Flower-v1.31+-00C896?style=flat-square)](https://flower.ai)
+[![Flower](https://img.shields.io/badge/Flower-v1.36+-00C896?style=flat-square)](https://flower.ai)
 [![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-traces_%2B_metrics-425CC7?style=flat-square&logo=opentelemetry&logoColor=white)](https://opentelemetry.io)
 [![uv](https://img.shields.io/badge/uv-package_manager-DE5FE9?style=flat-square)](https://docs.astral.sh/uv/)
 
@@ -51,12 +51,12 @@ make trace       # run with OTel traces printed to the console (no collector nee
 
 `make run` runs the full simulation, `make test` runs the suite, `make lint` runs ruff + ty. Run `make` with no target for the full list.
 
-### Federation setup (flwr 1.31)
+### Federation setup (flwr 1.36)
 
-flwr 1.31 keeps simulation and federation settings in `~/.flwr/config.toml`, not in `pyproject.toml`. The `[tool.flwr.federations.local-simulation]` block shipped in `pyproject.toml` is migrated there automatically on your first `flwr run` (flwr then comments the local copy out; see [flwr#6824](https://github.com/flwrlabs/flower/issues/6824)). Override the federation size per run without editing any file:
+Federation settings live outside `pyproject.toml`: the SuperLink connection belongs to the Flower config (`~/.flwr/config.toml`, or `$FLWR_HOME`), and Simulation Runtime settings are SuperLink state. The Makefile passes them per run, so a clone reproduces the default five-node federation with no bootstrap step. Override for a single run:
 
 ```bash
-uv run flwr run . local-simulation --federation-config 'options.num-supernodes=10'
+uv run flwr run . --federation-config 'num-supernodes=10 client-resources-num-cpus=2'
 ```
 
 ### Observability
@@ -104,7 +104,7 @@ Run config lives in `pyproject.toml` under `[tool.flwr.app.config]`, overridable
 | `otel-service-name` | `phalanx-fl` | OTel `service.name` resource attribute |
 
 ```bash
-uv run flwr run . local-simulation --run-config 'num-server-rounds=5 partitioner=iid'
+uv run flwr run . --run-config 'num-server-rounds=5 partitioner=iid'
 ```
 
 ---
