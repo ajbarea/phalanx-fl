@@ -1,4 +1,4 @@
-## Phalanx — federated learning on the latest Flower (flwr 1.31 app-model).
+## Phalanx — federated learning on the latest Flower (flwr 1.36 app-model).
 ## An OTel-observable FL research testbed: a federated LoRA fine-tune of a tiny BERT,
 ## aggregating only the adapters.
 ##
@@ -12,8 +12,7 @@
 ##   make audit    Security scan (pip-audit)
 ##
 ## Simulation knobs: app config via --run-config 'num-server-rounds=5 partitioner=iid';
-## federation size via --federation-config 'options.num-supernodes=10' (flwr 1.31 keeps
-## simulation settings in ~/.flwr/config.toml, auto-created on first run with 5 nodes).
+## federation size via --federation-config 'num-supernodes=10' (see FEDCFG below).
 
 .PHONY: help sync lint fmt test test-cov run smoke trace audit docs clean
 .DEFAULT_GOAL := help
@@ -21,6 +20,8 @@
 export UV_PROJECT_ENVIRONMENT ?= .venv
 # Run inside the project env with the model/data stack present (CPU torch + HF).
 UVX := uv run --no-active --extra hf --extra torch
+# Simulation Runtime settings: SuperLink state since flwr 1.28, so pass per run.
+FEDCFG := --federation-config "num-supernodes=5 client-resources-num-cpus=2 client-resources-num-gpus=0.0"
 
 help:                      ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort \
@@ -45,13 +46,13 @@ test-cov:                  ## Run the test suite with coverage
 	$(UVX) python -m pytest --cov=phalanx --cov-report=term-missing
 
 run:                       ## Full federated simulation (flwr run, streamed)
-	$(UVX) flwr run . local-simulation --stream
+	$(UVX) flwr run . local --stream $(FEDCFG)
 
 smoke:                     ## Fast 2-round federated simulation (sanity check)
-	$(UVX) flwr run . local-simulation --stream --run-config "num-server-rounds=2"
+	$(UVX) flwr run . local --stream $(FEDCFG) --run-config "num-server-rounds=2"
 
 trace:                     ## Run with console OTel traces (no collector needed)
-	OTEL_TRACES_EXPORTER=console $(UVX) flwr run . local-simulation --stream
+	OTEL_TRACES_EXPORTER=console $(UVX) flwr run . local --stream $(FEDCFG)
 
 audit:                     ## Security scan (pip-audit over the locked deps)
 	uv run --no-active pip-audit

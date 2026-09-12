@@ -11,14 +11,14 @@ that, plus the OpenTelemetry observability layer that is the project's different
 
 ## Core runtime
 
-- **`flwr[simulation]>=1.31`** — Flower, on the current **Message API** app-model
+- **`flwr[simulation]>=1.36`** — Flower, on the current **Message API** app-model
   (`ServerApp`/`@app.main`, `ClientApp`/`@app.train`, `ArrayRecord`/`Message`/`RecordDict`,
   `strategy.start`). The `[simulation]` extra pulls the Ray-backed Simulation Engine
-  that `flwr run . local-simulation` drives. Floor is `>=1.31`; bump it forward as
-  Flower releases, never back.
+  that `flwr run` drives. Floor is `>=1.36`; bump it forward as Flower releases,
+  never back.
 - **`flwr-datasets>=0.6`** — federated dataset partitioning (`FederatedDataset`,
   `DirichletPartitioner`, `IidPartitioner`). This is what makes the showcase non-IID.
-  Note: `flwr-datasets` 0.6.0 caps `datasets<5.0`, which is why the `hf` extra pins
+  Note: `flwr-datasets` 0.6.1 caps `datasets<5.0`, which is why the `hf` extra pins
   `datasets>=2.15,<5` (see below). Bump alongside `flwr`.
 - **`opentelemetry-sdk` + `opentelemetry-exporter-otlp` (>=1.30)** — the observability
   layer (`phalanx/telemetry.py`). The SDK provides the tracer/meter providers and the

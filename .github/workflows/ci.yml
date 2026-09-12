@@ -108,29 +108,15 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: uv sync --frozen --extra hf --extra torch
-      # GHSA-537c-gmf6-5ccf: availability-only OOB read in the OpenSSL bundled in
-      # cryptography's wheels (no RCE/data impact), fixed in cryptography 48.0.1 — but
-      # flwr 1.31 caps cryptography <48, and phalanx has no direct cryptography use.
-      # Drop this ignore when flwr widens its pin.
-      # PYSEC-2026-2273 (GHSA-hhrp-gw25-jr43): unsafe deserialization RCE in ray's
-      # read_webdataset() reader, fixed in ray 2.56.0 - but flwr 1.31/1.32 pin
-      # ray==2.55.1 exactly, and phalanx never calls read_webdataset(). Drop this
-      # ignore once flwr ships a release that widens the ray pin.
-      # PYSEC-2026-3552 / -3553 / -3554: three cryptography advisories in the X.509
-      # and PKCS#7 paths - a Bleichenbacher oracle in EnvelopedData decryption,
-      # exponential path-building on duplicate self-signed intermediates, and a
-      # wildcard-DNS escape from permittedSubtrees. Fixed in cryptography 49/50, but
-      # every published flwr through 1.36 caps cryptography <47.0.0, so no upgrade
-      # path exists while phalanx uses Flower. phalanx imports neither x509 nor pkcs7
-      # and validates no certificate chains; cryptography arrives only under flwr's
-      # gRPC. Drop these when flwr widens its cryptography pin.
-      # PYSEC-2026-3716 (CVE-2026-66007): path traversal in datasets' folder-based
-      # builders, where file_name metadata can escape the dataset root. Fixed in
-      # datasets 5.0.1, but flwr-datasets 0.6.0 (its newest) caps datasets <5.0.0.
-      # phalanx loads through flwr_datasets.FederatedDataset from the Hub and uses no
-      # folder builder, so the affected reader never runs. Drop this when
-      # flwr-datasets widens its datasets pin.
-      # Review all five ignores by 2026-12-05.
+      # Ignored below: each is unreachable from phalanx and blocked by an upstream
+      # pin. Recheck by 2026-12-05.
+      #   GHSA-537c-gmf6-5ccf, PYSEC-2026-3552/-3553/-3554: cryptography OpenSSL OOB
+      #     read + X.509/PKCS#7 flaws. flwr 1.36 caps cryptography <47.0.0; phalanx
+      #     imports neither x509 nor pkcs7 and validates no certificate chains.
+      #   GHSA-hhrp-gw25-jr43: RCE in ray's read_webdataset(). flwr 1.36 pins
+      #     ray==2.55.1; phalanx never calls it.
+      #   PYSEC-2026-3716: path traversal in datasets' folder builders.
+      #     flwr-datasets 0.6.1 caps datasets <5.0.0; phalanx uses no folder builder.
       - name: Audit for known vulnerabilities
         run: >
           uv run pip-audit

@@ -26,24 +26,26 @@ make trace       # run with OpenTelemetry traces printed to the console
 The first run downloads the model (`google/bert_uncased_L-2_H-128_A-2`, ~18 MB) and
 the IMDB dataset, then trains on CPU. Subsequent runs reuse the cache.
 
-## Federation setup (flwr 1.31)
+## Federation setup (flwr 1.36)
 
-flwr 1.31 stores simulation/federation settings in `~/.flwr/config.toml`, not in
-`pyproject.toml`. The `[tool.flwr.federations.local-simulation]` block shipped in
-`pyproject.toml` is migrated there automatically on your **first** `flwr run` (flwr
-then comments the local copy out; see [flwr#6824](https://github.com/flwrlabs/flower/issues/6824)).
-You normally do not need to touch this.
+Federation settings live outside `pyproject.toml`: the SuperLink connection belongs
+to the Flower config (`~/.flwr/config.toml`, or `$FLWR_HOME`), and Simulation Runtime
+settings are SuperLink state. A `[tool.flwr.federations]` block left in
+`pyproject.toml` is migrated out on the first `flwr run`, rewriting the file in place
+([flwr#6824](https://github.com/flwrlabs/flower/issues/6824)).
 
-Override the federation size for a single run without editing any file:
+The Makefile names the built-in `local` connection and passes the settings per run, so
+a clone reproduces the default five-node federation with no bootstrap step. Override it
+for a single run:
 
 ```bash
-uv run flwr run . local-simulation --federation-config 'options.num-supernodes=10'
+uv run flwr run . local --federation-config 'num-supernodes=10 client-resources-num-cpus=2'
 ```
 
 Override app run-config (rounds, partitioner, model) similarly:
 
 ```bash
-uv run flwr run . local-simulation --run-config 'num-server-rounds=5 partitioner=iid'
+uv run flwr run . local --run-config 'num-server-rounds=5 partitioner=iid'
 ```
 
 ## Observability
