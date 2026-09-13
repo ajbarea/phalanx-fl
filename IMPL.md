@@ -8,32 +8,10 @@ ROADMAP's "Recently shipped" and clear the relevant block below.
 
 ## Current focus
 
-### Gerrit review corpus, plan A (spec #86, plan #88)
-
-Building the corpus the RQ1 feasibility gate runs on. Seven standard-library modules
-under `phalanx/corpus/`, each one pipeline stage, each a pure function over data plus a
-thin IO shell.
-
-**Design decisions already pinned** (spec, merged): identity stripping runs inline in
-`fetch` before anything is persisted; dedup is three stages; four time-ordered windows
-grouped by change-id; the confirmatory test window is defined and hashed now but fetched
-only after in-principle acceptance; exact match binds the pass rule with normalized EM and
-edit similarity reported alongside; LLM-as-judge excluded from both.
-
-**Order** (plan A): `scrub` → `manifest` → `gerrit` → `examples` → `dedup` → `split` → `cli`.
-Each task is a failing test, a minimal implementation, and a commit.
-
-**The HSRO determination does not block this.** `fetch`'s transport is a
-`Callable[[str], tuple[int, dict, str]]` seam, so every test runs offline and all seven
-tasks are completable before the determination lands. Only the stage bodies (plan A2) wait
-on it. Draft request: `corpus/HSRO.md`.
-
-**One recorded spec deviation.** Dedup stage 3 is corpus-wide shingle frequency, not a
-suffix array: a linear-time suffix array needs a C extension and a pure-Python one is
-quadratic over the concatenated corpus. Plan A task 5 amends the spec text.
-
-**Deadline setting the order:** MSR 2027 Stage 1, 2026-11-20. Checklist in
-`papers/org-fingerprint/STAGE1-SKELETON.md`.
+_No in-flight work._ The corpus and measurement apparatus moved to
+[`ajbarea/sphragis`](https://github.com/ajbarea/sphragis) on 2026-09-13; see ROADMAP's
+`corpus` section for why. Open roadmap items here are the v2 observability and v3 breadth
+lines.
 
 ---
 

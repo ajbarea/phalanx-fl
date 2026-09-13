@@ -77,28 +77,22 @@ use lands.
 
 ---
 
-## corpus — the RQ1 gate apparatus
+## corpus — moved to `sphragis`
 
-The Gerrit review corpus that the RQ1 feasibility gate runs on, and that RQ2 reuses with
-four more organizations. Spec: `docs/superpowers/specs/2026-09-13-gerrit-review-corpus-harness-design.md`.
-Plans: `docs/superpowers/plans/2026-09-13-corpus-construction.md` (A), with B (measurement)
-and C (experiment) to follow.
+The Gerrit review corpus and its measurement instruments now live in their own repository,
+[`ajbarea/sphragis`](https://github.com/ajbarea/sphragis), along with the spec and the plans.
 
-- [x] **Harness spec** — seven staged commands, identity stripping at ingestion, three-stage
-  dedup, four time-ordered windows, the sealed test window, the metric ladder, the
-  contamination battery, and the training/statistics pins. Merged in #86.
-- [x] **Plan A** — task-by-task TDD plan for the seven modules. Standard library only.
-  Merged in #88.
-- [ ] **HSRO determination** — draft request at `corpus/HSRO.md`. Gates `fetch` at runtime,
-  but not the build: the transport is a test seam, so all of plan A is completable first.
-- [ ] **Plan A tasks 1-7** — `scrub`, `manifest`, `gerrit`, `examples`, `dedup`, `split`, `cli`.
-- [ ] **Plan A2** — stage bodies and artifact writing, once the determination is on file.
-- [x] **Plan B** — metric ladder, contamination battery, pairs cluster bootstrap, and the
-  test enforcing that none of them import a GPU stack. PR #91.
-- [ ] **Plan C** — the 3 by 2 grid on TIGRIS, seeds, and the pilot power analysis.
+They were built here and moved on 2026-09-13. The reason is a policy conflict rather than
+tidiness: this repo's standing invariant is to ride the latest Flower release, and a paper
+artifact has to reproduce years from now. Two release policies cannot share one lockfile, and
+the strain was already showing in Dependabot alerts pinned by `flwr` on code that never
+imported `flwr`.
 
-**Deadline that sets the order:** MSR 2027 Registered Reports Stage 1, 2026-11-20. The
-pre-submission checklist lives in `papers/org-fingerprint/STAGE1-SKELETON.md`.
+`provenance.py` keeps `provenance_header()`; sphragis copied it rather than depending on this
+repo.
+
+RQ2 federates adapters on this repo's Flower stack. That dependency is deliberately not built
+yet and gets decided when RQ2 starts.
 
 ---
 
@@ -132,10 +126,10 @@ line (P1 / the future `federated-forge`) framed strictly as **systems + reproduc
 never a novel FL/anomaly algorithm (that is the lab's PID-MADE line — cite and disclose
 it). The OTel-native observability is the contribution worth writing up.
 
-**The corpus harness does carry a paper: P4**, the MSR 2027 registered report on whether
-organizations leave a learnable fingerprint in code review. Skeleton at
-`papers/org-fingerprint/STAGE1-SKELETON.md`. This is the one paper in `papers/` with a
-committed venue rather than a candidate.
+**P4 moved with the corpus.** The MSR 2027 registered report on whether organizations leave a
+learnable fingerprint in code review is now `sphragis`'s paper, drafted in
+`papers/org-fingerprint/STAGE1-SKELETON.md`. This repo is cited by it as the Flower stack RQ2
+would federate on, not as the apparatus.
 
 **Nearest rolling neighbour, do not overclaim against it.** Martian's Code Review Bench
 (March 2026) is already a monthly-versioned, continuously refreshed code-review benchmark
