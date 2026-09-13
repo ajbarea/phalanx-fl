@@ -104,14 +104,21 @@ the stages are complementary rather than alternatives.
 1. **Exact.** Content hash over the normalized pair. Cheap, lossless, run first.
 2. **Near-duplicate.** MinHash over shingles, LSH banding for candidates, exact Jaccard
    to confirm. Catches the revision-to-revision near-copies.
-3. **Repeated substring.** Suffix array over the concatenated corpus to find boilerplate
+3. **Repeated substring.** Corpus-wide shingle frequency: a character k-gram appearing in
+   more than `boilerplate_max_docs` distinct examples is repeated text. Catches boilerplate
    that recurs across otherwise distinct examples: license headers, generated bindings,
    translation catalogs, vendored code, requirements pins.
 
-Stage 3 differs from the text-corpus version in what it does with a hit. Text pipelines
-excise the repeated substring from the document. Excising from a code hunk would produce
-code that does not parse, so here a hit **drops the example** and records why, above a
-boilerplate fraction threshold fixed in the Stage 1 report.
+Stage 3 was specified as a suffix array and is implemented as shingle frequency. A
+linear-time suffix array needs a C extension, and a pure-Python one is O(n^2 log n) over
+the concatenated corpus, which will not hold at full scale. Shingle frequency finds the
+same cross-document repetition at k-gram granularity with no new dependency. Revisit if
+the boilerplate counts look wrong against a manual read of what it drops.
+
+Stage 3 also differs from the text-corpus version in what it does with a hit. Text
+pipelines excise the repeated substring from the document. Excising from a code hunk would
+produce code that does not parse, so here a hit **drops the example** and records why,
+above a boilerplate fraction threshold fixed in the Stage 1 report.
 
 Normalization strips whitespace and comments only. It does not rename identifiers,
 because identifier style is part of what RQ1 is asking about.

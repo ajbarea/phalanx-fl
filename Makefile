@@ -47,6 +47,9 @@ test:                      ## Run the test suite
 test-cov:                  ## Run the test suite with coverage
 	$(UVX) python -m pytest --cov=phalanx --cov-report=term-missing
 
+corpus-verify:             ## Re-derive the corpus manifest and fail on any mismatch
+	uv run python -m phalanx.corpus verify
+
 run:                       ## Full federated simulation (flwr run, streamed)
 	$(UVX) flwr run . local --stream $(FEDCFG)
 

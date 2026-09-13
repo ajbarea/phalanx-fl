@@ -932,7 +932,7 @@ git commit -m "feat(corpus): three-stage dedup, with the stage-3 deviation recor
   - `assign_windows(examples: Sequence[Mapping[str, Any]], bounds: Mapping[str, tuple[str, str]]) -> dict[str, list[dict[str, Any]]]`
   - `straddling_changes(windows: Mapping[str, Sequence[Mapping[str, Any]]]) -> list[str]`
   - `seal(definition: Mapping[str, Any]) -> dict[str, Any]`
-  - `test_window_unlocked(seal_record: Mapping[str, Any]) -> bool`
+  - `is_test_window_unlocked(seal_record: Mapping[str, Any]) -> bool`
 
 A change is assigned whole, by its earliest example's `created`, so no change-id can straddle a boundary by construction. `straddling_changes` is the assertion that proves it.
 
@@ -943,7 +943,7 @@ A change is assigned whole, by its earliest example's `created`, so no change-id
 
 from __future__ import annotations
 
-from phalanx.corpus.split import assign_windows, seal, straddling_changes, test_window_unlocked
+from phalanx.corpus.split import assign_windows, seal, straddling_changes
 
 BOUNDS = {
     "pilot": ("2024-10-01", "2024-11-01"),
@@ -986,7 +986,7 @@ def test_seal_records_a_hash_and_a_timestamp_and_starts_locked() -> None:
     record = seal({"query": "status:merged", "after": "2025-11-01"})
     assert len(record["hash"]) == 64 and record["sealed_at"]
     assert record["accepted_at"] is None
-    assert test_window_unlocked(record) is False
+    assert is_test_window_unlocked(record) is False
 
 
 def test_seal_is_stable_for_the_same_definition_and_changes_with_it() -> None:
@@ -998,7 +998,7 @@ def test_seal_is_stable_for_the_same_definition_and_changes_with_it() -> None:
 
 def test_the_test_window_unlocks_only_once_an_acceptance_date_is_recorded() -> None:
     record = {**seal({"query": "q"}), "accepted_at": "2027-02-04"}
-    assert test_window_unlocked(record) is True
+    assert is_test_window_unlocked(record) is True
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1059,7 +1059,7 @@ def seal(definition: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def test_window_unlocked(seal_record: Mapping[str, Any]) -> bool:
+def is_test_window_unlocked(seal_record: Mapping[str, Any]) -> bool:
     """True only once an in-principle acceptance date has been written into the seal."""
     return bool(seal_record.get("accepted_at"))
 ```
