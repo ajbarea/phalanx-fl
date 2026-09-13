@@ -37,8 +37,8 @@ def _package_versions() -> dict[str, str]:
     return versions
 
 
-def run_manifest(*, run_config: dict[str, Any], metrics: dict[str, Any]) -> dict[str, Any]:
-    """Capture a reproducibility manifest for one federated run."""
+def provenance_header() -> dict[str, Any]:
+    """The static provenance every manifest in this repo carries."""
     return {
         "generated_at": datetime.now(UTC).isoformat(),
         "git": {
@@ -48,6 +48,13 @@ def run_manifest(*, run_config: dict[str, Any], metrics: dict[str, Any]) -> dict
         "python": platform.python_version(),
         "platform": platform.platform(),
         "packages": _package_versions(),
+    }
+
+
+def run_manifest(*, run_config: dict[str, Any], metrics: dict[str, Any]) -> dict[str, Any]:
+    """Capture a reproducibility manifest for one federated run."""
+    return {
+        **provenance_header(),
         "run_config": dict(run_config),
         "metrics": dict(metrics),
     }
