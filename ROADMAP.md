@@ -32,6 +32,23 @@ The app-model core: `task.py` (HF+LoRA model, `flwr-datasets` non-IID), `client_
 - [x] OTel flush on exit — `shutdown_telemetry` force-flushes the OTLP buffers (and runs at `atexit`), so the final round's spans/metrics aren't dropped when the process exits.
 - [x] Run-provenance manifest — `phalanx/provenance.py` writes a per-run JSON (git SHA + branch, package versions, run-config, per-round metrics) beside the trace: the static half of the reproducibility story (FAIR / IEEE artifact criteria).
 
+**Verified findings from the rebuild (2026-06-16, empirical).** Collapsed here from IMPL
+when that work shipped, because they are the kind of thing that gets re-learned otherwise.
+
+- `transformers` 5 is strict about `model_type`. `prajjwal1/bert-tiny` has none in its
+  config and fails to load; that, not arbitrary conservatism, is why the Flower example
+  caps `transformers<5`. Showcase model is `google/bert_uncased_L-2_H-128_A-2`.
+- The adapter payload is the LoRA tensors **plus the classifier head**: PEFT puts the
+  randomly-initialised SEQ_CLS head in `modules_to_save`, so it federates alongside.
+  `set_peft_model_state_dict` mutates its input dict in place.
+- `flwr` 1.31 moved federation/SuperLink config out of `pyproject.toml` into
+  `~/.flwr/config.toml`. App run-config stays in `[tool.flwr.app.config]`; per-run
+  simulation overrides go via `--federation-config`.
+- `flwr run` submits to a local SuperLink and returns; the sim runs detached. Use
+  `--stream` to stay attached and capture the OTel console spans.
+- The round-2 Dirichlet accuracy collapse is genuine non-IID dynamics, not an aggregation
+  bug. The IID control improves monotonically, which is what rules the bug out.
+
 **Scope discipline (YAGNI):** one scenario (IMDB sentiment), IID + Dirichlet
 partitioners, FedAvg. Strategies / datasets / partitioners grow only when a concrete
 use lands.
@@ -60,6 +77,30 @@ use lands.
 
 ---
 
+## corpus — the RQ1 gate apparatus
+
+The Gerrit review corpus that the RQ1 feasibility gate runs on, and that RQ2 reuses with
+four more organizations. Spec: `docs/superpowers/specs/2026-09-13-gerrit-review-corpus-harness-design.md`.
+Plans: `docs/superpowers/plans/2026-09-13-corpus-construction.md` (A), with B (measurement)
+and C (experiment) to follow.
+
+- [x] **Harness spec** — seven staged commands, identity stripping at ingestion, three-stage
+  dedup, four time-ordered windows, the sealed test window, the metric ladder, the
+  contamination battery, and the training/statistics pins. Merged in #86.
+- [x] **Plan A** — task-by-task TDD plan for the seven modules. Standard library only.
+  Merged in #88.
+- [ ] **HSRO determination** — draft request at `corpus/HSRO.md`. Gates `fetch` at runtime,
+  but not the build: the transport is a test seam, so all of plan A is completable first.
+- [ ] **Plan A tasks 1-7** — `scrub`, `manifest`, `gerrit`, `examples`, `dedup`, `split`, `cli`.
+- [ ] **Plan A2** — stage bodies and artifact writing, once the determination is on file.
+- [ ] **Plan B** — metric ladder, contamination battery, pairs cluster bootstrap.
+- [ ] **Plan C** — the 3 by 2 grid on TIGRIS, seeds, and the pilot power analysis.
+
+**Deadline that sets the order:** MSR 2027 Registered Reports Stage 1, 2026-11-20. The
+pre-submission checklist lives in `papers/org-fingerprint/STAGE1-SKELETON.md`.
+
+---
+
 ## v3+ — breadth (each gated on a real use, not built ahead)
 
 - [ ] More strategies via `flwr.serverapp.strategy` (FedProx, FedAdam, robust aggregators).
@@ -82,8 +123,24 @@ ecosystem moves). Fires on external releases, not a fixed schedule.
 
 ## Paper positioning
 
-Phalanx is **not its own paper** — SoT is `papers/LINEAGE.md` (read it; don't
-duplicate). It folds into the systems / benchmark line (P1 / the future
-`federated-forge`) framed strictly as **systems + reproducibility**, never a novel
-FL/anomaly algorithm (that is the lab's PID-MADE line — cite and disclose it). The
-OTel-native observability is the contribution worth writing up.
+SoT is `papers/LINEAGE.md` (read it; don't duplicate). Two distinct things now live here,
+and they are not the same paper.
+
+**The Flower/OTel testbed is not its own paper.** It folds into the systems / benchmark
+line (P1 / the future `federated-forge`) framed strictly as **systems + reproducibility**,
+never a novel FL/anomaly algorithm (that is the lab's PID-MADE line — cite and disclose
+it). The OTel-native observability is the contribution worth writing up.
+
+**The corpus harness does carry a paper: P4**, the MSR 2027 registered report on whether
+organizations leave a learnable fingerprint in code review. Skeleton at
+`papers/org-fingerprint/STAGE1-SKELETON.md`. This is the one paper in `papers/` with a
+committed venue rather than a candidate.
+
+**Nearest rolling neighbour, do not overclaim against it.** Martian's Code Review Bench
+(March 2026) is already a monthly-versioned, continuously refreshed code-review benchmark
+over 200,000+ GitHub PRs. So "first rolling code-review benchmark" is not available. It
+differs on all three axes that matter here: it scores **issue identification** by
+precision/recall against a curated gold set rather than **refinement** by exact match, it
+uses an LLM judge, and it does not partition by organization. It is an industry lab
+release, not peer reviewed. Cite it; claim the organization partition and the declared
+provenance boundary, not the rolling collection.
