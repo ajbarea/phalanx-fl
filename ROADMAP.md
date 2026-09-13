@@ -93,7 +93,8 @@ and C (experiment) to follow.
   but not the build: the transport is a test seam, so all of plan A is completable first.
 - [ ] **Plan A tasks 1-7** — `scrub`, `manifest`, `gerrit`, `examples`, `dedup`, `split`, `cli`.
 - [ ] **Plan A2** — stage bodies and artifact writing, once the determination is on file.
-- [ ] **Plan B** — metric ladder, contamination battery, pairs cluster bootstrap.
+- [x] **Plan B** — metric ladder, contamination battery, pairs cluster bootstrap, and the
+  test enforcing that none of them import a GPU stack. PR #91.
 - [ ] **Plan C** — the 3 by 2 grid on TIGRIS, seeds, and the pilot power analysis.
 
 **Deadline that sets the order:** MSR 2027 Registered Reports Stage 1, 2026-11-20. The
