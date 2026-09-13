@@ -224,12 +224,28 @@ def test_paired_difference_is_zero_when_arms_agree() -> None:
     assert paired_difference(_clusters(5, 1.0, 1.0)) == 0.0
 
 
+def _mixed(n: int) -> list[Cluster]:
+    """Heterogeneous clusters, so different resamples actually give different draws."""
+    return [
+        Cluster(f"I{i}", tuple([float(i % 2)] * (1 + i % 3)), tuple([float(i % 3 == 0)] * 2))
+        for i in range(n)
+    ]
+
+
 def test_cluster_bootstrap_is_deterministic_for_a_seed() -> None:
-    clusters = _clusters(30, 1.0, 0.0)
+    clusters = _mixed(30)
     a = cluster_bootstrap(clusters, seed=7, resamples=500)
     b = cluster_bootstrap(clusters, seed=7, resamples=500)
     assert a == b
     assert cluster_bootstrap(clusters, seed=8, resamples=500) != a
+
+
+def test_a_homogeneous_sample_gives_the_same_interval_under_any_seed() -> None:
+    # Not a determinism bug: if every cluster is identical, every resample is identical.
+    clusters = _clusters(30, 1.0, 0.0)
+    assert cluster_bootstrap(clusters, seed=7, resamples=200) == cluster_bootstrap(
+        clusters, seed=8, resamples=200
+    )
 
 
 def test_cluster_bootstrap_interval_brackets_the_estimate() -> None:
@@ -365,7 +381,7 @@ def gate_verdict(per_org: Mapping[str, Mapping[str, float]]) -> str:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/unit/corpus/test_stats.py -q`
-Expected: 12 passed
+Expected: 13 passed
 
 - [ ] **Step 5: Lint and commit**
 
@@ -576,6 +592,40 @@ Expected: lint clean, every test passes.
 ```bash
 git add phalanx/corpus/contamination.py tests/unit/corpus/test_contamination.py
 git commit -m "feat(corpus): contamination battery over precomputed model outputs"
+```
+
+---
+
+### Task 4: Enforce the purity constraint
+
+The "no GPU stack" rule in Global Constraints is worth nothing as prose. Make it a test.
+
+**Files:**
+- Create: `tests/unit/corpus/test_measurement_purity.py`
+
+- [ ] **Step 1: Parse the imports rather than trusting a grep**
+
+Walk each measurement module's AST and assert its top-level import roots do not intersect
+`{torch, transformers, peft, datasets, flwr}`.
+
+- [ ] **Step 2: Check the real import graph in a fresh interpreter**
+
+An in-process check of `sys.modules` passes or fails on test ordering, because the rest of
+the suite has already imported `flwr` and its dependencies. Run the probe with
+`subprocess.run([sys.executable, "-c", ...])` from the repo root and assert it prints
+nothing. This was a real failure, not a hypothetical: the in-process version passed alone
+and failed under `make test`.
+
+- [ ] **Step 3: Run the whole suite**
+
+Run: `make lint && make test`
+Expected: lint clean, 89 passed.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add tests/unit/corpus/test_measurement_purity.py
+git commit -m "test(corpus): enforce the measurement purity constraint"
 ```
 
 ---
