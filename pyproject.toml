@@ -55,7 +55,7 @@ dev = [
     "pip-audit",
     "ruff>=0.16.8",
     "ty>=0.0.82,<0.1",
-    "zensical",
+    "zensical>=0.0.63",
 ]
 
 [build-system]
