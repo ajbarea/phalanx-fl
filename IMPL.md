@@ -55,6 +55,51 @@ system does; and its symmetry is what forces the centred type. The palette stays
 the existing `--intefl-teal` / `--intefl-purple` tokens so the page does not have to
 be recoloured around a new image.
 
+### The OG card is branded for the wrong project
+
+`docs/assets/phalanx-og.png` reads **InteFL — Federated learning, under fire —
+10 strategies · 6 attacks · Byzantine-robust**, over a shield wall, with
+`github.com/ajbarea/phalanx-fl` beneath it. So every unfurl of a Phalanx link in
+Slack, LinkedIn or X has been showing IntelliFL's name and IntelliFL's claims. Those
+are deliberately separate projects, and none of those three figures describes this
+one, whose line is *federated learning on the latest Flower, with
+OpenTelemetry-native observability*.
+
+Burning the wordmark and tagline into the card is correct and stays — the text a
+platform renders beside an unfurl varies, and several render none, so a card that
+carries its own is the 2026 convention (`research(2026-09)`). What has to change is
+which project it names.
+
+Text renders unreliably in an image model, so the card is two steps: generate the
+field, then set the type over it.
+
+**Art, 1200x630:**
+
+> Isometric dark field, a shallow arc of twelve to sixteen large identical compute
+> nodes seen from slightly above, each emitting one thin luminous telemetry trace;
+> the traces rise and converge toward a single bright point off the upper right.
+> Deep slate-teal base, emission only in cyan and violet. Lower two thirds carry the
+> nodes; upper third falls off to near-black for type. Cinematic depth of field,
+> subtle volumetric haze. No shields, no crests, no heraldry, no faces, no text.
+
+Fewer and larger nodes than the hero, because the card renders around 500px wide in
+a feed and the hero's many-small-nodes field turns to mush at that size. One focal
+point, high contrast, and the same cyan/violet emission so the card and the site
+read as one thing.
+
+**Type, composited after:**
+
+- `Phalanx` as the wordmark, in the site's own face, optically centred in the upper
+  third
+- `Federated learning on the latest Flower, with OpenTelemetry-native observability`
+  beneath it, one line if it fits at legible size, otherwise two
+- `github.com/ajbarea/phalanx-fl` small, lower right
+- Keep all of it inside a centre safe area, roughly 60px in from every edge, since
+  platforms crop the margins differently
+
+Export PNG, not JPEG: this is graphics with text, where JPEG ringing shows on the
+letterforms.
+
 ### When the asset lands
 
 `extra.css` needs the hero switched from `center 48px / contain` to a right-anchored
