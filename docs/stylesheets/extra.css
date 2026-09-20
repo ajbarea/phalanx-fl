@@ -87,8 +87,9 @@ body.hero-page .md-content__inner {
     radial-gradient(ellipse at center, transparent 25%, color-mix(in srgb, #fff 12%, transparent) 60%, color-mix(in srgb, #fff 45%, transparent) 100%),
     linear-gradient(to bottom,
       color-mix(in srgb, #fff 25%, transparent) 0%,
-      color-mix(in srgb, #fff 5%, transparent) 40%,
-      color-mix(in srgb, #fff 60%, transparent) 80%,
+      color-mix(in srgb, #fff 8%, transparent) 28%,
+      color-mix(in srgb, #fff 68%, transparent) 48%,
+      color-mix(in srgb, #fff 90%, transparent) 66%,
       #fff 100%),
     var(--hero-bg-image) center 48px / contain no-repeat;
   padding: 1rem 2rem 5rem;
@@ -100,9 +101,10 @@ body.hero-page .md-content__inner {
   background:
     radial-gradient(ellipse at center, transparent 10%, color-mix(in srgb, var(--md-default-bg-color) 45%, transparent) 45%, color-mix(in srgb, var(--md-default-bg-color) 90%, transparent) 80%, var(--md-default-bg-color) 100%),
     linear-gradient(to bottom,
-      color-mix(in srgb, var(--md-default-bg-color) 50%, transparent) 0%,
-      color-mix(in srgb, var(--md-default-bg-color) 20%, transparent) 35%,
-      color-mix(in srgb, var(--md-default-bg-color) 85%, transparent) 75%,
+      color-mix(in srgb, var(--md-default-bg-color) 45%, transparent) 0%,
+      color-mix(in srgb, var(--md-default-bg-color) 18%, transparent) 28%,
+      color-mix(in srgb, var(--md-default-bg-color) 72%, transparent) 48%,
+      color-mix(in srgb, var(--md-default-bg-color) 92%, transparent) 66%,
       var(--md-default-bg-color) 100%),
     var(--hero-bg-image) center 48px / contain no-repeat;
 }
@@ -124,11 +126,11 @@ body.hero-page .md-content__inner {
 }
 
 .md-typeset .hero .hero-subtitle {
-  font-size: clamp(0.85rem, 1.5vw, 1.1rem);
+  font-size: clamp(1rem, 1.7vw, 1.3rem);
   font-weight: 400;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  opacity: 0.88;
+  letter-spacing: 0.005em;
+  line-height: 1.5;
+  opacity: 0.9;
   margin-bottom: 1.5rem;
   max-width: 600px;
   margin-left: auto;
@@ -212,11 +214,10 @@ body.hero-page .md-content__inner {
 }
 
 .hero-modes {
-  font-size: clamp(0.7rem, 1.2vw, 0.82rem);
+  font-size: clamp(0.78rem, 1.2vw, 0.9rem);
   font-weight: 400;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  opacity: 0.7;
+  letter-spacing: 0.01em;
+  opacity: 0.75;
   margin: 0;
 }
 
