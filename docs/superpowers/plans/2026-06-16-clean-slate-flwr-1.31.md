@@ -40,13 +40,18 @@
 - [ ] **Step 1 — Failing test (model has LoRA adapters).**
 ```python
 from phalanx.task import build_model, get_adapter_params, set_adapter_params
+
+
 def test_model_has_lora_adapters():
     m = build_model("prajjwal1/bert-tiny", num_labels=2)
     names = [n for n, _ in m.named_parameters() if "lora" in n.lower()]
     assert names, "expected PEFT LoRA adapter params"
+
+
 def test_adapter_param_roundtrip():
     m = build_model("prajjwal1/bert-tiny", num_labels=2)
-    p = get_adapter_params(m); set_adapter_params(m, p)
+    p = get_adapter_params(m)
+    set_adapter_params(m, p)
     assert all(k in dict(m.named_parameters()) or True for k in [])  # smoke: no raise
 ```
 - [ ] **Step 2 — Run, expect FAIL** (`ModuleNotFoundError`/`ImportError`). Run: `uv run --extra hf --extra torch python -m pytest tests/test_task.py -v`
@@ -79,8 +84,11 @@ def test_adapter_param_roundtrip():
 ```python
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from phalanx.telemetry import init_telemetry, round_span, record_round_metrics
+
+
 def test_round_span_and_metrics():
-    exp = InMemorySpanExporter(); init_telemetry(span_exporter=exp, service_name="phalanx-test")
+    exp = InMemorySpanExporter()
+    init_telemetry(span_exporter=exp, service_name="phalanx-test")
     with round_span(rnd=1):
         record_round_metrics(rnd=1, loss=0.5, accuracy=0.6, clients=2)
     spans = exp.get_finished_spans()
