@@ -53,8 +53,8 @@ dev = [
     "pytest-cov>=6.0",
     "hypothesis>=6.150",
     "pip-audit",
-    "ruff>=0.15.16",
-    "ty>=0.0.44,<0.1",
+    "ruff>=0.16.8",
+    "ty>=0.0.82,<0.1",
     "zensical",
 ]
 
