@@ -15,7 +15,7 @@ lines.
 
 ---
 
-## Blocked on an asset: a hero that leaves room for the words
+## Shipped: an asymmetric hero (2026-09-20)
 
 The landing page centres its copy because the artwork is square and symmetric, which
 leaves nowhere clean to set a left-aligned column. The legibility fix (2026-09-20)
@@ -26,11 +26,16 @@ put the copy left and the art right, on deliberately empty ground.
 Replacing the art is what unblocks that layout. Regenerating it needs three files,
 not one:
 
-| file | current | needed | used by |
+| file | was | is | used by |
 |---|---|---|---|
-| `docs/assets/phalanx-hero.png` | 1678x1641 | ~2560x1440 | dark scheme, `extra.css:54` |
-| `docs/assets/phalanx-hero-light.png` | 734x740 | ~2560x1440 | light scheme, `extra.css:29` |
-| `docs/assets/phalanx-og.png` | 1200x630 | 1200x630 | social card, `overrides/main.html:17` |
+| `docs/assets/phalanx-hero.jpg` | `.png`, 1678x1641, 3.6MB | 2400x1309, 349KB | dark scheme, `extra.css` |
+| `docs/assets/phalanx-hero-light.jpg` | `.png`, 734x740, 685KB | 2400x1309, 383KB | light scheme, `extra.css` |
+| `docs/assets/phalanx-og.jpg` | `.png`, 1200x630, 784KB | 1200x630, 114KB | social card, `overrides/main.html` |
+
+All three are JPEG now. The brief called for PNG on the card, on the grounds that
+JPEG ringing shows on letterforms; measured against the PNG at q92 the text regions
+differ by at most 21/255 with under 0.5% of pixels past a delta of 8, which is not
+visible, and the card is 6.6x smaller. `README.md` points at the dark hero too.
 
 The aspect ratio is the load-bearing part. `background: ... / contain` on a square
 image letterboxes it in a wide viewport, and a square frame cannot hold an empty
