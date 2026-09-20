@@ -26,7 +26,7 @@
   --intefl-glass-border: color-mix(in srgb, var(--intefl-teal) 20%, transparent);
 
   /* Hero background — light mode uses the desaturated variant */
-  --hero-bg-image: url('../assets/phalanx-hero-light.png');
+  --hero-bg-image: url('../assets/phalanx-hero-light.jpg');
 }
 
 .material-symbols-outlined {
@@ -51,7 +51,7 @@
   --md-hue: 210;
   --md-default-bg-color: #161e2b;
   --md-default-bg-color--light: #1a2333;
-  --hero-bg-image: url('../assets/phalanx-hero.png');
+  --hero-bg-image: url('../assets/phalanx-hero.jpg');
 }
 
 /* ==========================================================================
@@ -75,38 +75,46 @@ body.hero-page .md-content__inner {
 }
 
 .md-typeset .hero {
+  /* The copy column, and where its right edge lands including the padding. The
+     scrim is built from these so the two cannot drift apart: a scrim stated as a
+     share of the viewport cannot track a column sized in rem, which is how the
+     sister site's hero ended up with its last words on bare art. */
+  --hero-copy-width: min(34rem, 42vw);
+  --hero-copy-edge: calc(6vw + var(--hero-copy-width));
   position: relative;
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  text-align: center;
+  align-items: flex-start;
+  justify-content: center;
+  text-align: left;
   background:
-    radial-gradient(ellipse at center, transparent 25%, color-mix(in srgb, #fff 12%, transparent) 60%, color-mix(in srgb, #fff 45%, transparent) 100%),
-    linear-gradient(to bottom,
-      color-mix(in srgb, #fff 25%, transparent) 0%,
-      color-mix(in srgb, #fff 8%, transparent) 28%,
-      color-mix(in srgb, #fff 68%, transparent) 48%,
-      color-mix(in srgb, #fff 90%, transparent) 66%,
-      #fff 100%),
-    var(--hero-bg-image) center 48px / contain no-repeat;
-  padding: 1rem 2rem 5rem;
+    linear-gradient(to right,
+      #fff 0%,
+      #fff calc(var(--hero-copy-edge) - 1rem),
+      color-mix(in srgb, #fff 92%, transparent) var(--hero-copy-edge),
+      color-mix(in srgb, #fff 28%, transparent) calc(var(--hero-copy-edge) + 8rem),
+      transparent calc(var(--hero-copy-edge) + 16rem)),
+    linear-gradient(to bottom, transparent 62%, color-mix(in srgb, #fff 55%, transparent) 88%, #fff 100%),
+    var(--hero-bg-image) right center / cover no-repeat;
+  padding: 4rem 6vw 5rem;
   margin: -1.2rem -0.8rem 0;
   overflow: hidden;
 }
 
 [data-md-color-scheme="slate"] .md-typeset .hero {
   background:
-    radial-gradient(ellipse at center, transparent 10%, color-mix(in srgb, var(--md-default-bg-color) 45%, transparent) 45%, color-mix(in srgb, var(--md-default-bg-color) 90%, transparent) 80%, var(--md-default-bg-color) 100%),
-    linear-gradient(to bottom,
-      color-mix(in srgb, var(--md-default-bg-color) 45%, transparent) 0%,
-      color-mix(in srgb, var(--md-default-bg-color) 18%, transparent) 28%,
-      color-mix(in srgb, var(--md-default-bg-color) 72%, transparent) 48%,
-      color-mix(in srgb, var(--md-default-bg-color) 92%, transparent) 66%,
+    linear-gradient(to right,
+      var(--md-default-bg-color) 0%,
+      var(--md-default-bg-color) calc(var(--hero-copy-edge) - 1rem),
+      color-mix(in srgb, var(--md-default-bg-color) 92%, transparent) var(--hero-copy-edge),
+      color-mix(in srgb, var(--md-default-bg-color) 28%, transparent) calc(var(--hero-copy-edge) + 8rem),
+      transparent calc(var(--hero-copy-edge) + 16rem)),
+    linear-gradient(to bottom, transparent 62%,
+      color-mix(in srgb, var(--md-default-bg-color) 55%, transparent) 88%,
       var(--md-default-bg-color) 100%),
-    var(--hero-bg-image) center 48px / contain no-repeat;
+    var(--hero-bg-image) right center / cover no-repeat;
 }
 
 .md-typeset .hero h1 {
@@ -132,9 +140,7 @@ body.hero-page .md-content__inner {
   line-height: 1.5;
   opacity: 0.9;
   margin-bottom: 1.5rem;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
+  max-width: var(--hero-copy-width);
 }
 
 [data-md-color-scheme="slate"] .md-typeset .hero .hero-subtitle {
@@ -144,7 +150,7 @@ body.hero-page .md-content__inner {
 
 .md-typeset .hero .hero-buttons {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   margin-bottom: 1.5rem;
 }
 
@@ -211,6 +217,10 @@ body.hero-page .md-content__inner {
 /* Hero tagline strip — Strategies | Attacks | Datasets */
 .hero-tagline {
   margin-top: 0.5rem;
+  /* The wrapper shrink-to-fits in the flex column, so the strip inside it was
+     measured against a collapsed box. State the column here too. */
+  width: 100%;
+  max-width: var(--hero-copy-width);
 }
 
 .hero-modes {
@@ -219,6 +229,9 @@ body.hero-page .md-content__inner {
   letter-spacing: 0.01em;
   opacity: 0.75;
   margin: 0;
+  /* Kept to the copy column like everything above it; unbounded, this one line
+     reached past the scrim and the last item sat on the traces. */
+  max-width: var(--hero-copy-width);
 }
 
 [data-md-color-scheme="slate"] .hero-modes {
@@ -651,6 +664,59 @@ html {
 }
 
 /* ==========================================================================
+   Responsive — narrow (max-width: 960px)
+   ========================================================================== */
+
+/* Below this the art has no room beside the copy, so the column centres and takes
+   the full width. A left-anchored falloff cannot work once it does -- the ends of
+   each line land past it -- so the panel is veiled evenly and the traces read
+   through it instead. */
+@media (max-width: 960px) {
+  .md-typeset .hero {
+    align-items: center;
+    text-align: center;
+    padding: 3rem 6vw 4rem;
+    background:
+      linear-gradient(to bottom,
+        #fff 0%,
+        color-mix(in srgb, #fff 86%, transparent) 40%,
+        color-mix(in srgb, #fff 74%, transparent) 72%,
+        #fff 100%),
+      var(--hero-bg-image) center center / cover no-repeat;
+  }
+
+  [data-md-color-scheme="slate"] .md-typeset .hero {
+    background:
+      linear-gradient(to bottom,
+        var(--md-default-bg-color) 0%,
+        color-mix(in srgb, var(--md-default-bg-color) 86%, transparent) 40%,
+        color-mix(in srgb, var(--md-default-bg-color) 74%, transparent) 72%,
+        var(--md-default-bg-color) 100%),
+      var(--hero-bg-image) center center / cover no-repeat;
+  }
+
+  .md-typeset .hero > * {
+    max-width: 100%;
+  }
+
+  .md-typeset .hero .hero-subtitle {
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* 42vw is a narrow column on a phone; the centred layout gets the full width. */
+  .hero-tagline,
+  .hero-modes {
+    max-width: 100%;
+  }
+
+  .md-typeset .hero .hero-buttons {
+    justify-content: center;
+  }
+}
+
+/* ==========================================================================
    Responsive — Tablet (max-width: 768px)
    ========================================================================== */
 
@@ -875,7 +941,6 @@ html {
 
   .md-typeset .hero .hero-subtitle {
     font-size: 1.15rem;
-    max-width: 700px;
   }
 
   .hero-buttons .md-button {
@@ -885,7 +950,7 @@ html {
   }
 
   .hero-modes {
-    font-size: 0.88rem;
+    font-size: 0.84rem;
   }
 
   .feature-grid {

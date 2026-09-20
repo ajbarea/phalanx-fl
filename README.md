@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/phalanx-hero.png" alt="Phalanx" width="600">
+<img src="docs/assets/phalanx-hero.jpg" alt="Phalanx" width="600">
 
 # Phalanx
 
