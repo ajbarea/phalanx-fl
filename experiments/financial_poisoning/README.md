@@ -53,3 +53,12 @@ manifests; every figure quoted anywhere comes from them.
 In a manifest, `metrics` (client-side evaluation) is empty because the sweep turns client
 evaluation off; all scoring is the server's, in `heldout_metrics`, keyed by round (round 0 is
 the untrained model).
+
+## Known limitations
+
+- **FedAvg weights by batch count.** The runs predate the fix that weights by sample count
+  (`aj-num-examples-and-ess`). Here every bank holds 206 or 207 training sentences, 7 batches
+  each, so the two weightings differ by at most 0.027 percentage points of any bank's share.
+- **GPU runs are seeded but not bit-reproducible.** Seeds fix the partition, splits, initial
+  adapters and each client's data order, but CUDA's nondeterministic kernels were not
+  disabled (`feat/gpu-on-linux-aarch64` adds that), so a rerun can differ in the last digits.
