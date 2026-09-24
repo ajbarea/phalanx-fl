@@ -86,12 +86,14 @@ def train(msg: Message, context: Context) -> Message:
         device = _device()
         model.to(device)
         loss = train_fn(model, trainloader, epochs=int(cfg["local-epochs"]), device=device)
-        record_client_metrics(partition_id=partition_id, num_examples=len(trainloader), loss=loss)
+        record_client_metrics(
+            partition_id=partition_id, num_examples=len(trainloader.dataset), loss=loss
+        )
 
     content = RecordDict(
         {
             "arrays": ArrayRecord(get_adapter_state(model)),
-            "metrics": MetricRecord({"num-examples": len(trainloader), "train_loss": loss}),
+            "metrics": MetricRecord({"num-examples": len(trainloader.dataset), "train_loss": loss}),
         }
     )
     return Message(content=content, reply_to=msg)
@@ -124,12 +126,14 @@ def evaluate(msg: Message, context: Context) -> Message:
         device = _device()
         model.to(device)
         loss, accuracy = test_fn(model, testloader, device=device)
-        record_client_metrics(partition_id=partition_id, num_examples=len(testloader), loss=loss)
+        record_client_metrics(
+            partition_id=partition_id, num_examples=len(testloader.dataset), loss=loss
+        )
 
     content = RecordDict(
         {
             "metrics": MetricRecord(
-                {"num-examples": len(testloader), "loss": loss, "accuracy": accuracy}
+                {"num-examples": len(testloader.dataset), "loss": loss, "accuracy": accuracy}
             )
         }
     )

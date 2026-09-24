@@ -92,6 +92,7 @@ def init_telemetry(
         "round_loss": _meter.create_gauge("fl.round.loss"),
         "round_accuracy": _meter.create_gauge("fl.round.accuracy"),
         "round_clients": _meter.create_gauge("fl.round.clients"),
+        "round_ess": _meter.create_gauge("fl.round.ess"),
         "round_failures": _meter.create_counter("fl.round.failures"),
         "client_examples": _meter.create_counter("fl.client.examples"),
         "client_loss": _meter.create_gauge("fl.client.loss"),
@@ -174,14 +175,21 @@ def context_from_traceparent(traceparent: str) -> Any:
 
 
 def record_round_metrics(
-    *, rnd: int, loss: float, accuracy: float, clients: int, failures: int = 0
+    *,
+    rnd: int,
+    loss: float,
+    accuracy: float,
+    clients: int,
+    failures: int = 0,
+    ess: float = float("nan"),
 ) -> None:
-    """Record aggregated server-round metrics (loss, accuracy, participation, failures)."""
+    """Record aggregated server-round metrics (loss, accuracy, participation, ESS, failures)."""
     _ensure_init()
     attrs = {"fl.round": rnd}
     _instruments["round_loss"].set(loss, attributes=attrs)
     _instruments["round_accuracy"].set(accuracy, attributes=attrs)
     _instruments["round_clients"].set(clients, attributes=attrs)
+    _instruments["round_ess"].set(ess, attributes=attrs)
     _instruments["round_failures"].add(failures, attributes=attrs)
 
 

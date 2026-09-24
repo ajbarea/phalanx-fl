@@ -40,12 +40,28 @@ def _round_summary(metrics: MetricRecord | None) -> tuple[float, float]:
     return loss, accuracy
 
 
+def effective_sample_size(weights: Iterable[float]) -> float:
+    """Clients effectively contributing to the aggregate: ``1 / Σ wᵢ²`` over normalised ``w``.
+
+    Equals the client count when every client carries the same weight, falls toward 1.0
+    as one client's share dominates, and is NaN when nothing was aggregated. FedAvg
+    weights by ``num-examples``, so under a skewed partition ESS reports how much less
+    than ``clients`` the round actually averaged over.
+    """
+    w = [float(x) for x in weights]
+    total = sum(w)
+    if not w or total <= 0:
+        return float("nan")
+    return 1.0 / sum((x / total) ** 2 for x in w)
+
+
 def observe_round(
     *,
     server_round: int,
     metrics: MetricRecord | None,
     clients: int,
     failures: int = 0,
+    ess: float = float("nan"),
     span: Any | None = None,
 ) -> None:
     """Decorate the round span with aggregated metrics + status, then end it.
@@ -60,6 +76,7 @@ def observe_round(
     span.set_attribute("fl.loss", loss)
     span.set_attribute("fl.accuracy", accuracy)
     span.set_attribute("fl.clients", clients)
+    span.set_attribute("fl.ess", ess)
     span.set_attribute("fl.failures", failures)
     if failures:
         # Surface client/worker failures in the trace, not just the participation count.
@@ -71,6 +88,7 @@ def observe_round(
         accuracy=accuracy,
         clients=clients,
         failures=failures,
+        ess=ess,
     )
     span.end()
 
@@ -81,6 +99,7 @@ class ObservableFedAvg(FedAvg):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._round_clients: dict[int, int] = {}
+        self._round_ess: dict[int, float] = {}
         self._round_failures: dict[int, int] = {}
         self._round_spans: dict[int, Any] = {}
 
@@ -108,6 +127,12 @@ class ObservableFedAvg(FedAvg):
         replies = list(replies)
         self._round_clients[server_round] = sum(1 for m in replies if not m.has_error())
         self._round_failures[server_round] = sum(1 for m in replies if m.has_error())
+        # ESS over the same key FedAvg aggregates by, so it describes the actual weights.
+        self._round_ess[server_round] = effective_sample_size(
+            float(m.content["metrics"]["num-examples"])
+            for m in replies
+            if not m.has_error() and "num-examples" in m.content["metrics"]
+        )
         return super().aggregate_train(server_round, replies)
 
     def aggregate_evaluate(
@@ -121,6 +146,7 @@ class ObservableFedAvg(FedAvg):
             metrics=metrics,
             clients=self._round_clients.pop(server_round, 0),
             failures=self._round_failures.pop(server_round, 0) + eval_failures,
+            ess=self._round_ess.pop(server_round, float("nan")),
             span=self._round_spans.pop(server_round, None),
         )
         return metrics

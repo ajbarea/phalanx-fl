@@ -14,7 +14,7 @@ from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
 
-from phalanx.server_app import observe_round
+from phalanx.server_app import effective_sample_size, observe_round
 from phalanx.telemetry import init_telemetry
 
 
@@ -86,3 +86,39 @@ def test_observe_round_clean_round_is_not_error() -> None:
     observe_round(server_round=1, metrics=MetricRecord({"loss": 0.5, "accuracy": 0.6}), clients=2)
     span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
     assert span.status.status_code != StatusCode.ERROR
+
+
+def test_effective_sample_size_reports_weight_concentration() -> None:
+    # Uniform weights average over every client; a dominant client collapses ESS to ~1.
+    assert effective_sample_size([10, 10, 10, 10]) == 4.0
+    assert effective_sample_size([1, 1]) == 2.0
+    assert math.isclose(effective_sample_size([999_999, 1]), 1.0, abs_tol=1e-4)
+    # Scale-invariant: only the shares matter, not the absolute counts.
+    assert math.isclose(effective_sample_size([3, 1]), effective_sample_size([300, 100]))
+    # Between the extremes for a skewed but not degenerate split.
+    assert 1.0 < effective_sample_size([8, 1, 1]) < 3.0
+
+
+def test_effective_sample_size_is_nan_when_nothing_aggregated() -> None:
+    assert math.isnan(effective_sample_size([]))
+    assert math.isnan(effective_sample_size([0, 0]))
+
+
+def test_observe_round_records_ess() -> None:
+    span_exporter, metric_reader = _setup()
+    observe_round(
+        server_round=1,
+        metrics=MetricRecord({"loss": 0.5, "accuracy": 0.6}),
+        clients=2,
+        ess=1.6,
+    )
+    span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
+    assert _attrs(span)["fl.ess"] == 1.6
+    assert "fl.round.ess" in _metric_names(metric_reader)
+
+
+def test_observe_round_ess_defaults_to_nan() -> None:
+    span_exporter, _ = _setup()
+    observe_round(server_round=1, metrics=None, clients=0)
+    span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
+    assert math.isnan(_attrs(span)["fl.ess"])
