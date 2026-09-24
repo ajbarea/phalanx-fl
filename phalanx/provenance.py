@@ -27,6 +27,15 @@ def _git(*args: str) -> str | None:
         return None
 
 
+def _dirty() -> bool | None:
+    """Whether tracked files differ from HEAD, so the run's code is not that commit.
+
+    None when git is unavailable or this is not a work tree.
+    """
+    status = _git("status", "--porcelain", "--untracked-files=no")
+    return None if status is None else status != ""
+
+
 def _package_versions() -> dict[str, str]:
     versions: dict[str, str] = {}
     for pkg in _TRACKED_PACKAGES:
@@ -44,6 +53,7 @@ def provenance_header() -> dict[str, Any]:
         "git": {
             "commit": _git("rev-parse", "HEAD"),
             "branch": _git("rev-parse", "--abbrev-ref", "HEAD"),
+            "dirty": _dirty(),
         },
         "python": platform.python_version(),
         "platform": platform.platform(),
@@ -51,12 +61,15 @@ def provenance_header() -> dict[str, Any]:
     }
 
 
-def run_manifest(*, run_config: dict[str, Any], metrics: dict[str, Any]) -> dict[str, Any]:
-    """Capture a reproducibility manifest for one federated run."""
+def run_manifest(
+    *, run_config: dict[str, Any], metrics: dict[str, Any], extra: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Capture a reproducibility manifest for one federated run; ``extra`` adds top-level keys."""
     return {
         **provenance_header(),
         "run_config": dict(run_config),
         "metrics": dict(metrics),
+        **(extra or {}),
     }
 
 

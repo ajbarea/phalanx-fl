@@ -78,9 +78,9 @@ A standard Flower app-model layout:
 
 | Module | Role |
 |--------|------|
-| `phalanx/task.py` | Model (HF transformer + PEFT/LoRA), data (`flwr-datasets`, IID or Dirichlet non-IID), train/eval, adapter-state helpers |
-| `phalanx/client_app.py` | `ClientApp`: loads broadcast adapters, trains locally, replies with adapters only; wraps each pass in a client span |
-| `phalanx/server_app.py` | `ServerApp` + `ObservableFedAvg`: FedAvg over adapters; emits an `fl.round` span + aggregated loss/accuracy/participation metrics each round |
+| `phalanx/task.py` | Model (HF transformer + PEFT/LoRA), data (`flwr-datasets`, IID or Dirichlet non-IID), label-flip poisoning, train/eval, held-out attack-success scoring, adapter-state helpers |
+| `phalanx/client_app.py` | `ClientApp`: loads broadcast adapters, trains locally, replies with adapters only; malicious partitions flip labels and may boost their update; wraps each pass in a client span |
+| `phalanx/server_app.py` | `ServerApp` + `ObservableMixin`: FedAvg or a Flower robust rule (Krum, Multi-Krum, Trimmed-Mean, Median, Bulyan) over adapters; emits an `fl.round` span + aggregated loss/accuracy/participation metrics each round, and optionally scores a clean held-out split |
 | `phalanx/telemetry.py` | OpenTelemetry layer: tracer/meter providers, round/client spans, FL metrics; OTLP / console / in-memory exporters |
 
 **Stack:** [Flower](https://flower.ai) (Message API + Simulation Engine) · [PyTorch](https://pytorch.org) + [HuggingFace Transformers](https://huggingface.co/docs/transformers) + [PEFT/LoRA](https://huggingface.co/docs/peft) · [flwr-datasets](https://flower.ai/docs/datasets/) · [OpenTelemetry](https://opentelemetry.io) · [uv](https://docs.astral.sh/uv/) + [Ruff](https://docs.astral.sh/ruff/) + [ty](https://docs.astral.sh/ty/)
@@ -102,10 +102,28 @@ Run config lives in `pyproject.toml` under `[tool.flwr.app.config]`, overridable
 | `local-epochs` | `1` | local epochs per round |
 | `fraction-train` / `fraction-evaluate` | `0.1` | client sampling fractions |
 | `otel-service-name` | `phalanx-fl` | OTel `service.name` resource attribute |
+| `text-column` | `text` | dataset column holding the text |
+| `lora-target-modules` | `""` | comma-separated LoRA layers (`q_lin,v_lin` for DistilBERT); empty = PEFT default |
+| `learning-rate` | `5e-5` | local AdamW learning rate |
+| `seed` | `0` | offsets partitioning, split and per-client training seeds |
+| `strategy` | `fedavg` | `fedavg`, `krum`, `multikrum`, `trimmed-mean`, `median`, `bulyan` |
+| `num-malicious` | `0` | f, the attacker count Krum / Multi-Krum / Bulyan are told |
+| `num-nodes-to-select` | `1` | updates Multi-Krum averages |
+| `trim-beta` | `0.2` | fraction Trimmed-Mean cuts from each end |
+| `malicious-partitions` | `""` | comma-separated attacking partition ids |
+| `attack` | `none` | `none` or `label-flip` |
+| `flip-from` / `flip-to` | `0` / `1` | the label flip, also the pair attack success is scored on |
+| `boost` | `1.0` | attackers scale their update by this before replying |
+| `attack-start-round` | `1` | first round attackers act |
+| `heldout-split` | `""` | clean split the server scores each round (accuracy + attack success); empty = off |
 
 ```bash
 uv run flwr run . local --run-config 'num-server-rounds=5 partitioner=iid'
 ```
+
+`experiments/financial_poisoning/` runs one such grid end to end: twelve banks on
+Financial PhraseBank sentiment, one relabelling negative news as positive, under
+each aggregation rule. See its README.
 
 ---
 

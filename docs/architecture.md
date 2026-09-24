@@ -5,9 +5,9 @@ an OpenTelemetry layer. Four modules, no framework of our own:
 
 | Module | Role |
 |--------|------|
-| `phalanx/task.py` | Model (HF transformer + PEFT/LoRA), data (`flwr-datasets`, IID or Dirichlet non-IID), `train_fn`/`test_fn`, and adapter-state helpers. |
-| `phalanx/client_app.py` | `ClientApp` with `@app.train` / `@app.evaluate`. Loads the broadcast adapters into a frozen-backbone LoRA model, trains/evaluates on its partition, replies with adapters only. Wraps each pass in a client span. |
-| `phalanx/server_app.py` | `ServerApp` with `@app.main`, plus `ObservableFedAvg`. Builds the initial adapter state, runs `strategy.start(...)`, and emits per-round telemetry. |
+| `phalanx/task.py` | Model (HF transformer + PEFT/LoRA), data (`flwr-datasets`, IID or Dirichlet non-IID), label-flip poisoning, `train_fn`/`test_fn`/`heldout_fn`, and adapter-state helpers. |
+| `phalanx/client_app.py` | `ClientApp` with `@app.train` / `@app.evaluate`. Loads the broadcast adapters into a frozen-backbone LoRA model, trains/evaluates on its partition, replies with adapters only. Partitions in `malicious-partitions` flip their training labels and may scale their update by `boost`. Wraps each pass in a client span. |
+| `phalanx/server_app.py` | `ServerApp` with `@app.main`, plus `ObservableMixin` and `build_strategy`. Builds the initial adapter state, runs `strategy.start(...)` with the configured aggregation rule, emits per-round telemetry, and scores a held-out split when `heldout-split` is set. |
 | `phalanx/telemetry.py` | OpenTelemetry tracer/meter providers, round/client span context managers, and FL metric instruments. Exporters are pluggable: OTLP, console, or in-memory (for tests). |
 
 ## One federated round
@@ -16,11 +16,11 @@ an OpenTelemetry layer. Four modules, no framework of our own:
 
 ```
 ServerApp.main
-  └─ ObservableFedAvg.start(initial_arrays = adapter state)
+  └─ build_strategy(cfg).start(initial_arrays = adapter state, evaluate_fn = held-out scorer)
        for each round:
          configure_train   → broadcast adapters to sampled clients
          ClientApp.train    → set adapters, train locally, return adapter delta   [fl.client.train span]
-         aggregate_train    → FedAvg over the returned adapters
+         aggregate_train    → the configured rule over the returned adapters
          configure_evaluate → broadcast updated adapters
          ClientApp.evaluate → evaluate locally, return loss/accuracy              [fl.client.evaluate span]
          aggregate_evaluate → FedAvg over metrics  →  observe_round(...)          [fl.round span + metrics]
@@ -34,11 +34,24 @@ The model is a HuggingFace sequence-classification transformer wrapped with a PE
 (`get_adapter_state` / `set_adapter_state`). The frozen backbone never leaves a
 client, so each `ArrayRecord` on the wire is small (tens of KB, not the full model).
 
-`ObservableFedAvg` subclasses Flower's `FedAvg` and overrides `aggregate_train`
-(to count participating clients) and `aggregate_evaluate` (to read the aggregated
-loss/accuracy and call `observe_round`). FedAvg's key-matched aggregation works
-because `get_adapter_state` returns a stable set of keys across the server and all
-clients.
+`ObservableMixin` sits in front of any Flower strategy in the MRO and overrides
+`aggregate_train` (to count participating clients) and `aggregate_evaluate` (to read
+the aggregated loss/accuracy and call `observe_round`). `build_strategy` pairs it with
+the rule named by `strategy`: `FedAvg` (as `ObservableFedAvg`), `Krum`, `MultiKrum`,
+`FedTrimmedAvg`, `FedMedian` or `Bulyan`. Key-matched aggregation works because
+`get_adapter_state` returns a stable set of keys across the server and all clients.
+
+## Poisoning and robustness
+
+A client listed in `malicious-partitions` relabels its `flip-from` training examples
+as `flip-to` from `attack-start-round` on, and may scale its update away from the
+global model by `boost` (`g + boost * (l - g)`). Its local test split stays clean.
+Each train reply carries a `malicious` flag that only `ObservableMixin`'s bookkeeping
+reads: per round it records the attacker's outlier rank, its distance from the
+coordinate-wise median of all updates (1 = farthest). With `heldout-split` set, the
+server scores the global adapters every round on that clean split for loss, accuracy
+and attack success rate (the share of true `flip-from` examples predicted `flip-to`).
+All three land in the run manifest beside the client-side metrics.
 
 ## The OpenTelemetry layer
 

@@ -36,3 +36,6 @@ site/
 
 # Per-run provenance manifests (phalanx.provenance)
 runs/
+
+# Per-run flwr stream logs from experiments/*/sweep.py (manifests are the record)
+experiments/*/results/logs/
