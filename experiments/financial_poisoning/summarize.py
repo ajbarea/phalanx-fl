@@ -98,7 +98,7 @@ def _ordered(cells: Cells) -> list[tuple[str, str]]:
 
 def write_rounds(cells: Cells) -> None:
     with (RESULTS / "rounds.csv").open("w", newline="") as fh:
-        writer = csv.writer(fh)
+        writer = csv.writer(fh, lineterminator="\n")
         writer.writerow(
             [
                 "scenario",
@@ -194,7 +194,7 @@ def write_tables(rows: list[dict[str, Any]]) -> None:
         "mean_accuracy_attack_rounds",
     )
     with (RESULTS / "summary.csv").open("w", newline="") as fh:
-        writer = csv.writer(fh)
+        writer = csv.writer(fh, lineterminator="\n")
         writer.writerow(
             ["scenario", "rule", "seeds"]
             + [f"{m}_pct_{s}" for m in metrics for s in ("median", "min", "max")]
