@@ -48,8 +48,8 @@ manifests; every figure quoted anywhere comes from them.
 | `results/summary.csv` | the same, one numeric column per median / min / max |
 | `results/summary.tex` | the same as a booktabs table that fits one text column (`\input` it inside a `table`) |
 | `results/rounds.csv` | every run, every round: accuracy, loss, attack success, attacker outlier rank |
-| `results/figures/attack_success_by_round.{png,pdf}` | attack success per round under FedAvg, one line per scenario |
-| `results/figures/final_by_rule.{png,pdf}` | final-round attack success and accuracy for every rule and scenario |
+| `results/figures/attack_success_by_round.{png,pdf}` | attack success per round under FedAvg, one line per scenario; the legend gives each scenario's mean over the attack rounds |
+| `results/figures/by_rule.{png,pdf}` | attack success and accuracy for every rule and scenario, averaged over the attack rounds (the boosted attack swings round to round, so the final round alone can land on a peak or a trough) |
 | `results/runs/<scenario>__<rule>__s<seed>.json` | one provenance manifest per run: git commit (and whether the tree was dirty), package versions, full run config, and per-round `heldout_metrics` and `attacker_outlier_rank` |
 
 In a manifest, `metrics` (client-side evaluation) is empty because the sweep turns client

@@ -5,7 +5,7 @@ Writes, under ``results/``:
 - ``rounds.csv``: one row per (scenario, rule, seed, round), the raw series;
 - ``summary.csv`` / ``summary.md`` / ``summary.tex``: per (scenario, rule), median
   [min, max] over seeds;
-- ``figures/attack_success_by_round.{png,pdf}`` and ``figures/final_by_rule.{png,pdf}``.
+- ``figures/attack_success_by_round.{png,pdf}`` and ``figures/by_rule.{png,pdf}``.
 
 Every figure is read from the held-out (clean test split) metrics the server recorded
 in each manifest; nothing is retyped.
@@ -76,6 +76,11 @@ def _ranks(manifest: dict[str, Any], rounds: range) -> list[int]:
     """The attacker's outlier ranks over ``rounds`` (its flag rides every round it trains)."""
     ranks = manifest["attacker_outlier_rank"]
     return [r for rnd in rounds for r in ranks.get(str(rnd), [])]
+
+
+def _window() -> range:
+    """The attack rounds; the boosted attack swings round to round, so figures average them."""
+    return range(ATTACK_START, ROUNDS + 1)
 
 
 def _stats(values: list[float]) -> tuple[float, float, float]:
@@ -289,21 +294,21 @@ def figure_by_round(cells: Cells) -> None:
             alpha=0.15,
             linewidth=0,
         )
-        ax.plot(rounds, med, color=SERIES[scenario], linewidth=2, label=LABELS[scenario])
-        ax.annotate(
-            f"{med[-1]:.0f}%",
-            (ROUNDS, med[-1]),
-            xytext=(6, 0),
-            textcoords="offset points",
-            color=INK,
-            fontsize=9,
-            va="center",
+        window_mean = statistics.median(
+            statistics.mean(series(m, "attack_success_rate")[r] for r in _window()) for m in runs
         )
-    ax.set_xlim(0.5, ROUNDS + 1.5)
+        ax.plot(
+            rounds,
+            med,
+            color=SERIES[scenario],
+            linewidth=2,
+            label=f"{LABELS[scenario]} (avg {window_mean * 100:.0f}%)",
+        )
+    ax.set_xlim(0.5, ROUNDS + 0.5)
     ax.set_ylim(0, 100)
     ax.set_xticks([1, *range(5, ROUNDS + 1, 5)])
     ax.set_xlabel("Training round", color=INK_2, fontsize=10)
-    ax.set_ylabel("Negative news labelled positive (%)", color=INK_2, fontsize=10)
+    ax.set_ylabel("Negative sentences labelled positive (%)", color=INK_2, fontsize=10)
     ax.set_title(
         "Attack success by round, FedAvg (no defense)", color=INK, fontsize=12, loc="left", pad=18
     )
@@ -320,8 +325,8 @@ def figure_by_round(cells: Cells) -> None:
     fig.text(
         0.01,
         -0.02,
-        f"Median over seeds; band = min to max. {NUM_CLIENTS} banks, DistilBERT + LoRA, "
-        "Financial PhraseBank test split (n=970).",
+        f"Median over seeds; band = min to max; avg = mean of rounds {ATTACK_START}-{ROUNDS}. "
+        f"{NUM_CLIENTS} banks, DistilBERT + LoRA, Financial PhraseBank test split (n=970).",
         color=INK_2,
         fontsize=8,
     )
@@ -334,8 +339,8 @@ def figure_by_rule(cells: Cells) -> None:
     fig.patch.set_facecolor(SURFACE)
     offsets = {sc: (i - 1) * 0.22 for i, sc in enumerate(SCENARIOS)}
     panels = [
-        ("attack_success_rate", "Attack success, final round (%)"),
-        ("accuracy", "Accuracy, final round (%)"),
+        ("attack_success_rate", f"Attack success, mean of rounds {ATTACK_START}-{ROUNDS} (%)"),
+        ("accuracy", f"Accuracy, mean of rounds {ATTACK_START}-{ROUNDS} (%)"),
     ]
     for ax, (key, title) in zip(axes, panels, strict=True):
         _style(ax)
@@ -345,7 +350,7 @@ def figure_by_rule(cells: Cells) -> None:
                 runs = cells.get((scenario, rule), [])
                 if not runs:
                     continue
-                vals = [series(m, key)[ROUNDS] * 100 for m in runs]
+                vals = [statistics.mean(series(m, key)[r] for r in _window()) * 100 for m in runs]
                 yy = y + offsets[scenario]
                 ax.hlines(yy, min(vals), max(vals), color=SERIES[scenario], linewidth=2)
                 ax.plot(
@@ -360,7 +365,11 @@ def figure_by_rule(cells: Cells) -> None:
                 )
         if key == "accuracy":
             # Dots encode position, not length: zoom to the data so rules separate.
-            low = min(series(m, key)[ROUNDS] * 100 for runs in cells.values() for m in runs)
+            low = min(
+                statistics.mean(series(m, key)[r] for r in _window()) * 100
+                for runs in cells.values()
+                for m in runs
+            )
             ax.set_xlim(max(0, (low // 10) * 10 - 10), 100)
         else:
             ax.set_xlim(0, 100)
@@ -386,7 +395,7 @@ def figure_by_rule(cells: Cells) -> None:
     if fewer:
         note += f" Seeds per rule: {most}, except " + ", ".join(fewer) + "."
     fig.text(0.01, 0.0, note, color=INK_2, fontsize=8)
-    _save(fig, "final_by_rule")
+    _save(fig, "by_rule")
 
 
 def main() -> None:
