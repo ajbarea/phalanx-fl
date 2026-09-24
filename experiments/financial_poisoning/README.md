@@ -37,3 +37,19 @@ uv run --no-sync python experiments/financial_poisoning/summarize.py
 `sweep.py` copies each run's provenance manifest to `results/` and skips cells already
 there. `summarize.py` writes `results/summary.md` and `results/summary.csv` from those
 manifests; every figure quoted anywhere comes from them.
+
+## Files
+
+| path | contents |
+|---|---|
+| `results/summary.md` | per scenario and rule: final accuracy, final attack success, mean attack success over the attack rounds, attacker outlier rank; median [min, max] over seeds |
+| `results/summary.csv` | the same, one numeric column per median / min / max |
+| `results/summary.tex` | the same as a booktabs table that fits one text column (`\input` it inside a `table`) |
+| `results/rounds.csv` | every run, every round: accuracy, loss, attack success, attacker outlier rank |
+| `results/figures/attack_success_by_round.{png,pdf}` | attack success per round under FedAvg, one line per scenario |
+| `results/figures/final_by_rule.{png,pdf}` | final-round attack success and accuracy for every rule and scenario |
+| `results/runs/<scenario>__<rule>__s<seed>.json` | one provenance manifest per run: git commit (and whether the tree was dirty), package versions, full run config, and per-round `heldout_metrics` and `attacker_outlier_rank` |
+
+In a manifest, `metrics` (client-side evaluation) is empty because the sweep turns client
+evaluation off; all scoring is the server's, in `heldout_metrics`, keyed by round (round 0 is
+the untrained model).
