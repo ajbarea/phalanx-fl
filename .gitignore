@@ -39,3 +39,4 @@ runs/
 
 # Per-run flwr stream logs from experiments/*/sweep.py (manifests are the record)
 experiments/*/results/logs/
+experiments/*/sweep.out
