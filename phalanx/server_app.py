@@ -55,6 +55,16 @@ def effective_sample_size(weights: Iterable[float]) -> float:
     return 1.0 / sum((x / total) ** 2 for x in w)
 
 
+def _num_examples(msg: Message) -> float:
+    """The sample count a client reported, as a float for the ESS weights.
+
+    MetricRecord values are a broad numeric union; read as Any for the cast, the same
+    way ``_round_summary`` reads aggregated loss/accuracy.
+    """
+    metrics: Any = msg.content["metrics"]
+    return float(metrics["num-examples"])
+
+
 def observe_round(
     *,
     server_round: int,
@@ -129,7 +139,7 @@ class ObservableFedAvg(FedAvg):
         self._round_failures[server_round] = sum(1 for m in replies if m.has_error())
         # ESS over the same key FedAvg aggregates by, so it describes the actual weights.
         self._round_ess[server_round] = effective_sample_size(
-            float(m.content["metrics"]["num-examples"])
+            _num_examples(m)
             for m in replies
             if not m.has_error() and "num-examples" in m.content["metrics"]
         )
