@@ -66,8 +66,9 @@ OTEL_TRACES_EXPORTER=console make run    # this is what `make trace` does
 ```
 
 Each round produces an `fl.round` span (attributes: `fl.round`, `fl.loss`,
-`fl.accuracy`, `fl.clients`) and FL metrics (`fl.round.loss`, `fl.round.accuracy`,
-`fl.round.clients`); each participating client produces an `fl.client.train` or
+`fl.accuracy`, `fl.clients`, `fl.ess`, `fl.failures`) and FL metrics (`fl.round.loss`,
+`fl.round.accuracy`, `fl.round.clients`, `fl.round.ess`, `fl.round.failures`); each
+participating client produces an `fl.client.train` or
 `fl.client.evaluate` span and `fl.client.*` metrics.
 
 ## Develop

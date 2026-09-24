@@ -3,12 +3,13 @@
 ``ObservableFedAvg`` subclasses Flower's ``FedAvg`` and hooks the per-round entry
 points inside ``strategy.start()``: it counts participating clients in
 ``aggregate_train`` and, after ``aggregate_evaluate``, emits an ``fl.round`` span
-plus aggregated loss/accuracy/participation metrics. Only the LoRA adapters are
+plus aggregated loss/accuracy/participation/ESS metrics. Only the LoRA adapters are
 federated (the initial arrays come from the adapter state, not the full model).
 """
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable
 from typing import Any
 
@@ -41,27 +42,38 @@ def _round_summary(metrics: MetricRecord | None) -> tuple[float, float]:
 
 
 def effective_sample_size(weights: Iterable[float]) -> float:
-    """Clients effectively contributing to the aggregate: ``1 / Σ wᵢ²`` over normalised ``w``.
+    """Clients effectively contributing to the aggregate: Kish's ``(Σwᵢ)² / Σwᵢ²``.
 
     Equals the client count when every client carries the same weight, falls toward 1.0
     as one client's share dominates, and is NaN when nothing was aggregated. FedAvg
     weights by ``num-examples``, so under a skewed partition ESS reports how much less
     than ``clients`` the round actually averaged over.
+
+    Measured over the **train** replies, matching ``fl.clients``. Train and evaluate
+    sample their clients independently, so ``fl.ess`` describes the aggregation that
+    produced the adapters, not the client set behind ``fl.loss`` / ``fl.accuracy``.
     """
     w = [float(x) for x in weights]
-    total = sum(w)
+    total = math.fsum(w)
     if not w or total <= 0:
         return float("nan")
-    return 1.0 / sum((x / total) ** 2 for x in w)
+    # Kish's form over the raw weights, not 1/Σ(wᵢ/Σw)²: dividing each term by the total
+    # first leaves an equal split reading 4.999999999999999 for five clients.
+    return total * total / math.fsum(x * x for x in w)
 
 
-def _num_examples(msg: Message) -> float:
-    """The sample count a client reported, as a float for the ESS weights.
+def _num_examples(msg: Message) -> float | None:
+    """The sample count a client reported, or None when the reply does not carry one.
 
-    MetricRecord values are a broad numeric union; read as Any for the cast, the same
-    way ``_round_summary`` reads aggregated loss/accuracy.
+    Addresses the record by type rather than by the literal name ``client_app`` happens
+    to use, the way flwr's own aggregation does — a telemetry read must not be the thing
+    that aborts a round. MetricRecord values are a broad numeric union, so the cast
+    reads through Any, as ``_round_summary`` does for loss/accuracy.
     """
-    metrics: Any = msg.content["metrics"]
+    record = next(iter(msg.content.metric_records.values()), None)
+    if record is None or "num-examples" not in record:
+        return None
+    metrics: Any = record
     return float(metrics["num-examples"])
 
 
@@ -138,11 +150,8 @@ class ObservableFedAvg(FedAvg):
         self._round_clients[server_round] = sum(1 for m in replies if not m.has_error())
         self._round_failures[server_round] = sum(1 for m in replies if m.has_error())
         # ESS over the same key FedAvg aggregates by, so it describes the actual weights.
-        self._round_ess[server_round] = effective_sample_size(
-            _num_examples(m)
-            for m in replies
-            if not m.has_error() and "num-examples" in m.content["metrics"]
-        )
+        counts = (_num_examples(m) for m in replies if not m.has_error())
+        self._round_ess[server_round] = effective_sample_size(n for n in counts if n is not None)
         return super().aggregate_train(server_round, replies)
 
     def aggregate_evaluate(

@@ -9,12 +9,13 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from flwr.app import MetricRecord
+from flwr.app import Message, MetricRecord, RecordDict
+from flwr.supercore.task_identity import TaskIdentity
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
 
-from phalanx.server_app import effective_sample_size, observe_round
+from phalanx.server_app import _num_examples, effective_sample_size, observe_round
 from phalanx.telemetry import init_telemetry
 
 
@@ -27,6 +28,18 @@ def _setup() -> tuple[InMemorySpanExporter, InMemoryMetricReader]:
         metric_reader=metric_reader,
     )
     return span_exporter, metric_reader
+
+
+def _reply(content: RecordDict) -> Message:
+    """A client reply carrying `content` (the shape aggregate_train iterates).
+
+    `Message.__init__` reads the process-wide TaskIdentity, which only a live run sets;
+    seed it so a message can be built in a unit test.
+    """
+    TaskIdentity.run_id = 1
+    TaskIdentity.task_id = 1
+    TaskIdentity.node_id = 1
+    return Message(content=content, dst_node_id=0, message_type="train")
 
 
 def _attrs(span: Any) -> dict[str, Any]:
@@ -99,9 +112,34 @@ def test_effective_sample_size_reports_weight_concentration() -> None:
     assert 1.0 < effective_sample_size([8, 1, 1]) < 3.0
 
 
+def test_effective_sample_size_is_exact_for_an_even_split() -> None:
+    # Normalising each term before squaring reads 4.999999999999999 at n=5 and
+    # 9.999999999999996 at n=10; Kish's form over the raw weights is exact.
+    for n in range(2, 33):
+        assert effective_sample_size([10] * n) == float(n), f"inexact at n={n}"
+
+
+def test_effective_sample_size_never_exceeds_the_client_count() -> None:
+    for weights in ([1, 2, 3], [7, 7, 7, 1], [10] * 9, [5, 4], [1] * 17):
+        assert effective_sample_size(weights) <= len(weights) + 1e-12
+
+
 def test_effective_sample_size_is_nan_when_nothing_aggregated() -> None:
     assert math.isnan(effective_sample_size([]))
     assert math.isnan(effective_sample_size([0, 0]))
+
+
+def test_num_examples_reads_the_record_by_type_not_by_name() -> None:
+    # client_app names its record "metrics"; nothing guarantees that, and flwr addresses
+    # it by type. A differently-named record must still yield the weight.
+    msg = _reply(RecordDict({"whatever-name": MetricRecord({"num-examples": 40.0})}))
+    assert _num_examples(msg) == 40.0
+
+
+def test_num_examples_is_none_when_the_reply_carries_no_count() -> None:
+    # Must not raise: a telemetry read cannot be what aborts a round.
+    assert _num_examples(_reply(RecordDict({"metrics": MetricRecord({"loss": 0.5})}))) is None
+    assert _num_examples(_reply(RecordDict({}))) is None
 
 
 def test_observe_round_records_ess() -> None:

@@ -51,8 +51,9 @@ so tests can re-initialise between cases. `init_telemetry` chooses an exporter:
 - otherwise telemetry is recorded but not exported.
 
 Server-side, each round emits an `fl.round` span (`fl.round`, `fl.loss`,
-`fl.accuracy`, `fl.clients`) and the metrics `fl.round.loss` / `fl.round.accuracy` /
-`fl.round.clients`. Client-side, each pass emits an `fl.client.train` or
+`fl.accuracy`, `fl.clients`, `fl.ess`, `fl.failures`) and the metrics `fl.round.loss` /
+`fl.round.accuracy` / `fl.round.clients` / `fl.round.ess` / `fl.round.failures`.
+Client-side, each pass emits an `fl.client.train` or
 `fl.client.evaluate` span and `fl.client.examples` / `fl.client.loss` metrics.
 
 Because the simulation runs clients in separate Ray processes, client spans are
