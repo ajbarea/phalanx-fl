@@ -280,10 +280,19 @@ def figure_by_round(cells: Cells) -> None:
     ax.set_title(
         "Attack success by round, FedAvg (no defense)", color=INK, fontsize=12, loc="left", pad=18
     )
-    ax.legend(frameon=False, fontsize=9, labelcolor=INK, loc="upper right")
+    # Below the plot: inside it, the legend would sit on the attacker's late peaks.
+    fig.subplots_adjust(bottom=0.24)
+    fig.legend(
+        frameon=False,
+        fontsize=9,
+        labelcolor=INK,
+        loc="upper center",
+        ncol=3,
+        bbox_to_anchor=(0.5, 0.08),
+    )
     fig.text(
         0.01,
-        -0.04,
+        -0.02,
         f"Median over seeds; band = min to max. {NUM_CLIENTS} banks, DistilBERT + LoRA, "
         "Financial PhraseBank test split (n=970).",
         color=INK_2,
@@ -332,6 +341,7 @@ def figure_by_rule(cells: Cells) -> None:
     axes[0].set_yticks(range(len(rules)), [RULE_LABELS[r] for r in rules], color=INK)
     axes[0].set_ylim(len(rules) - 0.5, -0.5)  # first rule on top; sharey applies it to both
     handles, labels = axes[0].get_legend_handles_labels()
+    fig.subplots_adjust(top=0.84)
     fig.legend(
         handles,
         labels,
@@ -340,11 +350,11 @@ def figure_by_rule(cells: Cells) -> None:
         labelcolor=INK,
         loc="lower center",
         ncol=3,
-        bbox_to_anchor=(0.5, -0.16),
+        bbox_to_anchor=(0.5, 0.92),
     )
     fig.text(
         0.01,
-        -0.22,
+        0.0,
         "Dot = median over seeds; line = min to max. Accuracy axis starts above zero.",
         color=INK_2,
         fontsize=8,
