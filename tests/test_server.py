@@ -10,7 +10,6 @@ import math
 from typing import Any
 
 from flwr.app import Message, MetricRecord, RecordDict
-from flwr.supercore.task_identity import TaskIdentity
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
@@ -31,14 +30,7 @@ def _setup() -> tuple[InMemorySpanExporter, InMemoryMetricReader]:
 
 
 def _reply(content: RecordDict) -> Message:
-    """A client reply carrying `content` (the shape aggregate_train iterates).
-
-    `Message.__init__` reads the process-wide TaskIdentity, which only a live run sets;
-    seed it so a message can be built in a unit test.
-    """
-    TaskIdentity.run_id = 1
-    TaskIdentity.task_id = 1
-    TaskIdentity.node_id = 1
+    """A client reply carrying `content` (the shape aggregate_train iterates)."""
     return Message(content=content, dst_node_id=0, message_type="train")
 
 
