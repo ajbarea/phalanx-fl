@@ -151,6 +151,11 @@ def summarize(cells: Cells) -> list[dict[str, Any]]:
                         for m in runs
                     ]
                 ),
+                # The boosted attack swings round to round, so the final round alone can land
+                # on a peak or a trough; the attack-round mean is the stable figure.
+                "mean_accuracy_attack_rounds": _stats(
+                    [statistics.mean(series(m, "accuracy")[r] for r in window) for m in runs]
+                ),
                 # Share of attack rounds where the attacker's update was the farthest of all.
                 "attacker_farthest_share_pct": (
                     100 * sum(r == 1 for r in attacking) / len(attacking) if attacking else None
@@ -177,7 +182,12 @@ def _honest(row: dict[str, Any]) -> str:
 
 
 def write_tables(rows: list[dict[str, Any]]) -> None:
-    metrics = ("final_accuracy", "final_attack_success", "mean_attack_success_attack_rounds")
+    metrics = (
+        "final_accuracy",
+        "final_attack_success",
+        "mean_attack_success_attack_rounds",
+        "mean_accuracy_attack_rounds",
+    )
     with (RESULTS / "summary.csv").open("w", newline="") as fh:
         writer = csv.writer(fh)
         writer.writerow(
@@ -196,14 +206,16 @@ def write_tables(rows: list[dict[str, Any]]) -> None:
     head = [
         "| scenario | rule | seeds | final accuracy (%) | final attack success (%) |"
         f" mean attack success, rounds {ATTACK_START}-{ROUNDS} (%) |"
+        f" mean accuracy, rounds {ATTACK_START}-{ROUNDS} (%) |"
         f" attack rounds attacker was farthest of {NUM_CLIENTS} (%) |"
         f" attacker's median rank, honest rounds 1-{ATTACK_START - 1} |",
-        "|---|---|---|---|---|---|---|---|",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     body = [
         f"| {LABELS[r['scenario']]} | {RULE_LABELS[r['rule']]} | {r['seeds']} |"
         f" {_fmt(r['final_accuracy'])} | {_fmt(r['final_attack_success'])} |"
-        f" {_fmt(r['mean_attack_success_attack_rounds'])} | {_rank(r)} |"
+        f" {_fmt(r['mean_attack_success_attack_rounds'])} |"
+        f" {_fmt(r['mean_accuracy_attack_rounds'])} | {_rank(r)} |"
         f" {_honest(r)} |"
         for r in rows
     ]
