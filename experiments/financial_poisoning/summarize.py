@@ -72,8 +72,10 @@ def series(manifest: dict[str, Any], key: str) -> list[float]:
     return [float(heldout[str(r)][key]) for r in range(ROUNDS + 1)]
 
 
-def _ranks(manifest: dict[str, Any]) -> list[int]:
-    return [r for rs in manifest["attacker_outlier_rank"].values() for r in rs]
+def _ranks(manifest: dict[str, Any], rounds: range) -> list[int]:
+    """The attacker's outlier ranks over ``rounds`` (its flag rides every round it trains)."""
+    ranks = manifest["attacker_outlier_rank"]
+    return [r for rnd in rounds for r in ranks.get(str(rnd), [])]
 
 
 def _stats(values: list[float]) -> tuple[float, float, float]:
@@ -132,7 +134,8 @@ def summarize(cells: Cells) -> list[dict[str, Any]]:
     window = range(ATTACK_START, ROUNDS + 1)
     for scenario, strategy in _ordered(cells):
         runs = cells[(scenario, strategy)]
-        ranks = [r for m in runs for r in _ranks(m)]
+        attacking = [r for m in runs for r in _ranks(m, window)]
+        honest = [r for m in runs for r in _ranks(m, range(1, ATTACK_START))]
         rows.append(
             {
                 "scenario": scenario,
@@ -148,7 +151,12 @@ def summarize(cells: Cells) -> list[dict[str, Any]]:
                         for m in runs
                     ]
                 ),
-                "attacker_outlier_rank_median": statistics.median(ranks) if ranks else None,
+                # Share of attack rounds where the attacker's update was the farthest of all.
+                "attacker_farthest_share_pct": (
+                    100 * sum(r == 1 for r in attacking) / len(attacking) if attacking else None
+                ),
+                # Control: its median rank while still honest (rounds before ATTACK_START).
+                "attacker_honest_rank_median": statistics.median(honest) if honest else None,
             }
         )
     return rows
@@ -159,7 +167,12 @@ def _tex(stats: tuple[float, float, float]) -> str:
 
 
 def _rank(row: dict[str, Any]) -> str:
-    rank = row["attacker_outlier_rank_median"]
+    share = row["attacker_farthest_share_pct"]
+    return "n/a" if share is None else f"{share:.0f}"
+
+
+def _honest(row: dict[str, Any]) -> str:
+    rank = row["attacker_honest_rank_median"]
     return "n/a" if rank is None else f"{rank:g}"
 
 
@@ -170,26 +183,28 @@ def write_tables(rows: list[dict[str, Any]]) -> None:
         writer.writerow(
             ["scenario", "rule", "seeds"]
             + [f"{m}_pct_{s}" for m in metrics for s in ("median", "min", "max")]
-            + ["attacker_outlier_rank_median"]
+            + ["attacker_farthest_share_pct", "attacker_honest_rank_median"]
         )
         for r in rows:
-            rank = r["attacker_outlier_rank_median"]
+            share, honest = r["attacker_farthest_share_pct"], r["attacker_honest_rank_median"]
             writer.writerow(
                 [r["scenario"], r["rule"], r["seeds"]]
                 + [f"{v:.2f}" for m in metrics for v in r[m]]
-                + ["" if rank is None else f"{rank:g}"]
+                + ["" if share is None else f"{share:.1f}", "" if honest is None else f"{honest:g}"]
             )
 
     head = [
         "| scenario | rule | seeds | final accuracy (%) | final attack success (%) |"
         f" mean attack success, rounds {ATTACK_START}-{ROUNDS} (%) |"
-        f" attacker outlier rank (of {NUM_CLIENTS}) |",
-        "|---|---|---|---|---|---|---|",
+        f" attack rounds attacker was farthest of {NUM_CLIENTS} (%) |"
+        f" attacker's median rank, honest rounds 1-{ATTACK_START - 1} |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     body = [
         f"| {LABELS[r['scenario']]} | {RULE_LABELS[r['rule']]} | {r['seeds']} |"
         f" {_fmt(r['final_accuracy'])} | {_fmt(r['final_attack_success'])} |"
         f" {_fmt(r['mean_attack_success_attack_rounds'])} | {_rank(r)} |"
+        f" {_honest(r)} |"
         for r in rows
     ]
     (RESULTS / "summary.md").write_text("\n".join(head + body) + "\n")
@@ -352,13 +367,13 @@ def figure_by_rule(cells: Cells) -> None:
         ncol=3,
         bbox_to_anchor=(0.5, 0.92),
     )
-    fig.text(
-        0.01,
-        0.0,
-        "Dot = median over seeds; line = min to max. Accuracy axis starts above zero.",
-        color=INK_2,
-        fontsize=8,
-    )
+    note = "Dot = median over seeds; line = min to max. Accuracy axis starts above zero."
+    seeds = {r: max(len(cells.get((sc, r), [])) for sc in SCENARIOS) for r in rules}
+    most = max(seeds.values())
+    fewer = [f"{RULE_LABELS[r]} ({n})" for r, n in seeds.items() if n < most]
+    if fewer:
+        note += f" Seeds per rule: {most}, except " + ", ".join(fewer) + "."
+    fig.text(0.01, 0.0, note, color=INK_2, fontsize=8)
     _save(fig, "final_by_rule")
 
 

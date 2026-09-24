@@ -20,7 +20,9 @@ bank move the shared model, and which aggregation rules stop it?
 **Attack success** is the share of truly negative test sentences the global model
 labels positive. The `clean` scenario gives its natural rate. **Outlier rank** is
 where the attacker's update sits by distance from the coordinate-wise median of all
-twelve (1 = farthest), a proxy for whether an inspector could single it out.
+twelve (1 = farthest), a proxy for whether an inspector could single it out. The
+summary reports the share of attack rounds where it was farthest, and, as a control,
+its median rank in rounds 1-5, while it was still honest.
 
 ## Reproduce
 
@@ -42,7 +44,7 @@ manifests; every figure quoted anywhere comes from them.
 
 | path | contents |
 |---|---|
-| `results/summary.md` | per scenario and rule: final accuracy, final attack success, mean attack success over the attack rounds, attacker outlier rank; median [min, max] over seeds |
+| `results/summary.md` | per scenario and rule: final accuracy, final attack success, mean attack success over the attack rounds (median [min, max] over seeds), share of attack rounds the attacker was farthest, its median rank while honest |
 | `results/summary.csv` | the same, one numeric column per median / min / max |
 | `results/summary.tex` | the same as a booktabs table that fits one text column (`\input` it inside a `table`) |
 | `results/rounds.csv` | every run, every round: accuracy, loss, attack success, attacker outlier rank |
