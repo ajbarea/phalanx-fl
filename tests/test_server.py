@@ -1,7 +1,7 @@
 """ObservableFedAvg's per-round telemetry hook.
 
 Tests the pure observation path (MetricRecord -> span + metrics) with in-memory
-exporters; the super()-wrapping strategy glue is covered by the flwr-run smoke.
+exporters; the super()-wrapping strategy glue is covered by ``make smoke``.
 """
 
 from __future__ import annotations
