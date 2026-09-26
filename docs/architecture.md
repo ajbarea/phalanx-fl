@@ -34,9 +34,10 @@ The model is a HuggingFace sequence-classification transformer wrapped with a PE
 (`get_adapter_state` / `set_adapter_state`). The frozen backbone never leaves a
 client, so each `ArrayRecord` on the wire is small (tens of KB, not the full model).
 
-`ObservableFedAvg` subclasses Flower's `FedAvg` and overrides `aggregate_train`
-(to count participating clients) and `aggregate_evaluate` (to read the aggregated
-loss/accuracy and call `observe_round`). FedAvg's key-matched aggregation works
+`ObservableFedAvg` subclasses Flower's `FedAvg` and overrides `configure_train` /
+`configure_evaluate` (to open the round span and attach its `traceparent`),
+`aggregate_train` (to count participating clients) and `aggregate_evaluate` (to read the
+aggregated loss/accuracy and call `observe_round`). FedAvg's key-matched aggregation works
 because `get_adapter_state` returns a stable set of keys across the server and all
 clients.
 
@@ -51,11 +52,14 @@ so tests can re-initialise between cases. `init_telemetry` chooses an exporter:
 - otherwise telemetry is recorded but not exported.
 
 Server-side, each round emits an `fl.round` span (`fl.round`, `fl.loss`,
-`fl.accuracy`, `fl.clients`, `fl.ess`, `fl.failures`) and the metrics `fl.round.loss` /
-`fl.round.accuracy` / `fl.round.clients` / `fl.round.ess` / `fl.round.failures`.
+`fl.accuracy`, `fl.train_clients`, `fl.evaluate_clients`, `fl.train_ess`,
+`fl.evaluate_ess`, `fl.failures`) and the matching `fl.round.*` metrics. Train and
+evaluate sample their clients independently, so the attributes are named for their phase:
+`fl.train_clients` and `fl.train_ess` describe the replies that produced the adapters, `fl.evaluate_clients`
+and `fl.evaluate_ess` the replies behind `fl.loss` / `fl.accuracy`.
 Client-side, each pass emits an `fl.client.train` or
 `fl.client.evaluate` span and `fl.client.examples` / `fl.client.loss` metrics.
 
-Because the simulation runs clients in separate Ray processes, client spans are
-independent traces in v1. Linking them as children of the server's round span via
-`Message.metadata` trace-context propagation is the v2 direction (see `ROADMAP.md`).
+The round span's W3C `traceparent` rides the broadcast `ConfigRecord`, so each client
+span, though it runs in a separate Ray process, is a child of its round span: one trace
+per round.
