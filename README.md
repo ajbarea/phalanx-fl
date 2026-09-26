@@ -44,7 +44,7 @@ aggregate_evaluate: Received 2 results and 0 failures
 git clone https://github.com/ajbarea/phalanx-fl.git
 cd phalanx-fl
 
-make sync        # install deps (CPU torch + HF stack + dev tools)
+make sync        # install deps (torch: CPU, CUDA 13 on Linux aarch64; HF stack; dev tools)
 make smoke       # fast 2-round federated simulation
 make trace       # run with OTel traces printed to the console (no collector needed)
 ```

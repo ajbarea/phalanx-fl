@@ -37,13 +37,16 @@ _fds: FederatedDataset | None = None
 def set_seed(seed: int) -> None:
     """Seed Python / NumPy / torch RNGs so a client's local training is reproducible.
 
-    Clients seed per-partition (see client_app) so each is deterministic yet distinct;
-    combined with the partitioner/split seeds, a whole run replays. CPU-only here, so
-    no CUDA-determinism caveats apply.
+    Clients seed per (round, partition) (see client_app), so each is deterministic yet
+    distinct. On CUDA, nondeterministic kernels are disabled too, strictly: an op with no
+    deterministic kernel raises, failing that client, rather than warning and letting the
+    replay drift unnoticed. The mode is process-wide and also slows some kernels.
     """
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.use_deterministic_algorithms(True)
 
 
 def _make_partitioner(name: str, num_partitions: int, alpha: float) -> Partitioner:

@@ -24,6 +24,24 @@ def test_set_seed_makes_training_rng_deterministic() -> None:
     assert torch.equal(a, b)
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="needs CUDA")
+def test_set_seed_makes_cuda_accumulation_deterministic() -> None:
+    # index_add_ on CUDA accumulates with atomics, so a float32 sum over many duplicate
+    # indices varies between runs unless set_seed has switched on deterministic kernels.
+    def accumulate() -> torch.Tensor:
+        set_seed(123)
+        src = torch.randn(1_000_000, 64, device="cuda")
+        idx = torch.randint(0, 16, (1_000_000,), device="cuda")
+        return torch.zeros(16, 64, device="cuda").index_add_(0, idx, src)
+
+    try:
+        first, second = accumulate(), accumulate()
+        assert torch.are_deterministic_algorithms_enabled()
+        assert torch.equal(first, second)
+    finally:
+        torch.use_deterministic_algorithms(False)
+
+
 @pytest.fixture(scope="module")
 def model():
     return get_model(MODEL, num_labels=2)

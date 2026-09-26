@@ -5,14 +5,16 @@
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
 - Python 3.12 or 3.13
 
-No GPU is required; the default stack installs CPU-only PyTorch.
+No GPU is required. PyTorch comes from the CPU index on every platform except Linux
+aarch64, which gets the CUDA 13 build for the GH200 nodes. That build runs on CPU too,
+at the cost of about 2 GB of CUDA wheels; Docker on Apple Silicon is Linux aarch64.
 
 ## Install
 
 ```bash
 git clone https://github.com/ajbarea/phalanx-fl.git
 cd phalanx-fl
-make sync        # uv sync --extra hf --extra torch (CPU torch + HF stack + dev tools)
+make sync        # uv sync --extra hf --extra torch (torch + HF stack + dev tools)
 ```
 
 ## Run a federated simulation
