@@ -274,3 +274,60 @@ def test_start_refuses_a_second_evaluate_fn() -> None:
         strategy.start(
             grid=cast(Any, None), initial_arrays=ArrayRecord(), evaluate_fn=lambda r, a: None
         )
+
+
+def test_a_failing_global_evaluation_still_closes_its_round() -> None:
+    # The round's client metrics are aggregated before evaluate_fn runs; a failure there
+    # must not drop them, and the span must say why the run stopped.
+    span_exporter, metric_reader = _setup()
+
+    def broken(arrays: ArrayRecord) -> MetricRecord:
+        raise RuntimeError("hub unreachable")
+
+    strategy = ObservableFedAvg(global_evaluate=broken)
+    _run_round(strategy)
+    with pytest.raises(RuntimeError, match="hub unreachable"):
+        strategy._evaluate_global(1, ArrayRecord())
+    (span,) = _rounds(span_exporter)
+    assert span.status.status_code == StatusCode.ERROR
+    assert any(e.name == "fl.global_evaluation_failed" for e in span.events)
+    assert _attrs(span)["fl.accuracy"] == 0.9
+    assert "fl.round.loss" in _metric_names(metric_reader)
+
+
+class _Grid:
+    """Two always-available nodes that answer every message, as flwr's Grid would."""
+
+    def get_node_ids(self) -> list[int]:
+        return [1, 2]
+
+    def send_and_receive(self, messages: Any, timeout: float | None = None) -> list[Message]:
+        replies = []
+        for msg in messages:
+            metrics = MetricRecord({"num-examples": 10, "loss": 0.5, "accuracy": 0.8})
+            content = RecordDict({"metrics": metrics})
+            if msg.metadata.message_type == "train":
+                content["arrays"] = msg.content.array_records["arrays"]
+            replies.append(Message(content, reply_to=msg))
+        return replies
+
+
+def test_start_closes_every_round_after_its_global_evaluation() -> None:
+    # Drives flwr's own Strategy.start, so the ordering the deferral relies on
+    # (evaluate_fn after aggregate_evaluate, round 0 first) is pinned across upgrades.
+    span_exporter, _ = _setup()
+    seen: list[int] = []
+
+    def evaluate(arrays: ArrayRecord) -> MetricRecord:
+        seen.append(len(_rounds(span_exporter)))  # rounds already closed at this call
+        return MetricRecord({"loss": 0.4, "accuracy": 0.6})
+
+    strategy = ObservableFedAvg(fraction_train=1.0, fraction_evaluate=1.0, global_evaluate=evaluate)
+    initial = ArrayRecord({"w": Array(np.ones(2, dtype=np.float32))})
+    result = strategy.start(grid=cast(Any, _Grid()), initial_arrays=initial, num_rounds=3)
+
+    assert seen == [0, 0, 1, 2]  # round 0 first, then each round still open when scored
+    spans = _rounds(span_exporter)
+    assert [_attrs(s)["fl.round"] for s in spans] == [1, 2, 3]
+    assert all(_attrs(s)["fl.global_accuracy"] == 0.6 for s in spans)
+    assert sorted(result.evaluate_metrics_serverapp) == [0, 1, 2, 3]

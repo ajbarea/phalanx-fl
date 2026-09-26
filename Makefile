@@ -11,7 +11,7 @@
 ##   make trace    Run with console OTel traces (no collector needed)
 ##   make audit    Security scan (pip-audit)
 ##
-## Simulation knobs: app config via --run-config 'num-server-rounds=5 partitioner=iid';
+## Simulation knobs: app config via --run-config 'num-server-rounds=5 partitioner="iid"';
 ## federation size via --federation-config 'num-supernodes=10' (see FEDCFG below).
 
 .PHONY: help sync lint fmt test test-cov run smoke trace audit docs clean

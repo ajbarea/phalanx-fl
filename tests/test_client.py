@@ -18,7 +18,7 @@ def _loader(rows: int, batch_size: int = 32) -> DataLoader[Any]:
     return DataLoader(TensorDataset(torch.zeros(rows)), batch_size=batch_size)
 
 
-def testsample_count_reports_rows_not_batches() -> None:
+def test_sample_count_reports_rows_not_batches() -> None:
     # The pairs that collide under len(loader): both are 2 batches, and 500/501 both 16.
     assert sample_count(_loader(33)) == 33
     assert sample_count(_loader(64)) == 64
@@ -26,10 +26,10 @@ def testsample_count_reports_rows_not_batches() -> None:
     assert sample_count(_loader(501)) == 501
 
 
-def testsample_count_is_independent_of_batch_size() -> None:
+def test_sample_count_is_independent_of_batch_size() -> None:
     # The weight must describe the partition, not how it was chopped up.
     assert {sample_count(_loader(501, bs)) for bs in (1, 7, 32, 512, 1024)} == {501}
 
 
-def testsample_count_handles_an_empty_partition() -> None:
+def test_sample_count_handles_an_empty_partition() -> None:
     assert sample_count(_loader(0)) == 0

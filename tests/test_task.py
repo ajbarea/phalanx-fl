@@ -92,3 +92,18 @@ def test_global_test_sample_is_seeded_and_sized(monkeypatch) -> None:
     assert _row_tokens(a) == _row_tokens(b)
     assert task.sample_count(task.load_global_test(MODEL, size=0)) == 50
     assert task.sample_count(task.load_global_test(MODEL, size=500)) == 50
+
+
+def test_global_test_refuses_a_negative_size(monkeypatch) -> None:
+    monkeypatch.setattr(task, "load_dataset", lambda name, split: _rows(5))
+    with pytest.raises(ValueError, match=">= 0"):
+        task.load_global_test(MODEL, size=-1)
+
+
+def test_seeded_initial_adapters_are_the_same_every_run() -> None:
+    # The server seeds before building the initial adapters, so round 0 replays.
+    set_seed(0)
+    first = get_adapter_state(get_model(MODEL))
+    set_seed(0)
+    second = get_adapter_state(get_model(MODEL))
+    assert all(torch.equal(first[k], second[k]) for k in first)

@@ -94,6 +94,8 @@ def load_global_test(
     accuracy compares across partitioners and alphas. ``size`` > 0 takes a seeded sample
     of that many rows, the same rows every round; 0 keeps the whole split.
     """
+    if size < 0:
+        raise ValueError(f"global-eval-size must be >= 0, got {size}")
     split: Any = load_dataset(dataset, split="test")
     if 0 < size < len(split):
         split = split.shuffle(seed=seed).select(range(size))

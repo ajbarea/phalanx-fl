@@ -97,6 +97,7 @@ def observe_round(
     train_ess: float = float("nan"),
     evaluate_ess: float = float("nan"),
     global_metrics: MetricRecord | None = None,
+    global_error: str | None = None,
     span: Any | None = None,
 ) -> None:
     """Decorate the round span with aggregated metrics + status, then end it.
@@ -122,6 +123,9 @@ def observe_round(
         # Surface client/worker failures in the trace, not just the participation count.
         span.add_event("fl.client_failures", {"count": failures})
         span.set_status(Status(StatusCode.ERROR, f"{failures} client failure(s) this round"))
+    if global_error is not None:
+        span.add_event("fl.global_evaluation_failed", {"error": global_error})
+        span.set_status(Status(StatusCode.ERROR, "global evaluation failed"))
     record_round_metrics(
         rnd=server_round,
         loss=loss,
@@ -189,8 +193,15 @@ class ObservableFedAvg(FedAvg):
 
     def _evaluate_global(self, server_round: int, arrays: ArrayRecord) -> MetricRecord:
         assert self._global_evaluate is not None
-        metrics = self._global_evaluate(arrays)
         observed = self._awaiting_global.pop(server_round, None)
+        try:
+            metrics = self._global_evaluate(arrays)
+        except Exception as exc:
+            # The round's client metrics are already aggregated; close it before the
+            # failure ends the run, so the trace keeps the round and says why it stopped.
+            if observed is not None:
+                observe_round(**observed, global_error=repr(exc))
+            raise
         if observed is None:  # round 0: the initial adapters, before any round span
             loss, accuracy = _round_summary(metrics)
             record_global_metrics(rnd=server_round, loss=loss, accuracy=accuracy)
@@ -259,11 +270,13 @@ def main(grid: Grid, context: Context) -> None:
         load_global_test,
         sample_count,
         set_adapter_state,
+        set_seed,
         test_fn,
     )
 
     cfg: Any = context.run_config  # flwr config values are a broad union; read as Any
     init_telemetry(service_name=str(cfg["otel-service-name"]))
+    set_seed(0)  # the initial adapters, and so round 0, are the same in every run
 
     # Initial global state = the LoRA adapters only (not the frozen base model).
     model = get_model(str(cfg["model-name"]), num_labels=int(cfg["num-labels"]))

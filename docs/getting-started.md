@@ -45,7 +45,7 @@ uv run flwr run . local --federation-config 'num-supernodes=10 client-resources-
 Override app run-config (rounds, partitioner, model) similarly:
 
 ```bash
-uv run flwr run . local --run-config 'num-server-rounds=5 partitioner=iid'
+uv run flwr run . local --run-config 'num-server-rounds=5 partitioner="iid"'
 ```
 
 ## Observability
