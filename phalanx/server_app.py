@@ -63,8 +63,8 @@ def effective_sample_size(weights: Iterable[float]) -> float:
     return total * total / math.fsum(x * x for x in w)
 
 
-def _num_examples(msg: Message) -> float | None:
-    """The sample count a client reported, or None when the reply does not carry one.
+def _num_examples(msg: Message, key: str = "num-examples") -> float | None:
+    """The weight a client reported under ``key``, or None when the reply carries none.
 
     Addresses the record by type rather than by the literal name ``client_app`` happens
     to use, the way flwr's own aggregation does — a telemetry read must not be the thing
@@ -72,15 +72,15 @@ def _num_examples(msg: Message) -> float | None:
     reads through Any, as ``_round_summary`` does for loss/accuracy.
     """
     record = next(iter(msg.content.metric_records.values()), None)
-    if record is None or "num-examples" not in record:
+    if record is None or key not in record:
         return None
     metrics: Any = record
-    return float(metrics["num-examples"])
+    return float(metrics[key])
 
 
-def _reply_ess(replies: Iterable[Message]) -> float:
-    """ESS over the ``num-examples`` weights of the replies FedAvg aggregates."""
-    counts = (_num_examples(m) for m in replies if not m.has_error())
+def _reply_ess(replies: Iterable[Message], key: str) -> float:
+    """ESS over the weights FedAvg aggregates the replies by (its ``weighted_by_key``)."""
+    counts = (_num_examples(m, key) for m in replies if not m.has_error())
     return effective_sample_size(n for n in counts if n is not None)
 
 
@@ -88,7 +88,7 @@ def observe_round(
     *,
     server_round: int,
     metrics: MetricRecord | None,
-    clients: int,
+    train_clients: int,
     evaluate_clients: int = 0,
     failures: int = 0,
     train_ess: float = float("nan"),
@@ -106,7 +106,7 @@ def observe_round(
         span = start_round_span(server_round)
     span.set_attribute("fl.loss", loss)
     span.set_attribute("fl.accuracy", accuracy)
-    span.set_attribute("fl.clients", clients)
+    span.set_attribute("fl.train_clients", train_clients)
     span.set_attribute("fl.evaluate_clients", evaluate_clients)
     span.set_attribute("fl.train_ess", train_ess)
     span.set_attribute("fl.evaluate_ess", evaluate_ess)
@@ -119,7 +119,7 @@ def observe_round(
         rnd=server_round,
         loss=loss,
         accuracy=accuracy,
-        clients=clients,
+        train_clients=train_clients,
         evaluate_clients=evaluate_clients,
         failures=failures,
         train_ess=train_ess,
@@ -133,7 +133,7 @@ class ObservableFedAvg(FedAvg):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self._round_clients: dict[int, int] = {}
+        self._round_train_clients: dict[int, int] = {}
         self._round_train_ess: dict[int, float] = {}
         self._round_failures: dict[int, int] = {}
         self._round_spans: dict[int, Any] = {}
@@ -160,9 +160,9 @@ class ObservableFedAvg(FedAvg):
         self, server_round: int, replies: Iterable[Message]
     ) -> tuple[ArrayRecord | None, MetricRecord | None]:
         replies = list(replies)
-        self._round_clients[server_round] = sum(1 for m in replies if not m.has_error())
+        self._round_train_clients[server_round] = sum(1 for m in replies if not m.has_error())
         self._round_failures[server_round] = sum(1 for m in replies if m.has_error())
-        self._round_train_ess[server_round] = _reply_ess(replies)
+        self._round_train_ess[server_round] = _reply_ess(replies, self.weighted_by_key)
         return super().aggregate_train(server_round, replies)
 
     def aggregate_evaluate(
@@ -174,11 +174,11 @@ class ObservableFedAvg(FedAvg):
         observe_round(
             server_round=server_round,
             metrics=metrics,
-            clients=self._round_clients.pop(server_round, 0),
+            train_clients=self._round_train_clients.pop(server_round, 0),
             evaluate_clients=len(replies) - eval_failures,
             failures=self._round_failures.pop(server_round, 0) + eval_failures,
             train_ess=self._round_train_ess.pop(server_round, float("nan")),
-            evaluate_ess=_reply_ess(replies),
+            evaluate_ess=_reply_ess(replies, self.weighted_by_key),
             span=self._round_spans.pop(server_round, None),
         )
         return metrics

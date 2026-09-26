@@ -91,7 +91,7 @@ def init_telemetry(
     _instruments = {
         "round_loss": _meter.create_gauge("fl.round.loss"),
         "round_accuracy": _meter.create_gauge("fl.round.accuracy"),
-        "round_clients": _meter.create_gauge("fl.round.clients"),
+        "round_train_clients": _meter.create_gauge("fl.round.train_clients"),
         "round_evaluate_clients": _meter.create_gauge("fl.round.evaluate_clients"),
         "round_train_ess": _meter.create_gauge("fl.round.train_ess"),
         "round_evaluate_ess": _meter.create_gauge("fl.round.evaluate_ess"),
@@ -181,7 +181,7 @@ def record_round_metrics(
     rnd: int,
     loss: float,
     accuracy: float,
-    clients: int,
+    train_clients: int,
     evaluate_clients: int = 0,
     failures: int = 0,
     train_ess: float = float("nan"),
@@ -192,7 +192,7 @@ def record_round_metrics(
     attrs = {"fl.round": rnd}
     _instruments["round_loss"].set(loss, attributes=attrs)
     _instruments["round_accuracy"].set(accuracy, attributes=attrs)
-    _instruments["round_clients"].set(clients, attributes=attrs)
+    _instruments["round_train_clients"].set(train_clients, attributes=attrs)
     _instruments["round_evaluate_clients"].set(evaluate_clients, attributes=attrs)
     _instruments["round_train_ess"].set(train_ess, attributes=attrs)
     _instruments["round_evaluate_ess"].set(evaluate_ess, attributes=attrs)

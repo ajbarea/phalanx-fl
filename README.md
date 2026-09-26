@@ -32,7 +32,7 @@ $ make trace                      # local simulation, traces printed to the cons
 aggregate_train: Received 2 results and 0 failures
 aggregate_evaluate: Received 2 results and 0 failures
   -> Aggregated MetricRecord: {'loss': 0.67, 'accuracy': 0.62}
-# plus an `fl.round` OTel span (fl.round, fl.loss, fl.accuracy, fl.clients) per round,
+# plus an `fl.round` OTel span per round (loss, accuracy, participation and ESS per phase),
 # and an `fl.client.{train,evaluate}` span per participating client.
 ```
 

@@ -15,14 +15,19 @@ now carries both halves under phase names:
 
 | phase | clients | ESS | derived from |
 |---|---|---|---|
-| train | `fl.clients` | `fl.train_ess` | the replies that produced the adapters |
+| train | `fl.train_clients` | `fl.train_ess` | the replies that produced the adapters |
 | evaluate | `fl.evaluate_clients` | `fl.evaluate_ess` | the replies behind `fl.loss` / `fl.accuracy` |
 
-Same names under `fl.round.*` for the metrics. `fl.round.ess` is gone rather than
-aliased: it shipped in #102 and nothing read it. `_reply_ess` computes both from the
-replies FedAvg aggregates, and a test drives `aggregate_train` / `aggregate_evaluate`
-with real `Message` replies of different sizes, so reusing the train figure for evaluate
-(or the train client count) fails the suite; both mutations were checked.
+Same names under `fl.round.*` for the metrics. `fl.clients` / `fl.round.clients` became
+`fl.train_clients` / `fl.round.train_clients`, and `fl.round.ess` is gone rather than
+aliased: both shipped unqualified, and nothing read them. `fl.failures` still sums both
+phases. ESS reads the strategy's `weighted_by_key`, not a literal `"num-examples"`, so
+it describes whatever FedAvg actually weighted by.
+
+A test drives `aggregate_train` / `aggregate_evaluate` with real `Message` replies:
+uneven evaluate sizes, so ESS cannot pass as the client count, and one errored reply,
+which must count as a failure and not a client. Reusing the train figures, counting the
+errored reply, reporting the client count as ESS, or reading a literal key each fail it.
 
 ---
 
