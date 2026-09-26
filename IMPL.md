@@ -8,26 +8,35 @@ ROADMAP's "Recently shipped" and clear the relevant block below.
 
 ## Current focus
 
-**Round ESS and client counts named for their phase (#105).** flwr samples the train and
-evaluate cohorts independently, so the one `fl.ess` (train-derived) sat beside
-`fl.accuracy` (evaluate-derived) on the round span and read as describing it. The round
-now carries both halves under phase names:
+**A global test set, scored server-side each round (#104).** Client accuracy is a
+`num-examples`-weighted mean over holdouts carved from each client's own partition, so
+under Dirichlet it inherits the label skew. The server now also scores the aggregated
+adapters on the dataset's `test` split, which the partitioner never sees:
+`fl.global_loss` / `fl.global_accuracy` on the round span, `fl.round.global_*` from round
+0, and `global_metrics` in the manifest.
 
-| phase | clients | ESS | derived from |
-|---|---|---|---|
-| train | `fl.train_clients` | `fl.train_ess` | the replies that produced the adapters |
-| evaluate | `fl.evaluate_clients` | `fl.evaluate_ess` | the replies behind `fl.loss` / `fl.accuracy` |
+- flwr's `Strategy.start` calls `evaluate_fn` after `aggregate_evaluate`, where the round
+  span used to end. `ObservableFedAvg(global_evaluate=...)` passes its own evaluator to
+  `start` and closes the round there; passing both is refused. A test drives flwr's real
+  `start` loop with a fake Grid, so an ordering change upstream fails the suite.
+- A raising evaluator still closes its round, with ERROR status and the reason, before
+  the failure propagates; the round's client metrics were already aggregated.
+- The server seeds before building the initial adapters, so round 0 is the same in every
+  run (it was not: two `get_model` calls differed).
+- `global-eval-size = 0` scores all 25,000 rows, about 6 minutes a pass on CPU, four
+  passes in a default run. `make smoke` samples 500.
+- Run-config strings must be quoted (`partitioner="iid"`); flwr rejects the unquoted form
+  the README and Makefile showed.
 
-Same names under `fl.round.*` for the metrics. `fl.clients` / `fl.round.clients` became
-`fl.train_clients` / `fl.round.train_clients`, and `fl.round.ess` is gone rather than
-aliased: both shipped unqualified, and nothing read them. `fl.failures` still sums both
-phases. ESS reads the strategy's `weighted_by_key`, not a literal `"num-examples"`, so
-it describes whatever FedAvg actually weighted by.
+**What it found.** Three draws per arm, `results/global-eval-arms/`; the restated finding
+is in ROADMAP. Under Dirichlet the aggregated model's global accuracy is exactly 0.500 in
+every round of two draws and at most 0.547 in the third, while the client figure ranges
+0.021 to 0.709; under IID the two agree within 1.3 points.
 
-A test drives `aggregate_train` / `aggregate_evaluate` with real `Message` replies:
-uneven evaluate sizes, so ESS cannot pass as the client count, and one errored reply,
-which must count as a failure and not a client. Reusing the train figures, counting the
-errored reply, reporting the client count as ESS, or reading a literal key each fail it.
+**Worktrees and the local SuperLink.** A SuperLink started by `flwr run` in one worktree
+keeps that worktree's venv and cwd for every later run, from any worktree. Stop it
+(`flower-superexec`, `flower-superlink`) before switching, and read a run's verdict from
+`Received N results and 0 failures`: `flwr run` exits 0 when every client fails.
 
 ---
 

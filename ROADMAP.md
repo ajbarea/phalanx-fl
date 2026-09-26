@@ -49,8 +49,16 @@ when that work shipped, because they are the kind of thing that gets re-learned 
 - `num-examples` is `len(loader.dataset)`, not `len(loader)`: the DataLoader length is a
   batch count, and FedAvg weights the adapters and the reported metrics by this key, so
   a batch count over-weighted the smallest partitions (#102).
-- The round-2 Dirichlet accuracy collapse is genuine non-IID dynamics, not an aggregation
-  bug. The IID control improves monotonically, which is what rules the bug out.
+- The "round-2 Dirichlet collapse" was the client figure, not the model. On the global
+  test split (2026-09-26, three draws per arm, `results/global-eval-arms/`), under
+  Dirichlet (alpha 0.5) the aggregated adapters never learn. Global accuracy is exactly
+  0.500 in every round of two draws, consistent with predicting one label on the balanced
+  split, and peaks at 0.547 in `dirichlet-2`; global loss ends above its round-0 value in
+  two of three. The client figure for the same
+  rounds spans 0.021 to 0.709 across draws: it measures which skewed shards were
+  sampled, and that is what read as a round-2 collapse. IID, on the same code path,
+  improves every round in every draw (0.509 to 0.611-0.612), so an aggregation bug is
+  still ruled out.
 
 **Scope discipline (YAGNI):** one scenario (IMDB sentiment), IID + Dirichlet
 partitioners, FedAvg. Strategies / datasets / partitioners grow only when a concrete
@@ -73,13 +81,12 @@ use lands.
   dominates. Under Dirichlet skew it reports how much less than the client count a round
   really averaged over, which participation counts cannot show. Train and evaluate
   sample different clients, so each phase reports its own, beside its own client count.
-- [ ] **Global test set / centralized evaluation.** Every client currently evaluates on
-  a 20% holdout carved from *its own* partition (`task.py` `load_data`), and the round
-  figure is a `num-examples`-weighted mean of those local shards. Under Dirichlet the
-  holdout inherits the partition's label skew, so a client scores well by predicting its
-  majority label — the aggregate accuracy is therefore not comparable across alphas, and
-  the "round-2 Dirichlet collapse" reading below rests on it. A shared held-out split
-  evaluated server-side would make the number mean one thing.
+- [x] **Global test set — `fl.round.global_accuracy`.** The server scores the aggregated
+  adapters on the dataset's `test` split, which the partitioner never sees, each round
+  and at round 0. The clients' figure stays beside it: a `num-examples`-weighted mean
+  over holdouts carved from their own partitions, which under Dirichlet inherits the
+  label skew. The pair is what shows skew-driven divergence; the arms above are the first
+  reading of it.
 - [ ] **Round wall-time + comm-cost metrics** — per-round duration histogram and
   bytes-on-the-wire (adapter payload size), alongside loss/accuracy/participation.
 - [ ] **Jaeger / OTel-Collector `compose` recipe** — one command to bring up a backend

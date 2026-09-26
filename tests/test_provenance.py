@@ -24,3 +24,14 @@ def test_write_manifest_roundtrips(tmp_path: Path) -> None:
     assert path.exists() and path.suffix == ".json"
     loaded = json.loads(path.read_text())
     assert loaded["packages"] == m["packages"]
+
+
+def test_run_manifest_keeps_global_metrics_apart_from_client_metrics() -> None:
+    m = run_manifest(
+        run_config={},
+        metrics={"1": {"accuracy": 0.9}},
+        global_metrics={"0": {"accuracy": 0.5}, "1": {"accuracy": 0.7}},
+    )
+    assert m["metrics"] == {"1": {"accuracy": 0.9}}
+    assert m["global_metrics"]["0"]["accuracy"] == 0.5
+    assert run_manifest(run_config={}, metrics={})["global_metrics"] == {}

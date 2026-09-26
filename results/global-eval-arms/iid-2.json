@@ -1,0 +1,65 @@
+{
+  "generated_at": "2026-09-26T15:50:31.468292+00:00",
+  "git": {
+    "commit": "fdb7ae862e167b3748708e24d3ab62b4b6bfc013",
+    "branch": "feat/global-evaluation"
+  },
+  "python": "3.12.13",
+  "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "packages": {
+    "flwr": "1.36.0",
+    "flwr-datasets": "0.6.1",
+    "torch": "2.13.0+cpu",
+    "transformers": "5.12.1",
+    "peft": "0.18.1"
+  },
+  "run_config": {
+    "num-server-rounds": 3,
+    "model-name": "google/bert_uncased_L-2_H-128_A-2",
+    "dataset": "stanfordnlp/imdb",
+    "num-labels": 2,
+    "partitioner": "iid",
+    "dirichlet-alpha": 0.5,
+    "local-epochs": 1,
+    "fraction-train": 0.1,
+    "fraction-evaluate": 0.1,
+    "global-eval-size": 0,
+    "otel-service-name": "phalanx-fl"
+  },
+  "metrics": {
+    "1": {
+      "loss": 0.6861730506643653,
+      "accuracy": 0.5700000000000001
+    },
+    "2": {
+      "loss": 0.6793709639459848,
+      "accuracy": 0.596
+    },
+    "3": {
+      "loss": 0.6715993946418166,
+      "accuracy": 0.6245
+    }
+  },
+  "global_metrics": {
+    "0": {
+      "loss": 0.6949352524469575,
+      "accuracy": 0.50896,
+      "num-examples": 25000
+    },
+    "1": {
+      "loss": 0.6875039188148421,
+      "accuracy": 0.5598,
+      "num-examples": 25000
+    },
+    "2": {
+      "loss": 0.6817091513625191,
+      "accuracy": 0.58624,
+      "num-examples": 25000
+    },
+    "3": {
+      "loss": 0.6736058989144347,
+      "accuracy": 0.61164,
+      "num-examples": 25000
+    }
+  }
+}

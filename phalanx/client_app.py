@@ -10,15 +10,16 @@ from __future__ import annotations
 import warnings
 from typing import Any
 
-import torch
 from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict
 from flwr.clientapp import ClientApp
 from transformers import logging as hf_logging
 
 from phalanx.task import (
+    default_device,
     get_adapter_state,
     get_model,
     load_data,
+    sample_count,
     set_adapter_state,
     set_seed,
     test_fn,
@@ -35,20 +36,6 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 hf_logging.set_verbosity_error()
 
 app = ClientApp()
-
-
-def _sample_count(loader: Any) -> int:
-    """Rows behind a loader, which is what FedAvg must weight by.
-
-    ``len(loader)`` counts batches, not rows: 33 rows and 64 rows both report 2 at
-    ``batch_size=32``. FedAvg takes ``weighted_by_key="num-examples"``, so a batch count
-    here quantises the adapter aggregate toward the smallest partitions.
-    """
-    return len(loader.dataset)
-
-
-def _device() -> torch.device:
-    return torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def _config(msg: Message) -> Any:
@@ -93,18 +80,18 @@ def train(msg: Message, context: Context) -> Message:
         )
         model = get_model(str(cfg["model-name"]), num_labels=int(cfg["num-labels"]))
         set_adapter_state(model, msg.content.array_records["arrays"].to_torch_state_dict())
-        device = _device()
+        device = default_device()
         model.to(device)
         loss = train_fn(model, trainloader, epochs=int(cfg["local-epochs"]), device=device)
         record_client_metrics(
-            partition_id=partition_id, num_examples=_sample_count(trainloader), loss=loss
+            partition_id=partition_id, num_examples=sample_count(trainloader), loss=loss
         )
 
     content = RecordDict(
         {
             "arrays": ArrayRecord(get_adapter_state(model)),
             "metrics": MetricRecord(
-                {"num-examples": _sample_count(trainloader), "train_loss": loss}
+                {"num-examples": sample_count(trainloader), "train_loss": loss}
             ),
         }
     )
@@ -135,17 +122,17 @@ def evaluate(msg: Message, context: Context) -> Message:
         )
         model = get_model(str(cfg["model-name"]), num_labels=int(cfg["num-labels"]))
         set_adapter_state(model, msg.content.array_records["arrays"].to_torch_state_dict())
-        device = _device()
+        device = default_device()
         model.to(device)
         loss, accuracy = test_fn(model, testloader, device=device)
         record_client_metrics(
-            partition_id=partition_id, num_examples=_sample_count(testloader), loss=loss
+            partition_id=partition_id, num_examples=sample_count(testloader), loss=loss
         )
 
     content = RecordDict(
         {
             "metrics": MetricRecord(
-                {"num-examples": _sample_count(testloader), "loss": loss, "accuracy": accuracy}
+                {"num-examples": sample_count(testloader), "loss": loss, "accuracy": accuracy}
             )
         }
     )
