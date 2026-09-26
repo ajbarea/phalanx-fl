@@ -51,9 +51,10 @@ when that work shipped, because they are the kind of thing that gets re-learned 
   a batch count over-weighted the smallest partitions (#102).
 - The "round-2 Dirichlet collapse" was the client figure, not the model. On the global
   test split (2026-09-26, three draws per arm, `results/global-eval-arms/`), under
-  Dirichlet (alpha 0.5) the aggregated adapters never learn. Global accuracy is 0.500, a
-  one-label predictor on the balanced split, in every round of two draws, and peaks at
-  0.547 in the third; global loss rises in two of three. The client figure for the same
+  Dirichlet (alpha 0.5) the aggregated adapters never learn. Global accuracy is exactly
+  0.500 in every round of two draws, consistent with predicting one label on the balanced
+  split, and peaks at 0.547 in `dirichlet-2`; global loss ends above its round-0 value in
+  two of three. The client figure for the same
   rounds spans 0.021 to 0.709 across draws: it measures which skewed shards were
   sampled, and that is what read as a round-2 collapse. IID, on the same code path,
   improves every round in every draw (0.509 to 0.611-0.612), so an aggregation bug is

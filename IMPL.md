@@ -29,8 +29,9 @@ adapters on the dataset's `test` split, which the partitioner never sees:
   the README and Makefile showed.
 
 **What it found.** Three draws per arm, `results/global-eval-arms/`; the restated finding
-is in ROADMAP. Under Dirichlet the aggregated model stays at a one-label 0.500 while the
-client figure ranges 0.021 to 0.709; under IID the two agree within 1.5 points.
+is in ROADMAP. Under Dirichlet the aggregated model's global accuracy is exactly 0.500 in
+every round of two draws and at most 0.547 in the third, while the client figure ranges
+0.021 to 0.709; under IID the two agree within 1.3 points.
 
 **Worktrees and the local SuperLink.** A SuperLink started by `flwr run` in one worktree
 keeps that worktree's venv and cwd for every later run, from any worktree. Stop it
