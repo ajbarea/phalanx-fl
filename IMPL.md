@@ -8,52 +8,21 @@ ROADMAP's "Recently shipped" and clear the relevant block below.
 
 ## Current focus
 
-**`num-examples` carried a batch count, not a sample count.** All four call sites in
-`client_app.py` passed `len(trainloader)` / `len(testloader)`; `len()` on a DataLoader is
-the number of **batches**. Confirmed against torch: 33 samples and 64 samples both report
-2 at `batch_size=32`, as do 500 and 501 at 16.
+**Round ESS and client counts named for their phase (#105).** flwr samples the train and
+evaluate cohorts independently, so the one `fl.ess` (train-derived) sat beside
+`fl.accuracy` (evaluate-derived) on the round span and read as describing it. The round
+now carries both halves under phase names:
 
-That key is not decorative. `flwr` 1.38's `FedAvg` takes `weighted_by_key="num-examples"`
-by default, so the batch count was weighting both the adapter aggregate and the reported
-loss/accuracy. Because batches are `ceil(n/32)`, the error is a quantisation that
-systematically over-weights the smallest partitions — largest exactly under the Dirichlet
-skew the testbed exists to study. Fixed to `len(loader.dataset)`.
+| phase | clients | ESS | derived from |
+|---|---|---|---|
+| train | `fl.clients` | `fl.train_ess` | the replies that produced the adapters |
+| evaluate | `fl.evaluate_clients` | `fl.evaluate_ess` | the replies behind `fl.loss` / `fl.accuracy` |
 
-Found by re-reading a batch-vs-sample normalisation defect logged against the older
-`fl-execution-framework-dev` testbed and checking whether the same shape existed here. It
-did. The related finding there — that per-client local test shards are not a global test
-set — also applies, and is now a ROADMAP v2 item rather than a silent caveat.
-
-`fl.round.ess` lands alongside: effective sample size over those same weights, the
-generalisable half of the LQR-Fed weight diagnostic from that testbed. It is what makes
-this class of bug visible rather than silent — a weighting that quietly concentrates on a
-few clients shows up as ESS far below the client count.
-
-Not portable, and not ported: the LQR-Fed strategy itself (phalanx is FedAvg-only by
-scope discipline), the SLSQP-to-closed-form solver, and that repo's CI and smoke
-plumbing.
-
-**Review round.** Four things the first cut got wrong, all now locked by tests:
-
-- `_num_examples` indexed `msg.content["metrics"]` by literal record name. flwr addresses
-  the record by type, so a reply naming its MetricRecord anything else raised `KeyError`
-  *inside* `aggregate_train` — a telemetry read aborting the round it was only meant to
-  observe. Reproduced against a real `Message`, now reads `metric_records` by type and
-  returns None rather than raising.
-- ESS as `1/Σ(wᵢ/Σw)²` is not float-exact: an even five-way split read
-  `4.999999999999999`, ten-way `9.999999999999996`. Kish's `(Σwᵢ)²/Σwᵢ²` over the raw
-  weights with `math.fsum` is exact for every n in 2..32. (Clamping with
-  `min(ess, n)` does not help — the error runs below n, not above.)
-- The four changed `client_app` lines were executed by nothing: no test imports the
-  module, the CI job named `smoke-test` only runs `flwr build`, and `ty` sees `torch.**`
-  as `Any`. Extracted `_sample_count` and covered it in `tests/test_client.py`.
-- `docs/architecture.md` and `docs/getting-started.md` enumerate the round span
-  attributes and metric names; both were missing `fl.ess` and, already, `fl.failures`.
-
-**Unverified here:** `ty check` and `pytest` need the app env, and `ray` publishes no
-macOS x86_64 wheel, so `uv sync` cannot build on an Intel Mac. `ruff format --check` and
-`ruff check` pass; the rest rides on CI. No end-to-end `flwr run` has exercised the
-`client_app` change — `tests/test_client.py` covers the expression, not a live round.
+Same names under `fl.round.*` for the metrics. `fl.round.ess` is gone rather than
+aliased: it shipped in #102 and nothing read it. `_reply_ess` computes both from the
+replies FedAvg aggregates, and a test drives `aggregate_train` / `aggregate_evaluate`
+with real `Message` replies of different sizes, so reusing the train figure for evaluate
+(or the train client count) fails the suite; both mutations were checked.
 
 ---
 
@@ -168,27 +137,20 @@ unreadable, fixed there in ariadne#46.
 
 ## Open bugs & findings
 
-### Dependabot: 5 open alerts are upstream pins in flwr 1.36.0 (2026-09-13)
+### Dependabot: 5 alerts are upstream pins in flwr (2026-09-13, dismissed 2026-09-26)
 
-Not repo drift, and not fixable here. 4 alerts against `cryptography` 46.0.7 and 1
-against `ray` 2.55.1, both transitive through `flwr[simulation]`.
+4 alerts against `cryptography` 46.0.7 and 1 against `ray` 2.55.1, both transitive
+through `flwr[simulation]`. `flwr` 1.36.0, 1.38.0 and `flwrlabs/flower` main all pin
+`cryptography<47.0.0,>=46.0.7` and `ray==2.55.1`, so no lock bump reaches the fixes
+(`cryptography` >= 50.0.0, `ray` >= 2.56.0).
 
-| Package | Locked | Needed to clear | On PyPI |
-|---|---|---|---|
-| `cryptography` | 46.0.7 | >= 50.0.0 | 50.0.1 |
-| `ray` | 2.55.1 | >= 2.56.0 | 2.58.0 |
+None is reachable: neither flwr nor phalanx imports `pkcs7` or
+`cryptography.x509.verification`; the bundled-OpenSSL advisory covers PKCS#7/CMS, QUIC,
+OCSP, AES-OCB/SIV, DHX and PKCS#12, where flwr uses EC, Ed25519, SSH key loading, HKDF
+and Fernet; and Ray is only the simulation backend, never `ray.data`. The alerts are
+dismissed as not used, with the analysis on #106, and `make audit` ignores the same IDs.
 
-`flwr` 1.36.0, the newest release, constrains both: `cryptography<47.0.0,>=46.0.7` and
-`ray==2.55.1` for the `simulation` extra. The `ray` pin is a hard equality.
-`uv lock --upgrade-package cryptography --upgrade-package ray` resolves to the same
-versions, as expected.
-
-Neither advisory looks reachable from this app. The `ray` one is arbitrary code execution
-via `ray.data.read_webdataset`'s default decoder, and Phalanx uses Ray only as the Flower
-simulation backend, never `ray.data`. The `cryptography` ones are TLS path-building,
-wildcard DNS in `permittedSubtrees`, PKCS#7 `EnvelopedData` decryption and a bundled
-OpenSSL; Phalanx runs local simulations and neither terminates TLS nor decrypts PKCS#7.
-
-Clears when a `flwr` release relaxes the pins. Not doing: a `[tool.uv]
-override-dependencies` block forcing versions past a framework's hard equality pin, which
-trades unreachable advisories for a real chance of breaking simulation.
+Clears on the `flwr` release that relaxes the pins (flwrlabs/flower#7763 is open for
+cryptography 50). Not doing: `[tool.uv] override-dependencies` past a framework's hard
+equality pin, which trades unreachable advisories for a real chance of breaking
+simulation.

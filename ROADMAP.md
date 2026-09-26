@@ -46,6 +46,9 @@ when that work shipped, because they are the kind of thing that gets re-learned 
   simulation overrides go via `--federation-config`.
 - `flwr run` submits to a local SuperLink and returns; the sim runs detached. Use
   `--stream` to stay attached and capture the OTel console spans.
+- `num-examples` is `len(loader.dataset)`, not `len(loader)`: the DataLoader length is a
+  batch count, and FedAvg weights the adapters and the reported metrics by this key, so
+  a batch count over-weighted the smallest partitions (#102).
 - The round-2 Dirichlet accuracy collapse is genuine non-IID dynamics, not an aggregation
   bug. The IID control improves monotonically, which is what rules the bug out.
 
