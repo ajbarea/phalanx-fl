@@ -64,11 +64,12 @@ use lands.
   spans land in a single trace, viewable end-to-end in Jaeger. The genuinely novel
   OTel↔FL piece (Flower ships no such bridge). `phalanx/telemetry.py` `traceparent_for`
   / `context_from_traceparent`.
-- [x] **Aggregation-weight ESS — `fl.round.ess`.** `1/Σwᵢ²` over the `num-examples`
-  weights FedAvg actually aggregates by: equal to the client count when shares are
-  even, falling toward 1.0 as one client dominates. Under Dirichlet skew it reports how
-  much less than `clients` a round really averaged over, which participation counts
-  cannot show. Emitted as a round metric and an `fl.ess` span attribute.
+- [x] **Aggregation-weight ESS, per phase — `fl.round.train_ess` / `fl.round.evaluate_ess`.**
+  Kish's `(Σwᵢ)²/Σwᵢ²` over the `num-examples` weights FedAvg actually aggregates by:
+  equal to the client count when shares are even, falling toward 1.0 as one client
+  dominates. Under Dirichlet skew it reports how much less than the client count a round
+  really averaged over, which participation counts cannot show. Train and evaluate
+  sample different clients, so each phase reports its own, beside its own client count.
 - [ ] **Global test set / centralized evaluation.** Every client currently evaluates on
   a 20% holdout carved from *its own* partition (`task.py` `load_data`), and the round
   figure is a `num-examples`-weighted mean of those local shards. Under Dirichlet the

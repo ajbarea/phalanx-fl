@@ -9,12 +9,18 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from flwr.app import Message, MetricRecord, RecordDict
+import numpy as np
+from flwr.app import Array, ArrayRecord, Message, MetricRecord, RecordDict
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
 
-from phalanx.server_app import _num_examples, effective_sample_size, observe_round
+from phalanx.server_app import (
+    ObservableFedAvg,
+    _num_examples,
+    effective_sample_size,
+    observe_round,
+)
 from phalanx.telemetry import init_telemetry
 
 
@@ -134,21 +140,51 @@ def test_num_examples_is_none_when_the_reply_carries_no_count() -> None:
     assert _num_examples(_reply(RecordDict({}))) is None
 
 
-def test_observe_round_records_ess() -> None:
+def test_observe_round_records_ess_per_phase() -> None:
     span_exporter, metric_reader = _setup()
     observe_round(
         server_round=1,
         metrics=MetricRecord({"loss": 0.5, "accuracy": 0.6}),
         clients=2,
-        ess=1.6,
+        evaluate_clients=3,
+        train_ess=1.6,
+        evaluate_ess=2.4,
     )
     span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
-    assert _attrs(span)["fl.ess"] == 1.6
-    assert "fl.round.ess" in _metric_names(metric_reader)
+    attrs = _attrs(span)
+    assert (attrs["fl.train_ess"], attrs["fl.evaluate_ess"]) == (1.6, 2.4)
+    assert attrs["fl.evaluate_clients"] == 3
+    assert {
+        "fl.round.train_ess",
+        "fl.round.evaluate_ess",
+        "fl.round.evaluate_clients",
+    } <= _metric_names(metric_reader)
 
 
 def test_observe_round_ess_defaults_to_nan() -> None:
     span_exporter, _ = _setup()
     observe_round(server_round=1, metrics=None, clients=0)
     span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
-    assert math.isnan(_attrs(span)["fl.ess"])
+    assert math.isnan(_attrs(span)["fl.train_ess"])
+    assert math.isnan(_attrs(span)["fl.evaluate_ess"])
+
+
+def _counted(n: float, message_type: str, **metrics: float) -> Message:
+    content = RecordDict({"metrics": MetricRecord({"num-examples": n, **metrics})})
+    if message_type == "train":
+        content["arrays"] = ArrayRecord({"w": Array(np.ones(2, dtype=np.float32))})
+    return Message(content=content, dst_node_id=0, message_type=message_type)
+
+
+def test_each_phase_reports_the_ess_of_its_own_replies() -> None:
+    # Train and evaluate sample different clients; each ESS must come from its own phase.
+    span_exporter, _ = _setup()
+    strategy = ObservableFedAvg()
+    strategy.aggregate_train(1, [_counted(n, "train", train_loss=0.1) for n in (90, 10)])
+    strategy.aggregate_evaluate(
+        1, [_counted(n, "evaluate", loss=0.5, accuracy=0.6) for n in (10, 10, 10)]
+    )
+    attrs = _attrs(next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round"))
+    assert math.isclose(attrs["fl.train_ess"], effective_sample_size([90, 10]))
+    assert attrs["fl.evaluate_ess"] == 3.0
+    assert (attrs["fl.clients"], attrs["fl.evaluate_clients"]) == (2, 3)

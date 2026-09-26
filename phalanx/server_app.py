@@ -3,8 +3,9 @@
 ``ObservableFedAvg`` subclasses Flower's ``FedAvg`` and hooks the per-round entry
 points inside ``strategy.start()``: it counts participating clients in
 ``aggregate_train`` and, after ``aggregate_evaluate``, emits an ``fl.round`` span
-plus aggregated loss/accuracy/participation/ESS metrics. Only the LoRA adapters are
-federated (the initial arrays come from the adapter state, not the full model).
+plus aggregated loss/accuracy/participation/ESS metrics, each named for its phase.
+Only the LoRA adapters are federated (the initial arrays come from the adapter state,
+not the full model).
 """
 
 from __future__ import annotations
@@ -49,9 +50,9 @@ def effective_sample_size(weights: Iterable[float]) -> float:
     weights by ``num-examples``, so under a skewed partition ESS reports how much less
     than ``clients`` the round actually averaged over.
 
-    Measured over the **train** replies, matching ``fl.clients``. Train and evaluate
-    sample their clients independently, so ``fl.ess`` describes the aggregation that
-    produced the adapters, not the client set behind ``fl.loss`` / ``fl.accuracy``.
+    Train and evaluate sample their clients independently, so each phase gets its own:
+    ``fl.train_ess`` over the replies that produced the adapters, ``fl.evaluate_ess``
+    over the replies behind ``fl.loss`` / ``fl.accuracy``.
     """
     w = [float(x) for x in weights]
     total = math.fsum(w)
@@ -77,13 +78,21 @@ def _num_examples(msg: Message) -> float | None:
     return float(metrics["num-examples"])
 
 
+def _reply_ess(replies: Iterable[Message]) -> float:
+    """ESS over the ``num-examples`` weights of the replies FedAvg aggregates."""
+    counts = (_num_examples(m) for m in replies if not m.has_error())
+    return effective_sample_size(n for n in counts if n is not None)
+
+
 def observe_round(
     *,
     server_round: int,
     metrics: MetricRecord | None,
     clients: int,
+    evaluate_clients: int = 0,
     failures: int = 0,
-    ess: float = float("nan"),
+    train_ess: float = float("nan"),
+    evaluate_ess: float = float("nan"),
     span: Any | None = None,
 ) -> None:
     """Decorate the round span with aggregated metrics + status, then end it.
@@ -98,7 +107,9 @@ def observe_round(
     span.set_attribute("fl.loss", loss)
     span.set_attribute("fl.accuracy", accuracy)
     span.set_attribute("fl.clients", clients)
-    span.set_attribute("fl.ess", ess)
+    span.set_attribute("fl.evaluate_clients", evaluate_clients)
+    span.set_attribute("fl.train_ess", train_ess)
+    span.set_attribute("fl.evaluate_ess", evaluate_ess)
     span.set_attribute("fl.failures", failures)
     if failures:
         # Surface client/worker failures in the trace, not just the participation count.
@@ -109,8 +120,10 @@ def observe_round(
         loss=loss,
         accuracy=accuracy,
         clients=clients,
+        evaluate_clients=evaluate_clients,
         failures=failures,
-        ess=ess,
+        train_ess=train_ess,
+        evaluate_ess=evaluate_ess,
     )
     span.end()
 
@@ -121,7 +134,7 @@ class ObservableFedAvg(FedAvg):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._round_clients: dict[int, int] = {}
-        self._round_ess: dict[int, float] = {}
+        self._round_train_ess: dict[int, float] = {}
         self._round_failures: dict[int, int] = {}
         self._round_spans: dict[int, Any] = {}
 
@@ -149,9 +162,7 @@ class ObservableFedAvg(FedAvg):
         replies = list(replies)
         self._round_clients[server_round] = sum(1 for m in replies if not m.has_error())
         self._round_failures[server_round] = sum(1 for m in replies if m.has_error())
-        # ESS over the same key FedAvg aggregates by, so it describes the actual weights.
-        counts = (_num_examples(m) for m in replies if not m.has_error())
-        self._round_ess[server_round] = effective_sample_size(n for n in counts if n is not None)
+        self._round_train_ess[server_round] = _reply_ess(replies)
         return super().aggregate_train(server_round, replies)
 
     def aggregate_evaluate(
@@ -164,8 +175,10 @@ class ObservableFedAvg(FedAvg):
             server_round=server_round,
             metrics=metrics,
             clients=self._round_clients.pop(server_round, 0),
+            evaluate_clients=len(replies) - eval_failures,
             failures=self._round_failures.pop(server_round, 0) + eval_failures,
-            ess=self._round_ess.pop(server_round, float("nan")),
+            train_ess=self._round_train_ess.pop(server_round, float("nan")),
+            evaluate_ess=_reply_ess(replies),
             span=self._round_spans.pop(server_round, None),
         )
         return metrics

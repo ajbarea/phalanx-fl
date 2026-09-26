@@ -51,11 +51,14 @@ so tests can re-initialise between cases. `init_telemetry` chooses an exporter:
 - otherwise telemetry is recorded but not exported.
 
 Server-side, each round emits an `fl.round` span (`fl.round`, `fl.loss`,
-`fl.accuracy`, `fl.clients`, `fl.ess`, `fl.failures`) and the metrics `fl.round.loss` /
-`fl.round.accuracy` / `fl.round.clients` / `fl.round.ess` / `fl.round.failures`.
+`fl.accuracy`, `fl.clients`, `fl.evaluate_clients`, `fl.train_ess`, `fl.evaluate_ess`,
+`fl.failures`) and the matching `fl.round.*` metrics. Train and evaluate sample their
+clients independently, so the attributes are named for their phase: `fl.clients` and
+`fl.train_ess` describe the replies that produced the adapters, `fl.evaluate_clients`
+and `fl.evaluate_ess` the replies behind `fl.loss` / `fl.accuracy`.
 Client-side, each pass emits an `fl.client.train` or
 `fl.client.evaluate` span and `fl.client.examples` / `fl.client.loss` metrics.
 
-Because the simulation runs clients in separate Ray processes, client spans are
-independent traces in v1. Linking them as children of the server's round span via
-`Message.metadata` trace-context propagation is the v2 direction (see `ROADMAP.md`).
+The round span's W3C `traceparent` rides the broadcast `ConfigRecord`, so each client
+span, though it runs in a separate Ray process, is a child of its round span: one trace
+per round.
