@@ -54,7 +54,7 @@ run:                       ## Full federated simulation (flwr run, streamed)
 	$(UVX) flwr run . local --stream $(FEDCFG)
 
 smoke:                     ## Fast 2-round federated simulation (sanity check)
-	$(UVX) flwr run . local --stream $(FEDCFG) --run-config "num-server-rounds=2"
+	$(UVX) flwr run . local --stream $(FEDCFG) --run-config "num-server-rounds=2 global-eval-size=500"
 
 trace:                     ## Run with console OTel traces (no collector needed)
 	OTEL_TRACES_EXPORTER=console $(UVX) flwr run . local --stream $(FEDCFG)

@@ -96,6 +96,8 @@ def init_telemetry(
         "round_train_ess": _meter.create_gauge("fl.round.train_ess"),
         "round_evaluate_ess": _meter.create_gauge("fl.round.evaluate_ess"),
         "round_failures": _meter.create_counter("fl.round.failures"),
+        "round_global_loss": _meter.create_gauge("fl.round.global_loss"),
+        "round_global_accuracy": _meter.create_gauge("fl.round.global_accuracy"),
         "client_examples": _meter.create_counter("fl.client.examples"),
         "client_loss": _meter.create_gauge("fl.client.loss"),
     }
@@ -197,6 +199,17 @@ def record_round_metrics(
     _instruments["round_train_ess"].set(train_ess, attributes=attrs)
     _instruments["round_evaluate_ess"].set(evaluate_ess, attributes=attrs)
     _instruments["round_failures"].add(failures, attributes=attrs)
+
+
+def record_global_metrics(*, rnd: int, loss: float, accuracy: float) -> None:
+    """Record the aggregated adapters' loss/accuracy on the global test set.
+
+    Round 0 is the initial adapters, before any training.
+    """
+    _ensure_init()
+    attrs = {"fl.round": rnd}
+    _instruments["round_global_loss"].set(loss, attributes=attrs)
+    _instruments["round_global_accuracy"].set(accuracy, attributes=attrs)
 
 
 def record_client_metrics(*, partition_id: int, num_examples: int, loss: float) -> None:

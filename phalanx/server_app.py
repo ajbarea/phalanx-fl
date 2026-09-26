@@ -4,24 +4,27 @@
 points inside ``strategy.start()``: it counts participating clients in
 ``aggregate_train`` and, after ``aggregate_evaluate``, emits an ``fl.round`` span
 plus aggregated loss/accuracy/participation/ESS metrics, each named for its phase.
-Only the LoRA adapters are federated (the initial arrays come from the adapter state,
-not the full model).
+With a global evaluator, the span stays open until the aggregated adapters have also
+been scored on the global test set (flwr's ``evaluate_fn``, which runs after
+``aggregate_evaluate``). Only the LoRA adapters are federated (the initial arrays come
+from the adapter state, not the full model).
 """
 
 from __future__ import annotations
 
 import math
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import Any
 
 from flwr.app import ArrayRecord, ConfigRecord, Context, Message, MetricRecord
 from flwr.serverapp import Grid, ServerApp
-from flwr.serverapp.strategy import FedAvg
+from flwr.serverapp.strategy import FedAvg, Result
 from opentelemetry.trace import Status, StatusCode
 
 from phalanx.provenance import run_manifest, write_manifest
 from phalanx.telemetry import (
     init_telemetry,
+    record_global_metrics,
     record_round_metrics,
     shutdown_telemetry,
     start_round_span,
@@ -93,6 +96,7 @@ def observe_round(
     failures: int = 0,
     train_ess: float = float("nan"),
     evaluate_ess: float = float("nan"),
+    global_metrics: MetricRecord | None = None,
     span: Any | None = None,
 ) -> None:
     """Decorate the round span with aggregated metrics + status, then end it.
@@ -111,6 +115,9 @@ def observe_round(
     span.set_attribute("fl.train_ess", train_ess)
     span.set_attribute("fl.evaluate_ess", evaluate_ess)
     span.set_attribute("fl.failures", failures)
+    global_loss, global_accuracy = _round_summary(global_metrics)
+    span.set_attribute("fl.global_loss", global_loss)
+    span.set_attribute("fl.global_accuracy", global_accuracy)
     if failures:
         # Surface client/worker failures in the trace, not just the participation count.
         span.add_event("fl.client_failures", {"count": failures})
@@ -125,18 +132,71 @@ def observe_round(
         train_ess=train_ess,
         evaluate_ess=evaluate_ess,
     )
+    if global_metrics is not None:
+        record_global_metrics(rnd=server_round, loss=global_loss, accuracy=global_accuracy)
     span.end()
 
 
-class ObservableFedAvg(FedAvg):
-    """FedAvg that emits OTel round spans + FL metrics each round."""
+def _by_round(records: dict[int, MetricRecord]) -> dict[str, dict[str, Any]]:
+    return {str(rnd): dict(rec) for rnd, rec in records.items()}
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+
+GlobalEvaluator = Callable[[ArrayRecord], MetricRecord]
+
+
+class ObservableFedAvg(FedAvg):
+    """FedAvg that emits OTel round spans + FL metrics each round.
+
+    ``global_evaluate`` scores the aggregated adapters on the global test set each round,
+    and on the initial adapters as round 0. The strategy passes it to ``start`` as
+    ``evaluate_fn`` itself, so the round it closes is always the one it observed.
+    """
+
+    def __init__(
+        self, *args: Any, global_evaluate: GlobalEvaluator | None = None, **kwargs: Any
+    ) -> None:
         super().__init__(*args, **kwargs)
+        self._global_evaluate = global_evaluate
         self._round_train_clients: dict[int, int] = {}
         self._round_train_ess: dict[int, float] = {}
         self._round_failures: dict[int, int] = {}
         self._round_spans: dict[int, Any] = {}
+        self._awaiting_global: dict[int, dict[str, Any]] = {}
+
+    def start(
+        self,
+        grid: Grid,
+        initial_arrays: ArrayRecord,
+        num_rounds: int = 3,
+        timeout: float = 3600,
+        train_config: ConfigRecord | None = None,
+        evaluate_config: ConfigRecord | None = None,
+        evaluate_fn: Callable[[int, ArrayRecord], MetricRecord | None] | None = None,
+    ) -> Result:
+        if self._global_evaluate is not None:
+            if evaluate_fn is not None:
+                raise ValueError("pass global_evaluate or evaluate_fn, not both")
+            evaluate_fn = self._evaluate_global
+        return super().start(
+            grid=grid,
+            initial_arrays=initial_arrays,
+            num_rounds=num_rounds,
+            timeout=timeout,
+            train_config=train_config,
+            evaluate_config=evaluate_config,
+            evaluate_fn=evaluate_fn,
+        )
+
+    def _evaluate_global(self, server_round: int, arrays: ArrayRecord) -> MetricRecord:
+        assert self._global_evaluate is not None
+        metrics = self._global_evaluate(arrays)
+        observed = self._awaiting_global.pop(server_round, None)
+        if observed is None:  # round 0: the initial adapters, before any round span
+            loss, accuracy = _round_summary(metrics)
+            record_global_metrics(rnd=server_round, loss=loss, accuracy=accuracy)
+        else:
+            observe_round(**observed, global_metrics=metrics)
+        return metrics
 
     def configure_train(
         self, server_round: int, arrays: ArrayRecord, config: ConfigRecord, grid: Grid
@@ -171,23 +231,36 @@ class ObservableFedAvg(FedAvg):
         replies = list(replies)
         eval_failures = sum(1 for m in replies if m.has_error())
         metrics = super().aggregate_evaluate(server_round, replies)
-        observe_round(
-            server_round=server_round,
-            metrics=metrics,
-            train_clients=self._round_train_clients.pop(server_round, 0),
-            evaluate_clients=len(replies) - eval_failures,
-            failures=self._round_failures.pop(server_round, 0) + eval_failures,
-            train_ess=self._round_train_ess.pop(server_round, float("nan")),
-            evaluate_ess=_reply_ess(replies, self.weighted_by_key),
-            span=self._round_spans.pop(server_round, None),
-        )
+        observed: dict[str, Any] = {
+            "server_round": server_round,
+            "metrics": metrics,
+            "train_clients": self._round_train_clients.pop(server_round, 0),
+            "evaluate_clients": len(replies) - eval_failures,
+            "failures": self._round_failures.pop(server_round, 0) + eval_failures,
+            "train_ess": self._round_train_ess.pop(server_round, float("nan")),
+            "evaluate_ess": _reply_ess(replies, self.weighted_by_key),
+            "span": self._round_spans.pop(server_round, None),
+        }
+        if self._global_evaluate is None:
+            observe_round(**observed)
+        else:
+            self._awaiting_global[server_round] = observed
         return metrics
 
 
 @app.main()
 def main(grid: Grid, context: Context) -> None:
     """Federate LoRA adapters with FedAvg; observe every round over OTLP."""
-    from phalanx.task import get_adapter_state, get_model  # deferred: heavy torch/HF import
+    # deferred: heavy torch/HF import
+    from phalanx.task import (
+        default_device,
+        get_adapter_state,
+        get_model,
+        load_global_test,
+        sample_count,
+        set_adapter_state,
+        test_fn,
+    )
 
     cfg: Any = context.run_config  # flwr config values are a broad union; read as Any
     init_telemetry(service_name=str(cfg["otel-service-name"]))
@@ -196,9 +269,25 @@ def main(grid: Grid, context: Context) -> None:
     model = get_model(str(cfg["model-name"]), num_labels=int(cfg["num-labels"]))
     initial_arrays = ArrayRecord(get_adapter_state(model))
 
+    testloader = load_global_test(
+        str(cfg["model-name"]),
+        dataset=str(cfg["dataset"]),
+        size=int(cfg["global-eval-size"]),
+    )
+    device = default_device()
+    model.to(device)
+
+    def global_evaluate(arrays: ArrayRecord) -> MetricRecord:
+        set_adapter_state(model, arrays.to_torch_state_dict())
+        loss, accuracy = test_fn(model, testloader, device)
+        return MetricRecord(
+            {"loss": loss, "accuracy": accuracy, "num-examples": sample_count(testloader)}
+        )
+
     strategy = ObservableFedAvg(
         fraction_train=float(cfg["fraction-train"]),
         fraction_evaluate=float(cfg["fraction-evaluate"]),
+        global_evaluate=global_evaluate,
     )
     try:
         result = strategy.start(
@@ -207,9 +296,12 @@ def main(grid: Grid, context: Context) -> None:
             num_rounds=int(cfg["num-server-rounds"]),
         )
         # Static provenance for the run, beside the dynamic OTel trace.
-        eval_metrics = {
-            str(rnd): dict(rec) for rnd, rec in result.evaluate_metrics_clientapp.items()
-        }
-        write_manifest(run_manifest(run_config=dict(cfg), metrics=eval_metrics))
+        write_manifest(
+            run_manifest(
+                run_config=dict(cfg),
+                metrics=_by_round(result.evaluate_metrics_clientapp),
+                global_metrics=_by_round(result.evaluate_metrics_serverapp),
+            )
+        )
     finally:
         shutdown_telemetry()  # flush buffered OTLP spans/metrics before exit

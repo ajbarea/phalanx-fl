@@ -17,14 +17,24 @@ an OpenTelemetry layer. Four modules, no framework of our own:
 ```
 ServerApp.main
   └─ ObservableFedAvg.start(initial_arrays = adapter state)
+       global_evaluate(initial adapters)  → round 0 on the global test set       [fl.round.global_* metrics]
        for each round:
          configure_train   → broadcast adapters to sampled clients
          ClientApp.train    → set adapters, train locally, return adapter delta   [fl.client.train span]
          aggregate_train    → FedAvg over the returned adapters
          configure_evaluate → broadcast updated adapters
          ClientApp.evaluate → evaluate locally, return loss/accuracy              [fl.client.evaluate span]
-         aggregate_evaluate → FedAvg over metrics  →  observe_round(...)          [fl.round span + metrics]
+         aggregate_evaluate → FedAvg over metrics
+         global_evaluate    → aggregated adapters on the global test set  →  observe_round(...)
+                                                                                  [fl.round span + metrics]
 ```
+
+Two accuracies per round, deliberately. The clients' figure (`fl.accuracy`) is a
+`num-examples`-weighted mean over holdouts carved from each client's own partition, so
+under Dirichlet it inherits the partition's label skew. The global figure
+(`fl.global_accuracy`) scores the aggregated adapters server-side on the dataset's
+`test` split, which the partitioner never sees, so it compares across partitioners and
+alphas. The gap between them is the skew.
 
 ## Adapter-only federation
 
@@ -36,8 +46,10 @@ client, so each `ArrayRecord` on the wire is small (tens of KB, not the full mod
 
 `ObservableFedAvg` subclasses Flower's `FedAvg` and overrides `configure_train` /
 `configure_evaluate` (to open the round span and attach its `traceparent`),
-`aggregate_train` (to count participating clients) and `aggregate_evaluate` (to read the
-aggregated loss/accuracy and call `observe_round`). FedAvg's key-matched aggregation works
+`aggregate_train` (to count participating clients), `aggregate_evaluate` (to read the
+aggregated loss/accuracy) and `start` (to pass its global evaluation as flwr's
+`evaluate_fn`, which runs after `aggregate_evaluate` and closes the round with
+`observe_round`). FedAvg's key-matched aggregation works
 because `get_adapter_state` returns a stable set of keys across the server and all
 clients.
 
@@ -52,10 +64,12 @@ so tests can re-initialise between cases. `init_telemetry` chooses an exporter:
 - otherwise telemetry is recorded but not exported.
 
 Server-side, each round emits an `fl.round` span (`fl.round`, `fl.loss`,
-`fl.accuracy`, `fl.train_clients`, `fl.evaluate_clients`, `fl.train_ess`,
-`fl.evaluate_ess`, `fl.failures`) and the matching `fl.round.*` metrics. Train and
-evaluate sample their clients independently, so the attributes are named for their phase:
-`fl.train_clients` and `fl.train_ess` describe the replies that produced the adapters, `fl.evaluate_clients`
+`fl.accuracy`, `fl.global_loss`, `fl.global_accuracy`, `fl.train_clients`,
+`fl.evaluate_clients`, `fl.train_ess`, `fl.evaluate_ess`, `fl.failures`) and the matching
+`fl.round.*` metrics; `fl.round.global_*` also has a round 0, the initial adapters. Train
+and evaluate sample their clients independently, so the attributes are named for their
+phase: `fl.train_clients` and `fl.train_ess` describe the replies that produced the
+adapters, `fl.evaluate_clients`
 and `fl.evaluate_ess` the replies behind `fl.loss` / `fl.accuracy`.
 Client-side, each pass emits an `fl.client.train` or
 `fl.client.evaluate` span and `fl.client.examples` / `fl.client.loss` metrics.

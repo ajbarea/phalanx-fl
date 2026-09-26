@@ -32,7 +32,7 @@ $ make trace                      # local simulation, traces printed to the cons
 aggregate_train: Received 2 results and 0 failures
 aggregate_evaluate: Received 2 results and 0 failures
   -> Aggregated MetricRecord: {'loss': 0.67, 'accuracy': 0.62}
-# plus an `fl.round` OTel span per round (loss, accuracy, participation and ESS per phase),
+# plus an `fl.round` OTel span per round (client and global loss/accuracy, participation and ESS per phase),
 # and an `fl.client.{train,evaluate}` span per participating client.
 ```
 
@@ -101,6 +101,7 @@ Run config lives in `pyproject.toml` under `[tool.flwr.app.config]`, overridable
 | `dirichlet-alpha` | `0.5` | lower means more label skew |
 | `local-epochs` | `1` | local epochs per round |
 | `fraction-train` / `fraction-evaluate` | `0.1` | client sampling fractions |
+| `global-eval-size` | `0` | rows of the dataset's `test` split scored server-side each round; `0` = all |
 | `otel-service-name` | `phalanx-fl` | OTel `service.name` resource attribute |
 
 ```bash
