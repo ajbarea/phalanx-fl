@@ -8,7 +8,58 @@ ROADMAP's "Recently shipped" and clear the relevant block below.
 
 ## Current focus
 
-_No in-flight work._ The corpus and measurement apparatus moved to
+**`num-examples` carried a batch count, not a sample count.** All four call sites in
+`client_app.py` passed `len(trainloader)` / `len(testloader)`; `len()` on a DataLoader is
+the number of **batches**. Confirmed against torch: 33 samples and 64 samples both report
+2 at `batch_size=32`, as do 500 and 501 at 16.
+
+That key is not decorative. `flwr` 1.38's `FedAvg` takes `weighted_by_key="num-examples"`
+by default, so the batch count was weighting both the adapter aggregate and the reported
+loss/accuracy. Because batches are `ceil(n/32)`, the error is a quantisation that
+systematically over-weights the smallest partitions — largest exactly under the Dirichlet
+skew the testbed exists to study. Fixed to `len(loader.dataset)`.
+
+Found by re-reading a batch-vs-sample normalisation defect logged against the older
+`fl-execution-framework-dev` testbed and checking whether the same shape existed here. It
+did. The related finding there — that per-client local test shards are not a global test
+set — also applies, and is now a ROADMAP v2 item rather than a silent caveat.
+
+`fl.round.ess` lands alongside: effective sample size over those same weights, the
+generalisable half of the LQR-Fed weight diagnostic from that testbed. It is what makes
+this class of bug visible rather than silent — a weighting that quietly concentrates on a
+few clients shows up as ESS far below the client count.
+
+Not portable, and not ported: the LQR-Fed strategy itself (phalanx is FedAvg-only by
+scope discipline), the SLSQP-to-closed-form solver, and that repo's CI and smoke
+plumbing.
+
+**Review round.** Four things the first cut got wrong, all now locked by tests:
+
+- `_num_examples` indexed `msg.content["metrics"]` by literal record name. flwr addresses
+  the record by type, so a reply naming its MetricRecord anything else raised `KeyError`
+  *inside* `aggregate_train` — a telemetry read aborting the round it was only meant to
+  observe. Reproduced against a real `Message`, now reads `metric_records` by type and
+  returns None rather than raising.
+- ESS as `1/Σ(wᵢ/Σw)²` is not float-exact: an even five-way split read
+  `4.999999999999999`, ten-way `9.999999999999996`. Kish's `(Σwᵢ)²/Σwᵢ²` over the raw
+  weights with `math.fsum` is exact for every n in 2..32. (Clamping with
+  `min(ess, n)` does not help — the error runs below n, not above.)
+- The four changed `client_app` lines were executed by nothing: no test imports the
+  module, the CI job named `smoke-test` only runs `flwr build`, and `ty` sees `torch.**`
+  as `Any`. Extracted `_sample_count` and covered it in `tests/test_client.py`.
+- `docs/architecture.md` and `docs/getting-started.md` enumerate the round span
+  attributes and metric names; both were missing `fl.ess` and, already, `fl.failures`.
+
+**Unverified here:** `ty check` and `pytest` need the app env, and `ray` publishes no
+macOS x86_64 wheel, so `uv sync` cannot build on an Intel Mac. `ruff format --check` and
+`ruff check` pass; the rest rides on CI. No end-to-end `flwr run` has exercised the
+`client_app` change — `tests/test_client.py` covers the expression, not a live round.
+
+---
+
+## Background
+
+The corpus and measurement apparatus moved to
 [`ajbarea/sphragis`](https://github.com/ajbarea/sphragis) on 2026-09-13; see ROADMAP's
 `corpus` section for why. Open roadmap items here are the v2 observability and v3 breadth
 lines.

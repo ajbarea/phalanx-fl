@@ -64,6 +64,18 @@ use lands.
   spans land in a single trace, viewable end-to-end in Jaeger. The genuinely novel
   OTel↔FL piece (Flower ships no such bridge). `phalanx/telemetry.py` `traceparent_for`
   / `context_from_traceparent`.
+- [x] **Aggregation-weight ESS — `fl.round.ess`.** `1/Σwᵢ²` over the `num-examples`
+  weights FedAvg actually aggregates by: equal to the client count when shares are
+  even, falling toward 1.0 as one client dominates. Under Dirichlet skew it reports how
+  much less than `clients` a round really averaged over, which participation counts
+  cannot show. Emitted as a round metric and an `fl.ess` span attribute.
+- [ ] **Global test set / centralized evaluation.** Every client currently evaluates on
+  a 20% holdout carved from *its own* partition (`task.py` `load_data`), and the round
+  figure is a `num-examples`-weighted mean of those local shards. Under Dirichlet the
+  holdout inherits the partition's label skew, so a client scores well by predicting its
+  majority label — the aggregate accuracy is therefore not comparable across alphas, and
+  the "round-2 Dirichlet collapse" reading below rests on it. A shared held-out split
+  evaluated server-side would make the number mean one thing.
 - [ ] **Round wall-time + comm-cost metrics** — per-round duration histogram and
   bytes-on-the-wire (adapter payload size), alongside loss/accuracy/participation.
 - [ ] **Jaeger / OTel-Collector `compose` recipe** — one command to bring up a backend
