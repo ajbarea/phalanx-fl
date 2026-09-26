@@ -51,12 +51,22 @@ def provenance_header() -> dict[str, Any]:
     }
 
 
-def run_manifest(*, run_config: dict[str, Any], metrics: dict[str, Any]) -> dict[str, Any]:
-    """Capture a reproducibility manifest for one federated run."""
+def run_manifest(
+    *,
+    run_config: dict[str, Any],
+    metrics: dict[str, Any],
+    global_metrics: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Capture a reproducibility manifest for one federated run.
+
+    ``metrics`` are the clients' federated evaluation per round; ``global_metrics`` the
+    aggregated adapters on the global test set, from round 0 (the initial adapters).
+    """
     return {
         **provenance_header(),
         "run_config": dict(run_config),
         "metrics": dict(metrics),
+        "global_metrics": dict(global_metrics or {}),
     }
 
 

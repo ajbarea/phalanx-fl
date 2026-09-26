@@ -7,14 +7,21 @@ exporters; the super()-wrapping strategy glue is covered by ``make smoke``.
 from __future__ import annotations
 
 import math
-from typing import Any
+from typing import Any, cast
 
-from flwr.app import Message, MetricRecord, RecordDict
+import numpy as np
+import pytest
+from flwr.app import Array, ArrayRecord, Error, Message, MetricRecord, RecordDict
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
 
-from phalanx.server_app import _num_examples, effective_sample_size, observe_round
+from phalanx.server_app import (
+    ObservableFedAvg,
+    _num_examples,
+    effective_sample_size,
+    observe_round,
+)
 from phalanx.telemetry import init_telemetry
 
 
@@ -47,7 +54,9 @@ def _metric_names(reader: InMemoryMetricReader) -> set[str]:
 
 def test_observe_round_tags_span_with_aggregated_metrics() -> None:
     span_exporter, metric_reader = _setup()
-    observe_round(server_round=1, metrics=MetricRecord({"loss": 0.5, "accuracy": 0.6}), clients=2)
+    observe_round(
+        server_round=1, metrics=MetricRecord({"loss": 0.5, "accuracy": 0.6}), train_clients=2
+    )
 
     rounds = [s for s in span_exporter.get_finished_spans() if s.name == "fl.round"]
     assert rounds, "expected an fl.round span"
@@ -55,15 +64,15 @@ def test_observe_round_tags_span_with_aggregated_metrics() -> None:
     assert attrs["fl.round"] == 1
     assert attrs["fl.loss"] == 0.5
     assert attrs["fl.accuracy"] == 0.6
-    assert attrs["fl.clients"] == 2
+    assert attrs["fl.train_clients"] == 2
     assert {"fl.round.loss", "fl.round.accuracy"} <= _metric_names(metric_reader)
 
 
 def test_observe_round_tolerates_missing_metrics() -> None:
     span_exporter, _ = _setup()
     # No replies aggregated (None) and a metrics record without loss/accuracy.
-    observe_round(server_round=1, metrics=None, clients=0)
-    observe_round(server_round=2, metrics=MetricRecord({"num-examples": 5}), clients=1)
+    observe_round(server_round=1, metrics=None, train_clients=0)
+    observe_round(server_round=2, metrics=MetricRecord({"num-examples": 5}), train_clients=1)
 
     rounds = [s for s in span_exporter.get_finished_spans() if s.name == "fl.round"]
     by_round = {_attrs(s)["fl.round"]: _attrs(s) for s in rounds}
@@ -76,7 +85,7 @@ def test_observe_round_flags_client_failures() -> None:
     observe_round(
         server_round=1,
         metrics=MetricRecord({"loss": 0.5, "accuracy": 0.6}),
-        clients=2,
+        train_clients=2,
         failures=1,
     )
     span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
@@ -88,7 +97,9 @@ def test_observe_round_flags_client_failures() -> None:
 
 def test_observe_round_clean_round_is_not_error() -> None:
     span_exporter, _ = _setup()
-    observe_round(server_round=1, metrics=MetricRecord({"loss": 0.5, "accuracy": 0.6}), clients=2)
+    observe_round(
+        server_round=1, metrics=MetricRecord({"loss": 0.5, "accuracy": 0.6}), train_clients=2
+    )
     span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
     assert span.status.status_code != StatusCode.ERROR
 
@@ -134,21 +145,189 @@ def test_num_examples_is_none_when_the_reply_carries_no_count() -> None:
     assert _num_examples(_reply(RecordDict({}))) is None
 
 
-def test_observe_round_records_ess() -> None:
+def test_observe_round_records_ess_per_phase() -> None:
     span_exporter, metric_reader = _setup()
     observe_round(
         server_round=1,
         metrics=MetricRecord({"loss": 0.5, "accuracy": 0.6}),
-        clients=2,
-        ess=1.6,
+        train_clients=2,
+        evaluate_clients=3,
+        train_ess=1.6,
+        evaluate_ess=2.4,
     )
     span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
-    assert _attrs(span)["fl.ess"] == 1.6
-    assert "fl.round.ess" in _metric_names(metric_reader)
+    attrs = _attrs(span)
+    assert (attrs["fl.train_ess"], attrs["fl.evaluate_ess"]) == (1.6, 2.4)
+    assert attrs["fl.evaluate_clients"] == 3
+    assert {
+        "fl.round.train_ess",
+        "fl.round.evaluate_ess",
+        "fl.round.evaluate_clients",
+    } <= _metric_names(metric_reader)
 
 
 def test_observe_round_ess_defaults_to_nan() -> None:
     span_exporter, _ = _setup()
-    observe_round(server_round=1, metrics=None, clients=0)
+    observe_round(server_round=1, metrics=None, train_clients=0)
     span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
-    assert math.isnan(_attrs(span)["fl.ess"])
+    assert math.isnan(_attrs(span)["fl.train_ess"])
+    assert math.isnan(_attrs(span)["fl.evaluate_ess"])
+
+
+def _counted(n: float, message_type: str, **metrics: float) -> Message:
+    content = RecordDict({"metrics": MetricRecord({"num-examples": n, **metrics})})
+    if message_type == "train":
+        content["arrays"] = ArrayRecord({"w": Array(np.ones(2, dtype=np.float32))})
+    return Message(content=content, dst_node_id=0, message_type=message_type)
+
+
+def _failed(message_type: str) -> Message:
+    request = Message(content=RecordDict(), dst_node_id=0, message_type=message_type)
+    return Message(Error(code=0, reason="client crashed"), reply_to=request)
+
+
+def test_each_phase_reports_the_ess_of_its_own_replies() -> None:
+    # Train and evaluate sample different clients; each ESS must come from its own phase.
+    # Uneven evaluate sizes keep ESS apart from the client count, and the errored reply
+    # counts as a failure, not a client.
+    span_exporter, _ = _setup()
+    strategy = ObservableFedAvg()
+    strategy.aggregate_train(1, [_counted(n, "train", train_loss=0.1) for n in (90, 10)])
+    strategy.aggregate_evaluate(
+        1,
+        [_counted(n, "evaluate", loss=0.5, accuracy=0.6) for n in (10, 30, 20)]
+        + [_failed("evaluate")],
+    )
+    attrs = _attrs(next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round"))
+    assert math.isclose(attrs["fl.train_ess"], effective_sample_size([90, 10]))
+    assert math.isclose(attrs["fl.evaluate_ess"], effective_sample_size([10, 30, 20]))
+    assert (attrs["fl.train_clients"], attrs["fl.evaluate_clients"]) == (2, 3)
+    assert attrs["fl.failures"] == 1
+
+
+def test_ess_reads_the_key_fedavg_weights_by() -> None:
+    span_exporter, _ = _setup()
+    strategy = ObservableFedAvg(weighted_by_key="rows")
+    replies = [
+        Message(
+            content=RecordDict({"m": MetricRecord({"rows": n, "loss": 0.5})}),
+            dst_node_id=0,
+            message_type="evaluate",
+        )
+        for n in (10, 30)
+    ]
+    strategy.aggregate_evaluate(1, replies)
+    attrs = _attrs(next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round"))
+    assert math.isclose(attrs["fl.evaluate_ess"], effective_sample_size([10, 30]))
+
+
+def _global(accuracy: float) -> Any:
+    def evaluate(arrays: ArrayRecord) -> MetricRecord:
+        return MetricRecord({"loss": 0.4, "accuracy": accuracy, "num-examples": 100})
+
+    return evaluate
+
+
+def _run_round(strategy: ObservableFedAvg, server_round: int = 1) -> None:
+    strategy.aggregate_train(server_round, [_counted(n, "train", train_loss=0.1) for n in (5, 5)])
+    strategy.aggregate_evaluate(
+        server_round, [_counted(n, "evaluate", loss=0.5, accuracy=0.9) for n in (5, 5)]
+    )
+
+
+def _rounds(exporter: InMemorySpanExporter) -> list[Any]:
+    return [s for s in exporter.get_finished_spans() if s.name == "fl.round"]
+
+
+def test_global_evaluation_closes_the_round_it_scored() -> None:
+    # flwr runs evaluate_fn after aggregate_evaluate, so the span must wait for it.
+    span_exporter, metric_reader = _setup()
+    strategy = ObservableFedAvg(global_evaluate=_global(0.71))
+    _run_round(strategy)
+    assert not _rounds(span_exporter), "round span ended before the global evaluation"
+
+    strategy._evaluate_global(1, ArrayRecord())
+    (span,) = _rounds(span_exporter)
+    attrs = _attrs(span)
+    assert (attrs["fl.global_accuracy"], attrs["fl.accuracy"]) == (0.71, 0.9)
+    assert {"fl.round.global_accuracy", "fl.round.global_loss"} <= _metric_names(metric_reader)
+
+
+def test_global_evaluation_of_the_initial_adapters_opens_no_round() -> None:
+    span_exporter, metric_reader = _setup()
+    strategy = ObservableFedAvg(global_evaluate=_global(0.5))
+    assert strategy._evaluate_global(0, ArrayRecord())["accuracy"] == 0.5
+    assert not _rounds(span_exporter)
+    assert "fl.round.global_accuracy" in _metric_names(metric_reader)
+
+
+def test_without_a_global_evaluator_the_round_closes_at_aggregate_evaluate() -> None:
+    span_exporter, _ = _setup()
+    _run_round(ObservableFedAvg())
+    (span,) = _rounds(span_exporter)
+    assert math.isnan(_attrs(span)["fl.global_accuracy"])
+
+
+def test_start_refuses_a_second_evaluate_fn() -> None:
+    strategy = ObservableFedAvg(global_evaluate=_global(0.5))
+    with pytest.raises(ValueError, match="not both"):
+        strategy.start(
+            grid=cast(Any, None), initial_arrays=ArrayRecord(), evaluate_fn=lambda r, a: None
+        )
+
+
+def test_a_failing_global_evaluation_still_closes_its_round() -> None:
+    # The round's client metrics are aggregated before evaluate_fn runs; a failure there
+    # must not drop them, and the span must say why the run stopped.
+    span_exporter, metric_reader = _setup()
+
+    def broken(arrays: ArrayRecord) -> MetricRecord:
+        raise RuntimeError("hub unreachable")
+
+    strategy = ObservableFedAvg(global_evaluate=broken)
+    _run_round(strategy)
+    with pytest.raises(RuntimeError, match="hub unreachable"):
+        strategy._evaluate_global(1, ArrayRecord())
+    (span,) = _rounds(span_exporter)
+    assert span.status.status_code == StatusCode.ERROR
+    assert any(e.name == "fl.global_evaluation_failed" for e in span.events)
+    assert _attrs(span)["fl.accuracy"] == 0.9
+    assert "fl.round.loss" in _metric_names(metric_reader)
+
+
+class _Grid:
+    """Two always-available nodes that answer every message, as flwr's Grid would."""
+
+    def get_node_ids(self) -> list[int]:
+        return [1, 2]
+
+    def send_and_receive(self, messages: Any, timeout: float | None = None) -> list[Message]:
+        replies = []
+        for msg in messages:
+            metrics = MetricRecord({"num-examples": 10, "loss": 0.5, "accuracy": 0.8})
+            content = RecordDict({"metrics": metrics})
+            if msg.metadata.message_type == "train":
+                content["arrays"] = msg.content.array_records["arrays"]
+            replies.append(Message(content, reply_to=msg))
+        return replies
+
+
+def test_start_closes_every_round_after_its_global_evaluation() -> None:
+    # Drives flwr's own Strategy.start, so the ordering the deferral relies on
+    # (evaluate_fn after aggregate_evaluate, round 0 first) is pinned across upgrades.
+    span_exporter, _ = _setup()
+    seen: list[int] = []
+
+    def evaluate(arrays: ArrayRecord) -> MetricRecord:
+        seen.append(len(_rounds(span_exporter)))  # rounds already closed at this call
+        return MetricRecord({"loss": 0.4, "accuracy": 0.6})
+
+    strategy = ObservableFedAvg(fraction_train=1.0, fraction_evaluate=1.0, global_evaluate=evaluate)
+    initial = ArrayRecord({"w": Array(np.ones(2, dtype=np.float32))})
+    result = strategy.start(grid=cast(Any, _Grid()), initial_arrays=initial, num_rounds=3)
+
+    assert seen == [0, 0, 1, 2]  # round 0 first, then each round still open when scored
+    spans = _rounds(span_exporter)
+    assert [_attrs(s)["fl.round"] for s in spans] == [1, 2, 3]
+    assert all(_attrs(s)["fl.global_accuracy"] == 0.6 for s in spans)
+    assert sorted(result.evaluate_metrics_serverapp) == [0, 1, 2, 3]

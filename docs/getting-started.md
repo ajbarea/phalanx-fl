@@ -45,7 +45,7 @@ uv run flwr run . local --federation-config 'num-supernodes=10 client-resources-
 Override app run-config (rounds, partitioner, model) similarly:
 
 ```bash
-uv run flwr run . local --run-config 'num-server-rounds=5 partitioner=iid'
+uv run flwr run . local --run-config 'num-server-rounds=5 partitioner="iid"'
 ```
 
 ## Observability
@@ -66,8 +66,9 @@ OTEL_TRACES_EXPORTER=console make run    # this is what `make trace` does
 ```
 
 Each round produces an `fl.round` span (attributes: `fl.round`, `fl.loss`,
-`fl.accuracy`, `fl.clients`, `fl.ess`, `fl.failures`) and FL metrics (`fl.round.loss`,
-`fl.round.accuracy`, `fl.round.clients`, `fl.round.ess`, `fl.round.failures`); each
+`fl.accuracy`, `fl.global_loss`, `fl.global_accuracy`, `fl.train_clients`,
+`fl.evaluate_clients`, `fl.train_ess`, `fl.evaluate_ess`, `fl.failures`) and the matching
+`fl.round.*` metrics; each
 participating client produces an `fl.client.train` or
 `fl.client.evaluate` span and `fl.client.*` metrics.
 

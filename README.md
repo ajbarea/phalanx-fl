@@ -32,7 +32,7 @@ $ make trace                      # local simulation, traces printed to the cons
 aggregate_train: Received 2 results and 0 failures
 aggregate_evaluate: Received 2 results and 0 failures
   -> Aggregated MetricRecord: {'loss': 0.67, 'accuracy': 0.62}
-# plus an `fl.round` OTel span (fl.round, fl.loss, fl.accuracy, fl.clients) per round,
+# plus an `fl.round` OTel span per round (client and global loss/accuracy, participation and ESS per phase),
 # and an `fl.client.{train,evaluate}` span per participating client.
 ```
 
@@ -80,7 +80,7 @@ A standard Flower app-model layout:
 |--------|------|
 | `phalanx/task.py` | Model (HF transformer + PEFT/LoRA), data (`flwr-datasets`, IID or Dirichlet non-IID), train/eval, adapter-state helpers |
 | `phalanx/client_app.py` | `ClientApp`: loads broadcast adapters, trains locally, replies with adapters only; wraps each pass in a client span |
-| `phalanx/server_app.py` | `ServerApp` + `ObservableFedAvg`: FedAvg over adapters; emits an `fl.round` span + aggregated loss/accuracy/participation metrics each round |
+| `phalanx/server_app.py` | `ServerApp` + `ObservableFedAvg`: FedAvg over adapters; scores the aggregated adapters on the global test set; emits an `fl.round` span + client and global loss/accuracy, participation and ESS each round |
 | `phalanx/telemetry.py` | OpenTelemetry layer: tracer/meter providers, round/client spans, FL metrics; OTLP / console / in-memory exporters |
 
 **Stack:** [Flower](https://flower.ai) (Message API + Simulation Engine) · [PyTorch](https://pytorch.org) + [HuggingFace Transformers](https://huggingface.co/docs/transformers) + [PEFT/LoRA](https://huggingface.co/docs/peft) · [flwr-datasets](https://flower.ai/docs/datasets/) · [OpenTelemetry](https://opentelemetry.io) · [uv](https://docs.astral.sh/uv/) + [Ruff](https://docs.astral.sh/ruff/) + [ty](https://docs.astral.sh/ty/)
@@ -101,10 +101,11 @@ Run config lives in `pyproject.toml` under `[tool.flwr.app.config]`, overridable
 | `dirichlet-alpha` | `0.5` | lower means more label skew |
 | `local-epochs` | `1` | local epochs per round |
 | `fraction-train` / `fraction-evaluate` | `0.1` | client sampling fractions |
+| `global-eval-size` | `0` | rows of the dataset's `test` split scored server-side each round and at round 0; `0` = all 25,000, about 6 min a pass on CPU |
 | `otel-service-name` | `phalanx-fl` | OTel `service.name` resource attribute |
 
 ```bash
-uv run flwr run . local --run-config 'num-server-rounds=5 partitioner=iid'
+uv run flwr run . local --run-config 'num-server-rounds=5 partitioner="iid"'
 ```
 
 ---

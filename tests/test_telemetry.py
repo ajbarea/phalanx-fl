@@ -54,7 +54,7 @@ def test_client_span_names_the_phase() -> None:
 
 def test_round_metrics_recorded() -> None:
     _, metric_reader = _setup()
-    record_round_metrics(rnd=1, loss=0.5, accuracy=0.6, clients=2)
+    record_round_metrics(rnd=1, loss=0.5, accuracy=0.6, train_clients=2)
     names = _metric_names(metric_reader)
     assert "fl.round.loss" in names
     assert "fl.round.accuracy" in names

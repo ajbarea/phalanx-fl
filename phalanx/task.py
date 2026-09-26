@@ -2,7 +2,8 @@
 
 Anchored on Flower's quickstart-huggingface example (flwr 1.36 app-model), adapted to:
   - LoRA adapters via PEFT (only the adapters are federated — tiny, privacy-preserving);
-  - non-IID partitioning via flwr-datasets' DirichletPartitioner (IID available as a fallback).
+  - non-IID partitioning via flwr-datasets' DirichletPartitioner (IID available as a fallback);
+  - a global test set, the dataset's own ``test`` split, which the partitioner never sees.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ from typing import Any
 
 import numpy as np
 import torch
+from datasets import Dataset, load_dataset
 from datasets.utils.logging import disable_progress_bar
 from evaluate import load as load_metric
 from flwr_datasets import FederatedDataset
@@ -75,19 +77,57 @@ def load_data(
         )
     partition = _fds.load_partition(partition_id)
     split = partition.train_test_split(test_size=0.2, seed=42)
+    trainloader = _loader(split["train"], model_name, shuffle=True)
+    testloader = _loader(split["test"], model_name, shuffle=False)
+    return trainloader, testloader
 
+
+def load_global_test(
+    model_name: str,
+    *,
+    dataset: str = "stanfordnlp/imdb",
+    size: int = 0,
+    seed: int = 42,
+) -> DataLoader[Any]:
+    """The dataset's ``test`` split, shared by every round and untouched by the partitioner.
+
+    Client holdouts inherit their partition's label skew; this split does not, so its
+    accuracy compares across partitioners and alphas. ``size`` > 0 takes a seeded sample
+    of that many rows, the same rows every round; 0 keeps the whole split.
+    """
+    if size < 0:
+        raise ValueError(f"global-eval-size must be >= 0, got {size}")
+    split: Any = load_dataset(dataset, split="test")
+    if 0 < size < len(split):
+        split = split.shuffle(seed=seed).select(range(size))
+    return _loader(split, model_name, shuffle=False)
+
+
+def _loader(split: Dataset, model_name: str, *, shuffle: bool) -> DataLoader[Any]:
+    """Tokenize a text/label split into a padded DataLoader."""
     tokenizer: Any = AutoTokenizer.from_pretrained(model_name, model_max_length=512)
 
     def tokenize(examples: dict[str, Any]) -> Any:
         return tokenizer(examples["text"], truncation=True, add_special_tokens=True)
 
-    split = split.map(tokenize, batched=True)
-    split = split.remove_columns("text").rename_column("label", "labels")
-
+    tokenized = split.map(tokenize, batched=True)
+    tokenized = tokenized.remove_columns("text").rename_column("label", "labels")
     collator = DataCollatorWithPadding(tokenizer=tokenizer)
-    trainloader = DataLoader(split["train"], shuffle=True, batch_size=32, collate_fn=collator)
-    testloader = DataLoader(split["test"], batch_size=32, collate_fn=collator)
-    return trainloader, testloader
+    return DataLoader(tokenized, shuffle=shuffle, batch_size=32, collate_fn=collator)
+
+
+def sample_count(loader: Any) -> int:
+    """Rows behind a loader, which is what FedAvg must weight by.
+
+    ``len(loader)`` counts batches, not rows: 33 rows and 64 rows both report 2 at
+    ``batch_size=32``. FedAvg takes ``weighted_by_key="num-examples"``, so a batch count
+    here quantises the adapter aggregate toward the smallest partitions.
+    """
+    return len(loader.dataset)
+
+
+def default_device() -> torch.device:
+    return torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def get_model(model_name: str, num_labels: int = 2) -> Any:
