@@ -48,8 +48,10 @@ that, plus the OpenTelemetry observability layer that is the project's different
 
 - **`torch>=2.12` + `torchvision>=0.15`** — the training path. `[tool.uv.sources]`
   routes Linux aarch64 (GH200) to the `pytorch-cu130` index and every other platform,
-  CI included, to `pytorch-cpu`, so CPU dev does not pull ~2 GB of CUDA wheels. The
-  CPU default mirrors the velocity-fl convention.
+  CI included, to `pytorch-cpu`, so x86 and macOS dev does not pull ~2 GB of CUDA wheels.
+  Any Linux aarch64 machine gets the CUDA build, including Docker on Apple Silicon and
+  arm CI runners; it runs on CPU there, at that download cost. The CPU default mirrors
+  the velocity-fl convention.
 
 ## Dev group
 

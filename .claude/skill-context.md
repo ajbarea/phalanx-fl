@@ -20,7 +20,7 @@ dev-runner log archive** (`logs/dev-*.log`) — read terminal output directly.
 
 Targets, in dependency order:
 
-1. `make sync` — `uv sync --extra hf --extra torch` (CPU torch + HF stack + dev group).
+1. `make sync` — `uv sync --extra hf --extra torch` (torch: CPU, CUDA 13 on Linux aarch64; HF stack; dev group).
 2. `make lint` — `ruff format --check` + `ruff check` + `ty check`.
 3. `make test` — `uv run --extra hf --extra torch python -m pytest`.
 4. `make audit` — `pip-audit` over the locked deps.

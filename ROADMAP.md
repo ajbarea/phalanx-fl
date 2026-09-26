@@ -29,7 +29,7 @@ The app-model core: `task.py` (HF+LoRA model, `flwr-datasets` non-IID), `client_
 - [x] Clean-slate sweep — removed the retrofitted `intellifl` app + old infra; rebuilt Makefile/CI/docs around `flwr run` + ruff/ty/pytest.
 - [x] Quickstart docs — `flwr run`, the OTLP/Jaeger setup, console traces, the config knobs.
 - [x] Deterministic client training — `set_seed` keys Python/NumPy/torch per `(round, client)` and disables nondeterministic CUDA kernels, so each client's local training replays.
-- [ ] Run-level replay — Flower samples clients with unseeded `random.sample` over node IDs that are random per run, so one config picks different clients each run (identical smoke runs ended at 0.979 and 0.721). Needs a seeded sampler ordered by `partition-id` and a test that two runs match round for round (the reproducibility floor a systems paper needs).
+- [ ] Run-level replay — Flower samples clients with `random.sample` over node IDs that are random per run; the server seeds it (`set_seed(0)`), but the pool it draws from differs, so one config picks different clients each run (identical smoke runs ended at 0.979 and 0.721). Needs a seeded sampler ordered by `partition-id` and a test that two runs match round for round (the reproducibility floor a systems paper needs).
 - [x] OTel flush on exit — `shutdown_telemetry` force-flushes the OTLP buffers (and runs at `atexit`), so the final round's spans/metrics aren't dropped when the process exits.
 - [x] Run-provenance manifest — `phalanx/provenance.py` writes a per-run JSON (git SHA + branch, package versions, run-config, per-round metrics) beside the trace: the static half of the reproducibility story (FAIR / IEEE artifact criteria).
 

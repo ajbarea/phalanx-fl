@@ -3,7 +3,7 @@
 ## aggregating only the adapters.
 ##
 ## Common targets:
-##   make sync     Install dependencies (CPU torch + HF extras + dev group)
+##   make sync     Install dependencies (torch + HF extras + dev group)
 ##   make lint     ruff format --check + ruff check + ty
 ##   make test     Run the test suite
 ##   make smoke    Fast 2-round federated simulation (sanity check)
@@ -18,7 +18,7 @@
 .DEFAULT_GOAL := help
 
 export UV_PROJECT_ENVIRONMENT ?= .venv
-# Run inside the project env with the model/data stack present (CPU torch + HF).
+# Run inside the project env with the model/data stack present (torch + HF).
 UVX := uv run --no-active --extra hf --extra torch
 # Simulation Runtime settings: SuperLink state since flwr 1.28, so pass per run.
 FEDCFG := --federation-config "num-supernodes=5 client-resources-num-cpus=2 client-resources-num-gpus=0.0"
@@ -29,7 +29,7 @@ help:                      ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort \
 		| awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-10s\033[0m %s\n",$$1,$$2}'
 
-sync:                      ## Install all dependencies (CPU torch + HF extras + dev group)
+sync:                      ## Install all dependencies (torch: CPU, CUDA 13 on Linux aarch64)
 	uv sync --extra hf --extra torch
 
 lint:                      ## ruff format check + ruff lint + ty type-check
