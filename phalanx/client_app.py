@@ -37,6 +37,16 @@ hf_logging.set_verbosity_error()
 app = ClientApp()
 
 
+def _sample_count(loader: Any) -> int:
+    """Rows behind a loader, which is what FedAvg must weight by.
+
+    ``len(loader)`` counts batches, not rows: 33 rows and 64 rows both report 2 at
+    ``batch_size=32``. FedAvg takes ``weighted_by_key="num-examples"``, so a batch count
+    here quantises the adapter aggregate toward the smallest partitions.
+    """
+    return len(loader.dataset)
+
+
 def _device() -> torch.device:
     return torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -86,12 +96,16 @@ def train(msg: Message, context: Context) -> Message:
         device = _device()
         model.to(device)
         loss = train_fn(model, trainloader, epochs=int(cfg["local-epochs"]), device=device)
-        record_client_metrics(partition_id=partition_id, num_examples=len(trainloader), loss=loss)
+        record_client_metrics(
+            partition_id=partition_id, num_examples=_sample_count(trainloader), loss=loss
+        )
 
     content = RecordDict(
         {
             "arrays": ArrayRecord(get_adapter_state(model)),
-            "metrics": MetricRecord({"num-examples": len(trainloader), "train_loss": loss}),
+            "metrics": MetricRecord(
+                {"num-examples": _sample_count(trainloader), "train_loss": loss}
+            ),
         }
     )
     return Message(content=content, reply_to=msg)
@@ -124,12 +138,14 @@ def evaluate(msg: Message, context: Context) -> Message:
         device = _device()
         model.to(device)
         loss, accuracy = test_fn(model, testloader, device=device)
-        record_client_metrics(partition_id=partition_id, num_examples=len(testloader), loss=loss)
+        record_client_metrics(
+            partition_id=partition_id, num_examples=_sample_count(testloader), loss=loss
+        )
 
     content = RecordDict(
         {
             "metrics": MetricRecord(
-                {"num-examples": len(testloader), "loss": loss, "accuracy": accuracy}
+                {"num-examples": _sample_count(testloader), "loss": loss, "accuracy": accuracy}
             )
         }
     )

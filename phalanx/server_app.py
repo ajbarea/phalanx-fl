@@ -3,12 +3,13 @@
 ``ObservableFedAvg`` subclasses Flower's ``FedAvg`` and hooks the per-round entry
 points inside ``strategy.start()``: it counts participating clients in
 ``aggregate_train`` and, after ``aggregate_evaluate``, emits an ``fl.round`` span
-plus aggregated loss/accuracy/participation metrics. Only the LoRA adapters are
+plus aggregated loss/accuracy/participation/ESS metrics. Only the LoRA adapters are
 federated (the initial arrays come from the adapter state, not the full model).
 """
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable
 from typing import Any
 
@@ -40,12 +41,49 @@ def _round_summary(metrics: MetricRecord | None) -> tuple[float, float]:
     return loss, accuracy
 
 
+def effective_sample_size(weights: Iterable[float]) -> float:
+    """Clients effectively contributing to the aggregate: Kish's ``(Σwᵢ)² / Σwᵢ²``.
+
+    Equals the client count when every client carries the same weight, falls toward 1.0
+    as one client's share dominates, and is NaN when nothing was aggregated. FedAvg
+    weights by ``num-examples``, so under a skewed partition ESS reports how much less
+    than ``clients`` the round actually averaged over.
+
+    Measured over the **train** replies, matching ``fl.clients``. Train and evaluate
+    sample their clients independently, so ``fl.ess`` describes the aggregation that
+    produced the adapters, not the client set behind ``fl.loss`` / ``fl.accuracy``.
+    """
+    w = [float(x) for x in weights]
+    total = math.fsum(w)
+    if not w or total <= 0:
+        return float("nan")
+    # Kish's form over the raw weights, not 1/Σ(wᵢ/Σw)²: dividing each term by the total
+    # first leaves an equal split reading 4.999999999999999 for five clients.
+    return total * total / math.fsum(x * x for x in w)
+
+
+def _num_examples(msg: Message) -> float | None:
+    """The sample count a client reported, or None when the reply does not carry one.
+
+    Addresses the record by type rather than by the literal name ``client_app`` happens
+    to use, the way flwr's own aggregation does — a telemetry read must not be the thing
+    that aborts a round. MetricRecord values are a broad numeric union, so the cast
+    reads through Any, as ``_round_summary`` does for loss/accuracy.
+    """
+    record = next(iter(msg.content.metric_records.values()), None)
+    if record is None or "num-examples" not in record:
+        return None
+    metrics: Any = record
+    return float(metrics["num-examples"])
+
+
 def observe_round(
     *,
     server_round: int,
     metrics: MetricRecord | None,
     clients: int,
     failures: int = 0,
+    ess: float = float("nan"),
     span: Any | None = None,
 ) -> None:
     """Decorate the round span with aggregated metrics + status, then end it.
@@ -60,6 +98,7 @@ def observe_round(
     span.set_attribute("fl.loss", loss)
     span.set_attribute("fl.accuracy", accuracy)
     span.set_attribute("fl.clients", clients)
+    span.set_attribute("fl.ess", ess)
     span.set_attribute("fl.failures", failures)
     if failures:
         # Surface client/worker failures in the trace, not just the participation count.
@@ -71,6 +110,7 @@ def observe_round(
         accuracy=accuracy,
         clients=clients,
         failures=failures,
+        ess=ess,
     )
     span.end()
 
@@ -81,6 +121,7 @@ class ObservableFedAvg(FedAvg):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._round_clients: dict[int, int] = {}
+        self._round_ess: dict[int, float] = {}
         self._round_failures: dict[int, int] = {}
         self._round_spans: dict[int, Any] = {}
 
@@ -108,6 +149,9 @@ class ObservableFedAvg(FedAvg):
         replies = list(replies)
         self._round_clients[server_round] = sum(1 for m in replies if not m.has_error())
         self._round_failures[server_round] = sum(1 for m in replies if m.has_error())
+        # ESS over the same key FedAvg aggregates by, so it describes the actual weights.
+        counts = (_num_examples(m) for m in replies if not m.has_error())
+        self._round_ess[server_round] = effective_sample_size(n for n in counts if n is not None)
         return super().aggregate_train(server_round, replies)
 
     def aggregate_evaluate(
@@ -121,6 +165,7 @@ class ObservableFedAvg(FedAvg):
             metrics=metrics,
             clients=self._round_clients.pop(server_round, 0),
             failures=self._round_failures.pop(server_round, 0) + eval_failures,
+            ess=self._round_ess.pop(server_round, float("nan")),
             span=self._round_spans.pop(server_round, None),
         )
         return metrics

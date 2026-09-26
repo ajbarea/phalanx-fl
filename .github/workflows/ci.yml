@@ -114,8 +114,8 @@ jobs:
         if: always()
         run: uv cache prune --ci
 
-  smoke-test:
-    name: smoke-test
+  build-app-bundle:
+    name: build-app-bundle
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -127,8 +127,8 @@ jobs:
         with:
           version: 0.11.5
           enable-cache: true
-      # Dep-light wiring gate: build the Flower app bundle (validates the
-      # [tool.flwr] config + components without downloading the model/dataset).
+      # Validates the [tool.flwr] config + components and packages the app; starts no
+      # federation. The federated run is `make smoke`.
       - name: Install dependencies
         run: uv sync --frozen
       - name: Build the Flower app bundle

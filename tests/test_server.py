@@ -1,7 +1,7 @@
 """ObservableFedAvg's per-round telemetry hook.
 
 Tests the pure observation path (MetricRecord -> span + metrics) with in-memory
-exporters; the super()-wrapping strategy glue is covered by the flwr-run smoke.
+exporters; the super()-wrapping strategy glue is covered by ``make smoke``.
 """
 
 from __future__ import annotations
@@ -9,12 +9,12 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from flwr.app import MetricRecord
+from flwr.app import Message, MetricRecord, RecordDict
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
 
-from phalanx.server_app import observe_round
+from phalanx.server_app import _num_examples, effective_sample_size, observe_round
 from phalanx.telemetry import init_telemetry
 
 
@@ -27,6 +27,11 @@ def _setup() -> tuple[InMemorySpanExporter, InMemoryMetricReader]:
         metric_reader=metric_reader,
     )
     return span_exporter, metric_reader
+
+
+def _reply(content: RecordDict) -> Message:
+    """A client reply carrying `content` (the shape aggregate_train iterates)."""
+    return Message(content=content, dst_node_id=0, message_type="train")
 
 
 def _attrs(span: Any) -> dict[str, Any]:
@@ -86,3 +91,64 @@ def test_observe_round_clean_round_is_not_error() -> None:
     observe_round(server_round=1, metrics=MetricRecord({"loss": 0.5, "accuracy": 0.6}), clients=2)
     span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
     assert span.status.status_code != StatusCode.ERROR
+
+
+def test_effective_sample_size_reports_weight_concentration() -> None:
+    # Uniform weights average over every client; a dominant client collapses ESS to ~1.
+    assert effective_sample_size([10, 10, 10, 10]) == 4.0
+    assert effective_sample_size([1, 1]) == 2.0
+    assert math.isclose(effective_sample_size([999_999, 1]), 1.0, abs_tol=1e-4)
+    # Scale-invariant: only the shares matter, not the absolute counts.
+    assert math.isclose(effective_sample_size([3, 1]), effective_sample_size([300, 100]))
+    # Between the extremes for a skewed but not degenerate split.
+    assert 1.0 < effective_sample_size([8, 1, 1]) < 3.0
+
+
+def test_effective_sample_size_is_exact_for_an_even_split() -> None:
+    # Normalising each term before squaring reads 4.999999999999999 at n=5 and
+    # 9.999999999999996 at n=10; Kish's form over the raw weights is exact.
+    for n in range(2, 33):
+        assert effective_sample_size([10] * n) == float(n), f"inexact at n={n}"
+
+
+def test_effective_sample_size_never_exceeds_the_client_count() -> None:
+    for weights in ([1, 2, 3], [7, 7, 7, 1], [10] * 9, [5, 4], [1] * 17):
+        assert effective_sample_size(weights) <= len(weights) + 1e-12
+
+
+def test_effective_sample_size_is_nan_when_nothing_aggregated() -> None:
+    assert math.isnan(effective_sample_size([]))
+    assert math.isnan(effective_sample_size([0, 0]))
+
+
+def test_num_examples_reads_the_record_by_type_not_by_name() -> None:
+    # client_app names its record "metrics"; nothing guarantees that, and flwr addresses
+    # it by type. A differently-named record must still yield the weight.
+    msg = _reply(RecordDict({"whatever-name": MetricRecord({"num-examples": 40.0})}))
+    assert _num_examples(msg) == 40.0
+
+
+def test_num_examples_is_none_when_the_reply_carries_no_count() -> None:
+    # Must not raise: a telemetry read cannot be what aborts a round.
+    assert _num_examples(_reply(RecordDict({"metrics": MetricRecord({"loss": 0.5})}))) is None
+    assert _num_examples(_reply(RecordDict({}))) is None
+
+
+def test_observe_round_records_ess() -> None:
+    span_exporter, metric_reader = _setup()
+    observe_round(
+        server_round=1,
+        metrics=MetricRecord({"loss": 0.5, "accuracy": 0.6}),
+        clients=2,
+        ess=1.6,
+    )
+    span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
+    assert _attrs(span)["fl.ess"] == 1.6
+    assert "fl.round.ess" in _metric_names(metric_reader)
+
+
+def test_observe_round_ess_defaults_to_nan() -> None:
+    span_exporter, _ = _setup()
+    observe_round(server_round=1, metrics=None, clients=0)
+    span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
+    assert math.isnan(_attrs(span)["fl.ess"])
