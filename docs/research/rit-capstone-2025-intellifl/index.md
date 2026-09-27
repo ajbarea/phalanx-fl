@@ -1,6 +1,6 @@
-# RIT Capstone 2025 — IntelliFL
+# RIT Capstone 2025: InteFL
 
-**Title:** Enhancing the IntelliFL Federated Learning Framework
+**Title:** Enhancing the InteFL Federated Learning Framework
 
 **Author:** AJ Barea, Rochester Institute of Technology (`ajb6289@rit.edu`)
 
@@ -16,11 +16,11 @@
 - [Final Report (PDF)](intellifl-report.pdf)
 - [Poster, all 3 iterations (PDF)](intellifl-poster-iterations.pdf): design-journey artifact, see note below
 
-<img src="intellifl-poster.jpg" class="research-poster" alt="IntelliFL capstone poster">
+<img src="intellifl-poster.jpg" class="research-poster" alt="InteFL capstone poster">
 
 ## Summary
 
-Capstone contribution to **IntelliFL**, a federated learning execution and
+Capstone contribution to **InteFL**, a federated learning execution and
 research framework built on Flower. Focus areas: stabilizing Ray-backed
 simulation on Windows, tightening the strategy / attack / defense layer for
 experimentation, and shaping the dataset and partitioning surface so
@@ -44,15 +44,14 @@ text-vs-visual tradeoff of single-page research posters.
 
 ## Project lineage
 
-This capstone was a team project that went through three names:
+This capstone was a team project that went through two names:
 
-1. **IntelliFL:** the original name under which the project was built and
-   the poster/report above were produced.
-2. **InteFL:** a late-stage rename after another research group was found
-   to have already published under the "IntelliFL" name. The rebrand
-   happened too close to the capstone deadline to reflow the submitted
-   poster and report, which is why both artifacts here still read IntelliFL.
-3. **Phalanx-FL:** the post-capstone solo continuation. A ground-up rewrite
+1. **InteFL:** the capstone project. It was renamed late, after another
+   research group was found to have already published under its original
+   name. The rename came too close to the deadline to reflow the submitted
+   poster and report, which is why both artifacts here still carry the
+   earlier name.
+2. **Phalanx-FL:** the post-capstone solo continuation. A ground-up rewrite
    targeting Flower 1.28+ that replaces the accumulated Flower-1.9-era
    workarounds (Ray instability on Windows, bespoke partitioning, deprecated
    strategy shims) with current upstream primitives from Flower Labs

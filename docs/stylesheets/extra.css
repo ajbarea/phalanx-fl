@@ -1,32 +1,55 @@
 /* ==========================================================================
-   Phalanx-FL Custom Theme — Elevated Minimal
-   Teal / Deep-Purple palette with immersive landing page
-
-   Note: internal CSS variable names still use the `--intefl-*` prefix from
-   the InteFL era. Kept as-is to minimize churn ahead of the planned
-   Phalanx-FL rewrite, which will rework this stylesheet from scratch.
+   Phalanx theme: palette tokens and the reading pages.
+   Colours are semantic tokens set once per scheme; components use the tokens
+   and never test the scheme themselves. Landing page rules live in landing.css.
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=account_tree,api,bolt,bug_report,code,data_object,database,group,hub,inbox,layers,local_fire_department,menu_book,monitoring,photo_library,play_circle,psychology,rocket_launch,scatter_plot,science,settings,shield,smart_toy,terminal,trending_up,tune,verified_user,warning&display=block');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=account_tree,cell_tower,deployed_code,hub,insights,merge,monitoring,rocket_launch,scatter_plot,science,send,tune&display=block');
 
 :root>* {
-  --md-primary-fg-color: #009688;
-  --md-primary-fg-color--light: #4DB6AC;
-  --md-primary-fg-color--dark: #00796B;
-  --md-accent-fg-color: #7C4DFF;
+  --phx-bg: #f8f8f5;
+  --phx-bg-2: #eff1ee;
+  --phx-card: #ffffff;
+  --phx-line: rgba(13, 62, 58, 0.13);
+  --phx-text: #0e1d1c;
+  --phx-text-soft: rgba(14, 29, 28, 0.78);
+  --phx-text-muted: rgba(14, 29, 28, 0.6);
+  --phx-teal: #0d7d73;
+  --phx-teal-strong: #095c55;
+  --phx-violet: #6a3fd1;
+  --phx-on-teal: #ffffff;
+  --phx-shadow: rgba(14, 29, 28, 0.1);
+  --phx-title: linear-gradient(120deg, #0a5f58 0%, #0d7d73 45%, #6a3fd1 100%);
 
-  /* InteFL palette */
-  --intefl-teal: #009688;
-  --intefl-teal-light: #4DB6AC;
-  --intefl-teal-dark: #00695C;
-  --intefl-purple: #7C4DFF;
-  --intefl-purple-light: #B388FF;
-  --intefl-slate: #1a1a2e;
-  --intefl-glass-bg: color-mix(in srgb, #fff 3%, transparent);
-  --intefl-glass-border: color-mix(in srgb, var(--intefl-teal) 20%, transparent);
+  --md-default-bg-color: var(--phx-bg);
+  --md-primary-fg-color: var(--phx-teal);
+  --md-primary-fg-color--light: #14a396;
+  --md-primary-fg-color--dark: var(--phx-teal-strong);
+  --md-accent-fg-color: var(--phx-violet);
+  --md-typeset-a-color: var(--phx-teal);
+}
 
-  /* Hero background — light mode uses the desaturated variant */
-  --hero-bg-image: url('../assets/phalanx-hero-light.jpg');
+[data-md-color-scheme="slate"] {
+  --md-hue: 190;
+  --phx-bg: #070b0f;
+  --phx-bg-2: #0c1319;
+  --phx-card: #111b23;
+  --phx-line: rgba(94, 234, 212, 0.13);
+  --phx-text: #e3f2f0;
+  --phx-text-soft: rgba(227, 242, 240, 0.78);
+  --phx-text-muted: rgba(227, 242, 240, 0.56);
+  --phx-teal: #2dd4bf;
+  --phx-teal-strong: #5eead4;
+  --phx-violet: #a78bfa;
+  --phx-on-teal: #04211e;
+  --phx-shadow: rgba(0, 0, 0, 0.45);
+  --phx-title: linear-gradient(120deg, #ccfbf1 0%, #5eead4 40%, #a78bfa 100%);
+
+  --md-default-bg-color: var(--phx-bg);
+  --md-default-bg-color--light: var(--phx-bg-2);
+  --md-code-bg-color: #0f171e;
+  --md-primary-fg-color: #0f766e;
+  --md-typeset-a-color: var(--phx-teal);
 }
 
 .material-symbols-outlined {
@@ -42,1097 +65,70 @@
   word-wrap: normal;
   direction: ltr;
   font-feature-settings: 'liga';
-  -webkit-font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
   vertical-align: middle;
 }
-
-[data-md-color-scheme="slate"] {
-  --md-hue: 210;
-  --md-default-bg-color: #161e2b;
-  --md-default-bg-color--light: #1a2333;
-  --hero-bg-image: url('../assets/phalanx-hero.jpg');
-}
-
-/* ==========================================================================
-   Full-Viewport Immersive Hero
-   ========================================================================== */
-
-/* Homepage body class — set by reveal.js when .hero is present */
-body.hero-page .md-footer {
-  display: none !important;
-}
-
-html.hero-page,
-body.hero-page {
-  overflow-x: hidden !important;
-}
-
-body.hero-page .md-main__inner,
-body.hero-page .md-content__inner {
-  padding-top: 0 !important;
-  margin-top: 0 !important;
-}
-
-.md-typeset .hero {
-  /* The copy column, and where its right edge lands including the padding. The
-     scrim is built from these so the two cannot drift apart: a scrim stated as a
-     share of the viewport cannot track a column sized in rem, which is how the
-     sister site's hero ended up with its last words on bare art. */
-  --hero-copy-width: min(34rem, 42vw);
-  --hero-copy-edge: calc(6vw + var(--hero-copy-width));
-  position: relative;
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  text-align: left;
-  background:
-    linear-gradient(to right,
-      #fff 0%,
-      #fff calc(var(--hero-copy-edge) - 1rem),
-      color-mix(in srgb, #fff 92%, transparent) var(--hero-copy-edge),
-      color-mix(in srgb, #fff 28%, transparent) calc(var(--hero-copy-edge) + 8rem),
-      transparent calc(var(--hero-copy-edge) + 16rem)),
-    linear-gradient(to bottom, transparent 62%, color-mix(in srgb, #fff 55%, transparent) 88%, #fff 100%),
-    var(--hero-bg-image) right center / cover no-repeat;
-  padding: 4rem 6vw 5rem;
-  margin: -1.2rem -0.8rem 0;
-  overflow: hidden;
-}
-
-[data-md-color-scheme="slate"] .md-typeset .hero {
-  background:
-    linear-gradient(to right,
-      var(--md-default-bg-color) 0%,
-      var(--md-default-bg-color) calc(var(--hero-copy-edge) - 1rem),
-      color-mix(in srgb, var(--md-default-bg-color) 92%, transparent) var(--hero-copy-edge),
-      color-mix(in srgb, var(--md-default-bg-color) 28%, transparent) calc(var(--hero-copy-edge) + 8rem),
-      transparent calc(var(--hero-copy-edge) + 16rem)),
-    linear-gradient(to bottom, transparent 62%,
-      color-mix(in srgb, var(--md-default-bg-color) 55%, transparent) 88%,
-      var(--md-default-bg-color) 100%),
-    var(--hero-bg-image) right center / cover no-repeat;
-}
-
-.md-typeset .hero h1 {
-  font-size: clamp(2.2rem, 5vw, 3.2rem);
-  font-weight: 800;
-  margin-bottom: 0.4rem;
-  letter-spacing: -0.03em;
-}
-
-[data-md-color-scheme="slate"] .md-typeset .hero h1 {
-  background: linear-gradient(135deg, #B2DFDB 0%, #80CBC4 30%, var(--intefl-teal-light) 60%, var(--intefl-purple-light) 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 20px color-mix(in srgb, var(--intefl-teal) 25%, transparent));
-}
-
-.md-typeset .hero .hero-subtitle {
-  font-size: clamp(1rem, 1.7vw, 1.3rem);
-  font-weight: 400;
-  letter-spacing: 0.005em;
-  line-height: 1.5;
-  opacity: 0.9;
-  margin-bottom: 1.5rem;
-  max-width: var(--hero-copy-width);
-}
-
-[data-md-color-scheme="slate"] .md-typeset .hero .hero-subtitle {
-  opacity: 0.95;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
-}
-
-.md-typeset .hero .hero-buttons {
-  display: flex;
-  justify-content: flex-start;
-  margin-bottom: 1.5rem;
-}
-
-.md-typeset .hero .hero-buttons > p {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  column-gap: 1rem;
-  row-gap: 0.85rem;
-  margin: 0;
-}
-
-.hero-buttons .md-button {
-  min-width: 190px;
-  padding: 0.7rem 1.8rem !important;
-  font-size: 0.85rem !important;
-  text-align: center;
-  border-radius: 3rem !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.05em !important;
-  transition: all 0.3s ease;
-}
-
-/* research(2026-05): primary CTA visually larger + heavier than secondary,
-   per UX hierarchy convention (LogRocket, Spaced Digital, Nerdcow). Mirrors
-   the orchestrate-triage / kourai-khryseai sister pattern. */
-.hero-buttons .md-button--primary {
-  font-size: 0.92rem !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.06em !important;
-  padding: 0.78rem 1.85rem !important;
-  box-shadow: 0 4px 15px color-mix(in srgb, var(--intefl-teal) 30%, transparent) !important;
-}
-
-.hero-buttons .md-button--primary:hover {
-  transform: scale(1.04);
-  box-shadow: 0 6px 20px color-mix(in srgb, var(--intefl-teal) 45%, transparent) !important;
-}
-
-[data-md-color-scheme="slate"] .hero .md-button--primary {
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-}
-
-.hero .md-button:not(.md-button--primary) {
-  font-size: 0.85rem !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.04em !important;
-  padding: 0.6rem 1.35rem !important;
-}
-
-[data-md-color-scheme="slate"] .hero .md-button:not(.md-button--primary) {
-  border: 1px solid rgba(255, 255, 255, 0.25) !important;
-  color: var(--intefl-teal-light) !important;
-  background: color-mix(in srgb, var(--md-default-bg-color) 50%, transparent) !important;
-  backdrop-filter: blur(4px);
-}
-
-[data-md-color-scheme="slate"] .hero .md-button:not(.md-button--primary):hover {
-  border-color: var(--intefl-teal-light) !important;
-  background: color-mix(in srgb, var(--md-default-bg-color) 65%, transparent) !important;
-}
-
-/* Hero tagline strip — Strategies | Attacks | Datasets */
-.hero-tagline {
-  margin-top: 0.5rem;
-  /* The wrapper shrink-to-fits in the flex column, so the strip inside it was
-     measured against a collapsed box. State the column here too. */
-  width: 100%;
-  max-width: var(--hero-copy-width);
-}
-
-.hero-modes {
-  font-size: clamp(0.78rem, 1.2vw, 0.9rem);
-  font-weight: 400;
-  letter-spacing: 0.01em;
-  opacity: 0.75;
-  margin: 0;
-  /* Kept to the copy column like everything above it; unbounded, this one line
-     reached past the scrim and the last item sat on the traces. */
-  max-width: var(--hero-copy-width);
-}
-
-[data-md-color-scheme="slate"] .hero-modes {
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-}
-
-/* ==========================================================================
-   Scroll Indicator
-   ========================================================================== */
-
-.scroll-hint {
-  text-align: center;
-  margin-top: -3rem;
-  padding-bottom: 1.5rem;
-  position: relative;
-  z-index: 2;
-}
-
-.scroll-chevron {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border-right: 2px solid var(--md-primary-fg-color);
-  border-bottom: 2px solid var(--md-primary-fg-color);
-  transform: rotate(45deg);
-  opacity: 0.3;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .scroll-hint {
-    animation: hint-bounce 2s ease-in-out infinite;
-  }
-
-  @keyframes hint-bounce {
-
-    0%,
-    100% {
-      transform: translateY(0);
-    }
-
-    50% {
-      transform: translateY(6px);
-    }
-  }
-}
-
-/* ==========================================================================
-   Landing Sections — Scroll Reveal
-   ========================================================================== */
-
-/* Landing sections default to visible so no-JS users see content;
-   JS opts in to the scroll-reveal by setting .js-ready on <html>. */
-.landing-section {
-  width: 100vw;
-  margin-left: calc(-50vw + 50%);
-  padding: 5rem 2rem;
-  text-align: center;
-}
-
-.landing-section--intro,
-.landing-section--promise {
-  min-height: 80vh;
-  min-height: 80svh;
-  display: flex;
-  align-items: center;
-}
-
-.landing-section--intro {
-  padding-bottom: 12vh;
-}
-
-.landing-section--promise {
-  padding-top: 12vh;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  html.js-ready .landing-section {
-    opacity: 0;
-    transform: translateY(24px);
-    transition: opacity 0.7s ease, transform 0.7s ease;
-  }
-
-  html.js-ready .landing-section.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Alternating tint in dark mode — 2% was invisible; 5% gives subtle depth */
-[data-md-color-scheme="slate"] .landing-section:nth-of-type(even) {
-  background: color-mix(in srgb, var(--intefl-teal) 5%, var(--md-default-bg-color));
-}
-
-.section-inner {
-  max-width: 960px;
-  margin: 0 auto;
-}
-
-.section-title {
-  font-size: clamp(1.4rem, 3vw, 2rem);
-  font-weight: 800;
-  margin: 0 0 1.2rem 0;
-  color: var(--md-primary-fg-color);
-}
-
-[data-md-color-scheme="slate"] .section-title {
-  background: linear-gradient(135deg, var(--intefl-teal-light), var(--intefl-purple-light));
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-
-.section-lead {
-  font-size: clamp(0.9rem, 1.5vw, 1.05rem);
-  opacity: 0.8;
-  line-height: 1.8;
-  max-width: 620px;
-  margin: 0 auto;
-}
-
-/* ==========================================================================
-   Pipeline Flow Strip
-   ========================================================================== */
-
-.pipeline-flow {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 2.5rem;
-  margin: 2.5rem auto;
-  position: relative;
-  padding: 0 2rem;
-}
-
-/* Connecting line */
-.pipeline-flow::before {
-  content: '';
-  position: absolute;
-  top: 1.1rem;
-  left: 16%;
-  right: 16%;
-  height: 2px;
-  background: linear-gradient(90deg,
-      transparent,
-      var(--intefl-teal),
-      var(--intefl-purple),
-      transparent);
-  z-index: 0;
-  border-radius: 1px;
-}
-
-.pipeline-step {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.step-icon {
-  font-size: 1.6rem;
-  line-height: 1;
-}
-
-.step-label {
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-weight: 600;
-  opacity: 0.85;
-}
-
-.pipeline-caption {
-  font-size: 0.82rem;
-  opacity: 0.4;
-  font-style: italic;
-  margin-top: 0.5rem;
-}
-
-/* ==========================================================================
-   Feature / Doc Card Grid
-   ========================================================================== */
-
-.feature-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1rem;
-  margin-top: 2rem;
-}
-
-.feature-grid--compact {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.feature-card {
-  background: var(--intefl-glass-bg);
-  border: 1px solid var(--intefl-glass-border);
-  border-top: 3px solid var(--card-accent, var(--intefl-teal));
-  border-radius: 8px;
-  padding: 1.5rem 1.2rem;
-  text-align: center;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
-  display: block;
-  text-decoration: none !important;
-  color: inherit;
-  cursor: pointer;
-}
-
-.feature-card *,
-.feature-card *:hover {
-  text-decoration: none !important;
-}
-
-.feature-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--card-accent, var(--intefl-teal)) 18%, transparent);
-  border-color: var(--card-accent, var(--intefl-teal));
-}
-
-.feature-card--flat {
-  cursor: default;
-  border-top-width: 2px;
-  text-align: left;
-}
-
-.feature-card--flat:hover {
-  transform: none;
-}
-
-.feature-icon {
-  font-size: 1.8rem;
-  margin-bottom: 0.5rem;
-  display: block;
-}
-
-.feature-name {
-  font-size: 0.95rem;
-  font-weight: 700;
-  margin-bottom: 0.4rem;
-}
-
-.feature-card p {
-  font-size: 0.8rem;
-  opacity: 0.65;
-  margin: 0;
-  line-height: 1.5;
-}
-
-.feature-card code {
-  font-size: 0.75rem;
-}
-
-/* ==========================================================================
-   Technology Stack Strip
-   ========================================================================== */
-
-.tech-stack {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 1rem;
-  margin-top: 2rem;
-}
-
-.tech-item {
-  background: var(--intefl-glass-bg);
-  border: 1px solid var(--intefl-glass-border);
-  border-radius: 2rem;
-  padding: 0.5rem 1.2rem;
-  font-size: 0.8rem;
-  white-space: nowrap;
-  transition: border-color 0.2s ease;
-}
-
-.tech-item:hover {
-  border-color: var(--intefl-teal);
-}
-
-.tech-item strong {
-  margin-right: 0.3rem;
-}
-
-/* ==========================================================================
-   CTA Section
-   ========================================================================== */
-
-.cta-section {
-  padding: 5rem 2rem !important;
-}
-
-.cta-lead {
-  font-size: clamp(0.9rem, 1.5vw, 1.1rem);
-  opacity: 0.6;
-  margin-bottom: 1.5rem;
-}
-
-.cta-button {
-  font-size: 0.9rem !important;
-  min-width: 220px;
-  border-radius: 3rem !important;
-}
-
-/* ==========================================================================
-   Landing Footer
-   ========================================================================== */
-
-.landing-footer {
-  width: 100vw;
-  margin-left: calc(-50vw + 50%);
-  border-top: 1px solid var(--intefl-glass-border);
-  padding: 1.5rem 2rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1rem;
-  font-size: 0.78rem;
-  opacity: 0.5;
-}
-
-.landing-footer a {
-  opacity: 0.7;
-  transition: opacity 0.2s;
-}
-
-.landing-footer a:hover {
-  opacity: 1;
-}
-
-.landing-footer svg {
-  vertical-align: middle;
-}
-
-/* ==========================================================================
-   Card Grid Enhancements (non-landing pages)
-   ========================================================================== */
-
-.md-typeset .grid.cards>ul>li,
-.md-typeset .grid.cards>ol>li {
-  border: 1px solid var(--md-default-fg-color--lightest);
-  transition: border-color 200ms, box-shadow 200ms;
-}
-
-.md-typeset .grid.cards>ul>li:hover,
-.md-typeset .grid.cards>ol>li:hover {
-  border-color: var(--md-accent-fg-color);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-}
-
-.md-typeset .grid.cards .twemoji,
-.md-typeset .grid.cards .emojione {
-  margin-right: 0.4rem;
-}
-
-/* ==========================================================================
-   Status Badges
-   ========================================================================== */
-
-.md-typeset .badge {
-  display: inline-block;
-  padding: 0.15em 0.5em;
-  border-radius: 1em;
-  font-size: 0.75em;
-  font-weight: 600;
-  vertical-align: middle;
-}
-
-.md-typeset .badge.badge-image {
-  background: linear-gradient(135deg, #26a69a, #009688);
-  color: white;
-}
-
-.md-typeset .badge.badge-text {
-  background: linear-gradient(135deg, #7C4DFF, #651FFF);
-  color: white;
-}
-
-.md-typeset .badge.badge-3d {
-  background: linear-gradient(135deg, #FF6D00, #FF9100);
-  color: white;
-}
-
-/* ==========================================================================
-   Table Styling
-   ========================================================================== */
-
-.md-typeset table:not([class]) {
-  font-size: 0.82rem;
-  width: auto;
-}
-
-.md-typeset table:not([class]) th,
-.md-typeset table:not([class]) td {
-  white-space: nowrap;
-}
-
-[data-md-color-scheme="slate"] .md-typeset table:not([class]) th {
-  background: color-mix(in srgb, var(--intefl-teal) 10%, transparent);
-  border-bottom: 2px solid var(--intefl-teal-dark);
-}
-
-[data-md-color-scheme="slate"] .md-typeset table:not([class]) tr:hover td {
-  background: color-mix(in srgb, var(--intefl-teal) 4%, transparent);
-}
-
-/* ==========================================================================
-   Announcement Bar
-   ========================================================================== */
-
-.md-banner {
-  background-color: var(--md-accent-fg-color);
-  color: white;
-}
-
-/* ==========================================================================
-   Smooth Scrolling
-   ========================================================================== */
 
 html {
   scroll-behavior: smooth;
 }
 
-/* ==========================================================================
-   Footer Social Icons
-   ========================================================================== */
-
-.md-social__link {
-  margin: 0 0.2rem;
+.md-typeset h1,
+.md-typeset h2 {
+  letter-spacing: -0.015em;
 }
 
-/* ==========================================================================
-   Responsive — narrow (max-width: 960px)
-   ========================================================================== */
-
-/* Below this the art has no room beside the copy, so the column centres and takes
-   the full width. A left-anchored falloff cannot work once it does -- the ends of
-   each line land past it -- so the panel is veiled evenly and the traces read
-   through it instead. */
-@media (max-width: 960px) {
-  .md-typeset .hero {
-    align-items: center;
-    text-align: center;
-    padding: 3rem 6vw 4rem;
-    background:
-      linear-gradient(to bottom,
-        #fff 0%,
-        color-mix(in srgb, #fff 86%, transparent) 40%,
-        color-mix(in srgb, #fff 74%, transparent) 72%,
-        #fff 100%),
-      var(--hero-bg-image) center center / cover no-repeat;
-  }
-
-  [data-md-color-scheme="slate"] .md-typeset .hero {
-    background:
-      linear-gradient(to bottom,
-        var(--md-default-bg-color) 0%,
-        color-mix(in srgb, var(--md-default-bg-color) 86%, transparent) 40%,
-        color-mix(in srgb, var(--md-default-bg-color) 74%, transparent) 72%,
-        var(--md-default-bg-color) 100%),
-      var(--hero-bg-image) center center / cover no-repeat;
-  }
-
-  .md-typeset .hero > * {
-    max-width: 100%;
-  }
-
-  .md-typeset .hero .hero-subtitle {
-    max-width: 100%;
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  /* 42vw is a narrow column on a phone; the centred layout gets the full width. */
-  .hero-tagline,
-  .hero-modes {
-    max-width: 100%;
-  }
-
-  .md-typeset .hero .hero-buttons {
-    justify-content: center;
-  }
+.md-header {
+  box-shadow: 0 1px 0 var(--phx-line);
 }
 
-/* ==========================================================================
-   Responsive — Tablet (max-width: 768px)
-   ========================================================================== */
+/* Tables */
+.md-typeset table:not([class]) {
+  font-size: 0.8rem;
+  border: 1px solid var(--phx-line);
+  border-radius: 8px;
+}
 
+.md-typeset table:not([class]) th {
+  background: color-mix(in srgb, var(--phx-teal) 9%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--phx-teal) 35%, transparent);
+}
+
+/* Identifier columns (module paths, keys) read as one token, never split mid-name. */
+.md-typeset table:not([class]) td:first-child code {
+  white-space: nowrap;
+}
+
+.md-typeset table:not([class]) tr:hover td {
+  background: color-mix(in srgb, var(--phx-teal) 4%, transparent);
+}
+
+/* On a phone the prose column scrolls sideways (Material's table wrapper) rather than
+   collapsing to a word per line. */
 @media (max-width: 768px) {
-
-  /* Hero */
-  .md-typeset .hero {
-    padding: 1rem 1.2rem 2.5rem;
-    min-height: 100vh;
-    min-height: 100dvh;
-  }
-
-  .md-typeset .hero h1 {
-    font-size: clamp(1.8rem, 8vw, 2.4rem);
-  }
-
-  .hero-buttons {
-    width: 100%;
-    align-items: center;
-  }
-
-  .hero-buttons > p {
-    flex-direction: column;
-    row-gap: 0.5rem;
-    column-gap: 0;
-    width: 100%;
-    align-items: center;
-  }
-
-  .hero-buttons .md-button {
-    min-width: 0;
-    width: 70%;
-    max-width: 260px;
-    padding: 0.6rem 1.2rem !important;
-    font-size: 0.78rem !important;
-  }
-
-  .hero-modes {
-    font-size: 0.65rem;
-    letter-spacing: 0.08em;
-  }
-
-  /* Landing sections */
-  .landing-section {
-    padding: 3.5rem 1.2rem;
-  }
-
-  .landing-section--intro,
-  .landing-section--promise {
-    min-height: 70vh;
-    min-height: 70svh;
-  }
-
-  .landing-section--intro {
-    padding-bottom: 8vh;
-  }
-
-  .landing-section--promise {
-    padding-top: 8vh;
-  }
-
-  /* Pipeline */
-  .pipeline-flow {
-    gap: 1.2rem;
-    padding: 0 0.5rem;
-  }
-
-  .pipeline-flow::before {
-    left: 6%;
-    right: 6%;
-  }
-
-  .step-icon {
-    font-size: 1.3rem;
-  }
-
-  /* Feature grid — 2 cols */
-  .feature-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .feature-grid--compact {
-    grid-template-columns: 1fr;
-  }
-
-  /* Tables scroll horizontally */
-  .md-typeset table:not([class]) {
-    display: block;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    font-size: 0.78rem;
-  }
-
-  /* Tech stack wrap tighter */
-  .tech-stack {
-    gap: 0.6rem;
+  .md-typeset table:not([class]) td:not(:first-child) {
+    min-width: 15rem;
   }
 }
 
-/* ==========================================================================
-   Responsive — Small Phones (max-width: 480px)
-   ========================================================================== */
-
-@media (max-width: 480px) {
-  .md-typeset .hero {
-    padding: 0.5rem 0.8rem 1.5rem;
-  }
-
-  .md-typeset .hero h1 {
-    font-size: clamp(1.5rem, 9vw, 2rem);
-    letter-spacing: -0.02em;
-  }
-
-  .md-typeset .hero .hero-subtitle {
-    font-size: 0.7rem;
-  }
-
-  .hero-buttons .md-button {
-    width: 80%;
-    max-width: 220px;
-    padding: 0.5rem 1rem !important;
-    font-size: 0.72rem !important;
-  }
-
-  .hero-modes {
-    font-size: 0.58rem;
-  }
-
-  /* Feature grid — single col */
-  .feature-grid,
-  .feature-grid--compact {
-    grid-template-columns: 1fr;
-  }
-
-  /* Landing sections */
-  .landing-section {
-    padding: 2.5rem 1rem;
-  }
-
-  .landing-section--intro,
-  .landing-section--promise {
-    min-height: 65vh;
-    min-height: 65svh;
-    padding-top: 3rem;
-    padding-bottom: 3rem;
-  }
-
-  /* Pipeline tighter */
-  .pipeline-flow {
-    gap: 0.6rem;
-    padding: 0 0.3rem;
-  }
-
-  .pipeline-flow::before {
-    left: 3%;
-    right: 3%;
-  }
-
-  .step-icon {
-    font-size: 1.1rem;
-  }
-
-  .step-label {
-    font-size: 0.55rem;
-  }
-
-  .scroll-hint {
-    margin-top: -2rem;
-  }
-
-  /* Typography tighten */
-  .md-typeset h1:not(.hero h1) {
-    font-size: 1.4rem;
-  }
-
-  .md-typeset h2 {
-    font-size: 1.15rem;
-  }
-
-  .md-typeset h3 {
-    font-size: 1rem;
-  }
-
-  .md-typeset pre>code {
-    font-size: 0.75rem;
-  }
-}
-
-/* ==========================================================================
-   Responsive — Extra Small (max-width: 360px)
-   ========================================================================== */
-
-@media (max-width: 360px) {
-  .md-typeset .hero {
-    padding: 0.3rem 0.6rem 1.2rem;
-  }
-
-  .hero-buttons .md-button {
-    width: 90%;
-    font-size: 0.68rem !important;
-    padding: 0.45rem 0.8rem !important;
-  }
-
-  .hero-modes {
-    font-size: 0.52rem;
-    letter-spacing: 0.06em;
-  }
-}
-
-/* ==========================================================================
-   Responsive — Wide Desktop (min-width: 1440px)
-   ========================================================================== */
-
-@media (min-width: 1440px) {
-  .md-typeset .hero {
-    padding-bottom: 6rem;
-  }
-
-  .md-typeset .hero h1 {
-    font-size: 3.8rem;
-  }
-
-  .md-typeset .hero .hero-subtitle {
-    font-size: 1.15rem;
-  }
-
-  .hero-buttons .md-button {
-    min-width: 220px;
-    padding: 0.85rem 2.2rem !important;
-    font-size: 0.9rem !important;
-  }
-
-  .hero-modes {
-    font-size: 0.84rem;
-  }
-
-  .feature-grid {
-    gap: 1.2rem;
-  }
-}
-
-/* ==========================================================================
-   Responsive — Ultra-Wide (min-width: 1920px)
-   ========================================================================== */
-
-@media (min-width: 1920px) {
-  .md-typeset .hero {
-    padding-bottom: 8rem;
-  }
-
-  .md-typeset .hero h1 {
-    font-size: 4.2rem;
-  }
-
-  .md-typeset .hero .hero-subtitle {
-    font-size: 1.25rem;
-  }
-}
-
-/* ==========================================================================
-   Light-Mode Polish
-   Explicit [data-md-color-scheme="default"] overrides for things that look
-   fine in dark mode but need attention on white backgrounds.
-   ========================================================================== */
-
-/* Glass surfaces need a visible tinted base — 3% white ≈ invisible on white */
-[data-md-color-scheme="default"] {
-  --intefl-glass-bg: color-mix(in srgb, var(--intefl-teal) 6%, #fff);
-  --intefl-glass-border: color-mix(in srgb, var(--intefl-teal) 22%, transparent);
-}
-
-/* Light-mode hero — lighter overlays since the light image is already soft */
-[data-md-color-scheme="default"] .md-typeset .hero {
-  background:
-    radial-gradient(ellipse at center, transparent 30%, color-mix(in srgb, #fff 10%, transparent) 70%, color-mix(in srgb, #fff 50%, transparent) 100%),
-    linear-gradient(to bottom,
-      transparent 0%,
-      transparent 50%,
-      color-mix(in srgb, #fff 60%, transparent) 80%,
-      #fff 100%),
-    var(--hero-bg-image) center 48px / contain no-repeat;
-}
-
-/* Hero h1 in dark mode gets the teal→purple gradient; light mode had plain black */
-[data-md-color-scheme="default"] .md-typeset .hero h1 {
-  background: linear-gradient(135deg, var(--intefl-teal-dark) 0%, var(--intefl-teal) 60%, #26A69A 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.3));
-}
-
-/* Section headings: flat teal in light; add gradient to match dark mode treatment */
-[data-md-color-scheme="default"] .section-title {
-  background: linear-gradient(135deg, var(--intefl-teal-dark) 0%, var(--intefl-teal) 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-
-/* Landing page text — dark text on white backgrounds so it's actually readable */
-[data-md-color-scheme="default"] .landing-section {
-  color: #2e2e2e;
-}
-
-[data-md-color-scheme="default"] .section-lead {
-  color: #444;
-}
-
-[data-md-color-scheme="default"] .pipeline-caption {
-  color: #666;
-}
-
-[data-md-color-scheme="default"] .feature-card p {
-  color: #555;
-  opacity: 0.85;
-}
-
-[data-md-color-scheme="default"] .feature-card--flat .feature-name {
-  color: #2e2e2e;
-}
-
-/* Tech stack chips — visible borders and dark text */
-[data-md-color-scheme="default"] .tech-item {
-  color: #333;
-  border-color: color-mix(in srgb, var(--intefl-teal) 30%, transparent);
-}
-
-/* Light mode alternating section tint */
-[data-md-color-scheme="default"] .landing-section:nth-of-type(even) {
-  background: color-mix(in srgb, var(--intefl-teal) 4%, #fff);
-}
-
-/* CTA section text */
-[data-md-color-scheme="default"] .cta-lead {
-  color: #555;
-}
-
-/* Pipeline step labels — ensure they stay visible on white */
-[data-md-color-scheme="default"] .step-icon {
-  color: var(--intefl-teal);
-}
-
-/* Scroll indicator — visible on white */
-[data-md-color-scheme="default"] .scroll-chevron {
-  border-color: var(--intefl-teal-dark);
-}
-
-/* Landing footer — dark text on white */
-[data-md-color-scheme="default"] .landing-footer {
-  color: #555;
-  border-top-color: color-mix(in srgb, var(--intefl-teal) 20%, transparent);
-}
-
-/* Hero subtitle — ensure readability on lightened hero bg */
-[data-md-color-scheme="default"] .md-typeset .hero .hero-subtitle {
-  color: #1a1a1a;
-  opacity: 1;
-}
-
-/* Hero modes (tagline strip) — ensure readability */
-[data-md-color-scheme="default"] .hero-modes {
-  color: #444;
-  opacity: 0.85;
-}
-
-/* Hero buttons — thin dark outlines in light mode */
-[data-md-color-scheme="default"] .hero .md-button--primary {
-  border: 1px solid rgba(0, 0, 0, 0.2) !important;
-}
-
-[data-md-color-scheme="default"] .hero .md-button:not(.md-button--primary) {
-  border: 1px solid rgba(0, 0, 0, 0.25) !important;
-  color: var(--intefl-teal-dark) !important;
-  background: color-mix(in srgb, #fff 80%, transparent) !important;
-}
-
-[data-md-color-scheme="default"] .hero .md-button:not(.md-button--primary):hover {
-  background: #fff !important;
-  border-color: var(--intefl-teal) !important;
-}
-
-/* Feature card link text — visible name color */
-[data-md-color-scheme="default"] .feature-card .feature-name {
-  color: #1a1a1a;
-}
-
-/* Light-mode table header styling */
-[data-md-color-scheme="default"] .md-typeset table:not([class]) th {
-  background: color-mix(in srgb, var(--intefl-teal) 8%, #fff);
-  border-bottom: 2px solid var(--intefl-teal);
-}
-
-/* ==========================================================================
-   Research Posters
-   Used by docs/research/**/index.md for poster thumbnails. The detail page
-   (rit-capstone-2025-intellifl/index.md) has a bare <img>; the landing page
-   (research/index.md) wraps the image in an <a> for navigation.
-   ========================================================================== */
-
+/* Research posters: a bare <img> on the detail page, wrapped in a link on the index. */
 .md-typeset img.research-poster {
   max-width: 100%;
   height: auto;
-  border-radius: 6px;
+  border-radius: 8px;
   display: block;
   margin: 1rem auto;
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--intefl-teal) 15%, transparent);
+  border: 1px solid var(--phx-line);
+  box-shadow: 0 6px 22px var(--phx-shadow);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .md-typeset a:hover img.research-poster {
   transform: translateY(-2px);
-  box-shadow: 0 6px 24px color-mix(in srgb, var(--intefl-teal) 28%, transparent);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-}/* Brand mark in the footer copyright (inverted to light on the dark footer) */
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--phx-teal) 26%, transparent);
+}
+
+/* Brand mark in the footer copyright: dark art, inverted on dark footers. */
 .md-copyright .brand-mark,
 .landing-footer .brand-mark {
   height: 1em;
@@ -1140,9 +136,13 @@ html {
   vertical-align: -0.18em;
   margin: 0 0.15rem;
   opacity: 0.75;
+}
+
+[data-md-color-scheme="slate"] .md-copyright .brand-mark,
+[data-md-color-scheme="slate"] .landing-footer .brand-mark {
   filter: invert(1);
 }
-/* Light mode: brand mark stays dark on the (light) content-page footer */
-[data-md-color-scheme="default"] .md-copyright .brand-mark {
-  filter: none;
+
+.md-social__link {
+  margin: 0 0.2rem;
 }

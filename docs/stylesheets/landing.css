@@ -1,0 +1,634 @@
+/* ==========================================================================
+   Landing page: hero, sections, pipeline strip, cards, footer.
+   Every colour comes from the scheme tokens in extra.css.
+   ========================================================================== */
+
+:root>* {
+  --hero-bg-image: url('../assets/phalanx-hero-light.jpg');
+}
+
+[data-md-color-scheme="slate"] {
+  --hero-bg-image: url('../assets/phalanx-hero.jpg');
+}
+
+body.hero-page .md-footer {
+  display: none !important;
+}
+
+html.hero-page,
+body.hero-page {
+  overflow-x: hidden !important;
+}
+
+body.hero-page .md-main__inner,
+body.hero-page .md-content__inner {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+/* The content column is capped, so a full-bleed block breaks out of it. */
+.md-typeset .hero,
+.landing-section,
+.landing-footer {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+}
+
+/* --------------------------------------------------------------------------
+   Hero
+   -------------------------------------------------------------------------- */
+
+.md-typeset .hero {
+  /* The scrim is built from the copy column's edge, so text never lands on bare art. */
+  --hero-copy-width: min(34rem, 44vw);
+  --hero-copy-edge: calc(7vw + var(--hero-copy-width));
+  position: relative;
+  min-height: calc(100vh - 3rem);
+  min-height: calc(100dvh - 3rem);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  text-align: left;
+  padding: 4rem 7vw 5rem;
+  margin-top: 0;
+  margin-bottom: 0;
+  overflow: hidden;
+  background:
+    linear-gradient(to right,
+      var(--phx-bg) 0%,
+      var(--phx-bg) calc(var(--hero-copy-edge) - 6rem),
+      color-mix(in srgb, var(--phx-bg) 90%, transparent) calc(var(--hero-copy-edge) - 2rem),
+      color-mix(in srgb, var(--phx-bg) 68%, transparent) calc(var(--hero-copy-edge) + 3rem),
+      color-mix(in srgb, var(--phx-bg) 36%, transparent) calc(var(--hero-copy-edge) + 9rem),
+      color-mix(in srgb, var(--phx-bg) 12%, transparent) calc(var(--hero-copy-edge) + 15rem),
+      transparent calc(var(--hero-copy-edge) + 21rem)),
+    linear-gradient(to bottom,
+      transparent 70%,
+      var(--phx-bg) 100%),
+    var(--hero-bg-image) right center / cover no-repeat,
+    var(--phx-bg);
+}
+
+.md-typeset .hero>* {
+  position: relative;
+  z-index: 1;
+  max-width: var(--hero-copy-width);
+}
+
+.md-typeset .hero h1 {
+  display: flex;
+  align-items: center;
+  gap: 0.2em;
+  font-size: clamp(2.6rem, 5.4vw, 4rem);
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  margin: 0 0 0.9rem;
+  color: var(--phx-teal-strong);
+}
+
+/* The text fill is a gradient; the mark beside it keeps a solid colour. */
+.md-typeset .hero h1 .hero-wordmark {
+  background: var(--phx-title);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  padding-bottom: 0.06em;
+}
+
+.md-typeset .hero h1 .hero-mark {
+  font-size: 0.95em;
+  color: var(--phx-teal);
+}
+
+.md-typeset .hero h1 .headerlink {
+  display: none;
+}
+
+.md-typeset .hero .hero-subtitle {
+  font-size: clamp(1.02rem, 1.6vw, 1.25rem);
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--phx-text-soft);
+  margin: 0 0 2rem;
+}
+
+.md-typeset .hero .hero-buttons>p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem 1rem;
+  margin: 0 0 2rem;
+}
+
+.hero-buttons .md-button {
+  min-width: 11rem;
+  padding: 0.72rem 1.7rem !important;
+  border-radius: 3rem !important;
+  font-size: 0.84rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-align: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+/* The primary call to action is heavier than the secondary. */
+.hero-buttons .md-button--primary {
+  background: var(--phx-teal) !important;
+  border: 1px solid var(--phx-teal) !important;
+  color: var(--phx-on-teal) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--phx-teal) 32%, transparent);
+}
+
+.hero-buttons .md-button--primary:hover,
+.hero-buttons .md-button--primary:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--phx-teal) 45%, transparent);
+}
+
+.hero-buttons .md-button:not(.md-button--primary) {
+  background: color-mix(in srgb, var(--phx-bg) 70%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--phx-teal) 40%, transparent) !important;
+  color: var(--phx-teal-strong) !important;
+  backdrop-filter: blur(6px);
+}
+
+.hero-buttons .md-button:not(.md-button--primary):hover,
+.hero-buttons .md-button:not(.md-button--primary):focus-visible {
+  border-color: var(--phx-teal) !important;
+  background: color-mix(in srgb, var(--phx-teal) 12%, var(--phx-bg)) !important;
+}
+
+.hero-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.hero-modes .hero-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--phx-line);
+  border-radius: 2rem;
+  background: color-mix(in srgb, var(--phx-card) 70%, transparent);
+  color: var(--phx-text-soft);
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.hero-modes .hero-chip .material-symbols-outlined {
+  font-size: 1rem;
+  color: var(--phx-teal);
+}
+
+.scroll-hint {
+  text-align: center;
+  margin-top: -3.2rem;
+  padding-bottom: 1.2rem;
+  position: relative;
+  z-index: 2;
+}
+
+.scroll-chevron {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-right: 2px solid var(--phx-teal);
+  border-bottom: 2px solid var(--phx-teal);
+  transform: rotate(45deg);
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .scroll-hint {
+    animation: hint-bounce 2s ease-in-out infinite;
+  }
+
+  @keyframes hint-bounce {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(6px);
+    }
+  }
+}
+
+/* Below this the art has no room beside the copy: it sits above, fading into the page. */
+@media (max-width: 960px) {
+  .md-typeset .hero {
+    min-height: auto;
+    align-items: center;
+    text-align: center;
+    justify-content: flex-end;
+    padding: min(56vw, 24rem) 1.4rem 3.5rem;
+    background:
+      linear-gradient(to bottom,
+        transparent 0%,
+        transparent calc(min(56vw, 24rem) * 0.55),
+        var(--phx-bg) min(56vw, 24rem)),
+      var(--hero-bg-image) 70% top / auto min(60vw, 26rem) no-repeat,
+      var(--phx-bg);
+  }
+
+  .md-typeset .hero>* {
+    max-width: 36rem;
+  }
+
+  .md-typeset .hero h1 {
+    justify-content: center;
+    font-size: clamp(2.2rem, 10vw, 3rem);
+  }
+
+  .md-typeset .hero .hero-buttons>p,
+  .hero-modes {
+    justify-content: center;
+  }
+
+  .scroll-hint {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .md-typeset .hero .hero-buttons>p {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hero-buttons .md-button {
+    min-width: 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Sections
+   -------------------------------------------------------------------------- */
+
+.landing-section {
+  padding: 4.5rem 1.5rem;
+  text-align: center;
+  background: var(--phx-bg);
+}
+
+.landing-section--alt {
+  background: var(--phx-bg-2);
+  border-top: 1px solid var(--phx-line);
+  border-bottom: 1px solid var(--phx-line);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html.js-ready .landing-section {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+
+  html.js-ready .landing-section.visible {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.section-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.section-eyebrow {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--phx-teal);
+  margin-bottom: 0.6rem;
+}
+
+.md-typeset .landing-section .section-title {
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0 0 1rem;
+  color: var(--phx-text);
+}
+
+.md-typeset .section-lead {
+  font-size: clamp(1rem, 1.4vw, 1.12rem);
+  line-height: 1.7;
+  max-width: 64ch;
+  margin: 0 auto;
+  color: var(--phx-text-soft);
+}
+
+.md-typeset .section-lead strong {
+  color: var(--phx-text);
+}
+
+/* --------------------------------------------------------------------------
+   Pipeline strip: one federated round, left to right
+   -------------------------------------------------------------------------- */
+
+.md-typeset ol.pipeline-flow {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin: 2.6rem 0 1.4rem;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.md-typeset ol.pipeline-flow>li.pipeline-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 1.15rem 0.7rem 1rem;
+  background: var(--phx-card);
+  border: 1px solid var(--phx-line);
+  border-top: 3px solid var(--step-accent, var(--phx-teal));
+  border-radius: 12px;
+  box-shadow: 0 1px 3px var(--phx-shadow);
+  counter-increment: step;
+}
+
+.md-typeset .pipeline-step::before {
+  content: counter(step, decimal-leading-zero);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--phx-text-muted);
+}
+
+/* Connector between steps, drawn in the gap. */
+.md-typeset .pipeline-step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -0.9rem;
+  width: 0.9rem;
+  height: 2px;
+  background: linear-gradient(to right, var(--phx-teal), var(--phx-violet));
+  opacity: 0.55;
+}
+
+.step-icon {
+  font-size: 1.7rem;
+  color: var(--step-accent, var(--phx-teal));
+}
+
+.step-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--phx-text);
+}
+
+.step-detail {
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--phx-text-muted);
+}
+
+.md-typeset .pipeline-caption {
+  font-size: 0.9rem;
+  color: var(--phx-text-muted);
+  max-width: 62ch;
+  margin: 0 auto;
+}
+
+@media (max-width: 960px) {
+  .md-typeset ol.pipeline-flow {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .md-typeset .pipeline-step:nth-child(3n)::after {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .md-typeset ol.pipeline-flow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+  }
+
+  .md-typeset .pipeline-step::after {
+    display: none;
+  }
+
+  .md-typeset .pipeline-step:nth-child(3n)::after {
+    display: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Showcase facts
+   -------------------------------------------------------------------------- */
+
+.md-typeset .spec-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 2.4rem 0 0;
+  text-align: left;
+}
+
+.spec {
+  padding: 1.1rem 1.2rem;
+  background: var(--phx-card);
+  border: 1px solid var(--phx-line);
+  border-radius: 12px;
+}
+
+.spec-key {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--phx-teal);
+  margin-bottom: 0.4rem;
+}
+
+.spec-value {
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 650;
+  color: var(--phx-text);
+  line-height: 1.35;
+}
+
+.spec-note {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+  color: var(--phx-text-muted);
+  margin-top: 0.3rem;
+  line-height: 1.45;
+}
+
+.md-typeset .stack-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1.8rem 0 0;
+}
+
+.stack-chip {
+  padding: 0.32rem 0.8rem;
+  border-radius: 2rem;
+  border: 1px solid var(--phx-line);
+  background: var(--phx-card);
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--phx-text-soft);
+}
+
+@media (max-width: 960px) {
+  .md-typeset .spec-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .md-typeset .spec-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Explore cards
+   -------------------------------------------------------------------------- */
+
+.md-typeset .feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.1rem;
+  margin-top: 2.4rem;
+  text-align: left;
+}
+
+.md-typeset a.feature-card,
+.md-typeset a.feature-card:hover,
+.md-typeset a.feature-card:focus-visible {
+  display: flex;
+  flex-direction: column;
+  color: inherit;
+  text-decoration: none;
+}
+
+.md-typeset .feature-card {
+  padding: 1.4rem 1.35rem 1.25rem;
+  background: var(--phx-card);
+  border: 1px solid var(--phx-line);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px var(--phx-shadow);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.md-typeset .feature-card:hover,
+.md-typeset .feature-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--card-accent, var(--phx-teal)) 55%, transparent);
+  box-shadow: 0 12px 30px var(--phx-shadow);
+}
+
+.feature-icon {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-bottom: 0.9rem;
+  border-radius: 10px;
+  font-size: 1.4rem;
+  color: var(--card-accent, var(--phx-teal));
+  background: color-mix(in srgb, var(--card-accent, var(--phx-teal)) 13%, transparent);
+}
+
+.feature-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--phx-text);
+  margin-bottom: 0.35rem;
+}
+
+.md-typeset .feature-card p {
+  flex: 1;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--phx-text-soft);
+  margin: 0 0 1rem;
+}
+
+.feature-go {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--card-accent, var(--phx-teal));
+}
+
+.md-typeset .feature-card code {
+  background: color-mix(in srgb, var(--phx-teal) 11%, transparent);
+  color: var(--phx-teal-strong);
+  font-size: 0.82em;
+}
+
+/* --------------------------------------------------------------------------
+   Footer
+   -------------------------------------------------------------------------- */
+
+.landing-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 1.8rem 1.5rem;
+  font-size: 0.84rem;
+  color: var(--phx-text-muted);
+  background: var(--phx-bg);
+  border-top: 1px solid var(--phx-line);
+}
+
+.md-typeset .landing-footer a {
+  display: inline-flex;
+  color: var(--phx-text-muted);
+  transition: color 0.2s ease;
+}
+
+.md-typeset .landing-footer a:hover,
+.md-typeset .landing-footer a:focus-visible {
+  color: var(--phx-teal);
+}
+
+.landing-footer svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.spec-note code {
+  font-size: 0.72rem;
+}
+
+@media (max-width: 600px) {
+  .landing-section {
+    padding: 3rem 1.1rem;
+  }
+
+  .md-typeset .hero {
+    padding-bottom: 2rem;
+  }
+}
