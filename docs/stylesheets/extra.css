@@ -13,8 +13,8 @@
   --phx-line: rgba(13, 62, 58, 0.13);
   --phx-text: #0e1d1c;
   --phx-text-soft: rgba(14, 29, 28, 0.78);
-  --phx-text-muted: rgba(14, 29, 28, 0.6);
-  --phx-teal: #0d7d73;
+  --phx-text-muted: rgba(14, 29, 28, 0.68);
+  --phx-teal: #0b6f66;
   --phx-teal-strong: #095c55;
   --phx-violet: #6a3fd1;
   --phx-on-teal: #ffffff;
@@ -82,6 +82,12 @@ html {
   box-shadow: 0 1px 0 var(--phx-line);
 }
 
+/* The current page in the sidebar takes the link colour, not the violet accent. */
+.md-nav--primary .md-nav__item .md-nav__link--active {
+  background: color-mix(in srgb, var(--phx-teal) 12%, transparent);
+  color: var(--phx-teal-strong);
+}
+
 /* Tables */
 .md-typeset table:not([class]) {
   font-size: 0.8rem;
@@ -103,11 +109,46 @@ html {
   background: color-mix(in srgb, var(--phx-teal) 4%, transparent);
 }
 
-/* On a phone the prose column scrolls sideways (Material's table wrapper) rather than
-   collapsing to a word per line. */
+/* On a phone a prose column keeps a readable width; past that the table scrolls inside
+   its wrapper instead of collapsing to a word per line. */
 @media (max-width: 768px) {
+  .md-typeset table:not([class]) :is(th, td) {
+    padding: 0.6em 0.7em;
+  }
+
   .md-typeset table:not([class]) td:not(:first-child) {
-    min-width: 15rem;
+    min-width: 10rem;
+  }
+
+}
+
+/* On a phone a two-column table (name, role) stacks: the name above, its role full width. */
+@media (max-width: 600px) {
+  .md-typeset table:not([class]):has(th:nth-child(2):last-child) {
+    display: block;
+  }
+
+  .md-typeset table:not([class]):has(th:nth-child(2):last-child) thead {
+    display: none;
+  }
+
+  .md-typeset table:not([class]):has(th:nth-child(2):last-child) :is(tbody, tr, td) {
+    display: block;
+    min-width: 0;
+  }
+
+  .md-typeset table:not([class]):has(th:nth-child(2):last-child) tr {
+    border-top: 1px solid var(--phx-line);
+    padding: 0.4em 0;
+  }
+
+  .md-typeset table:not([class]):has(th:nth-child(2):last-child) tr:first-child {
+    border-top: 0;
+  }
+
+  .md-typeset table:not([class]):has(th:nth-child(2):last-child) td {
+    border: 0;
+    padding: 0.2em 0.8em;
   }
 }
 

@@ -335,6 +335,13 @@ body.hero-page .md-content__inner {
   color: var(--phx-text);
 }
 
+/* Centring is for one-liners; a phone-width lead runs to many lines. */
+@media (max-width: 600px) {
+  .md-typeset .section-lead {
+    text-align: left;
+  }
+}
+
 /* --------------------------------------------------------------------------
    Pipeline strip: one federated round, left to right
    -------------------------------------------------------------------------- */

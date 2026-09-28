@@ -37,7 +37,7 @@ Federated learning on the latest Flower, with OpenTelemetry-native observability
   <div class="section-inner">
     <span class="section-eyebrow">What is Phalanx?</span>
     <h2 class="section-title">A federated run you can watch, round by round</h2>
-    <p class="section-lead">Phalanx is a federated-learning research testbed on the latest Flower release. The server emits a span and FL metrics for every round, and each client emits a span for its local train and evaluate pass, so a federated run is visible in any OTLP backend: <strong>Jaeger</strong>, <strong>Grafana Tempo</strong>, or an <strong>OpenTelemetry Collector</strong>.</p>
+    <p class="section-lead">A federated-learning research testbed on the latest Flower release. Every round emits a server span and FL metrics, every client a span for its train and evaluate pass, so the whole run shows up in <strong>Jaeger</strong>, <strong>Grafana Tempo</strong> or any <strong>OpenTelemetry Collector</strong>.</p>
   </div>
 </section>
 
