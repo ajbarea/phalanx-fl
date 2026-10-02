@@ -28,7 +28,7 @@ make trace       # run with OpenTelemetry traces printed to the console
 The first run downloads the model (`google/bert_uncased_L-2_H-128_A-2`, ~18 MB) and
 the IMDB dataset, then trains on CPU. Subsequent runs reuse the cache.
 
-## Federation setup (flwr 1.36)
+## Federation setup (flwr 1.39)
 
 Federation settings live outside `pyproject.toml`: the SuperLink connection belongs
 to the Flower config (`~/.flwr/config.toml`, or `$FLWR_HOME`), and Simulation Runtime

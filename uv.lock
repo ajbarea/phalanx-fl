@@ -800,7 +800,7 @@ wheels = [
 
 [[package]]
 name = "flwr"
-version = "1.36.0"
+version = "1.39.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "alembic" },
@@ -828,9 +828,9 @@ dependencies = [
     { name = "uv" },
     { name = "uvicorn", extra = ["standard"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/87/90/00a44e2c351c40b4c0db633de89e06de715cb70ecd343fc40186a1411671/flwr-1.36.0.tar.gz", hash = "sha256:e3bba2725541edd249cb1ec955f25f54452fd8d9745acfecc2a84b87b8785506", size = 650032, upload-time = "2026-09-01T13:43:56.024Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/97/86/711d3da5e948b0ec957fc515160aee1a1ea2af40dbe12d721cc18e437ecc/flwr-1.39.0.tar.gz", hash = "sha256:bd7ed21024f9f2bdc1f1c76c1e1e8d8f1ebe27082717fc648518fb043784f81f", size = 697815, upload-time = "2026-09-28T23:26:21.274Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5e/5f/2c5787bb3d5b49e046e794f403d818a721a9d27faf4a5bb7f5cb55d52570/flwr-1.36.0-py3-none-any.whl", hash = "sha256:09627ef5cb3cec390e66be7f0a694df72c096ff6a009fdb154275b474aef51cc", size = 1146013, upload-time = "2026-09-01T13:43:54.596Z" },
+    { url = "https://files.pythonhosted.org/packages/c8/a7/bbc515a494f80678c3d1e76a32b84b48ae5dc81154a7393d2190c6574cb8/flwr-1.39.0-py3-none-any.whl", hash = "sha256:5b8992dbae13223e8ada71e97bb1abac8d269ecaea672322c0aea53dfb2cedbc", size = 1206943, upload-time = "2026-09-28T23:26:23.043Z" },
 ]
 
 [package.optional-dependencies]
@@ -2237,7 +2237,7 @@ dev = [
 requires-dist = [
     { name = "datasets", marker = "extra == 'hf'", specifier = ">=2.15,<5" },
     { name = "evaluate", marker = "extra == 'hf'", specifier = ">=0.4" },
-    { name = "flwr", extras = ["simulation"], specifier = ">=1.36" },
+    { name = "flwr", extras = ["simulation"], specifier = ">=1.39" },
     { name = "flwr-datasets", specifier = ">=0.6" },
     { name = "numpy", specifier = ">=2" },
     { name = "opentelemetry-exporter-otlp", specifier = ">=1.30" },

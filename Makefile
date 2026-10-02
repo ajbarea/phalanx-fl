@@ -1,4 +1,4 @@
-## Phalanx — federated learning on the latest Flower (flwr 1.36 app-model).
+## Phalanx — federated learning on the latest Flower (flwr 1.39 app-model).
 ## An OTel-observable FL research testbed: a federated LoRA fine-tune of a tiny BERT,
 ## aggregating only the adapters.
 ##
