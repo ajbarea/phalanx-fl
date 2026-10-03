@@ -11,10 +11,10 @@ that, plus the OpenTelemetry observability layer that is the project's different
 
 ## Core runtime
 
-- **`flwr[simulation]>=1.36`** — Flower, on the current **Message API** app-model
+- **`flwr[simulation]>=1.39`** — Flower, on the current **Message API** app-model
   (`ServerApp`/`@app.main`, `ClientApp`/`@app.train`, `ArrayRecord`/`Message`/`RecordDict`,
   `strategy.start`). The `[simulation]` extra pulls the Ray-backed Simulation Engine
-  that `flwr run` drives. Floor is `>=1.36`; bump it forward as Flower releases,
+  that `flwr run` drives. Floor is `>=1.39`; bump it forward as Flower releases,
   never back.
 - **`flwr-datasets>=0.6`** — federated dataset partitioning (`FederatedDataset`,
   `DirichletPartitioner`, `IidPartitioner`). This is what makes the showcase non-IID.

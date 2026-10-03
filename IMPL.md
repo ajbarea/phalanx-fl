@@ -38,6 +38,13 @@ keeps that worktree's venv and cwd for every later run, from any worktree. Stop 
 (`flower-superexec`, `flower-superlink`) before switching, and read a run's verdict from
 `Received N results and 0 failures`: `flwr run` exits 0 when every client fails.
 
+**flwr 1.39 (2026-10-02).** No app-code changes. Since 1.38 (flwrlabs/flower#8175) an
+instruction `Message` reads `TaskIdentity.run_id`, which the runtime sets and a unit test
+does not; `tests/test_server.py` sets it with an autouse fixture, as flwr's own tests do.
+Since 1.37 the CLI reaches the local SuperLink over HTTP: it probes `/health` on 39091
+(`FLWR_LOCAL_SUPERLINK_HTTP_API_PORT`); 39093 (`FLWR_LOCAL_CONTROL_API_PORT`) is the gRPC
+Control API, now off by default. An isolated run sets `FLWR_HOME` and both.
+
 ---
 
 ## Background
@@ -154,7 +161,7 @@ unreadable, fixed there in ariadne#46.
 ### Dependabot: 5 alerts are upstream pins in flwr (2026-09-13, dismissed 2026-09-26)
 
 4 alerts against `cryptography` 46.0.7 and 1 against `ray` 2.55.1, both transitive
-through `flwr[simulation]`. `flwr` 1.36.0, 1.38.0 and `flwrlabs/flower` main all pin
+through `flwr[simulation]`. `flwr` 1.36.0 through 1.39.0 and `flwrlabs/flower` main all pin
 `cryptography<47.0.0,>=46.0.7` and `ray==2.55.1`, so no lock bump reaches the fixes
 (`cryptography` >= 50.0.0, `ray` >= 2.56.0).
 

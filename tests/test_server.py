@@ -12,6 +12,7 @@ from typing import Any, cast
 import numpy as np
 import pytest
 from flwr.app import Array, ArrayRecord, Error, Message, MetricRecord, RecordDict
+from flwr.supercore.task_identity import TaskIdentity
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
@@ -34,6 +35,14 @@ def _setup() -> tuple[InMemorySpanExporter, InMemoryMetricReader]:
         metric_reader=metric_reader,
     )
     return span_exporter, metric_reader
+
+
+@pytest.fixture(autouse=True)
+def task_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Set the task identity flwr's runtime sets before a ServerApp builds messages."""
+    monkeypatch.setattr(TaskIdentity, "_task_id", 1)
+    monkeypatch.setattr(TaskIdentity, "_run_id", 1)
+    monkeypatch.setattr(TaskIdentity, "_node_id", 1)
 
 
 def _reply(content: RecordDict) -> Message:

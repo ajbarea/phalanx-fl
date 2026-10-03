@@ -22,7 +22,7 @@ Federated learning on the latest Flower, with OpenTelemetry-native observability
 </div>
 
 <div class="hero-modes">
-  <span class="hero-chip"><span class="material-symbols-outlined" aria-hidden="true">hub</span>flwr 1.36 Message API</span>
+  <span class="hero-chip"><span class="material-symbols-outlined" aria-hidden="true">hub</span>flwr 1.39 Message API</span>
   <span class="hero-chip"><span class="material-symbols-outlined" aria-hidden="true">tune</span>Federated LoRA</span>
   <span class="hero-chip"><span class="material-symbols-outlined" aria-hidden="true">monitoring</span>OTel traces and metrics</span>
 </div>
@@ -108,7 +108,7 @@ Federated learning on the latest Flower, with OpenTelemetry-native observability
       </div>
     </div>
     <div class="stack-row">
-      <span class="stack-chip">Flower 1.36</span>
+      <span class="stack-chip">Flower 1.39</span>
       <span class="stack-chip">flwr-datasets</span>
       <span class="stack-chip">HuggingFace Transformers</span>
       <span class="stack-chip">PEFT / LoRA</span>

@@ -11,7 +11,7 @@
 [![CI Pipeline](https://github.com/ajbarea/phalanx-fl/actions/workflows/ci.yml/badge.svg)](https://github.com/ajbarea/phalanx-fl/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/ajbarea/phalanx-fl/graph/badge.svg?token=NTyqWs5w9l)](https://codecov.io/gh/ajbarea/phalanx-fl)
 [![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Flower](https://img.shields.io/badge/Flower-v1.36+-00C896?style=flat-square)](https://flower.ai)
+[![Flower](https://img.shields.io/badge/Flower-v1.39+-00C896?style=flat-square)](https://flower.ai)
 [![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-traces_%2B_metrics-425CC7?style=flat-square&logo=opentelemetry&logoColor=white)](https://opentelemetry.io)
 [![uv](https://img.shields.io/badge/uv-package_manager-DE5FE9?style=flat-square)](https://docs.astral.sh/uv/)
 
@@ -51,7 +51,7 @@ make trace       # run with OTel traces printed to the console (no collector nee
 
 `make run` runs the full simulation, `make test` runs the suite, `make lint` runs ruff + ty. Run `make` with no target for the full list.
 
-### Federation setup (flwr 1.36)
+### Federation setup (flwr 1.39)
 
 Federation settings live outside `pyproject.toml`: the SuperLink connection belongs to the Flower config (`~/.flwr/config.toml`, or `$FLWR_HOME`), and Simulation Runtime settings are SuperLink state. The Makefile names the built-in `local` connection and passes the settings per run, so a clone reproduces the default five-node federation with no bootstrap step. Override for a single run:
 
