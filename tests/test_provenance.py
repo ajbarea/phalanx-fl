@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from phalanx.provenance import run_manifest, write_manifest
 
 
@@ -24,6 +26,17 @@ def test_write_manifest_roundtrips(tmp_path: Path) -> None:
     assert path.exists() and path.suffix == ".json"
     loaded = json.loads(path.read_text())
     assert loaded["packages"] == m["packages"]
+
+
+def test_run_manifest_keeps_global_metrics_apart_from_client_metrics() -> None:
+    m = run_manifest(
+        run_config={},
+        metrics={"1": {"accuracy": 0.9}},
+        global_metrics={"0": {"accuracy": 0.5}, "1": {"accuracy": 0.7}},
+    )
+    assert m["metrics"] == {"1": {"accuracy": 0.9}}
+    assert m["global_metrics"]["0"]["accuracy"] == 0.5
+    assert run_manifest(run_config={}, metrics={})["global_metrics"] == {}
 
 
 def test_run_manifest_records_a_dirty_tree(tmp_path: Path, monkeypatch) -> None:
@@ -52,8 +65,13 @@ def test_run_manifest_records_a_dirty_tree(tmp_path: Path, monkeypatch) -> None:
 
 
 def test_run_manifest_extra_adds_top_level_keys() -> None:
-    m = run_manifest(run_config={}, metrics={}, extra={"heldout_metrics": {"1": {"a": 1}}})
-    assert m["heldout_metrics"] == {"1": {"a": 1}}
+    m = run_manifest(run_config={}, metrics={}, extra={"attacker_outlier_rank": {"6": [1]}})
+    assert m["attacker_outlier_rank"] == {"6": [1]}
+
+
+def test_run_manifest_extra_cannot_overwrite_core_keys() -> None:
+    with pytest.raises(ValueError, match="global_metrics"):
+        run_manifest(run_config={}, metrics={}, extra={"global_metrics": {}})
 
 
 def test_run_manifest_dirty_is_unknown_outside_git(tmp_path: Path, monkeypatch) -> None:

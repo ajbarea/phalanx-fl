@@ -5,14 +5,16 @@
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
 - Python 3.12 or 3.13
 
-No GPU is required; the default stack installs CPU-only PyTorch.
+No GPU is required. PyTorch comes from the CPU index on every platform except Linux
+aarch64, which gets the CUDA 13 build for the GH200 nodes. That build runs on CPU too,
+at the cost of about 2 GB of CUDA wheels; Docker on Apple Silicon is Linux aarch64.
 
 ## Install
 
 ```bash
 git clone https://github.com/ajbarea/phalanx-fl.git
 cd phalanx-fl
-make sync        # uv sync --extra hf --extra torch (CPU torch + HF stack + dev tools)
+make sync        # uv sync --extra hf --extra torch (torch + HF stack + dev tools)
 ```
 
 ## Run a federated simulation
@@ -26,7 +28,7 @@ make trace       # run with OpenTelemetry traces printed to the console
 The first run downloads the model (`google/bert_uncased_L-2_H-128_A-2`, ~18 MB) and
 the IMDB dataset, then trains on CPU. Subsequent runs reuse the cache.
 
-## Federation setup (flwr 1.36)
+## Federation setup (flwr 1.39)
 
 Federation settings live outside `pyproject.toml`: the SuperLink connection belongs
 to the Flower config (`~/.flwr/config.toml`, or `$FLWR_HOME`), and Simulation Runtime
@@ -45,7 +47,7 @@ uv run flwr run . local --federation-config 'num-supernodes=10 client-resources-
 Override app run-config (rounds, partitioner, model) similarly:
 
 ```bash
-uv run flwr run . local --run-config 'num-server-rounds=5 partitioner=iid'
+uv run flwr run . local --run-config 'num-server-rounds=5 partitioner="iid"'
 ```
 
 ## Observability
@@ -66,8 +68,10 @@ OTEL_TRACES_EXPORTER=console make run    # this is what `make trace` does
 ```
 
 Each round produces an `fl.round` span (attributes: `fl.round`, `fl.loss`,
-`fl.accuracy`, `fl.clients`) and FL metrics (`fl.round.loss`, `fl.round.accuracy`,
-`fl.round.clients`); each participating client produces an `fl.client.train` or
+`fl.accuracy`, `fl.global_loss`, `fl.global_accuracy`, `fl.train_clients`,
+`fl.evaluate_clients`, `fl.train_ess`, `fl.evaluate_ess`, `fl.failures`) and the matching
+`fl.round.*` metrics; each
+participating client produces an `fl.client.train` or
 `fl.client.evaluate` span and `fl.client.*` metrics.
 
 ## Develop

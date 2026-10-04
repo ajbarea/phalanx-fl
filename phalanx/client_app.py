@@ -22,9 +22,11 @@ from transformers import logging as hf_logging
 
 from phalanx.task import (
     Flip,
+    default_device,
     get_adapter_state,
     get_model,
     load_data,
+    sample_count,
     set_adapter_state,
     set_seed,
     test_fn,
@@ -41,10 +43,6 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 hf_logging.set_verbosity_error()
 
 app = ClientApp()
-
-
-def _device() -> torch.device:
-    return torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def _config(msg: Message) -> Any:
@@ -123,7 +121,7 @@ def train(msg: Message, context: Context) -> Message:
         global_state = msg.content.array_records["arrays"].to_torch_state_dict()
         # set_adapter_state mutates its argument; keep an untouched copy for boosting.
         set_adapter_state(model, {k: v.clone() for k, v in global_state.items()})
-        device = _device()
+        device = default_device()
         model.to(device)
         loss = train_fn(
             model,
@@ -132,7 +130,9 @@ def train(msg: Message, context: Context) -> Message:
             device=device,
             lr=float(cfg["learning-rate"]),
         )
-        record_client_metrics(partition_id=partition_id, num_examples=len(trainloader), loss=loss)
+        record_client_metrics(
+            partition_id=partition_id, num_examples=sample_count(trainloader), loss=loss
+        )
 
     state = {k: v.cpu() for k, v in get_adapter_state(model).items()}
     if boost != 1.0:
@@ -142,7 +142,7 @@ def train(msg: Message, context: Context) -> Message:
             "arrays": ArrayRecord(state),
             "metrics": MetricRecord(
                 {
-                    "num-examples": len(trainloader),
+                    "num-examples": sample_count(trainloader),
                     "train_loss": loss,
                     "malicious": int(is_malicious(cfg, partition_id)),
                 }
@@ -175,15 +175,17 @@ def evaluate(msg: Message, context: Context) -> Message:
             target_modules=str(cfg["lora-target-modules"]),
         )
         set_adapter_state(model, msg.content.array_records["arrays"].to_torch_state_dict())
-        device = _device()
+        device = default_device()
         model.to(device)
         loss, accuracy = test_fn(model, testloader, device=device)
-        record_client_metrics(partition_id=partition_id, num_examples=len(testloader), loss=loss)
+        record_client_metrics(
+            partition_id=partition_id, num_examples=sample_count(testloader), loss=loss
+        )
 
     content = RecordDict(
         {
             "metrics": MetricRecord(
-                {"num-examples": len(testloader), "loss": loss, "accuracy": accuracy}
+                {"num-examples": sample_count(testloader), "loss": loss, "accuracy": accuracy}
             )
         }
     )

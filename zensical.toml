@@ -13,11 +13,11 @@ nav = [
   { "Architecture" = "architecture.md" },
   { "Research" = [
       { "Overview" = "research/index.md" },
-      { "RIT Capstone 2025: IntelliFL" = "research/rit-capstone-2025-intellifl/index.md" },
+      { "RIT Capstone 2025: InteFL" = "research/rit-capstone-2025-intellifl/index.md" },
   ]},
 ]
 
-extra_css = ["stylesheets/extra.css", "stylesheets/figures.css"]
+extra_css = ["stylesheets/extra.css", "stylesheets/landing.css"]
 extra_javascript = ["javascripts/reveal.js"]
 
 # ---------------------------------------------------------------------------
@@ -63,15 +63,15 @@ features = [
 # ---------------------------------------------------------------------------
 [[project.theme.palette]]
 scheme = "slate"
-primary = "teal"
-accent = "deep-purple"
+primary = "custom"
+accent = "custom"
 toggle.icon = "lucide/sun"
 toggle.name = "Switch to light mode"
 
 [[project.theme.palette]]
 scheme = "default"
-primary = "teal"
-accent = "deep-purple"
+primary = "custom"
+accent = "custom"
 toggle.icon = "lucide/moon"
 toggle.name = "Switch to dark mode"
 
@@ -93,6 +93,8 @@ logo = "material/scatter-plot"
 # ---------------------------------------------------------------------------
 [project.extra]
 generator = false
+og_image = "assets/phalanx-og.jpg"
+brand_mark = "assets/brand.png"
 
 [[project.extra.social]]
 icon = "fontawesome/brands/github"

@@ -8,7 +8,7 @@ toolchain / path / tooling changes.
 
 - name: phalanx-fl
 - package_root: `phalanx/`
-- language: Python (flwr 1.36 app-model)
+- language: Python (flwr 1.39 app-model)
 - cli_entrypoint: none — a plain `Makefile` dispatches tools directly (no dev-runner CLI)
 - app components: `phalanx.server_app:app` (ServerApp), `phalanx.client_app:app` (ClientApp)
 - has: flwr Message API, HuggingFace + PEFT/LoRA, OpenTelemetry, flwr-datasets
@@ -20,7 +20,7 @@ dev-runner log archive** (`logs/dev-*.log`) — read terminal output directly.
 
 Targets, in dependency order:
 
-1. `make sync` — `uv sync --extra hf --extra torch` (CPU torch + HF stack + dev group).
+1. `make sync` — `uv sync --extra hf --extra torch` (torch: CPU, CUDA 13 on Linux aarch64; HF stack; dev group).
 2. `make lint` — `ruff format --check` + `ruff check` + `ty check`.
 3. `make test` — `uv run --extra hf --extra torch python -m pytest`.
 4. `make audit` — `pip-audit` over the locked deps.
@@ -61,7 +61,7 @@ number in prose as slop unless it is reproduced from a run in the same change.
 
 README claims that trace to code (no automated gate yet — verify by hand on edit):
 - Python badge `3.12+` ← `requires-python` in `pyproject.toml`.
-- Flower badge `v1.36+` ← `flwr` floor in `pyproject.toml`.
+- Flower badge `v1.39+` ← `flwr` floor in `pyproject.toml`.
 - The `[tool.flwr.app.config]` table in the README ← the keys in `pyproject.toml`.
 
 ## scan_scope

@@ -23,7 +23,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "flwr[simulation]>=1.36",
+    "flwr[simulation]>=1.39",
     "flwr-datasets>=0.6",
     "opentelemetry-sdk>=1.30",
     "opentelemetry-exporter-otlp>=1.30",
@@ -31,7 +31,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Model + data stack. Torch is CPU-only by default (see [tool.uv.sources]); GPU is opt-in.
+# Model + data stack. Torch wheel per platform: see [tool.uv.sources].
 hf = [
     "transformers>=5.10",
     "peft>=0.10",
@@ -68,11 +68,11 @@ build-backend = "hatchling.build"
 packages = ["phalanx"]
 
 # =============================================================================
-# Flower app (flwr 1.36 app-model: ServerApp / ClientApp / task)
+# Flower app (flwr 1.39 app-model: ServerApp / ClientApp / task)
 # =============================================================================
 [tool.flwr.app]
 publisher = "ajbarea"
-flwr-version-target = "1.36.0"
+flwr-version-target = "1.39.0"
 
 [tool.flwr.app.components]
 serverapp = "phalanx.server_app:app"
@@ -97,6 +97,9 @@ local-epochs = 1
 learning-rate = 5e-5
 fraction-train = 0.1
 fraction-evaluate = 0.1
+# Global test set: the dataset's `test` split, scored server-side on the aggregated
+# adapters each round. A positive size takes a seeded sample of that many rows; 0 = all.
+global-eval-size = 0
 otel-service-name = "phalanx-fl"
 # Aggregation rule: fedavg | krum | multikrum | trimmed-mean | median | bulyan.
 strategy = "fedavg"
@@ -110,9 +113,6 @@ flip-from = 0
 flip-to = 1
 boost = 1.0                # attacker scales its update by this before replying
 attack-start-round = 1
-# Clean split scored on the server each round ("" = off); also reports the
-# flip-from -> flip-to attack success rate.
-heldout-split = ""
 # OTLP endpoint is read from the OTEL_EXPORTER_OTLP_ENDPOINT env var when set.
 
 # Federation settings live outside this file: a [tool.flwr.federations] block is
@@ -120,26 +120,27 @@ heldout-split = ""
 # Makefile passes the federation per run instead.
 
 # =============================================================================
-# uv — torch CPU-only by default (mirrors velocity-fl): avoids ~2 GB of CUDA
-# wheels on CPU dev/CI. GPU is opt-in: swap the index below to cu128 and re-sync.
+# uv — torch: CUDA 13.0 on Linux aarch64 (GH200), CPU wheels everywhere else.
 # =============================================================================
 [[tool.uv.index]]
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
-# GPU (opt-in): comment out the cpu sources below, uncomment this index + the
-# cu128 sources, then `uv sync --extra hf --extra torch`.
-# [[tool.uv.index]]
-# name = "pytorch-cu128"
-# url = "https://download.pytorch.org/whl/cu128"
-# explicit = true
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
 
 [tool.uv.sources]
-torch = [{ index = "pytorch-cpu" }]
-torchvision = [{ index = "pytorch-cpu" }]
-# GPU: torch = [{ index = "pytorch-cu128" }]
-# GPU: torchvision = [{ index = "pytorch-cu128" }]
+torch = [
+    { index = "pytorch-cu130", marker = "sys_platform == 'linux' and platform_machine == 'aarch64'" },
+    { index = "pytorch-cpu", marker = "sys_platform != 'linux' or platform_machine != 'aarch64'" },
+]
+torchvision = [
+    { index = "pytorch-cu130", marker = "sys_platform == 'linux' and platform_machine == 'aarch64'" },
+    { index = "pytorch-cpu", marker = "sys_platform != 'linux' or platform_machine != 'aarch64'" },
+]
 
 # =============================================================================
 # Tooling (carried from the sister conventions)

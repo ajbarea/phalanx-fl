@@ -8,7 +8,48 @@ ROADMAP's "Recently shipped" and clear the relevant block below.
 
 ## Current focus
 
-_No in-flight work._ The corpus and measurement apparatus moved to
+**A global test set, scored server-side each round (#104).** Client accuracy is a
+`num-examples`-weighted mean over holdouts carved from each client's own partition, so
+under Dirichlet it inherits the label skew. The server now also scores the aggregated
+adapters on the dataset's `test` split, which the partitioner never sees:
+`fl.global_loss` / `fl.global_accuracy` on the round span, `fl.round.global_*` from round
+0, and `global_metrics` in the manifest.
+
+- flwr's `Strategy.start` calls `evaluate_fn` after `aggregate_evaluate`, where the round
+  span used to end. `ObservableFedAvg(global_evaluate=...)` passes its own evaluator to
+  `start` and closes the round there; passing both is refused. A test drives flwr's real
+  `start` loop with a fake Grid, so an ordering change upstream fails the suite.
+- A raising evaluator still closes its round, with ERROR status and the reason, before
+  the failure propagates; the round's client metrics were already aggregated.
+- The server seeds before building the initial adapters, so round 0 is the same in every
+  run (it was not: two `get_model` calls differed).
+- `global-eval-size = 0` scores all 25,000 rows, about 6 minutes a pass on CPU, four
+  passes in a default run. `make smoke` samples 500.
+- Run-config strings must be quoted (`partitioner="iid"`); flwr rejects the unquoted form
+  the README and Makefile showed.
+
+**What it found.** Three draws per arm, `results/global-eval-arms/`; the restated finding
+is in ROADMAP. Under Dirichlet the aggregated model's global accuracy is exactly 0.500 in
+every round of two draws and at most 0.547 in the third, while the client figure ranges
+0.021 to 0.709; under IID the two agree within 1.3 points.
+
+**Worktrees and the local SuperLink.** A SuperLink started by `flwr run` in one worktree
+keeps that worktree's venv and cwd for every later run, from any worktree. Stop it
+(`flower-superexec`, `flower-superlink`) before switching, and read a run's verdict from
+`Received N results and 0 failures`: `flwr run` exits 0 when every client fails.
+
+**flwr 1.39 (2026-10-02).** No app-code changes. Since 1.38 (flwrlabs/flower#8175) an
+instruction `Message` reads `TaskIdentity.run_id`, which the runtime sets and a unit test
+does not; `tests/test_server.py` sets it with an autouse fixture, as flwr's own tests do.
+Since 1.37 the CLI reaches the local SuperLink over HTTP: it probes `/health` on 39091
+(`FLWR_LOCAL_SUPERLINK_HTTP_API_PORT`); 39093 (`FLWR_LOCAL_CONTROL_API_PORT`) is the gRPC
+Control API, now off by default. An isolated run sets `FLWR_HOME` and both.
+
+---
+
+## Background
+
+The corpus and measurement apparatus moved to
 [`ajbarea/sphragis`](https://github.com/ajbarea/sphragis) on 2026-09-13; see ROADMAP's
 `corpus` section for why. Open roadmap items here are the v2 observability and v3 breadth
 lines.
@@ -117,27 +158,20 @@ unreadable, fixed there in ariadne#46.
 
 ## Open bugs & findings
 
-### Dependabot: 5 open alerts are upstream pins in flwr 1.36.0 (2026-09-13)
+### Dependabot: 5 alerts are upstream pins in flwr (2026-09-13, dismissed 2026-09-26)
 
-Not repo drift, and not fixable here. 4 alerts against `cryptography` 46.0.7 and 1
-against `ray` 2.55.1, both transitive through `flwr[simulation]`.
+4 alerts against `cryptography` 46.0.7 and 1 against `ray` 2.55.1, both transitive
+through `flwr[simulation]`. `flwr` 1.36.0 through 1.39.0 and `flwrlabs/flower` main all pin
+`cryptography<47.0.0,>=46.0.7` and `ray==2.55.1`, so no lock bump reaches the fixes
+(`cryptography` >= 50.0.0, `ray` >= 2.56.0).
 
-| Package | Locked | Needed to clear | On PyPI |
-|---|---|---|---|
-| `cryptography` | 46.0.7 | >= 50.0.0 | 50.0.1 |
-| `ray` | 2.55.1 | >= 2.56.0 | 2.58.0 |
+None is reachable: neither flwr nor phalanx imports `pkcs7` or
+`cryptography.x509.verification`; the bundled-OpenSSL advisory covers PKCS#7/CMS, QUIC,
+OCSP, AES-OCB/SIV, DHX and PKCS#12, where flwr uses EC, Ed25519, SSH key loading, HKDF
+and Fernet; and Ray is only the simulation backend, never `ray.data`. The alerts are
+dismissed as not used, with the analysis on #106, and `make audit` ignores the same IDs.
 
-`flwr` 1.36.0, the newest release, constrains both: `cryptography<47.0.0,>=46.0.7` and
-`ray==2.55.1` for the `simulation` extra. The `ray` pin is a hard equality.
-`uv lock --upgrade-package cryptography --upgrade-package ray` resolves to the same
-versions, as expected.
-
-Neither advisory looks reachable from this app. The `ray` one is arbitrary code execution
-via `ray.data.read_webdataset`'s default decoder, and Phalanx uses Ray only as the Flower
-simulation backend, never `ray.data`. The `cryptography` ones are TLS path-building,
-wildcard DNS in `permittedSubtrees`, PKCS#7 `EnvelopedData` decryption and a bundled
-OpenSSL; Phalanx runs local simulations and neither terminates TLS nor decrypts PKCS#7.
-
-Clears when a `flwr` release relaxes the pins. Not doing: a `[tool.uv]
-override-dependencies` block forcing versions past a framework's hard equality pin, which
-trades unreachable advisories for a real chance of breaking simulation.
+Clears on the `flwr` release that relaxes the pins (flwrlabs/flower#7763 is open for
+cryptography 50). Not doing: `[tool.uv] override-dependencies` past a framework's hard
+equality pin, which trades unreachable advisories for a real chance of breaking
+simulation.

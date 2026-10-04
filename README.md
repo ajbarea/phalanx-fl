@@ -11,7 +11,7 @@
 [![CI Pipeline](https://github.com/ajbarea/phalanx-fl/actions/workflows/ci.yml/badge.svg)](https://github.com/ajbarea/phalanx-fl/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/ajbarea/phalanx-fl/graph/badge.svg?token=NTyqWs5w9l)](https://codecov.io/gh/ajbarea/phalanx-fl)
 [![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Flower](https://img.shields.io/badge/Flower-v1.36+-00C896?style=flat-square)](https://flower.ai)
+[![Flower](https://img.shields.io/badge/Flower-v1.39+-00C896?style=flat-square)](https://flower.ai)
 [![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-traces_%2B_metrics-425CC7?style=flat-square&logo=opentelemetry&logoColor=white)](https://opentelemetry.io)
 [![uv](https://img.shields.io/badge/uv-package_manager-DE5FE9?style=flat-square)](https://docs.astral.sh/uv/)
 
@@ -32,7 +32,7 @@ $ make trace                      # local simulation, traces printed to the cons
 aggregate_train: Received 2 results and 0 failures
 aggregate_evaluate: Received 2 results and 0 failures
   -> Aggregated MetricRecord: {'loss': 0.67, 'accuracy': 0.62}
-# plus an `fl.round` OTel span (fl.round, fl.loss, fl.accuracy, fl.clients) per round,
+# plus an `fl.round` OTel span per round (client and global loss/accuracy, participation and ESS per phase),
 # and an `fl.client.{train,evaluate}` span per participating client.
 ```
 
@@ -44,14 +44,14 @@ aggregate_evaluate: Received 2 results and 0 failures
 git clone https://github.com/ajbarea/phalanx-fl.git
 cd phalanx-fl
 
-make sync        # install deps (CPU torch + HF stack + dev tools)
+make sync        # install deps (torch: CPU, CUDA 13 on Linux aarch64; HF stack; dev tools)
 make smoke       # fast 2-round federated simulation
 make trace       # run with OTel traces printed to the console (no collector needed)
 ```
 
 `make run` runs the full simulation, `make test` runs the suite, `make lint` runs ruff + ty. Run `make` with no target for the full list.
 
-### Federation setup (flwr 1.36)
+### Federation setup (flwr 1.39)
 
 Federation settings live outside `pyproject.toml`: the SuperLink connection belongs to the Flower config (`~/.flwr/config.toml`, or `$FLWR_HOME`), and Simulation Runtime settings are SuperLink state. The Makefile names the built-in `local` connection and passes the settings per run, so a clone reproduces the default five-node federation with no bootstrap step. Override for a single run:
 
@@ -78,9 +78,9 @@ A standard Flower app-model layout:
 
 | Module | Role |
 |--------|------|
-| `phalanx/task.py` | Model (HF transformer + PEFT/LoRA), data (`flwr-datasets`, IID or Dirichlet non-IID), label-flip poisoning, train/eval, held-out attack-success scoring, adapter-state helpers |
+| `phalanx/task.py` | Model (HF transformer + PEFT/LoRA), data (`flwr-datasets`, IID or Dirichlet non-IID), label-flip poisoning, train/eval, global-test scoring with attack success, adapter-state helpers |
 | `phalanx/client_app.py` | `ClientApp`: loads broadcast adapters, trains locally, replies with adapters only; malicious partitions flip labels and may boost their update; wraps each pass in a client span |
-| `phalanx/server_app.py` | `ServerApp` + `ObservableMixin`: FedAvg or a Flower robust rule (Krum, Multi-Krum, Trimmed-Mean, Median, Bulyan) over adapters; emits an `fl.round` span + aggregated loss/accuracy/participation metrics each round, and optionally scores a clean held-out split |
+| `phalanx/server_app.py` | `ServerApp` + `ObservableMixin`: FedAvg or a Flower robust rule (Krum, Multi-Krum, Trimmed-Mean, Median, Bulyan) over adapters; scores the aggregated adapters on the global test set; emits an `fl.round` span + client and global loss/accuracy, participation and ESS each round |
 | `phalanx/telemetry.py` | OpenTelemetry layer: tracer/meter providers, round/client spans, FL metrics; OTLP / console / in-memory exporters |
 
 **Stack:** [Flower](https://flower.ai) (Message API + Simulation Engine) · [PyTorch](https://pytorch.org) + [HuggingFace Transformers](https://huggingface.co/docs/transformers) + [PEFT/LoRA](https://huggingface.co/docs/peft) · [flwr-datasets](https://flower.ai/docs/datasets/) · [OpenTelemetry](https://opentelemetry.io) · [uv](https://docs.astral.sh/uv/) + [Ruff](https://docs.astral.sh/ruff/) + [ty](https://docs.astral.sh/ty/)
@@ -101,6 +101,7 @@ Run config lives in `pyproject.toml` under `[tool.flwr.app.config]`, overridable
 | `dirichlet-alpha` | `0.5` | lower means more label skew |
 | `local-epochs` | `1` | local epochs per round |
 | `fraction-train` / `fraction-evaluate` | `0.1` | client sampling fractions |
+| `global-eval-size` | `0` | rows of the dataset's `test` split scored server-side each round and at round 0; `0` = all 25,000, about 6 min a pass on CPU |
 | `otel-service-name` | `phalanx-fl` | OTel `service.name` resource attribute |
 | `text-column` | `text` | dataset column holding the text |
 | `lora-target-modules` | `""` | comma-separated LoRA layers (`q_lin,v_lin` for DistilBERT); empty = PEFT default |
@@ -115,10 +116,9 @@ Run config lives in `pyproject.toml` under `[tool.flwr.app.config]`, overridable
 | `flip-from` / `flip-to` | `0` / `1` | the label flip, also the pair attack success is scored on |
 | `boost` | `1.0` | attackers scale their update by this before replying |
 | `attack-start-round` | `1` | first round attackers act |
-| `heldout-split` | `""` | clean split the server scores each round (accuracy + attack success); empty = off |
 
 ```bash
-uv run flwr run . local --run-config 'num-server-rounds=5 partitioner=iid'
+uv run flwr run . local --run-config 'num-server-rounds=5 partitioner="iid"'
 ```
 
 `experiments/financial_poisoning/` runs one such grid end to end: twelve banks on

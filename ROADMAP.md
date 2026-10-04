@@ -28,7 +28,8 @@ The app-model core: `task.py` (HF+LoRA model, `flwr-datasets` non-IID), `client_
 - [x] `flwr run` simulation verified — federates adapters (0 failures) and emits round + client spans; IID accuracy improves monotonically (0.51 → 0.58).
 - [x] Clean-slate sweep — removed the retrofitted `intellifl` app + old infra; rebuilt Makefile/CI/docs around `flwr run` + ruff/ty/pytest.
 - [x] Quickstart docs — `flwr run`, the OTLP/Jaeger setup, console traces, the config knobs.
-- [x] Deterministic seeding — `set_seed` keys Python/NumPy/torch per `(round, client)`, so a run replays (the reproducibility floor a systems paper needs).
+- [x] Deterministic client training — `set_seed` keys Python/NumPy/torch per `(round, client)` and disables nondeterministic CUDA kernels, so each client's local training replays.
+- [ ] Run-level replay — Flower samples clients with `random.sample` over node IDs that are random per run; the server seeds it (`set_seed(0)`), but the pool it draws from differs, so one config picks different clients each run (identical smoke runs ended at 0.979 and 0.721). Needs a seeded sampler ordered by `partition-id` and a test that two runs match round for round (the reproducibility floor a systems paper needs).
 - [x] OTel flush on exit — `shutdown_telemetry` force-flushes the OTLP buffers (and runs at `atexit`), so the final round's spans/metrics aren't dropped when the process exits.
 - [x] Run-provenance manifest — `phalanx/provenance.py` writes a per-run JSON (git SHA + branch, package versions, run-config, per-round metrics) beside the trace: the static half of the reproducibility story (FAIR / IEEE artifact criteria).
 
@@ -46,8 +47,19 @@ when that work shipped, because they are the kind of thing that gets re-learned 
   simulation overrides go via `--federation-config`.
 - `flwr run` submits to a local SuperLink and returns; the sim runs detached. Use
   `--stream` to stay attached and capture the OTel console spans.
-- The round-2 Dirichlet accuracy collapse is genuine non-IID dynamics, not an aggregation
-  bug. The IID control improves monotonically, which is what rules the bug out.
+- `num-examples` is `len(loader.dataset)`, not `len(loader)`: the DataLoader length is a
+  batch count, and FedAvg weights the adapters and the reported metrics by this key, so
+  a batch count over-weighted the smallest partitions (#102).
+- The "round-2 Dirichlet collapse" was the client figure, not the model. On the global
+  test split (2026-09-26, three draws per arm, `results/global-eval-arms/`), under
+  Dirichlet (alpha 0.5) the aggregated adapters never learn. Global accuracy is exactly
+  0.500 in every round of two draws, consistent with predicting one label on the balanced
+  split, and peaks at 0.547 in `dirichlet-2`; global loss ends above its round-0 value in
+  two of three. The client figure for the same
+  rounds spans 0.021 to 0.709 across draws: it measures which skewed shards were
+  sampled, and that is what read as a round-2 collapse. IID, on the same code path,
+  improves every round in every draw (0.509 to 0.611-0.612), so an aggregation bug is
+  still ruled out.
 
 **Scope discipline (YAGNI):** one scenario (IMDB sentiment), IID + Dirichlet
 partitioners, FedAvg. Strategies / datasets / partitioners grow only when a concrete
@@ -64,6 +76,18 @@ use lands.
   spans land in a single trace, viewable end-to-end in Jaeger. The genuinely novel
   OTel↔FL piece (Flower ships no such bridge). `phalanx/telemetry.py` `traceparent_for`
   / `context_from_traceparent`.
+- [x] **Aggregation-weight ESS, per phase — `fl.round.train_ess` / `fl.round.evaluate_ess`.**
+  Kish's `(Σwᵢ)²/Σwᵢ²` over the `num-examples` weights FedAvg actually aggregates by:
+  equal to the client count when shares are even, falling toward 1.0 as one client
+  dominates. Under Dirichlet skew it reports how much less than the client count a round
+  really averaged over, which participation counts cannot show. Train and evaluate
+  sample different clients, so each phase reports its own, beside its own client count.
+- [x] **Global test set — `fl.round.global_accuracy`.** The server scores the aggregated
+  adapters on the dataset's `test` split, which the partitioner never sees, each round
+  and at round 0. The clients' figure stays beside it: a `num-examples`-weighted mean
+  over holdouts carved from their own partitions, which under Dirichlet inherits the
+  label skew. The pair is what shows skew-driven divergence; the arms above are the first
+  reading of it.
 - [ ] **Round wall-time + comm-cost metrics** — per-round duration histogram and
   bytes-on-the-wire (adapter payload size), alongside loss/accuracy/participation.
 - [ ] **Jaeger / OTel-Collector `compose` recipe** — one command to bring up a backend

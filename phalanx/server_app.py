@@ -1,16 +1,21 @@
 """phalanx-fl ServerApp: robust aggregation over LoRA adapters, observed with OpenTelemetry.
 
 ``ObservableMixin`` hooks the per-round entry points inside ``strategy.start()`` of
-any Flower strategy: it counts participating clients in ``aggregate_train`` and,
-after ``aggregate_evaluate``, emits an ``fl.round`` span plus aggregated
-loss/accuracy/participation metrics. ``strategy`` in the run config picks the
-aggregation rule; ``ObservableFedAvg`` is the default. Only the LoRA adapters are
-federated (the initial arrays come from the adapter state, not the full model).
+any of Flower's FedAvg-family strategies: it counts participating clients in
+``aggregate_train`` and, after ``aggregate_evaluate``, emits an ``fl.round`` span
+plus aggregated loss/accuracy/participation/ESS metrics, each named for its phase.
+``strategy`` in the run config picks the aggregation rule; ``ObservableFedAvg`` is the
+default.
+With a global evaluator, the span stays open until the aggregated adapters have also
+been scored on the global test set (flwr's ``evaluate_fn``, which runs after
+``aggregate_evaluate``). Only the LoRA adapters are federated (the initial arrays come
+from the adapter state, not the full model).
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+import math
+from collections.abc import Callable, Iterable
 from typing import Any
 
 import numpy as np
@@ -23,13 +28,14 @@ from flwr.serverapp.strategy import (
     FedTrimmedAvg,
     Krum,
     MultiKrum,
-    Strategy,
+    Result,
 )
 from opentelemetry.trace import Status, StatusCode
 
 from phalanx.provenance import run_manifest, write_manifest
 from phalanx.telemetry import (
     init_telemetry,
+    record_global_metrics,
     record_round_metrics,
     shutdown_telemetry,
     start_round_span,
@@ -50,12 +56,59 @@ def _round_summary(metrics: MetricRecord | None) -> tuple[float, float]:
     return loss, accuracy
 
 
+def effective_sample_size(weights: Iterable[float]) -> float:
+    """Clients effectively contributing to the aggregate: Kish's ``(Σwᵢ)² / Σwᵢ²``.
+
+    Equals the client count when every client carries the same weight, falls toward 1.0
+    as one client's share dominates, and is NaN when nothing was aggregated. FedAvg
+    weights by ``num-examples``, so under a skewed partition ESS reports how much less
+    than ``clients`` the round actually averaged over.
+
+    Train and evaluate sample their clients independently, so each phase gets its own:
+    ``fl.train_ess`` over the replies that produced the adapters, ``fl.evaluate_ess``
+    over the replies behind ``fl.loss`` / ``fl.accuracy``.
+    """
+    w = [float(x) for x in weights]
+    total = math.fsum(w)
+    if not w or total <= 0:
+        return float("nan")
+    # Kish's form over the raw weights, not 1/Σ(wᵢ/Σw)²: dividing each term by the total
+    # first leaves an equal split reading 4.999999999999999 for five clients.
+    return total * total / math.fsum(x * x for x in w)
+
+
+def _num_examples(msg: Message, key: str = "num-examples") -> float | None:
+    """The weight a client reported under ``key``, or None when the reply carries none.
+
+    Addresses the record by type rather than by the literal name ``client_app`` happens
+    to use, the way flwr's own aggregation does — a telemetry read must not be the thing
+    that aborts a round. MetricRecord values are a broad numeric union, so the cast
+    reads through Any, as ``_round_summary`` does for loss/accuracy.
+    """
+    record = next(iter(msg.content.metric_records.values()), None)
+    if record is None or key not in record:
+        return None
+    metrics: Any = record
+    return float(metrics[key])
+
+
+def _reply_ess(replies: Iterable[Message], key: str) -> float:
+    """ESS over the weights FedAvg aggregates the replies by (its ``weighted_by_key``)."""
+    counts = (_num_examples(m, key) for m in replies if not m.has_error())
+    return effective_sample_size(n for n in counts if n is not None)
+
+
 def observe_round(
     *,
     server_round: int,
     metrics: MetricRecord | None,
-    clients: int,
+    train_clients: int,
+    evaluate_clients: int = 0,
     failures: int = 0,
+    train_ess: float = float("nan"),
+    evaluate_ess: float = float("nan"),
+    global_metrics: MetricRecord | None = None,
+    global_error: str | None = None,
     span: Any | None = None,
 ) -> None:
     """Decorate the round span with aggregated metrics + status, then end it.
@@ -69,19 +122,33 @@ def observe_round(
         span = start_round_span(server_round)
     span.set_attribute("fl.loss", loss)
     span.set_attribute("fl.accuracy", accuracy)
-    span.set_attribute("fl.clients", clients)
+    span.set_attribute("fl.train_clients", train_clients)
+    span.set_attribute("fl.evaluate_clients", evaluate_clients)
+    span.set_attribute("fl.train_ess", train_ess)
+    span.set_attribute("fl.evaluate_ess", evaluate_ess)
     span.set_attribute("fl.failures", failures)
+    global_loss, global_accuracy = _round_summary(global_metrics)
+    span.set_attribute("fl.global_loss", global_loss)
+    span.set_attribute("fl.global_accuracy", global_accuracy)
     if failures:
         # Surface client/worker failures in the trace, not just the participation count.
         span.add_event("fl.client_failures", {"count": failures})
         span.set_status(Status(StatusCode.ERROR, f"{failures} client failure(s) this round"))
+    if global_error is not None:
+        span.add_event("fl.global_evaluation_failed", {"error": global_error})
+        span.set_status(Status(StatusCode.ERROR, "global evaluation failed"))
     record_round_metrics(
         rnd=server_round,
         loss=loss,
         accuracy=accuracy,
-        clients=clients,
+        train_clients=train_clients,
+        evaluate_clients=evaluate_clients,
         failures=failures,
+        train_ess=train_ess,
+        evaluate_ess=evaluate_ess,
     )
+    if global_metrics is not None:
+        record_global_metrics(rnd=server_round, loss=global_loss, accuracy=global_accuracy)
     span.end()
 
 
@@ -98,20 +165,94 @@ def _flatten(message: Message) -> np.ndarray:
     )
 
 
-class ObservableMixin(Strategy):
+def _by_round(records: dict[int, MetricRecord]) -> dict[str, dict[str, Any]]:
+    return {str(rnd): dict(rec) for rnd, rec in records.items()}
+
+
+GlobalEvaluator = Callable[[ArrayRecord], MetricRecord]
+
+
+def _train_is_weighted_mean(cls: type) -> bool:
+    """Whether ``cls`` aggregates training replies with FedAvg's ``num-examples`` mean.
+
+    Kish's ESS describes that weighted mean. Krum, Multi-Krum, the median, the trimmed
+    mean and Bulyan replace ``aggregate_train`` with selection or trimming, so for them
+    the train ESS is NaN rather than a number for an aggregate they never computed.
+    """
+    owner = next(
+        c
+        for c in cls.__mro__
+        if "aggregate_train" in vars(c) and not issubclass(c, ObservableMixin)
+    )
+    return owner is FedAvg
+
+
+class ObservableMixin(FedAvg):
     """Emits OTel round spans + FL metrics each round for the strategy it precedes in the MRO.
 
     Also records, per round, the outlier rank of each reply flagged ``malicious`` (see
     ``outlier_rank``): the bookkeeping behind "does the attacker stand out?". The flag is
     read here only, never by the aggregation rule.
+
+    ``global_evaluate`` scores the aggregated adapters on the global test set each round,
+    and on the initial adapters as round 0. The strategy passes it to ``start`` as
+    ``evaluate_fn`` itself, so the round it closes is always the one it observed.
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self, *args: Any, global_evaluate: GlobalEvaluator | None = None, **kwargs: Any
+    ) -> None:
         super().__init__(*args, **kwargs)
-        self._round_clients: dict[int, int] = {}
+        self._global_evaluate = global_evaluate
+        self._round_train_clients: dict[int, int] = {}
+        self._round_train_ess: dict[int, float] = {}
         self._round_failures: dict[int, int] = {}
         self._round_spans: dict[int, Any] = {}
+        self._awaiting_global: dict[int, dict[str, Any]] = {}
+        self._train_weighted = _train_is_weighted_mean(type(self))
         self.attacker_ranks: dict[int, list[int]] = {}
+
+    def start(
+        self,
+        grid: Grid,
+        initial_arrays: ArrayRecord,
+        num_rounds: int = 3,
+        timeout: float = 3600,
+        train_config: ConfigRecord | None = None,
+        evaluate_config: ConfigRecord | None = None,
+        evaluate_fn: Callable[[int, ArrayRecord], MetricRecord | None] | None = None,
+    ) -> Result:
+        if self._global_evaluate is not None:
+            if evaluate_fn is not None:
+                raise ValueError("pass global_evaluate or evaluate_fn, not both")
+            evaluate_fn = self._evaluate_global
+        return super().start(
+            grid=grid,
+            initial_arrays=initial_arrays,
+            num_rounds=num_rounds,
+            timeout=timeout,
+            train_config=train_config,
+            evaluate_config=evaluate_config,
+            evaluate_fn=evaluate_fn,
+        )
+
+    def _evaluate_global(self, server_round: int, arrays: ArrayRecord) -> MetricRecord:
+        assert self._global_evaluate is not None
+        observed = self._awaiting_global.pop(server_round, None)
+        try:
+            metrics = self._global_evaluate(arrays)
+        except Exception as exc:
+            # The round's client metrics are already aggregated; close it before the
+            # failure ends the run, so the trace keeps the round and says why it stopped.
+            if observed is not None:
+                observe_round(**observed, global_error=repr(exc))
+            raise
+        if observed is None:  # round 0: the initial adapters, before any round span
+            loss, accuracy = _round_summary(metrics)
+            record_global_metrics(rnd=server_round, loss=loss, accuracy=accuracy)
+        else:
+            observe_round(**observed, global_metrics=metrics)
+        return metrics
 
     def configure_train(
         self, server_round: int, arrays: ArrayRecord, config: ConfigRecord, grid: Grid
@@ -135,8 +276,11 @@ class ObservableMixin(Strategy):
         self, server_round: int, replies: Iterable[Message]
     ) -> tuple[ArrayRecord | None, MetricRecord | None]:
         replies = list(replies)
-        self._round_clients[server_round] = sum(1 for m in replies if not m.has_error())
+        self._round_train_clients[server_round] = sum(1 for m in replies if not m.has_error())
         self._round_failures[server_round] = sum(1 for m in replies if m.has_error())
+        self._round_train_ess[server_round] = (
+            _reply_ess(replies, self.weighted_by_key) if self._train_weighted else float("nan")
+        )
         ok = [m for m in replies if not m.has_error()]
         flagged = [i for i, m in enumerate(ok) if m.content["metrics"].get("malicious", 0)]
         if flagged:
@@ -150,13 +294,20 @@ class ObservableMixin(Strategy):
         replies = list(replies)
         eval_failures = sum(1 for m in replies if m.has_error())
         metrics = super().aggregate_evaluate(server_round, replies)
-        observe_round(
-            server_round=server_round,
-            metrics=metrics,
-            clients=self._round_clients.pop(server_round, 0),
-            failures=self._round_failures.pop(server_round, 0) + eval_failures,
-            span=self._round_spans.pop(server_round, None),
-        )
+        observed: dict[str, Any] = {
+            "server_round": server_round,
+            "metrics": metrics,
+            "train_clients": self._round_train_clients.pop(server_round, 0),
+            "evaluate_clients": len(replies) - eval_failures,
+            "failures": self._round_failures.pop(server_round, 0) + eval_failures,
+            "train_ess": self._round_train_ess.pop(server_round, float("nan")),
+            "evaluate_ess": _reply_ess(replies, self.weighted_by_key),
+            "span": self._round_spans.pop(server_round, None),
+        }
+        if self._global_evaluate is None:
+            observe_round(**observed)
+        else:
+            self._awaiting_global[server_round] = observed
         return metrics
 
 
@@ -164,7 +315,7 @@ class ObservableFedAvg(ObservableMixin, FedAvg):
     """FedAvg that emits OTel round spans + FL metrics each round."""
 
 
-_STRATEGIES: dict[str, type[Strategy]] = {
+_STRATEGIES: dict[str, type[FedAvg]] = {
     "fedavg": FedAvg,
     "krum": Krum,
     "multikrum": MultiKrum,
@@ -174,7 +325,7 @@ _STRATEGIES: dict[str, type[Strategy]] = {
 }
 
 
-def build_strategy(cfg: Any) -> Any:
+def build_strategy(cfg: Any, global_evaluate: GlobalEvaluator | None = None) -> ObservableMixin:
     """The observable strategy named by ``cfg["strategy"]``, configured from ``cfg``."""
     name = str(cfg["strategy"])
     if name not in _STRATEGIES:
@@ -183,6 +334,7 @@ def build_strategy(cfg: Any) -> Any:
     kwargs: dict[str, Any] = {
         "fraction_train": float(cfg["fraction-train"]),
         "fraction_evaluate": float(cfg["fraction-evaluate"]),
+        "global_evaluate": global_evaluate,
     }
     if name in ("krum", "multikrum", "bulyan"):
         kwargs["num_malicious_nodes"] = int(cfg["num-malicious"])
@@ -198,44 +350,26 @@ def build_strategy(cfg: Any) -> Any:
     return observable(**kwargs)
 
 
-def heldout_evaluator(cfg: Any) -> Any:
-    """A ``strategy.start`` ``evaluate_fn`` scoring the global adapters on a clean split."""
-    import torch
-
-    from phalanx.task import get_model, heldout_fn, load_heldout, set_adapter_state
-
-    model_name = str(cfg["model-name"])
-    loader = load_heldout(
-        model_name,
-        dataset=str(cfg["dataset"]),
-        split=str(cfg["heldout-split"]),
-        text_column=str(cfg["text-column"]),
-    )
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model = get_model(
-        model_name,
-        num_labels=int(cfg["num-labels"]),
-        target_modules=str(cfg["lora-target-modules"]),
-    ).to(device)
-    flip = (int(cfg["flip-from"]), int(cfg["flip-to"]))
-
-    def evaluate(server_round: int, arrays: ArrayRecord) -> MetricRecord:
-        set_adapter_state(model, arrays.to_torch_state_dict())
-        metrics: Any = heldout_fn(model, loader, device, flip)  # dict invariance vs MetricRecord
-        return MetricRecord(metrics)
-
-    return evaluate
-
-
 @app.main()
 def main(grid: Grid, context: Context) -> None:
     """Federate LoRA adapters with the configured strategy; observe every round over OTLP."""
     # deferred: heavy torch/HF import
-    from phalanx.task import get_adapter_state, get_model, set_seed
+    from phalanx.task import (
+        default_device,
+        get_adapter_state,
+        get_model,
+        global_eval_fn,
+        load_global_test,
+        sample_count,
+        set_adapter_state,
+        set_seed,
+    )
 
     cfg: Any = context.run_config  # flwr config values are a broad union; read as Any
     init_telemetry(service_name=str(cfg["otel-service-name"]))
-    set_seed(int(cfg["seed"]))  # same seed, same initial head, so scenarios pair up
+    # The seed fixes the initial adapters, so round 0 is the same in every run of one seed
+    # and the scenarios of a sweep pair up.
+    set_seed(int(cfg["seed"]))
 
     # Initial global state = the LoRA adapters only (not the frozen base model).
     model = get_model(
@@ -245,26 +379,39 @@ def main(grid: Grid, context: Context) -> None:
     )
     initial_arrays = ArrayRecord(get_adapter_state(model))
 
-    strategy = build_strategy(cfg)
-    evaluate_fn = heldout_evaluator(cfg) if str(cfg["heldout-split"]) else None
+    testloader = load_global_test(
+        str(cfg["model-name"]),
+        dataset=str(cfg["dataset"]),
+        text_column=str(cfg["text-column"]),
+        size=int(cfg["global-eval-size"]),
+    )
+    device = default_device()
+    model.to(device)
+    flip = (int(cfg["flip-from"]), int(cfg["flip-to"]))
+
+    def global_evaluate(arrays: ArrayRecord) -> MetricRecord:
+        set_adapter_state(model, arrays.to_torch_state_dict())
+        metrics: Any = global_eval_fn(model, testloader, device, flip)
+        return MetricRecord({**metrics, "num-examples": sample_count(testloader)})
+
+    strategy = build_strategy(cfg, global_evaluate)
     try:
         result = strategy.start(
             grid=grid,
             initial_arrays=initial_arrays,
             num_rounds=int(cfg["num-server-rounds"]),
-            evaluate_fn=evaluate_fn,
         )
         # Static provenance for the run, beside the dynamic OTel trace.
-        eval_metrics = {
-            str(rnd): dict(rec) for rnd, rec in result.evaluate_metrics_clientapp.items()
-        }
-        heldout = {str(rnd): dict(rec) for rnd, rec in result.evaluate_metrics_serverapp.items()}
-        ranks = {str(rnd): r for rnd, r in strategy.attacker_ranks.items()}
         write_manifest(
             run_manifest(
                 run_config=dict(cfg),
-                metrics=eval_metrics,
-                extra={"heldout_metrics": heldout, "attacker_outlier_rank": ranks},
+                metrics=_by_round(result.evaluate_metrics_clientapp),
+                global_metrics=_by_round(result.evaluate_metrics_serverapp),
+                extra={
+                    "attacker_outlier_rank": {
+                        str(rnd): r for rnd, r in strategy.attacker_ranks.items()
+                    }
+                },
             )
         )
     finally:

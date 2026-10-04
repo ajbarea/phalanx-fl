@@ -36,11 +36,11 @@ BASE = {
     "num-labels": 3,
     "partitioner": '"iid"',
     "fraction-train": 1.0,
-    # The server scores the held-out split; client-side evaluation would only add time.
+    # The server scores the whole test split; client-side evaluation would only add time.
     "fraction-evaluate": 0.0,
     "flip-from": 0,  # negative
     "flip-to": 2,  # positive
-    "heldout-split": '"test"',
+    "global-eval-size": 0,
     "attack-start-round": ATTACK_START,
 }
 

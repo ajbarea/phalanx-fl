@@ -50,17 +50,20 @@ manifests; every figure quoted anywhere comes from them.
 | `results/rounds.csv` | every run, every round: accuracy, loss, attack success, attacker outlier rank |
 | `results/figures/attack_success_by_round.{png,pdf}` | attack success per round under FedAvg, one line per scenario; the legend gives each scenario's mean over the attack rounds |
 | `results/figures/by_rule.{png,pdf}` | attack success and accuracy for every rule and scenario, averaged over the attack rounds (the boosted attack swings round to round, so the final round alone can land on a peak or a trough) |
-| `results/runs/<scenario>__<rule>__s<seed>.json` | one provenance manifest per run: git commit (and whether the tree was dirty), package versions, full run config, and per-round `heldout_metrics` and `attacker_outlier_rank` |
+| `results/runs/<scenario>__<rule>__s<seed>.json` | one provenance manifest per run: git commit (and whether the tree was dirty), package versions, full run config, and per-round `heldout_metrics` and `attacker_outlier_rank` (current code writes `global_metrics`; `summarize.py` reads either) |
 
 In a manifest, `metrics` (client-side evaluation) is empty because the sweep turns client
-evaluation off; all scoring is the server's, in `heldout_metrics`, keyed by round (round 0 is
-the untrained model).
+evaluation off; all scoring is the server's, in `heldout_metrics` (`global_metrics` from current
+code), keyed by round (round 0 is the untrained model).
 
 ## Known limitations
 
-- **FedAvg weights by batch count.** The runs predate the fix that weights by sample count
-  (`aj-num-examples-and-ess`). Here every bank holds 206 or 207 training sentences, 7 batches
-  each, so the two weightings differ by at most 0.027 percentage points of any bank's share.
-- **GPU runs are seeded but not bit-reproducible.** Seeds fix the partition, splits, initial
+- **The committed runs come from tag `financial-poisoning-2026-09-24`** (commit `1a209f0a5`,
+  flwr 1.36), the commit every manifest records. Check out that tag to replay them. Running
+  `sweep.py` on current code is a new experiment: it differs in the two ways below.
+- **FedAvg weighted by batch count.** Current code weights by sample count. Here every bank
+  holds 206 or 207 training sentences, 7 batches each, so the two weightings differ by at most
+  0.027 percentage points of any bank's share.
+- **GPU runs were seeded but not bit-reproducible.** Seeds fix the partition, splits, initial
   adapters and each client's data order, but CUDA's nondeterministic kernels were not
-  disabled (`feat/gpu-on-linux-aarch64` adds that), so a rerun can differ in the last digits.
+  disabled then (current code disables them), so a replay can differ in the last digits.

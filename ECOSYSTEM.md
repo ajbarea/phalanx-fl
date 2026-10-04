@@ -11,10 +11,10 @@ that, plus the OpenTelemetry observability layer that is the project's different
 
 ## Core runtime
 
-- **`flwr[simulation]>=1.36`** — Flower, on the current **Message API** app-model
+- **`flwr[simulation]>=1.39`** — Flower, on the current **Message API** app-model
   (`ServerApp`/`@app.main`, `ClientApp`/`@app.train`, `ArrayRecord`/`Message`/`RecordDict`,
   `strategy.start`). The `[simulation]` extra pulls the Ray-backed Simulation Engine
-  that `flwr run` drives. Floor is `>=1.36`; bump it forward as Flower releases,
+  that `flwr run` drives. Floor is `>=1.39`; bump it forward as Flower releases,
   never back.
 - **`flwr-datasets>=0.6`** — federated dataset partitioning (`FederatedDataset`,
   `DirichletPartitioner`, `IidPartitioner`). This is what makes the showcase non-IID.
@@ -44,12 +44,14 @@ that, plus the OpenTelemetry observability layer that is the project's different
 - **`evaluate>=0.4`** — the accuracy metric in `test_fn`.
 - **`scikit-learn>=1.3`** — required by `evaluate`'s accuracy metric backend.
 
-## `torch` extra — training, CPU by default
+## `torch` extra — training, CUDA on Linux aarch64
 
-- **`torch>=2.12` + `torchvision>=0.15`** — the training path. Routed to the
-  `pytorch-cpu` index via `[tool.uv.sources]` so CPU dev and CI do not pull ~2 GB of
-  CUDA wheels. GPU is opt-in: switch the index to `cu128` and re-sync (commented in
-  `pyproject.toml`). Mirrors the velocity-fl convention for portfolio coherence.
+- **`torch>=2.12` + `torchvision>=0.15`** — the training path. `[tool.uv.sources]`
+  routes Linux aarch64 (GH200) to the `pytorch-cu130` index and every other platform,
+  CI included, to `pytorch-cpu`, so x86 and macOS dev does not pull ~2 GB of CUDA wheels.
+  Any Linux aarch64 machine gets the CUDA build, including Docker on Apple Silicon and
+  arm CI runners; it runs on CPU there, at that download cost. The CPU default mirrors
+  the velocity-fl convention.
 
 ## Dev group
 

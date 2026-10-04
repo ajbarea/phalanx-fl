@@ -7,8 +7,8 @@ Writes, under ``results/``:
   [min, max] over seeds;
 - ``figures/attack_success_by_round.{png,pdf}`` and ``figures/by_rule.{png,pdf}``.
 
-Every figure is read from the held-out (clean test split) metrics the server recorded
-in each manifest; nothing is retyped.
+Every figure is read from the global test-set metrics the server recorded in each
+manifest; nothing is retyped.
 
     uv run --no-sync python experiments/financial_poisoning/summarize.py
 """
@@ -68,8 +68,10 @@ def load() -> Cells:
 
 
 def series(manifest: dict[str, Any], key: str) -> list[float]:
-    heldout = manifest["heldout_metrics"]
-    return [float(heldout[str(r)][key]) for r in range(ROUNDS + 1)]
+    # Manifests written before the global evaluation was unified, the committed runs
+    # among them, name the same server-side scores ``heldout_metrics``.
+    scores = manifest.get("global_metrics") or manifest["heldout_metrics"]
+    return [float(scores[str(r)][key]) for r in range(ROUNDS + 1)]
 
 
 def _ranks(manifest: dict[str, Any], rounds: range) -> list[int]:

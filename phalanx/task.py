@@ -3,8 +3,9 @@
 Anchored on Flower's quickstart-huggingface example (flwr 1.36 app-model), adapted to:
   - LoRA adapters via PEFT (only the adapters are federated — tiny, privacy-preserving);
   - non-IID partitioning via flwr-datasets' DirichletPartitioner (IID available as a fallback);
-  - an optional label-flip data-poisoning attack and a clean held-out test split scored
-    for accuracy plus attack success rate.
+  - an optional label-flip data-poisoning attack;
+  - a global test set, the dataset's own ``test`` split, which the partitioner never sees,
+    scored for accuracy and the flip's attack success rate.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ from typing import Any
 
 import numpy as np
 import torch
-from datasets import load_dataset
+from datasets import Dataset, load_dataset
 from datasets.utils.logging import disable_progress_bar
 from evaluate import load as load_metric
 from flwr_datasets import FederatedDataset
@@ -42,13 +43,16 @@ Flip = tuple[int, int]
 def set_seed(seed: int) -> None:
     """Seed Python / NumPy / torch RNGs so a client's local training is reproducible.
 
-    Clients seed per-partition (see client_app) so each is deterministic yet distinct;
-    combined with the partitioner/split seeds, a whole run replays. CPU-only here, so
-    no CUDA-determinism caveats apply.
+    Clients seed per (round, partition) (see client_app), so each is deterministic yet
+    distinct. On CUDA, nondeterministic kernels are disabled too, strictly: an op with no
+    deterministic kernel raises, failing that client, rather than warning and letting the
+    replay drift unnoticed. The mode is process-wide and also slows some kernels.
     """
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.use_deterministic_algorithms(True)
 
 
 def _make_partitioner(name: str, num_partitions: int, alpha: float, seed: int) -> Partitioner:
@@ -67,23 +71,6 @@ def flip_labels(labels: list[int], flip: Flip) -> list[int]:
     """Relabel every ``source`` label as ``target``; other labels pass through."""
     source, target = flip
     return [target if label == source else label for label in labels]
-
-
-def _tokenized_loader(
-    split: Any, model_name: str, text_column: str, *, shuffle: bool
-) -> DataLoader[Any]:
-    """Tokenize ``text_column`` and batch with dynamic padding."""
-    tokenizer: Any = AutoTokenizer.from_pretrained(model_name, model_max_length=512)
-
-    def tokenize(examples: dict[str, Any]) -> Any:
-        return tokenizer(examples[text_column], truncation=True, add_special_tokens=True)
-
-    keep = {text_column, "label"}
-    split = split.remove_columns([c for c in split.column_names if c not in keep])
-    split = split.map(tokenize, batched=True)
-    split = split.remove_columns(text_column).rename_column("label", "labels")
-    collator = DataCollatorWithPadding(tokenizer=tokenizer)
-    return DataLoader(split, shuffle=shuffle, batch_size=32, collate_fn=collator)
 
 
 def load_data(
@@ -115,17 +102,67 @@ def load_data(
     if flip is not None:
         train = train.map(lambda b: {"label": flip_labels(b["label"], flip)}, batched=True)
     return (
-        _tokenized_loader(train, model_name, text_column, shuffle=True),
-        _tokenized_loader(split["test"], model_name, text_column, shuffle=False),
+        _loader(train, model_name, text_column=text_column, shuffle=True),
+        _loader(split["test"], model_name, text_column=text_column, shuffle=False),
     )
 
 
-def load_heldout(
-    model_name: str, *, dataset: str, split: str, text_column: str = "text"
+def load_global_test(
+    model_name: str,
+    *,
+    dataset: str = "stanfordnlp/imdb",
+    text_column: str = "text",
+    size: int = 0,
+    seed: int = 42,
 ) -> DataLoader[Any]:
-    """A clean split no client trains on, for server-side (centralized) evaluation."""
-    heldout = load_dataset(dataset, split=split)
-    return _tokenized_loader(heldout, model_name, text_column, shuffle=False)
+    """The dataset's ``test`` split, shared by every round and untouched by the partitioner.
+
+    Client holdouts inherit their partition's label skew; this split does not, so its
+    accuracy compares across partitioners and alphas. ``size`` > 0 takes a seeded sample
+    of that many rows, the same rows every round; 0 keeps the whole split.
+    """
+    if size < 0:
+        raise ValueError(f"global-eval-size must be >= 0, got {size}")
+    split: Any = load_dataset(dataset, split="test")
+    if 0 < size < len(split):
+        split = split.shuffle(seed=seed).select(range(size))
+    return _loader(split, model_name, text_column=text_column, shuffle=False)
+
+
+def _loader(
+    split: Dataset, model_name: str, *, text_column: str = "text", shuffle: bool
+) -> DataLoader[Any]:
+    """Tokenize ``text_column`` of a text/label split into a padded DataLoader."""
+    tokenizer: Any = AutoTokenizer.from_pretrained(model_name, model_max_length=512)
+
+    def tokenize(examples: dict[str, Any]) -> Any:
+        return tokenizer(examples[text_column], truncation=True, add_special_tokens=True)
+
+    keep = {text_column, "label"}
+    split = split.remove_columns([c for c in split.column_names if c not in keep])
+    tokenized = split.map(tokenize, batched=True)
+    tokenized = tokenized.remove_columns(text_column).rename_column("label", "labels")
+    collator = DataCollatorWithPadding(tokenizer=tokenizer)
+    return DataLoader(tokenized, shuffle=shuffle, batch_size=32, collate_fn=collator)
+
+    tokenized = split.map(tokenize, batched=True)
+    tokenized = tokenized.remove_columns("text").rename_column("label", "labels")
+    collator = DataCollatorWithPadding(tokenizer=tokenizer)
+    return DataLoader(tokenized, shuffle=shuffle, batch_size=32, collate_fn=collator)
+
+
+def sample_count(loader: Any) -> int:
+    """Rows behind a loader, which is what FedAvg must weight by.
+
+    ``len(loader)`` counts batches, not rows: 33 rows and 64 rows both report 2 at
+    ``batch_size=32``. FedAvg takes ``weighted_by_key="num-examples"``, so a batch count
+    here quantises the adapter aggregate toward the smallest partitions.
+    """
+    return len(loader.dataset)
+
+
+def default_device() -> torch.device:
+    return torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def get_model(model_name: str, num_labels: int = 2, target_modules: str = "") -> Any:
@@ -215,10 +252,10 @@ def test_fn(model: Any, testloader: DataLoader[Any], device: torch.device) -> tu
     return loss, float(metric.compute()["accuracy"])
 
 
-def heldout_fn(
+def global_eval_fn(
     model: Any, loader: DataLoader[Any], device: torch.device, flip: Flip
 ) -> dict[str, float]:
-    """Held-out loss, accuracy and attack success rate for ``flip``."""
+    """Global-test loss, accuracy and the attack success rate of ``flip``."""
     loss, predictions, references = _predict(model, loader, device)
     return {
         "loss": loss,
