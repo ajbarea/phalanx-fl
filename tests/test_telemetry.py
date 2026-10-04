@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import StatusCode
 
 from phalanx import telemetry
 from phalanx.telemetry import (
@@ -52,6 +53,15 @@ def test_client_span_names_the_phase() -> None:
         pass
     names = {s.name for s in span_exporter.get_finished_spans()}
     assert "fl.client.train" in names
+
+
+def test_a_raising_client_pass_names_its_error_type() -> None:
+    span_exporter, _ = _setup()
+    with pytest.raises(MemoryError), client_span(rnd=1, partition_id=0, phase="train"):
+        raise MemoryError("out of memory")
+    span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.client.train")
+    assert span.status.status_code == StatusCode.ERROR
+    assert dict(span.attributes or {})["error.type"] == "builtins.MemoryError"
 
 
 def test_round_metrics_recorded() -> None:

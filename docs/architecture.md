@@ -107,6 +107,31 @@ timestamps, comes from the strategy's own clock, since metrics are not sampled.
 Instruments declare semconv units: `1` for loss and accuracy, `{client}` for client counts
 and ESS, `{failure}` for `fl.round.failures` and `{example}` for `fl.client.examples`.
 
+## Failures
+
+Every failed or missing client reply becomes an `fl.client.failure` event on its round
+span, with `error.type`, `fl.message.type`, `fl.node.id` and, for an error reply, Flower's
+`fl.error.code`. `error.type` comes from a fixed, documented set:
+
+| `error.type` | from |
+| --- | --- |
+| `client_app_exception` | the ClientApp raised (`CLIENT_APP_RAISED_EXCEPTION`) |
+| `client_app_load_error` | the ClientApp failed to load |
+| `client_app_crashed` | the ClientApp process crashed |
+| `node_unavailable`, `message_unavailable`, `reply_unavailable` | the matching Flower codes |
+| `mod_failed_precondition`, `invalid_fab` | the matching Flower codes |
+| `oom`, `worker_died` | a simulation worker's Ray `OutOfMemoryError` / actor death |
+| `timeout` | no reply arrived from a node that was sent a message |
+| `_OTHER` | anything Flower does not say more about |
+
+`fl.round.failures` counts them by `error.type` and phase, and the manifest's
+`client_failures` holds the counts per round. A round that tolerated its failures and
+still aggregated keeps an unset status, as semconv asks for handled errors. A round is
+`ERROR`, with `error.type` on the span and on its `fl.round.duration`, only when it failed
+itself: `no_client_updates`, `aggregation_skipped` or `global_evaluation_failed`. A
+ClientApp that raises marks its own `fl.client.*` span `ERROR` with the exception's
+qualified class name as `error.type`.
+
 The round span's W3C `traceparent` rides the broadcast `ConfigRecord`, so each client
 span, though it runs in a separate Ray process, is a child of its round span: one trace
 per round.

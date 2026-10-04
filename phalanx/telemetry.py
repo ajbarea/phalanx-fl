@@ -212,7 +212,13 @@ def client_span(
     with _tracer.start_as_current_span(
         f"fl.client.{phase}", context=parent, attributes=attrs
     ) as span:
-        yield span
+        try:
+            yield span
+        except Exception as exc:
+            # The SDK records the exception and sets ERROR; semconv also wants error.type,
+            # the exception's fully qualified class name.
+            span.set_attribute("error.type", f"{type(exc).__module__}.{type(exc).__qualname__}")
+            raise
 
 
 def traceparent_for(span: Any) -> str:
@@ -234,11 +240,10 @@ def record_round_metrics(
     accuracy: float,
     train_clients: int,
     evaluate_clients: int = 0,
-    failures: int = 0,
     train_ess: float = float("nan"),
     evaluate_ess: float = float("nan"),
 ) -> None:
-    """Record aggregated server-round metrics (loss, accuracy, participation, ESS, failures)."""
+    """Record aggregated server-round metrics (loss, accuracy, participation, ESS)."""
     _ensure_init()
     attrs = {"fl.round": rnd}
     _instruments["round_loss"].set(loss, attributes=attrs)
@@ -247,7 +252,6 @@ def record_round_metrics(
     _instruments["round_evaluate_clients"].set(evaluate_clients, attributes=attrs)
     _instruments["round_train_ess"].set(train_ess, attributes=attrs)
     _instruments["round_evaluate_ess"].set(evaluate_ess, attributes=attrs)
-    _instruments["round_failures"].add(failures, attributes=attrs)
 
 
 def record_global_metrics(*, rnd: int, loss: float, accuracy: float) -> None:
@@ -261,10 +265,20 @@ def record_global_metrics(*, rnd: int, loss: float, accuracy: float) -> None:
     _instruments["round_global_accuracy"].set(accuracy, attributes=attrs)
 
 
-def record_round_duration(*, rnd: int, seconds: float) -> None:
-    """Record one round's wall time."""
+def record_failures(*, rnd: int, message_type: str, error_type: str, count: int) -> None:
+    """Count one round's failed or missing client replies of one ``error.type``."""
     _ensure_init()
-    _instruments["round_duration"].record(seconds, attributes={"fl.round": rnd})
+    attrs = {"fl.round": rnd, "fl.message.type": message_type, "error.type": error_type}
+    _instruments["round_failures"].add(count, attributes=attrs)
+
+
+def record_round_duration(*, rnd: int, seconds: float, error_type: str | None = None) -> None:
+    """Record one round's wall time; ``error_type`` is set only when the round failed."""
+    _ensure_init()
+    attrs: dict[str, str | int] = {"fl.round": rnd}
+    if error_type is not None:
+        attrs["error.type"] = error_type
+    _instruments["round_duration"].record(seconds, attributes=attrs)
 
 
 def record_message_size(*, nbytes: int, message_type: str, direction: str) -> None:

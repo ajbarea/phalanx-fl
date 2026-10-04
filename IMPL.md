@@ -8,27 +8,28 @@ ROADMAP's "Recently shipped" and clear the relevant block below.
 
 ## Current focus
 
-**Poisoning and robust aggregation.** A label-flip attacker, which may boost its update,
-and Flower's robust rules, picked by `strategy`. First use: `experiments/financial_poisoning/`
-(Financial PhraseBank, 12 banks, 54 runs).
+**v2 observability, finished (2026-10-04).** Every open v2 roadmap item has shipped or
+been dropped with a reason, following OTel semantic conventions v1.44:
 
-- One server-side evaluation: the global test set, which also reports the flip's attack
-  success rate. `heldout-split` is gone; `summarize.py` still reads `heldout_metrics` in
-  the committed manifests, which rebuild their tables byte for byte.
-- `ObservableMixin(FedAvg)` carries the round lifecycle for every rule. Train ESS is NaN
-  for the robust rules, which take no weighted mean over all replies; evaluate ESS holds.
-- A rule that declines to aggregate (Bulyan below `4f + 3` replies) marks its round:
-  `fl.aggregation_skipped` on the span, `aggregation_skipped_rounds` in the manifest.
-- `seed` also seeds the pre-partition shuffle, so IID partitions vary by seed.
-- Each client pass seeds from `SeedSequence([round, partition, seed])`, numpy's keyed form,
-  so no two (round, partition, seed) share a stream. The old `1000 * round + partition +
-  100_000 * seed` repeated past round 99. Results replay from their tags, not from HEAD.
-- `evaluate` and `scikit-learn` are gone: accuracy is computed inline. CI and `make sync`
-  install every extra, so `experiments/` code is tested and audited too.
-- Deterministic CUDA needs `CUBLAS_WORKSPACE_CONFIG`; `set_seed` sets `:4096:8` unless set.
-- The committed runs come from tag `financial-poisoning-2026-09-24` (flwr 1.36,
-  batch-count weighting, one partition across seeds); the experiment README says how they
-  differ from a rerun.
+- `fl.round.duration` (`s`) and `fl.message.size` (`By`) histograms; the duration is the
+  round span's own, or the strategy's clock when the span is unsampled (#119).
+- `compose.yaml`: Jaeger 2.21 for traces and the Aspire Dashboard for traces and metrics,
+  pinned by digest; `OTEL_METRICS_EXPORTER=none` keeps metrics off Jaeger (#120).
+- Failures: each failed or missing reply is an `fl.client.failure` event with `error.type`,
+  matched to its message by id, since a SuperLink-made reply names the SuperLink as its
+  source. Node ids are uint64, so `fl.node.id` is a string: OTLP cannot encode half of
+  them as int64. A round that tolerated its failures stays unset.
+- The GenAI evaluation event is dropped: it is for GenAI output, not classifier accuracy.
+
+Live checks that unit tests cannot make: a run exporting to Jaeger returned each round's
+client spans as children of its round span, and a run whose clients all raised produced
+three `client_app_exception` events with real node ids above int64 and a `no_client_updates`
+round.
+
+**Poisoning and robust aggregation (#115).** `experiments/financial_poisoning/` holds the
+54-run sweep; its committed runs come from tag `financial-poisoning-2026-09-24`, and its
+README lists how a rerun on current code differs. Client seeds now come from numpy's
+`SeedSequence` with a role tag (#118).
 
 **Worktrees and the local SuperLink.** A SuperLink started by `flwr run` in one worktree
 keeps that worktree's venv and cwd for every later run, from any worktree. Stop it

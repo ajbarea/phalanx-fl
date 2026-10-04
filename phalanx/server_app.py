@@ -15,12 +15,15 @@ from the adapter state, not the full model).
 from __future__ import annotations
 
 import math
+import re
 import time
+from collections import Counter
 from collections.abc import Callable, Iterable
 from typing import Any
 
 import numpy as np
 from flwr.app import ArrayRecord, ConfigRecord, Context, Message, MetricRecord
+from flwr.common.constant import ErrorCode
 from flwr.serverapp import Grid, ServerApp
 from flwr.serverapp.strategy import (
     Bulyan,
@@ -36,6 +39,7 @@ from opentelemetry.trace import Status, StatusCode
 from phalanx.provenance import run_manifest, write_manifest
 from phalanx.telemetry import (
     init_telemetry,
+    record_failures,
     record_global_metrics,
     record_message_size,
     record_round_duration,
@@ -118,6 +122,7 @@ def observe_round(
     global_metrics: MetricRecord | None = None,
     global_error: str | None = None,
     aggregation_skipped: bool = False,
+    no_client_updates: bool = False,
     payload_bytes: dict[str, int] | None = None,
     started: float | None = None,
     span: Any | None = None,
@@ -143,25 +148,30 @@ def observe_round(
     global_loss, global_accuracy = _round_summary(global_metrics)
     span.set_attribute("fl.global_loss", global_loss)
     span.set_attribute("fl.global_accuracy", global_accuracy)
-    if failures:
-        # Surface client/worker failures in the trace, not just the participation count.
-        span.add_event("fl.client_failures", {"count": failures})
-        span.set_status(Status(StatusCode.ERROR, f"{failures} client failure(s) this round"))
-    if global_error is not None:
-        span.add_event("fl.global_evaluation_failed", {"error": global_error})
-        span.set_status(Status(StatusCode.ERROR, "global evaluation failed"))
+    # Client failures the round tolerated leave its status unset (semconv: a handled
+    # error is not the operation's error); each one is an fl.client.failure event,
+    # added when its reply arrived. Only a round that itself failed is ERROR.
+    error: tuple[str, str] | None = None
+    if no_client_updates:
+        span.add_event("fl.no_client_updates")
+        error = ("no_client_updates", "no client returned an update; global model unchanged")
     if aggregation_skipped:
         # The rule declined (e.g. Bulyan below 4f + 3 replies): the global model did not
         # change, so this round's global metrics re-score the previous round's adapters.
         span.add_event("fl.aggregation_skipped")
-        span.set_status(Status(StatusCode.ERROR, "aggregation skipped; global model unchanged"))
+        error = ("aggregation_skipped", "aggregation skipped; global model unchanged")
+    if global_error is not None:
+        span.add_event("fl.global_evaluation_failed", {"error": global_error})
+        error = ("global_evaluation_failed", global_error)
+    if error is not None:
+        span.set_attribute("error.type", error[0])
+        span.set_status(Status(StatusCode.ERROR, error[1]))
     record_round_metrics(
         rnd=server_round,
         loss=loss,
         accuracy=accuracy,
         train_clients=train_clients,
         evaluate_clients=evaluate_clients,
-        failures=failures,
         train_ess=train_ess,
         evaluate_ess=evaluate_ess,
     )
@@ -171,10 +181,12 @@ def observe_round(
     # A recording span's own timestamps make the metric exactly its duration. An unsampled
     # span has none, and metrics are not sampled, so fall back to the strategy's clock.
     start, end = getattr(span, "start_time", None), getattr(span, "end_time", None)
+    error_type = error[0] if error is not None else None
     if start is not None and end is not None:
-        record_round_duration(rnd=server_round, seconds=(end - start) / 1e9)
+        record_round_duration(rnd=server_round, seconds=(end - start) / 1e9, error_type=error_type)
     elif started is not None:
-        record_round_duration(rnd=server_round, seconds=time.perf_counter() - started)
+        seconds = time.perf_counter() - started
+        record_round_duration(rnd=server_round, seconds=seconds, error_type=error_type)
 
 
 def outlier_rank(updates: list[np.ndarray], index: int) -> int:
@@ -187,6 +199,36 @@ def outlier_rank(updates: list[np.ndarray], index: int) -> int:
 def _flatten(message: Message) -> np.ndarray:
     record = next(iter(message.content.array_records.values()))
     return np.concatenate([a.ravel() for a in record.to_numpy_ndarrays()])
+
+
+# error.type for a failed client reply: low-cardinality and documented, as semconv asks.
+_ERROR_TYPES = {
+    ErrorCode.LOAD_CLIENT_APP_EXCEPTION: "client_app_load_error",
+    ErrorCode.CLIENT_APP_RAISED_EXCEPTION: "client_app_exception",
+    ErrorCode.MESSAGE_UNAVAILABLE: "message_unavailable",
+    ErrorCode.REPLY_MESSAGE_UNAVAILABLE: "reply_unavailable",
+    ErrorCode.NODE_UNAVAILABLE: "node_unavailable",
+    ErrorCode.MOD_FAILED_PRECONDITION: "mod_failed_precondition",
+    ErrorCode.INVALID_FAB: "invalid_fab",
+    ErrorCode.CLIENT_APP_CRASHED: "client_app_crashed",
+}
+# The simulation reports a worker's own failure as UNKNOWN, reason "<class 'x.Name'>:<'msg'>".
+_WORKER_ERRORS = {
+    "OutOfMemoryError": "oom",
+    "RayActorError": "worker_died",
+    "ActorDiedError": "worker_died",
+}
+_REASON_CLASS = re.compile(r"<class '(?:[\w.]+\.)?(\w+)'>")
+TIMEOUT = "timeout"  # no reply arrived before send_and_receive's timeout
+
+
+def failure_type(message: Message) -> str:
+    """The ``error.type`` of a failed reply; ``_OTHER`` when Flower's code says no more."""
+    error = message.error
+    if error.code == ErrorCode.UNKNOWN:
+        match = _REASON_CLASS.match(error.reason or "")
+        return _WORKER_ERRORS.get(match.group(1), "_OTHER") if match else "_OTHER"
+    return _ERROR_TYPES.get(error.code, "_OTHER")
 
 
 def _payload_bytes(message: Message) -> int:
@@ -244,8 +286,11 @@ class ObservableMixin(FedAvg):
         self._round_bytes: dict[int, dict[str, int]] = {}
         self._round_started: dict[int, float] = {}
         self._train_weighted = _train_is_weighted_mean(type(self))
+        self._sent: dict[tuple[int, str], list[Message]] = {}
         self.attacker_ranks: dict[int, list[int]] = {}
         self.skipped_rounds: set[int] = set()
+        self.no_update_rounds: set[int] = set()
+        self.client_failures: dict[int, dict[str, int]] = {}
 
     def start(
         self,
@@ -302,6 +347,7 @@ class ObservableMixin(FedAvg):
         config["traceparent"] = traceparent_for(span)
         messages = list(super().configure_train(server_round, arrays, config, grid))
         self._count_bytes(server_round, messages, "train", "server_to_client")
+        self._sent[(server_round, "train")] = messages
         return messages
 
     def configure_evaluate(
@@ -312,7 +358,59 @@ class ObservableMixin(FedAvg):
             config["traceparent"] = traceparent_for(span)
         messages = list(super().configure_evaluate(server_round, arrays, config, grid))
         self._count_bytes(server_round, messages, "evaluate", "server_to_client")
+        self._sent[(server_round, "evaluate")] = messages
         return messages
+
+    def _record_failures(self, server_round: int, replies: list[Message], message_type: str) -> int:
+        """Classify failed and missing replies onto the round span; return how many.
+
+        Replies are matched to the messages sent by id: the grid writes each message's id
+        into it on push, and a reply the SuperLink makes for an unreachable node carries
+        the SuperLink as its source but the original message's id as ``reply_to``.
+        """
+        span = self._round_spans.get(server_round)
+        counts: Counter[str] = Counter()
+        sent = self._sent.pop((server_round, message_type), [])
+        node_by_id = {m.metadata.message_id: m.metadata.dst_node_id for m in sent}
+        matched = all(node_by_id) and len(node_by_id) == len(sent)
+
+        def node_of(reply: Message) -> int:
+            node = node_by_id.get(reply.metadata.reply_to_message_id) if matched else None
+            return reply.metadata.src_node_id if node is None else node
+
+        def note(error_type: str, attributes: dict[str, Any]) -> None:
+            counts[error_type] += 1
+            if span is not None:
+                span.add_event(
+                    "fl.client.failure",
+                    {"error.type": error_type, "fl.message.type": message_type, **attributes},
+                )
+
+        # Node ids are uint64; as strings they stay exact and always encode over OTLP.
+        for reply in replies:
+            if reply.has_error():
+                note(
+                    failure_type(reply),
+                    {"fl.error.code": reply.error.code, "fl.node.id": str(node_of(reply))},
+                )
+        if matched:
+            answered = {reply.metadata.reply_to_message_id for reply in replies}
+            missing = [node for mid, node in node_by_id.items() if mid not in answered]
+        else:  # a grid that assigns no ids: match by node instead
+            answered_nodes = {node_of(reply) for reply in replies}
+            missing = [m.metadata.dst_node_id for m in sent]
+            missing = [node for node in missing if node not in answered_nodes]
+        for node_id in missing:
+            note(TIMEOUT, {"fl.node.id": str(node_id)})
+        round_counts = self.client_failures.setdefault(server_round, {})
+        for error_type, count in counts.items():
+            record_failures(
+                rnd=server_round, message_type=message_type, error_type=error_type, count=count
+            )
+            round_counts[error_type] = round_counts.get(error_type, 0) + count
+        if not round_counts:
+            del self.client_failures[server_round]
+        return sum(counts.values())
 
     def _count_bytes(
         self, server_round: int, messages: list[Message], message_type: str, direction: str
@@ -331,7 +429,7 @@ class ObservableMixin(FedAvg):
         replies = list(replies)
         self._count_bytes(server_round, replies, "train", "client_to_server")
         self._round_train_clients[server_round] = sum(1 for m in replies if not m.has_error())
-        self._round_failures[server_round] = sum(1 for m in replies if m.has_error())
+        self._round_failures[server_round] = self._record_failures(server_round, replies, "train")
         self._round_train_ess[server_round] = (
             _reply_ess(replies, self.weighted_by_key) if self._train_weighted else float("nan")
         )
@@ -340,6 +438,8 @@ class ObservableMixin(FedAvg):
         ok = [m for m in replies if not m.has_error()]
         if arrays is None and ok:
             self.skipped_rounds.add(server_round)
+        elif arrays is None:
+            self.no_update_rounds.add(server_round)
         flagged = [i for i, m in enumerate(ok) if _metric(m, "malicious")]
         if flagged:
             updates = [_flatten(m) for m in ok]
@@ -351,17 +451,19 @@ class ObservableMixin(FedAvg):
     ) -> MetricRecord | None:
         replies = list(replies)
         self._count_bytes(server_round, replies, "evaluate", "client_to_server")
-        eval_failures = sum(1 for m in replies if m.has_error())
+        eval_errors = sum(1 for m in replies if m.has_error())
+        eval_failures = self._record_failures(server_round, replies, "evaluate")
         metrics = super().aggregate_evaluate(server_round, replies)
         observed: dict[str, Any] = {
             "server_round": server_round,
             "metrics": metrics,
             "train_clients": self._round_train_clients.pop(server_round, 0),
-            "evaluate_clients": len(replies) - eval_failures,
+            "evaluate_clients": len(replies) - eval_errors,
             "failures": self._round_failures.pop(server_round, 0) + eval_failures,
             "train_ess": self._round_train_ess.pop(server_round, float("nan")),
             "evaluate_ess": _reply_ess(replies, self.weighted_by_key),
             "aggregation_skipped": server_round in self.skipped_rounds,
+            "no_client_updates": server_round in self.no_update_rounds,
             "payload_bytes": self._round_bytes.pop(server_round, {}),
             "started": self._round_started.pop(server_round, None),
             "span": self._round_spans.pop(server_round, None),
@@ -475,6 +577,9 @@ def main(grid: Grid, context: Context) -> None:
                         str(rnd): r for rnd, r in strategy.attacker_ranks.items()
                     },
                     "aggregation_skipped_rounds": sorted(strategy.skipped_rounds),
+                    "client_failures": {
+                        str(rnd): counts for rnd, counts in strategy.client_failures.items()
+                    },
                 },
             )
         )
