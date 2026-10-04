@@ -9,7 +9,9 @@
 ##   make smoke    Fast 2-round federated simulation (sanity check)
 ##   make run      Full federated simulation (flwr run, streamed)
 ##   make trace    Run with console OTel traces (no collector needed)
-##   make otel-up  Start Jaeger for traces (UI :16686, OTLP :4317); otel-down stops it
+##   make otel-up      Start Jaeger for traces (UI :16686, OTLP :4317)
+##   make otel-aspire  Start Aspire Dashboard for traces + metrics (UI :18888, OTLP :18889)
+##   make otel-down    Stop both
 ##   make audit    Security scan (pip-audit)
 ##
 ## Simulation knobs: app config via --run-config 'num-server-rounds=5 partitioner="iid"';
@@ -28,7 +30,7 @@ AUDIT_IGNORES := GHSA-537c-gmf6-5ccf GHSA-hhrp-gw25-jr43 PYSEC-2026-3552 PYSEC-2
 
 help:                      ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort \
-		| awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-10s\033[0m %s\n",$$1,$$2}'
+		| awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-12s\033[0m %s\n",$$1,$$2}'
 
 sync:                      ## Install all dependencies (torch: CPU, CUDA 13 on Linux aarch64)
 	uv sync --all-extras

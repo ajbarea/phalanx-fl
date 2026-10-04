@@ -78,9 +78,9 @@ so tests can re-initialise between cases. `init_telemetry` chooses an exporter p
 signal:
 
 - an injected in-memory exporter (unit tests),
-- otherwise what the spec's `OTEL_TRACES_EXPORTER` / `OTEL_METRICS_EXPORTER` names:
-  `otlp` (the default), `console` or `none`. An unsupported value warns and exports
-  nothing.
+- otherwise what the spec's `OTEL_TRACES_EXPORTER` / `OTEL_METRICS_EXPORTER` lists,
+  comma-separated: `otlp` (the default, also when the variable is empty), `console`, or
+  `none` to turn the signal off. An unsupported entry warns and is skipped.
 - `otlp` exports only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set; otherwise telemetry is
   recorded but not exported.
 

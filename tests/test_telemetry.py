@@ -109,25 +109,34 @@ def test_shutdown_flushes_and_is_idempotent() -> None:
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
-        (None, "otlp"),
-        ("none", "none"),
-        ("console", "console"),
-        (" NONE ", "none"),
-        ("otlp", "otlp"),
+        (None, {"otlp"}),
+        ("", {"otlp"}),  # the spec treats empty as unset
+        ("none", set()),
+        (" NONE ", set()),
+        ("console", {"console"}),
+        ("otlp,console", {"otlp", "console"}),  # a comma-separated list
+        ("otlp, none", set()),
     ],
 )
-def test_exporter_follows_the_spec_variable(monkeypatch, value, expected) -> None:
+def test_exporters_follow_the_spec_variable(monkeypatch, value, expected) -> None:
     if value is None:
         monkeypatch.delenv("OTEL_METRICS_EXPORTER", raising=False)
     else:
         monkeypatch.setenv("OTEL_METRICS_EXPORTER", value)
-    assert telemetry._exporter("OTEL_METRICS_EXPORTER") == expected
+    assert telemetry._exporters("OTEL_METRICS_EXPORTER") == expected
 
 
-def test_an_unsupported_exporter_warns_and_exports_nothing(monkeypatch) -> None:
-    monkeypatch.setenv("OTEL_METRICS_EXPORTER", "prometheus")
+def test_an_unsupported_exporter_warns_and_is_skipped(monkeypatch) -> None:
+    monkeypatch.setenv("OTEL_METRICS_EXPORTER", "prometheus,console")
     with pytest.warns(UserWarning, match="prometheus"):
-        assert telemetry._exporter("OTEL_METRICS_EXPORTER") == "none"
+        assert telemetry._exporters("OTEL_METRICS_EXPORTER") == {"console"}
+
+
+def test_an_injected_exporter_ignores_the_variables(monkeypatch, recwarn) -> None:
+    monkeypatch.setenv("OTEL_TRACES_EXPORTER", "prometheus")
+    monkeypatch.setenv("OTEL_METRICS_EXPORTER", "prometheus")
+    _setup()
+    assert not [w for w in recwarn if "prometheus" in str(w.message)]
 
 
 @pytest.mark.parametrize(("choice", "built"), [("none", 0), ("otlp", 1)])

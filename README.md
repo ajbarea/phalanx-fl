@@ -70,7 +70,7 @@ export OTEL_METRICS_EXPORTER=none  # Jaeger stores traces only
 make run
 ```
 
-Jaeger shows traces only. `make otel-aspire` starts the Aspire Dashboard instead, which shows traces and metrics (UI at http://localhost:18888, OTLP on port 18889). `make otel-down` stops both.
+Jaeger shows traces only. For metrics too, `make otel-aspire` starts the Aspire Dashboard (UI at http://localhost:18888); export to it with `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:18889` and `OTEL_METRICS_EXPORTER` unset. `make otel-down` stops both.
 
 Or print spans to the terminal with `OTEL_TRACES_EXPORTER=console` (this is what `make trace` does).
 

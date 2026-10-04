@@ -49,19 +49,19 @@ _propagator = TraceContextTextMapPropagator()  # W3C trace-context across the FL
 _EXPORTERS = ("otlp", "console", "none")
 
 
-def _exporter(variable: str) -> str:
-    """The exporter the spec's ``OTEL_<SIGNAL>_EXPORTER`` names; ``otlp`` when unset.
+def _exporters(variable: str) -> frozenset[str]:
+    """The exporters the spec's ``OTEL_<SIGNAL>_EXPORTER`` lists; ``otlp`` when unset or empty.
 
-    ``none`` turns a signal off, e.g. metrics for a traces-only backend such as Jaeger.
-    An unsupported value warns and exports nothing, as the spec advises.
+    The value is a comma-separated list, so ``otlp,console`` exports both ways. ``none``
+    turns a signal off, e.g. metrics for a traces-only backend such as Jaeger. An
+    unsupported entry warns and is skipped, as the spec advises.
     """
-    choice = os.getenv(variable, "otlp").strip().lower()
-    if choice not in _EXPORTERS:
-        warnings.warn(
-            f"{variable}={choice!r} is not one of {_EXPORTERS}; not exporting", stacklevel=3
-        )
-        return "none"
-    return choice
+    listed = [v.strip().lower() for v in (os.getenv(variable) or "").split(",") if v.strip()]
+    unsupported = [v for v in listed if v not in _EXPORTERS]
+    if unsupported:
+        warnings.warn(f"{variable}: {unsupported} not among {_EXPORTERS}; skipped", stacklevel=3)
+    chosen = {v for v in listed if v in _EXPORTERS} if listed else {"otlp"}
+    return frozenset() if "none" in chosen else frozenset(chosen)
 
 
 def init_telemetry(
@@ -86,14 +86,14 @@ def init_telemetry(
     # shutdown_on_exit=False: we own shutdown via shutdown_telemetry (explicit + our
     # single atexit), so the providers don't also self-register a double-fire atexit.
     tracer_provider = TracerProvider(resource=resource, shutdown_on_exit=False)
-    traces = _exporter("OTEL_TRACES_EXPORTER")
+    traces = frozenset() if span_exporter is not None else _exporters("OTEL_TRACES_EXPORTER")
     if span_exporter is not None:
         tracer_provider.add_span_processor(SimpleSpanProcessor(span_exporter))
-    elif traces == "console":
+    if "console" in traces:
         from opentelemetry.sdk.trace.export import ConsoleSpanExporter
 
         tracer_provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
-    elif traces == "otlp" and endpoint:
+    if "otlp" in traces and endpoint:
         from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
             OTLPSpanExporter,
         )
@@ -101,15 +101,15 @@ def init_telemetry(
         tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
     _tracer = tracer_provider.get_tracer("phalanx")
 
-    metrics = _exporter("OTEL_METRICS_EXPORTER")
+    metrics = frozenset() if metric_reader is not None else _exporters("OTEL_METRICS_EXPORTER")
     readers: list[MetricReader] = []
     if metric_reader is not None:
         readers.append(metric_reader)
-    elif metrics == "console":
+    if "console" in metrics:
         from opentelemetry.sdk.metrics.export import ConsoleMetricExporter
 
         readers.append(PeriodicExportingMetricReader(ConsoleMetricExporter()))
-    elif metrics == "otlp" and endpoint:
+    if "otlp" in metrics and endpoint:
         from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
             OTLPMetricExporter,
         )
