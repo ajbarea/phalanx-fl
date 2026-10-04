@@ -94,8 +94,9 @@ use lands.
   Histograms in `s` and `By`, per semconv. The duration is the round span's own, and the
   size is Flower's `count_bytes` per message, by type and direction: payload bytes, not
   network bytes, since a simulation has no wire. The round span carries the totals.
-- [ ] **Jaeger / OTel-Collector `compose` recipe** — one command to bring up a backend
-  and view phalanx traces, so the differentiator is visible without external setup.
+- [x] **Local OTel backends — `compose.yaml`, `make otel-up` / `otel-aspire`.** Jaeger v2
+  for traces and the Aspire Dashboard for traces plus metrics, pinned by digest (Dependabot
+  bumps them) and bound to localhost. One command shows a run's trace, no external setup.
 - [x] ~~**OTel GenAI semconv alignment**~~ — dropped 2026-10-04. `gen_ai.evaluation.result`
   is defined for evaluating GenAI output, expects a GenAI operation span as its parent, and
   lives in `semantic-conventions-genai` at Development status. A classifier's global accuracy

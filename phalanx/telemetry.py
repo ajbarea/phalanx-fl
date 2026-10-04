@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import atexit
 import os
+import warnings
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
@@ -45,6 +46,24 @@ _atexit_registered = False
 _propagator = TraceContextTextMapPropagator()  # W3C trace-context across the FL boundary
 
 
+_EXPORTERS = ("otlp", "console", "none")
+
+
+def _exporters(variable: str) -> frozenset[str]:
+    """The exporters the spec's ``OTEL_<SIGNAL>_EXPORTER`` lists; ``otlp`` when unset or empty.
+
+    The value is a comma-separated list, so ``otlp,console`` exports both ways. ``none``
+    turns a signal off, e.g. metrics for a traces-only backend such as Jaeger. An
+    unsupported entry warns and is skipped, as the spec advises.
+    """
+    listed = [v.strip().lower() for v in (os.getenv(variable) or "").split(",") if v.strip()]
+    unsupported = [v for v in listed if v not in _EXPORTERS]
+    if unsupported:
+        warnings.warn(f"{variable}: {unsupported} not among {_EXPORTERS}; skipped", stacklevel=3)
+    chosen = {v for v in listed if v in _EXPORTERS} if listed else {"otlp"}
+    return frozenset() if "none" in chosen else frozenset(chosen)
+
+
 def init_telemetry(
     *,
     service_name: str = _DEFAULT_SERVICE,
@@ -54,9 +73,10 @@ def init_telemetry(
 ) -> None:
     """Configure tracing + metrics.
 
-    Tests inject ``span_exporter`` / ``metric_reader`` (in-memory). In production set
-    ``OTEL_EXPORTER_OTLP_ENDPOINT`` (or pass ``otlp_endpoint``) to export over OTLP;
-    with neither, telemetry is recorded but not exported (no-op, no connection noise).
+    Tests inject ``span_exporter`` / ``metric_reader`` (in-memory). Otherwise each signal
+    follows the spec's ``OTEL_TRACES_EXPORTER`` / ``OTEL_METRICS_EXPORTER`` (see
+    ``_exporter``), and OTLP exports only when ``OTEL_EXPORTER_OTLP_ENDPOINT`` (or
+    ``otlp_endpoint``) is set: with neither, telemetry is recorded but not exported.
     """
     global _tracer, _meter, _instruments, _atexit_registered
 
@@ -66,13 +86,14 @@ def init_telemetry(
     # shutdown_on_exit=False: we own shutdown via shutdown_telemetry (explicit + our
     # single atexit), so the providers don't also self-register a double-fire atexit.
     tracer_provider = TracerProvider(resource=resource, shutdown_on_exit=False)
+    traces = frozenset() if span_exporter is not None else _exporters("OTEL_TRACES_EXPORTER")
     if span_exporter is not None:
         tracer_provider.add_span_processor(SimpleSpanProcessor(span_exporter))
-    elif os.getenv("OTEL_TRACES_EXPORTER") == "console":
+    if "console" in traces:
         from opentelemetry.sdk.trace.export import ConsoleSpanExporter
 
         tracer_provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
-    elif endpoint:
+    if "otlp" in traces and endpoint:
         from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
             OTLPSpanExporter,
         )
@@ -80,10 +101,15 @@ def init_telemetry(
         tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
     _tracer = tracer_provider.get_tracer("phalanx")
 
+    metrics = frozenset() if metric_reader is not None else _exporters("OTEL_METRICS_EXPORTER")
     readers: list[MetricReader] = []
     if metric_reader is not None:
         readers.append(metric_reader)
-    elif endpoint:
+    if "console" in metrics:
+        from opentelemetry.sdk.metrics.export import ConsoleMetricExporter
+
+        readers.append(PeriodicExportingMetricReader(ConsoleMetricExporter()))
+    if "otlp" in metrics and endpoint:
         from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
             OTLPMetricExporter,
         )

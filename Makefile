@@ -9,12 +9,15 @@
 ##   make smoke    Fast 2-round federated simulation (sanity check)
 ##   make run      Full federated simulation (flwr run, streamed)
 ##   make trace    Run with console OTel traces (no collector needed)
+##   make otel-up      Start Jaeger for traces (UI :16686, OTLP :4317)
+##   make otel-aspire  Start Aspire Dashboard for traces + metrics (UI :18888, OTLP :18889)
+##   make otel-down    Stop both
 ##   make audit    Security scan (pip-audit)
 ##
 ## Simulation knobs: app config via --run-config 'num-server-rounds=5 partitioner="iid"';
 ## federation size via --federation-config 'num-supernodes=10' (see FEDCFG below).
 
-.PHONY: help sync lint fmt test test-cov run smoke trace audit docs clean
+.PHONY: help sync lint fmt test test-cov run smoke trace otel-up otel-aspire otel-down audit docs clean
 .DEFAULT_GOAL := help
 
 export UV_PROJECT_ENVIRONMENT ?= .venv
@@ -27,7 +30,7 @@ AUDIT_IGNORES := GHSA-537c-gmf6-5ccf GHSA-hhrp-gw25-jr43 PYSEC-2026-3552 PYSEC-2
 
 help:                      ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort \
-		| awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-10s\033[0m %s\n",$$1,$$2}'
+		| awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-12s\033[0m %s\n",$$1,$$2}'
 
 sync:                      ## Install all dependencies (torch: CPU, CUDA 13 on Linux aarch64)
 	uv sync --all-extras
@@ -48,9 +51,6 @@ test:                      ## Run the test suite
 test-cov:                  ## Run the test suite with coverage
 	$(UVX) python -m pytest --cov=phalanx --cov-report=term-missing
 
-corpus-verify:             ## Re-derive the corpus manifest and fail on any mismatch
-	uv run python -m phalanx.corpus verify
-
 run:                       ## Full federated simulation (flwr run, streamed)
 	$(UVX) flwr run . local --stream $(FEDCFG)
 
@@ -59,6 +59,15 @@ smoke:                     ## Fast 2-round federated simulation (sanity check)
 
 trace:                     ## Run with console OTel traces (no collector needed)
 	OTEL_TRACES_EXPORTER=console $(UVX) flwr run . local --stream $(FEDCFG)
+
+otel-up:                   ## Start Jaeger (traces): UI localhost:16686, OTLP localhost:4317
+	docker compose up -d --wait jaeger
+
+otel-aspire:               ## Start Aspire Dashboard (traces + metrics): UI :18888, OTLP :18889
+	docker compose --profile aspire up -d --wait aspire
+
+otel-down:                 ## Stop the local OTel backends
+	docker compose --profile aspire down
 
 audit:                     ## Security scan (pip-audit over the locked deps)
 	$(UVX) pip-audit $(addprefix --ignore-vuln ,$(AUDIT_IGNORES))

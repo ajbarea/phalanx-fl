@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import pytest
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
+from phalanx import telemetry
 from phalanx.telemetry import (
     client_span,
     context_from_traceparent,
@@ -102,3 +104,57 @@ def test_shutdown_flushes_and_is_idempotent() -> None:
     shutdown_telemetry()
     shutdown_telemetry()  # idempotent: a second call must not raise
     assert any(s.name == "fl.round" for s in span_exporter.get_finished_spans())
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (None, {"otlp"}),
+        ("", {"otlp"}),  # the spec treats empty as unset
+        ("none", set()),
+        (" NONE ", set()),
+        ("console", {"console"}),
+        ("otlp,console", {"otlp", "console"}),  # a comma-separated list
+        ("otlp, none", set()),
+    ],
+)
+def test_exporters_follow_the_spec_variable(monkeypatch, value, expected) -> None:
+    if value is None:
+        monkeypatch.delenv("OTEL_METRICS_EXPORTER", raising=False)
+    else:
+        monkeypatch.setenv("OTEL_METRICS_EXPORTER", value)
+    assert telemetry._exporters("OTEL_METRICS_EXPORTER") == expected
+
+
+def test_an_unsupported_exporter_warns_and_is_skipped(monkeypatch) -> None:
+    monkeypatch.setenv("OTEL_METRICS_EXPORTER", "prometheus,console")
+    with pytest.warns(UserWarning, match="prometheus"):
+        assert telemetry._exporters("OTEL_METRICS_EXPORTER") == {"console"}
+
+
+def test_an_injected_exporter_ignores_the_variables(monkeypatch, recwarn) -> None:
+    monkeypatch.setenv("OTEL_TRACES_EXPORTER", "prometheus")
+    monkeypatch.setenv("OTEL_METRICS_EXPORTER", "prometheus")
+    _setup()
+    assert not [w for w in recwarn if "prometheus" in str(w.message)]
+
+
+@pytest.mark.parametrize(("choice", "built"), [("none", 0), ("otlp", 1)])
+def test_metrics_exporter_none_keeps_metrics_off_a_traces_only_endpoint(
+    monkeypatch, choice, built
+) -> None:
+    # Jaeger accepts traces only; OTLP metrics sent to it fail on every export.
+    from opentelemetry.exporter.otlp.proto.grpc import metric_exporter
+
+    made: list[object] = []
+
+    class _Recorder(metric_exporter.OTLPMetricExporter):
+        def __init__(self, *args, **kwargs) -> None:
+            made.append(kwargs)
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr(metric_exporter, "OTLPMetricExporter", _Recorder)
+    monkeypatch.setenv("OTEL_METRICS_EXPORTER", choice)
+    init_telemetry(service_name="phalanx-test", otlp_endpoint="http://localhost:1")
+    shutdown_telemetry()
+    assert len(made) == built
