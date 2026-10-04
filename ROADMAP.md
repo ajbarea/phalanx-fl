@@ -13,7 +13,7 @@ tiny BERT on non-IID sentiment data, aggregating **only the adapters**.
 **Authoritative references** — check these before design decisions:
 - [Flower Framework](https://flower.ai/docs/framework/) · [Message API](https://flower.ai/docs/framework/how-to-upgrade-to-message-api.html) · [Flower configuration](https://flower.ai/docs/framework/ref-flower-configuration.html)
 - [Flower Datasets](https://flower.ai/docs/datasets/) · [Partitioners](https://flower.ai/docs/datasets/ref-api/flwr_datasets.partitioner.html)
-- [PEFT / LoRA](https://huggingface.co/docs/peft) · [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/) · [OTel GenAI semconv](https://opentelemetry.io/docs/specs/semconv/gen-ai/)
+- [PEFT / LoRA](https://huggingface.co/docs/peft) · [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/) · [OTel semantic conventions](https://opentelemetry.io/docs/specs/semconv/)
 
 ---
 
@@ -90,12 +90,16 @@ use lands.
   over holdouts carved from their own partitions, which under Dirichlet inherits the
   label skew. The pair is what shows skew-driven divergence; the arms above are the first
   reading of it.
-- [ ] **Round wall-time + comm-cost metrics** — per-round duration histogram and
-  bytes-on-the-wire (adapter payload size), alongside loss/accuracy/participation.
+- [x] **Round wall-time + payload metrics — `fl.round.duration` / `fl.message.size`.**
+  Histograms in `s` and `By`, per semconv. The duration is the round span's own, and the
+  size is Flower's `count_bytes` per message, by type and direction: payload bytes, not
+  network bytes, since a simulation has no wire. The round span carries the totals.
 - [ ] **Jaeger / OTel-Collector `compose` recipe** — one command to bring up a backend
   and view phalanx traces, so the differentiator is visible without external setup.
-- [ ] **OTel GenAI semconv alignment** — emit eval results as the
-  `gen_ai.evaluation.result` event where it fits, paired with app-namespaced metrics.
+- [x] ~~**OTel GenAI semconv alignment**~~ — dropped 2026-10-04. `gen_ai.evaluation.result`
+  is defined for evaluating GenAI output, expects a GenAI operation span as its parent, and
+  lives in `semantic-conventions-genai` at Development status. A classifier's global accuracy
+  is none of that, so the app-namespaced `fl.round.global_*` metrics stay.
 - [ ] **FL fault observability** — map client/worker failures to span `ERROR` status +
   span events (the old `intellifl/utils/ray_logger.py` taxonomy: CRASH / OOM / TIMEOUT /
   NODE_DEATH). Turns the observability layer from happy-path-only into a fault story —

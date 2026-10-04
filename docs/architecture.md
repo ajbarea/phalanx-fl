@@ -92,6 +92,18 @@ and `fl.evaluate_ess` the replies behind `fl.loss` / `fl.accuracy`.
 Client-side, each pass emits an `fl.client.train` or
 `fl.client.evaluate` span and `fl.client.examples` / `fl.client.loss` metrics.
 
+Each round also records `fl.round.duration` (histogram, `s`), read from the round span's own
+start and end, and each message's size as `fl.message.size` (histogram, `By`) with
+`fl.message.type` (`train` | `evaluate`) and `fl.message.direction` (`server_to_client` |
+`client_to_server`). The size is Flower's `count_bytes` over the message's records, keys
+and array serialization metadata included: payload bytes, not network bytes, since a
+simulation has no wire. Error replies carry no payload and are not counted. The round span
+holds the round's totals as `fl.round.message.size.server_to_client` / `.client_to_server`,
+0 when nothing went that way. The duration of an unsampled round, which has no span
+timestamps, comes from the strategy's own clock, since metrics are not sampled.
+Instruments declare semconv units: `1` for loss and accuracy, `{client}` for client counts
+and ESS, `{failure}` for `fl.round.failures` and `{example}` for `fl.client.examples`.
+
 The round span's W3C `traceparent` rides the broadcast `ConfigRecord`, so each client
 span, though it runs in a separate Ray process, is a child of its round span: one trace
 per round.
