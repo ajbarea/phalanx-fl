@@ -286,7 +286,7 @@ class ObservableMixin(FedAvg):
         self._round_bytes: dict[int, dict[str, int]] = {}
         self._round_started: dict[int, float] = {}
         self._train_weighted = _train_is_weighted_mean(type(self))
-        self._sent_nodes: dict[tuple[int, str], list[int]] = {}
+        self._sent: dict[tuple[int, str], list[Message]] = {}
         self.attacker_ranks: dict[int, list[int]] = {}
         self.skipped_rounds: set[int] = set()
         self.no_update_rounds: set[int] = set()
@@ -347,7 +347,7 @@ class ObservableMixin(FedAvg):
         config["traceparent"] = traceparent_for(span)
         messages = list(super().configure_train(server_round, arrays, config, grid))
         self._count_bytes(server_round, messages, "train", "server_to_client")
-        self._sent_nodes[(server_round, "train")] = [m.metadata.dst_node_id for m in messages]
+        self._sent[(server_round, "train")] = messages
         return messages
 
     def configure_evaluate(
@@ -358,13 +358,25 @@ class ObservableMixin(FedAvg):
             config["traceparent"] = traceparent_for(span)
         messages = list(super().configure_evaluate(server_round, arrays, config, grid))
         self._count_bytes(server_round, messages, "evaluate", "server_to_client")
-        self._sent_nodes[(server_round, "evaluate")] = [m.metadata.dst_node_id for m in messages]
+        self._sent[(server_round, "evaluate")] = messages
         return messages
 
     def _record_failures(self, server_round: int, replies: list[Message], message_type: str) -> int:
-        """Classify failed and missing replies onto the round span; return how many."""
+        """Classify failed and missing replies onto the round span; return how many.
+
+        Replies are matched to the messages sent by id: the grid writes each message's id
+        into it on push, and a reply the SuperLink makes for an unreachable node carries
+        the SuperLink as its source but the original message's id as ``reply_to``.
+        """
         span = self._round_spans.get(server_round)
         counts: Counter[str] = Counter()
+        sent = self._sent.pop((server_round, message_type), [])
+        node_by_id = {m.metadata.message_id: m.metadata.dst_node_id for m in sent}
+        matched = all(node_by_id) and len(node_by_id) == len(sent)
+
+        def node_of(reply: Message) -> int:
+            node = node_by_id.get(reply.metadata.reply_to_message_id) if matched else None
+            return reply.metadata.src_node_id if node is None else node
 
         def note(error_type: str, attributes: dict[str, Any]) -> None:
             counts[error_type] += 1
@@ -374,16 +386,22 @@ class ObservableMixin(FedAvg):
                     {"error.type": error_type, "fl.message.type": message_type, **attributes},
                 )
 
+        # Node ids are uint64; as strings they stay exact and always encode over OTLP.
         for reply in replies:
             if reply.has_error():
                 note(
                     failure_type(reply),
-                    {"fl.error.code": reply.error.code, "fl.node.id": reply.metadata.src_node_id},
+                    {"fl.error.code": reply.error.code, "fl.node.id": str(node_of(reply))},
                 )
-        answered = {reply.metadata.src_node_id for reply in replies}
-        for node_id in self._sent_nodes.pop((server_round, message_type), []):
-            if node_id not in answered:
-                note(TIMEOUT, {"fl.node.id": node_id})
+        if matched:
+            answered = {reply.metadata.reply_to_message_id for reply in replies}
+            missing = [node for mid, node in node_by_id.items() if mid not in answered]
+        else:  # a grid that assigns no ids: match by node instead
+            answered_nodes = {node_of(reply) for reply in replies}
+            missing = [m.metadata.dst_node_id for m in sent]
+            missing = [node for node in missing if node not in answered_nodes]
+        for node_id in missing:
+            note(TIMEOUT, {"fl.node.id": str(node_id)})
         round_counts = self.client_failures.setdefault(server_round, {})
         for error_type, count in counts.items():
             record_failures(

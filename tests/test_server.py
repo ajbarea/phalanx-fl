@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import math
 from typing import Any, cast
+from uuid import uuid4
 
 import numpy as np
 import pytest
 from flwr.app import Array, ArrayRecord, ConfigRecord, Error, Message, MetricRecord, RecordDict
 from flwr.common.constant import ErrorCode
+from flwr.server.superlink.linkstate.utils import create_message_error_unavailable_res_message
 from flwr.supercore.task_identity import TaskIdentity
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -540,17 +542,24 @@ def test_every_flower_error_code_has_an_error_type() -> None:
     assert codes == set(_ERROR_TYPES)
 
 
+_UNREACHABLE = 2**63 + 42  # node ids are uint64; this one is past int64
+
+
 class _FlakyGrid(_Grid):
-    """Node 1 raises, node 2 answers, node 3 never replies."""
+    """Node 1 raises, node 2 answers, node 3 never replies, and the SuperLink reports
+    the last node unavailable. Ids are written on push, as flwr's InMemoryGrid does."""
 
     def get_node_ids(self) -> list[int]:
-        return [1, 2, 3]
+        return [1, 2, 3, _UNREACHABLE]
 
     def send_and_receive(self, messages: Any, timeout: float | None = None) -> list[Message]:
         replies = []
         for msg in messages:
+            msg.metadata.__dict__["_message_id"] = str(uuid4())
             node = msg.metadata.dst_node_id
-            if node == 1:
+            if node == _UNREACHABLE:
+                reply = create_message_error_unavailable_res_message(msg.metadata, "node_unavail")
+            elif node == 1:
                 error = Error(code=ErrorCode.CLIENT_APP_RAISED_EXCEPTION, reason="boom")
                 reply = Message(error, reply_to=msg)
             elif node == 2:
@@ -569,25 +578,31 @@ def test_failed_and_missing_replies_are_classified_and_tolerated() -> None:
 
     (span,) = _rounds(span_exporter)
     failures = [dict(e.attributes or {}) for e in span.events if e.name == "fl.client.failure"]
-    seen = {(f["fl.message.type"], f["error.type"], f["fl.node.id"]) for f in failures}
-    assert seen == {
-        ("train", "client_app_exception", 1),
-        ("train", "timeout", 3),
-        ("evaluate", "client_app_exception", 1),
-        ("evaluate", "timeout", 3),
-    }
+    seen = [(f["fl.message.type"], f["error.type"], f["fl.node.id"]) for f in failures]
+    # The SuperLink's reply names itself as source; matched by id, the unavailable node is
+    # counted once, under its own id, with no phantom timeout.
+    assert sorted(seen) == sorted(
+        (phase, error_type, node)
+        for phase in ("train", "evaluate")
+        for error_type, node in (
+            ("client_app_exception", "1"),
+            ("timeout", "3"),
+            ("node_unavailable", str(_UNREACHABLE)),
+        )
+    )
     assert span.status.status_code == StatusCode.UNSET  # node 2's update still aggregated
-    assert _attrs(span)["fl.failures"] == 4
-    assert strategy.client_failures == {1: {"client_app_exception": 2, "timeout": 2}}
+    assert _attrs(span)["fl.failures"] == 6
+    assert strategy.client_failures == {
+        1: {"client_app_exception": 2, "timeout": 2, "node_unavailable": 2}
+    }
     counted = {
         (p.attributes["fl.message.type"], p.attributes["error.type"]): p.value
         for p in _points(reader, "fl.round.failures")
     }
     assert counted == {
-        ("train", "client_app_exception"): 1,
-        ("train", "timeout"): 1,
-        ("evaluate", "client_app_exception"): 1,
-        ("evaluate", "timeout"): 1,
+        (phase, error_type): 1
+        for phase in ("train", "evaluate")
+        for error_type in ("client_app_exception", "timeout", "node_unavailable")
     }
 
 
