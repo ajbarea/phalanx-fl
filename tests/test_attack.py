@@ -94,8 +94,11 @@ def test_build_strategy_wraps_robust_rules_observably(name: str, base: type[FedA
 
 
 def test_build_strategy_passes_rule_parameters() -> None:
-    assert build_strategy(_cfg("multikrum")).num_nodes_to_select == 11
-    assert build_strategy(_cfg("trimmed-mean")).beta == pytest.approx(0.1)
+    multikrum = build_strategy(_cfg("multikrum"))
+    trimmed = build_strategy(_cfg("trimmed-mean"))
+    assert isinstance(multikrum, MultiKrum) and isinstance(trimmed, FedTrimmedAvg)
+    assert multikrum.num_nodes_to_select == 11
+    assert trimmed.beta == pytest.approx(0.1)
 
 
 def test_build_strategy_rejects_unknown_names() -> None:

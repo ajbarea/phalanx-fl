@@ -60,10 +60,13 @@ code), keyed by round (round 0 is the untrained model).
 
 - **The committed runs come from tag `financial-poisoning-2026-09-24`** (commit `1a209f0a5`,
   flwr 1.36), the commit every manifest records. Check out that tag to replay them. Running
-  `sweep.py` on current code is a new experiment: it differs in the two ways below.
+  `sweep.py` on current code is a new experiment: it differs in the three ways below.
 - **FedAvg weighted by batch count.** Current code weights by sample count. Here every bank
   holds 206 or 207 training sentences, 7 batches each, so the two weightings differ by at most
   0.027 percentage points of any bank's share.
-- **GPU runs were seeded but not bit-reproducible.** Seeds fix the partition, splits, initial
-  adapters and each client's data order, but CUDA's nondeterministic kernels were not
+- **Every seed used the same bank partition.** The IID partitioner shuffled with a fixed seed,
+  so the seeds varied each bank's train/test split, the initial adapters and each client's data
+  order, but not which sentences a bank held. The spread over seeds leaves out partition
+  variance. Current code seeds that shuffle too.
+- **GPU runs were seeded but not bit-reproducible.** CUDA's nondeterministic kernels were not
   disabled then (current code disables them), so a replay can differ in the last digits.

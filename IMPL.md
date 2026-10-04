@@ -8,30 +8,23 @@ ROADMAP's "Recently shipped" and clear the relevant block below.
 
 ## Current focus
 
-**A global test set, scored server-side each round (#104).** Client accuracy is a
-`num-examples`-weighted mean over holdouts carved from each client's own partition, so
-under Dirichlet it inherits the label skew. The server now also scores the aggregated
-adapters on the dataset's `test` split, which the partitioner never sees:
-`fl.global_loss` / `fl.global_accuracy` on the round span, `fl.round.global_*` from round
-0, and `global_metrics` in the manifest.
+**Poisoning and robust aggregation.** A label-flip attacker, which may boost its update,
+and Flower's robust rules, picked by `strategy`. First use: `experiments/financial_poisoning/`
+(Financial PhraseBank, 12 banks, 54 runs).
 
-- flwr's `Strategy.start` calls `evaluate_fn` after `aggregate_evaluate`, where the round
-  span used to end. `ObservableFedAvg(global_evaluate=...)` passes its own evaluator to
-  `start` and closes the round there; passing both is refused. A test drives flwr's real
-  `start` loop with a fake Grid, so an ordering change upstream fails the suite.
-- A raising evaluator still closes its round, with ERROR status and the reason, before
-  the failure propagates; the round's client metrics were already aggregated.
-- The server seeds before building the initial adapters, so round 0 is the same in every
-  run (it was not: two `get_model` calls differed).
-- `global-eval-size = 0` scores all 25,000 rows, about 6 minutes a pass on CPU, four
-  passes in a default run. `make smoke` samples 500.
-- Run-config strings must be quoted (`partitioner="iid"`); flwr rejects the unquoted form
-  the README and Makefile showed.
-
-**What it found.** Three draws per arm, `results/global-eval-arms/`; the restated finding
-is in ROADMAP. Under Dirichlet the aggregated model's global accuracy is exactly 0.500 in
-every round of two draws and at most 0.547 in the third, while the client figure ranges
-0.021 to 0.709; under IID the two agree within 1.3 points.
+- One server-side evaluation: the global test set, which also reports the flip's attack
+  success rate. `heldout-split` is gone; `summarize.py` still reads `heldout_metrics` in
+  the committed manifests, which rebuild their tables byte for byte.
+- `ObservableMixin(FedAvg)` carries the round lifecycle for every rule. Train ESS is NaN
+  for the robust rules, which take no weighted mean over all replies; evaluate ESS holds.
+- A rule that declines to aggregate (Bulyan below `4f + 3` replies) marks its round:
+  `fl.aggregation_skipped` on the span, `aggregation_skipped_rounds` in the manifest.
+- `seed` also seeds the pre-partition shuffle, so IID partitions vary by seed. At
+  `seed = 0` every seed matches main's, so default runs replay unchanged.
+- Deterministic CUDA needs `CUBLAS_WORKSPACE_CONFIG`; `set_seed` sets `:4096:8` unless set.
+- The committed runs come from tag `financial-poisoning-2026-09-24` (flwr 1.36,
+  batch-count weighting, one partition across seeds); the experiment README says how they
+  differ from a rerun.
 
 **Worktrees and the local SuperLink.** A SuperLink started by `flwr run` in one worktree
 keeps that worktree's venv and cwd for every later run, from any worktree. Stop it

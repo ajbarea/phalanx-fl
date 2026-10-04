@@ -269,6 +269,50 @@ def test_robust_rules_report_no_train_ess(name: str) -> None:
     assert math.isclose(attrs["fl.evaluate_ess"], effective_sample_size([10, 30]))
 
 
+def test_a_declined_aggregation_marks_its_round() -> None:
+    # Bulyan needs 4f + 3 = 7 replies at f = 1; with 3 it returns no arrays, so the global
+    # model stays put and the round must say so rather than read as a defended round.
+    span_exporter, _ = _setup()
+    strategy = build_strategy(
+        {
+            "strategy": "bulyan",
+            "fraction-train": 1.0,
+            "fraction-evaluate": 1.0,
+            "num-malicious": 1,
+        }
+    )
+    arrays, _ = strategy.aggregate_train(
+        1, [_update(n, v) for n, v in ((10, 0.0), (20, 0.1), (30, 0.2))]
+    )
+    assert arrays is None
+    strategy.aggregate_evaluate(1, [_counted(10, "evaluate", loss=0.5, accuracy=0.6)])
+    span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
+    assert "fl.aggregation_skipped" in [e.name for e in span.events]
+    assert span.status.status_code == StatusCode.ERROR
+    assert strategy.skipped_rounds == {1}
+
+
+def test_attacker_ranks_read_the_metric_record_by_type() -> None:
+    # A reply may name its MetricRecord anything; FedAvg accepts it, so must the bookkeeping.
+    _setup()
+    strategy = ObservableFedAvg()
+    replies = [
+        Message(
+            content=RecordDict(
+                {
+                    "m": MetricRecord({"num-examples": 10, "malicious": int(v > 1)}),
+                    "a": ArrayRecord({"w": Array(np.full(2, v, dtype=np.float32))}),
+                }
+            ),
+            dst_node_id=0,
+            message_type="train",
+        )
+        for v in (0.0, 0.1, 9.0)
+    ]
+    strategy.aggregate_train(1, replies)
+    assert strategy.attacker_ranks == {1: [1]}
+
+
 def _global(accuracy: float) -> Any:
     def evaluate(arrays: ArrayRecord) -> MetricRecord:
         return MetricRecord({"loss": 0.4, "accuracy": accuracy, "num-examples": 100})

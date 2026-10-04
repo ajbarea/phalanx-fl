@@ -77,8 +77,8 @@ def effective_sample_size(weights: Iterable[float]) -> float:
     return total * total / math.fsum(x * x for x in w)
 
 
-def _num_examples(msg: Message, key: str = "num-examples") -> float | None:
-    """The weight a client reported under ``key``, or None when the reply carries none.
+def _metric(msg: Message, key: str) -> float | None:
+    """The value a client reported under ``key``, or None when the reply carries none.
 
     Addresses the record by type rather than by the literal name ``client_app`` happens
     to use, the way flwr's own aggregation does — a telemetry read must not be the thing
@@ -90,6 +90,11 @@ def _num_examples(msg: Message, key: str = "num-examples") -> float | None:
         return None
     metrics: Any = record
     return float(metrics[key])
+
+
+def _num_examples(msg: Message, key: str = "num-examples") -> float | None:
+    """The weight a client reported under ``key`` (FedAvg's ``weighted_by_key``)."""
+    return _metric(msg, key)
 
 
 def _reply_ess(replies: Iterable[Message], key: str) -> float:
@@ -109,6 +114,7 @@ def observe_round(
     evaluate_ess: float = float("nan"),
     global_metrics: MetricRecord | None = None,
     global_error: str | None = None,
+    aggregation_skipped: bool = False,
     span: Any | None = None,
 ) -> None:
     """Decorate the round span with aggregated metrics + status, then end it.
@@ -137,6 +143,11 @@ def observe_round(
     if global_error is not None:
         span.add_event("fl.global_evaluation_failed", {"error": global_error})
         span.set_status(Status(StatusCode.ERROR, "global evaluation failed"))
+    if aggregation_skipped:
+        # The rule declined (e.g. Bulyan below 4f + 3 replies): the global model did not
+        # change, so this round's global metrics re-score the previous round's adapters.
+        span.add_event("fl.aggregation_skipped")
+        span.set_status(Status(StatusCode.ERROR, "aggregation skipped; global model unchanged"))
     record_round_metrics(
         rnd=server_round,
         loss=loss,
@@ -160,9 +171,8 @@ def outlier_rank(updates: list[np.ndarray], index: int) -> int:
 
 
 def _flatten(message: Message) -> np.ndarray:
-    return np.concatenate(
-        [a.ravel() for a in message.content.array_records["arrays"].to_numpy_ndarrays()]
-    )
+    record = next(iter(message.content.array_records.values()))
+    return np.concatenate([a.ravel() for a in record.to_numpy_ndarrays()])
 
 
 def _by_round(records: dict[int, MetricRecord]) -> dict[str, dict[str, Any]]:
@@ -175,9 +185,10 @@ GlobalEvaluator = Callable[[ArrayRecord], MetricRecord]
 def _train_is_weighted_mean(cls: type) -> bool:
     """Whether ``cls`` aggregates training replies with FedAvg's ``num-examples`` mean.
 
-    Kish's ESS describes that weighted mean. Krum, Multi-Krum, the median, the trimmed
-    mean and Bulyan replace ``aggregate_train`` with selection or trimming, so for them
-    the train ESS is NaN rather than a number for an aggregate they never computed.
+    Kish's ESS describes a weighted mean over the replies it is computed from. The median,
+    the trimmed mean and Bulyan do not take that mean; Krum and Multi-Krum take it over
+    the replies they select, which this mixin does not see. An ESS over every reply would
+    describe neither, so for these rules the train ESS is NaN.
     """
     owner = next(
         c
@@ -211,6 +222,7 @@ class ObservableMixin(FedAvg):
         self._awaiting_global: dict[int, dict[str, Any]] = {}
         self._train_weighted = _train_is_weighted_mean(type(self))
         self.attacker_ranks: dict[int, list[int]] = {}
+        self.skipped_rounds: set[int] = set()
 
     def start(
         self,
@@ -281,12 +293,16 @@ class ObservableMixin(FedAvg):
         self._round_train_ess[server_round] = (
             _reply_ess(replies, self.weighted_by_key) if self._train_weighted else float("nan")
         )
+        arrays, metrics = super().aggregate_train(server_round, replies)
+        # After the rule, which validates the replies, so bookkeeping cannot abort a round.
         ok = [m for m in replies if not m.has_error()]
-        flagged = [i for i, m in enumerate(ok) if m.content["metrics"].get("malicious", 0)]
+        if arrays is None and ok:
+            self.skipped_rounds.add(server_round)
+        flagged = [i for i, m in enumerate(ok) if _metric(m, "malicious")]
         if flagged:
             updates = [_flatten(m) for m in ok]
             self.attacker_ranks[server_round] = [outlier_rank(updates, i) for i in flagged]
-        return super().aggregate_train(server_round, replies)
+        return arrays, metrics
 
     def aggregate_evaluate(
         self, server_round: int, replies: Iterable[Message]
@@ -302,6 +318,7 @@ class ObservableMixin(FedAvg):
             "failures": self._round_failures.pop(server_round, 0) + eval_failures,
             "train_ess": self._round_train_ess.pop(server_round, float("nan")),
             "evaluate_ess": _reply_ess(replies, self.weighted_by_key),
+            "aggregation_skipped": server_round in self.skipped_rounds,
             "span": self._round_spans.pop(server_round, None),
         }
         if self._global_evaluate is None:
@@ -410,7 +427,8 @@ def main(grid: Grid, context: Context) -> None:
                 extra={
                     "attacker_outlier_rank": {
                         str(rnd): r for rnd, r in strategy.attacker_ranks.items()
-                    }
+                    },
+                    "aggregation_skipped_rounds": sorted(strategy.skipped_rounds),
                 },
             )
         )

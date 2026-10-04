@@ -51,9 +51,12 @@ attach its `traceparent`), `aggregate_train` (to count participating clients),
 global evaluation as flwr's `evaluate_fn`, which runs after `aggregate_evaluate` and
 closes the round with `observe_round`). `build_strategy` pairs it with the rule named
 by `strategy`: `FedAvg` (as `ObservableFedAvg`), `Krum`, `MultiKrum`, `FedTrimmedAvg`,
-`FedMedian` or `Bulyan`. The robust rules replace FedAvg's `num-examples`-weighted
-training mean, so their `fl.train_ess` is NaN; evaluation is still FedAvg's weighted
-mean, so `fl.evaluate_ess` holds for every rule. Key-matched aggregation works because
+`FedMedian` or `Bulyan`. The median, trimmed mean and Bulyan take no `num-examples`
+mean, and Krum and Multi-Krum take it only over the replies they select, so their
+`fl.train_ess` is NaN; evaluation is still FedAvg's weighted mean, so `fl.evaluate_ess`
+holds for every rule. A rule that declines to aggregate (Bulyan below `4f + 3` replies)
+leaves the global model unchanged; the round span then carries an `fl.aggregation_skipped`
+event and an error status, and the manifest lists the round in `aggregation_skipped_rounds`. Key-matched aggregation works because
 `get_adapter_state` returns a stable set of keys across the server and all clients.
 
 ## Poisoning and robustness

@@ -106,7 +106,7 @@ Run config lives in `pyproject.toml` under `[tool.flwr.app.config]`, overridable
 | `text-column` | `text` | dataset column holding the text |
 | `lora-target-modules` | `""` | comma-separated LoRA layers (`q_lin,v_lin` for DistilBERT); empty = PEFT default |
 | `learning-rate` | `5e-5` | local AdamW learning rate |
-| `seed` | `0` | offsets partitioning, split and per-client training seeds |
+| `seed` | `0` | offsets partitioning, split, initial adapters and per-client training seeds |
 | `strategy` | `fedavg` | `fedavg`, `krum`, `multikrum`, `trimmed-mean`, `median`, `bulyan` |
 | `num-malicious` | `0` | f, the attacker count Krum / Multi-Krum / Bulyan are told |
 | `num-nodes-to-select` | `1` | updates Multi-Krum averages |

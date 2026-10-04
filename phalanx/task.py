@@ -10,6 +10,7 @@ Anchored on Flower's quickstart-huggingface example (flwr 1.36 app-model), adapt
 
 from __future__ import annotations
 
+import os
 import random
 from typing import Any
 
@@ -52,6 +53,9 @@ def set_seed(seed: int) -> None:
     np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
+        # cuBLAS has deterministic kernels only with a fixed workspace, read when its first
+        # handle is created; without it the first matmul raises. A value already set wins.
+        os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
         torch.use_deterministic_algorithms(True)
 
 
@@ -95,6 +99,7 @@ def load_data(
         _fds[key] = FederatedDataset(
             dataset=dataset,
             partitioners={"train": _make_partitioner(partitioner, num_partitions, alpha, seed)},
+            seed=42 + seed,  # the pre-partition shuffle: IID partitions vary by seed too
         )
     partition = _fds[key].load_partition(partition_id)
     split = partition.train_test_split(test_size=0.2, seed=42 + seed)
@@ -142,11 +147,6 @@ def _loader(
     split = split.remove_columns([c for c in split.column_names if c not in keep])
     tokenized = split.map(tokenize, batched=True)
     tokenized = tokenized.remove_columns(text_column).rename_column("label", "labels")
-    collator = DataCollatorWithPadding(tokenizer=tokenizer)
-    return DataLoader(tokenized, shuffle=shuffle, batch_size=32, collate_fn=collator)
-
-    tokenized = split.map(tokenize, batched=True)
-    tokenized = tokenized.remove_columns("text").rename_column("label", "labels")
     collator = DataCollatorWithPadding(tokenizer=tokenizer)
     return DataLoader(tokenized, shuffle=shuffle, batch_size=32, collate_fn=collator)
 
