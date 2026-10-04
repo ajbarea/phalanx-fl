@@ -61,12 +61,16 @@ uv run flwr run . local --federation-config 'num-supernodes=10 client-resources-
 
 ### Observability
 
-By default telemetry is recorded but not exported (no connection noise). Point it at a collector to export traces and metrics over OTLP:
+By default telemetry is recorded but not exported (no connection noise). To see a run's traces, start a local Jaeger and export to it over OTLP:
 
 ```bash
+make otel-up                      # Jaeger UI at http://localhost:16686
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export OTEL_METRICS_EXPORTER=none  # Jaeger stores traces only
 make run
 ```
+
+Jaeger shows traces only. `make otel-aspire` starts the Aspire Dashboard instead, which shows traces and metrics (UI at http://localhost:18888, OTLP on port 18889). `make otel-down` stops both.
 
 Or print spans to the terminal with `OTEL_TRACES_EXPORTER=console` (this is what `make trace` does).
 

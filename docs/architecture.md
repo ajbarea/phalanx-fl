@@ -74,12 +74,15 @@ metrics.
 ## The OpenTelemetry layer
 
 `telemetry.py` keeps its tracer/meter providers module-local (off the OTel globals)
-so tests can re-initialise between cases. `init_telemetry` chooses an exporter:
+so tests can re-initialise between cases. `init_telemetry` chooses an exporter per
+signal:
 
 - an injected in-memory exporter (unit tests),
-- a console exporter when `OTEL_TRACES_EXPORTER=console`,
-- an OTLP exporter when `OTEL_EXPORTER_OTLP_ENDPOINT` is set,
-- otherwise telemetry is recorded but not exported.
+- otherwise what the spec's `OTEL_TRACES_EXPORTER` / `OTEL_METRICS_EXPORTER` names:
+  `otlp` (the default), `console` or `none`. An unsupported value warns and exports
+  nothing.
+- `otlp` exports only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set; otherwise telemetry is
+  recorded but not exported.
 
 Server-side, each round emits an `fl.round` span (`fl.round`, `fl.loss`,
 `fl.accuracy`, `fl.global_loss`, `fl.global_accuracy`, `fl.train_clients`,

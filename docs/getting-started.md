@@ -53,13 +53,22 @@ uv run flwr run . local --run-config 'num-server-rounds=5 partitioner="iid"'
 ## Observability
 
 Telemetry is recorded by default but **not exported** (no collector required, no
-connection noise). To export traces + metrics over OTLP to a collector such as
-Jaeger or Grafana Tempo:
+connection noise). `compose.yaml` holds two local backends, pinned by digest and bound
+to localhost:
 
 ```bash
+make otel-up                      # Jaeger: traces, UI at http://localhost:16686
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export OTEL_METRICS_EXPORTER=none  # Jaeger stores traces only; metrics would fail to export
 make run
 ```
+
+Jaeger stores traces only. For metrics too, run `make otel-aspire`, export to
+`http://localhost:18889` and leave `OTEL_METRICS_EXPORTER` unset; the Aspire Dashboard UI is at http://localhost:18888, and its
+login token is in `docker compose logs aspire`. Its OTLP endpoint accepts telemetry
+without authentication, which is why both services bind to localhost only.
+`make otel-down` stops both. Any other
+OTLP collector works the same way: set `OTEL_EXPORTER_OTLP_ENDPOINT` to its gRPC port.
 
 To print spans to the terminal instead (no backend needed):
 

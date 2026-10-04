@@ -1,0 +1,24 @@
+# Local OpenTelemetry backends for viewing phalanx runs. See docs/getting-started.md.
+#
+#   make otel-up      Jaeger: traces at http://localhost:16686, OTLP on localhost:4317
+#   make otel-aspire  Aspire Dashboard: traces and metrics at http://localhost:18888,
+#                     OTLP on localhost:18889 (login token: docker compose logs aspire)
+#   make otel-down    stop both
+#
+# Ports bind to 127.0.0.1 only. Images are pinned by digest; Dependabot bumps them.
+services:
+  jaeger:
+    # Jaeger v2, built on the OpenTelemetry Collector. Traces only, kept in memory.
+    image: jaegertracing/jaeger:2.21.0@sha256:3d0ac795ff98aa04d1be04311d2dac6c25b4bfc8322dc02e53bc5b170c5018c3
+    ports:
+      - "127.0.0.1:16686:16686" # UI
+      - "127.0.0.1:4317:4317" # OTLP gRPC
+      - "127.0.0.1:4318:4318" # OTLP HTTP
+
+  aspire:
+    # Traces, metrics and logs in one UI; Jaeger shows no metrics. Kept in memory.
+    profiles: ["aspire"]
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.6.0@sha256:064b50d557fcaffd10f06bf79ba4069bd50994a84034f1a0fc35c165500482d7
+    ports:
+      - "127.0.0.1:18888:18888" # UI
+      - "127.0.0.1:18889:18889" # OTLP gRPC

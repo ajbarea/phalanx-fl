@@ -1,5 +1,6 @@
 # Canonical config: techne templates/dependabot.yml.example. /techne:sisters
-# audits drift. phalanx-fl (flwr 1.39 app): uv + github-actions.
+# audits drift. phalanx-fl (flwr 1.39 app): uv + github-actions + docker-compose
+# (the local OTel backends in compose.yaml, pinned by digest).
 version: 2
 
 updates:
@@ -44,4 +45,20 @@ updates:
         update-types: ["minor", "patch"]
       github-actions-security:
         applies-to: security-updates
+        patterns: ["*"]
+
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels: ["dependencies"]
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    groups:
+      docker-compose:
         patterns: ["*"]
