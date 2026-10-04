@@ -34,5 +34,10 @@ site/
 .claude/*
 !.claude/skill-context.md
 
-# Per-run provenance manifests (phalanx.provenance)
-runs/
+# Per-run provenance manifests (phalanx.provenance); a sweep's copies under
+# experiments/*/results/runs/ are its record and stay tracked.
+/runs/
+
+# Per-run flwr stream logs from experiments/*/sweep.py (manifests are the record)
+experiments/*/results/logs/
+experiments/*/sweep.out

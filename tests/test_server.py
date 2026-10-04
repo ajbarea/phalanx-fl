@@ -20,6 +20,7 @@ from opentelemetry.trace import StatusCode
 from phalanx.server_app import (
     ObservableFedAvg,
     _num_examples,
+    build_strategy,
     effective_sample_size,
     observe_round,
 )
@@ -228,6 +229,88 @@ def test_ess_reads_the_key_fedavg_weights_by() -> None:
     strategy.aggregate_evaluate(1, replies)
     attrs = _attrs(next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round"))
     assert math.isclose(attrs["fl.evaluate_ess"], effective_sample_size([10, 30]))
+
+
+def _update(n: float, value: float) -> Message:
+    content = RecordDict(
+        {
+            "metrics": MetricRecord({"num-examples": n}),
+            "arrays": ArrayRecord({"w": Array(np.full(2, value, dtype=np.float32))}),
+        }
+    )
+    return Message(content=content, dst_node_id=0, message_type="train")
+
+
+@pytest.mark.parametrize("name", ["krum", "multikrum", "trimmed-mean", "median", "bulyan"])
+def test_robust_rules_report_no_train_ess(name: str) -> None:
+    # They select or trim instead of taking FedAvg's num-examples mean, so a Kish ESS over
+    # those weights would describe an aggregate they never computed. Evaluation is still
+    # FedAvg's weighted mean, so its ESS stands. Seven updates satisfy Bulyan's n >= 4f + 3.
+    span_exporter, _ = _setup()
+    cfg = {
+        "strategy": name,
+        "fraction-train": 1.0,
+        "fraction-evaluate": 1.0,
+        "num-malicious": 1,
+        "num-nodes-to-select": 6,
+        "trim-beta": 0.2,
+    }
+    strategy = build_strategy(cfg)
+    sizes, values = (90, 10, 40, 20, 30, 50, 60), (0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 9.0)
+    arrays, _ = strategy.aggregate_train(
+        1, [_update(n, v) for n, v in zip(sizes, values, strict=True)]
+    )
+    assert arrays is not None
+    strategy.aggregate_evaluate(
+        1, [_counted(n, "evaluate", loss=0.5, accuracy=0.6) for n in (10, 30)]
+    )
+    attrs = _attrs(next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round"))
+    assert math.isnan(attrs["fl.train_ess"])
+    assert math.isclose(attrs["fl.evaluate_ess"], effective_sample_size([10, 30]))
+
+
+def test_a_declined_aggregation_marks_its_round() -> None:
+    # Bulyan needs 4f + 3 = 7 replies at f = 1; with 3 it returns no arrays, so the global
+    # model stays put and the round must say so rather than read as a defended round.
+    span_exporter, _ = _setup()
+    strategy = build_strategy(
+        {
+            "strategy": "bulyan",
+            "fraction-train": 1.0,
+            "fraction-evaluate": 1.0,
+            "num-malicious": 1,
+        }
+    )
+    arrays, _ = strategy.aggregate_train(
+        1, [_update(n, v) for n, v in ((10, 0.0), (20, 0.1), (30, 0.2))]
+    )
+    assert arrays is None
+    strategy.aggregate_evaluate(1, [_counted(10, "evaluate", loss=0.5, accuracy=0.6)])
+    span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
+    assert "fl.aggregation_skipped" in [e.name for e in span.events]
+    assert span.status.status_code == StatusCode.ERROR
+    assert strategy.skipped_rounds == {1}
+
+
+def test_attacker_ranks_read_the_metric_record_by_type() -> None:
+    # A reply may name its MetricRecord anything; FedAvg accepts it, so must the bookkeeping.
+    _setup()
+    strategy = ObservableFedAvg()
+    replies = [
+        Message(
+            content=RecordDict(
+                {
+                    "m": MetricRecord({"num-examples": 10, "malicious": int(v > 1)}),
+                    "a": ArrayRecord({"w": Array(np.full(2, v, dtype=np.float32))}),
+                }
+            ),
+            dst_node_id=0,
+            message_type="train",
+        )
+        for v in (0.0, 0.1, 9.0)
+    ]
+    strategy.aggregate_train(1, replies)
+    assert strategy.attacker_ranks == {1: [1]}
 
 
 def _global(accuracy: float) -> Any:

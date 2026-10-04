@@ -42,6 +42,40 @@ def test_set_seed_makes_cuda_accumulation_deterministic() -> None:
         torch.use_deterministic_algorithms(False)
 
 
+def test_set_seed_fixes_the_cublas_workspace_on_cuda(monkeypatch) -> None:
+    # Deterministic mode makes cuBLAS raise on the first matmul without a fixed workspace.
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(torch, "use_deterministic_algorithms", lambda mode: None)
+    monkeypatch.delenv("CUBLAS_WORKSPACE_CONFIG", raising=False)
+    set_seed(0)
+    assert task.os.environ["CUBLAS_WORKSPACE_CONFIG"] == ":4096:8"
+    monkeypatch.setenv("CUBLAS_WORKSPACE_CONFIG", ":16:8")
+    set_seed(0)
+    assert task.os.environ["CUBLAS_WORKSPACE_CONFIG"] == ":16:8"
+
+
+def test_partition_shuffle_follows_the_seed(monkeypatch) -> None:
+    # IidPartitioner takes no seed, so without this every seed holds the same partitions.
+    seen: list[int] = []
+
+    class _StopError(Exception):
+        pass
+
+    class _FakeFDS:
+        def __init__(self, *, seed: int, **kwargs: object) -> None:
+            seen.append(seed)
+
+        def load_partition(self, partition_id: int) -> None:
+            raise _StopError
+
+    monkeypatch.setattr(task, "FederatedDataset", _FakeFDS)
+    monkeypatch.setattr(task, "_fds", {})
+    for seed in (0, 3):
+        with pytest.raises(_StopError):
+            task.load_data(0, 4, MODEL, partitioner="iid", seed=seed)
+    assert seen == [42, 45]
+
+
 @pytest.fixture(scope="module")
 def model():
     return get_model(MODEL, num_labels=2)

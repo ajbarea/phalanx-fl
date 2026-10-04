@@ -50,6 +50,8 @@ when that work shipped, because they are the kind of thing that gets re-learned 
 - `num-examples` is `len(loader.dataset)`, not `len(loader)`: the DataLoader length is a
   batch count, and FedAvg weights the adapters and the reported metrics by this key, so
   a batch count over-weighted the smallest partitions (#102).
+- flwr's `Strategy.start` calls `evaluate_fn` after `aggregate_evaluate`, so the strategy
+  passes its own global evaluator to `start` and closes each round there (#109).
 - The "round-2 Dirichlet collapse" was the client figure, not the model. On the global
   test split (2026-09-26, three draws per arm, `results/global-eval-arms/`), under
   Dirichlet (alpha 0.5) the aggregated adapters never learn. Global accuracy is exactly
@@ -122,7 +124,9 @@ yet and gets decided when RQ2 starts.
 
 ## v3+ — breadth (each gated on a real use, not built ahead)
 
-- [ ] More strategies via `flwr.serverapp.strategy` (FedProx, FedAdam, robust aggregators).
+- [x] Robust aggregators (Krum, Multi-Krum, trimmed mean, median, Bulyan) against a
+  label-flip attacker, first used by `experiments/financial_poisoning/` (2026-10-03).
+- [ ] More strategies via `flwr.serverapp.strategy` (FedProx, FedAdam).
 - [ ] More `flwr-datasets` partitioners surfaced through run-config (pathological, shard, …).
 - [ ] More tasks / datasets beyond IMDB sentiment.
 - [ ] **Client-side differential privacy** (Opacus) — optional `target_epsilon`/`delta`,

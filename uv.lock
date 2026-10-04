@@ -2205,6 +2205,9 @@ all = [
     { name = "torchvision", version = "0.29.0+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "platform_machine == 'aarch64' and sys_platform == 'linux'" },
     { name = "transformers" },
 ]
+experiments = [
+    { name = "matplotlib" },
+]
 hf = [
     { name = "datasets" },
     { name = "evaluate" },
@@ -2239,6 +2242,7 @@ requires-dist = [
     { name = "evaluate", marker = "extra == 'hf'", specifier = ">=0.4" },
     { name = "flwr", extras = ["simulation"], specifier = ">=1.39" },
     { name = "flwr-datasets", specifier = ">=0.6" },
+    { name = "matplotlib", marker = "extra == 'experiments'", specifier = ">=3.10" },
     { name = "numpy", specifier = ">=2" },
     { name = "opentelemetry-exporter-otlp", specifier = ">=1.30" },
     { name = "opentelemetry-sdk", specifier = ">=1.30" },
@@ -2251,7 +2255,7 @@ requires-dist = [
     { name = "torchvision", marker = "(platform_machine != 'aarch64' and extra == 'torch') or (sys_platform != 'linux' and extra == 'torch')", specifier = ">=0.15", index = "https://download.pytorch.org/whl/cpu" },
     { name = "transformers", marker = "extra == 'hf'", specifier = ">=5.10" },
 ]
-provides-extras = ["hf", "torch", "all"]
+provides-extras = ["hf", "torch", "experiments", "all"]
 
 [package.metadata.requires-dev]
 dev = [
