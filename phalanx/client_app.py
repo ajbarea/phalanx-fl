@@ -104,7 +104,7 @@ def train(msg: Message, context: Context) -> Message:
     partition_id = int(node["partition-id"])
     num_partitions = int(node["num-partitions"])
     rnd = _server_round(msg)
-    set_seed(1000 * rnd + partition_id + 100_000 * int(cfg["seed"]))  # per (seed, round, client)
+    set_seed([rnd, partition_id, int(cfg["seed"])])  # one stream per (round, client, seed)
     flip, boost = attack_for(cfg, partition_id, rnd)
 
     with client_span(
@@ -161,7 +161,7 @@ def evaluate(msg: Message, context: Context) -> Message:
     partition_id = int(node["partition-id"])
     num_partitions = int(node["num-partitions"])
     rnd = _server_round(msg)
-    set_seed(1000 * rnd + partition_id + 100_000 * int(cfg["seed"]))  # per (seed, round, client)
+    set_seed([rnd, partition_id, int(cfg["seed"])])  # one stream per (round, client, seed)
 
     with client_span(
         rnd=rnd, partition_id=partition_id, phase="evaluate", parent=_parent_context(msg)

@@ -68,8 +68,8 @@ jobs:
       # aren't pinned in the lock, so --frozen can't fetch the per-Python wheel
       # (e.g. cp313). Lock/pyproject consistency is already gated by the lint job's
       # `uv lock --check`. Mirrors the velocity-fl convention.
-      - name: Install dependencies (CPU torch + HF stack)
-        run: 'uv sync --extra hf --extra torch --python ${{ matrix.python-version }}'
+      - name: Install dependencies (every extra: HF stack, CPU torch, experiments)
+        run: 'uv sync --all-extras --python ${{ matrix.python-version }}'
       # The extras must be on `uv run` too: without them it re-syncs to the default
       # groups and drops torch before pytest collects. Mirrors the Makefile.
       - name: Run tests with coverage
@@ -77,7 +77,7 @@ jobs:
           HF_HUB_DISABLE_TELEMETRY: '1'
           TOKENIZERS_PARALLELISM: 'false'
         run: >
-          uv run --extra hf --extra torch --python ${{ matrix.python-version }}
+          uv run --all-extras --python ${{ matrix.python-version }}
           python -m pytest --cov=phalanx --cov-report=xml
           --cov-report=term-missing --tb=short
       - name: Upload coverage to Codecov
@@ -107,7 +107,7 @@ jobs:
           version: 0.11.5
           enable-cache: true
       - name: Install dependencies
-        run: uv sync --frozen --extra hf --extra torch
+        run: uv sync --frozen --all-extras
       - name: Audit for known vulnerabilities
         run: make audit
       - name: Minimize uv cache

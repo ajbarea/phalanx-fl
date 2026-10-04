@@ -19,8 +19,12 @@ and Flower's robust rules, picked by `strategy`. First use: `experiments/financi
   for the robust rules, which take no weighted mean over all replies; evaluate ESS holds.
 - A rule that declines to aggregate (Bulyan below `4f + 3` replies) marks its round:
   `fl.aggregation_skipped` on the span, `aggregation_skipped_rounds` in the manifest.
-- `seed` also seeds the pre-partition shuffle, so IID partitions vary by seed. At
-  `seed = 0` every seed matches main's, so default runs replay unchanged.
+- `seed` also seeds the pre-partition shuffle, so IID partitions vary by seed.
+- Each client pass seeds from `SeedSequence([round, partition, seed])`, numpy's keyed form,
+  so no two (round, partition, seed) share a stream. The old `1000 * round + partition +
+  100_000 * seed` repeated past round 99. Results replay from their tags, not from HEAD.
+- `evaluate` and `scikit-learn` are gone: accuracy is computed inline. CI and `make sync`
+  install every extra, so `experiments/` code is tested and audited too.
 - Deterministic CUDA needs `CUBLAS_WORKSPACE_CONFIG`; `set_seed` sets `:4096:8` unless set.
 - The committed runs come from tag `financial-poisoning-2026-09-24` (flwr 1.36,
   batch-count weighting, one partition across seeds); the experiment README says how they

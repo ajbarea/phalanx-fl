@@ -24,6 +24,17 @@ def test_set_seed_makes_training_rng_deterministic() -> None:
     assert torch.equal(a, b)
 
 
+def test_set_seed_separates_ids_a_scaled_sum_would_merge() -> None:
+    # 1000 * round + partition + 100_000 * seed gave seed 0 / round 101 and seed 1 / round 1
+    # the same stream; SeedSequence hashes the ids, so they no longer collide.
+    def draw(entropy: list[int]) -> tuple[float, float, float]:
+        set_seed(entropy)
+        return task.random.random(), float(task.np.random.rand()), float(torch.rand(1))
+
+    assert draw([101, 0, 0]) != draw([1, 0, 1])
+    assert draw([3, 2, 1]) == draw([3, 2, 1])
+
+
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="needs CUDA")
 def test_set_seed_makes_cuda_accumulation_deterministic() -> None:
     # index_add_ on CUDA accumulates with atomics, so a float32 sum over many duplicate
