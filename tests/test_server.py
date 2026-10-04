@@ -12,16 +12,19 @@ from typing import Any, cast
 import numpy as np
 import pytest
 from flwr.app import Array, ArrayRecord, ConfigRecord, Error, Message, MetricRecord, RecordDict
+from flwr.common.constant import ErrorCode
 from flwr.supercore.task_identity import TaskIdentity
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
 
 from phalanx.server_app import (
+    _ERROR_TYPES,
     ObservableFedAvg,
     _num_examples,
     build_strategy,
     effective_sample_size,
+    failure_type,
     observe_round,
 )
 from phalanx.telemetry import init_telemetry
@@ -90,8 +93,9 @@ def test_observe_round_tolerates_missing_metrics() -> None:
     assert math.isnan(by_round[2]["fl.accuracy"])
 
 
-def test_observe_round_flags_client_failures() -> None:
-    span_exporter, metric_reader = _setup()
+def test_a_round_that_tolerated_client_failures_is_not_an_error() -> None:
+    # semconv: an error the operation handled and completed despite is not its error.
+    span_exporter, _ = _setup()
     observe_round(
         server_round=1,
         metrics=MetricRecord({"loss": 0.5, "accuracy": 0.6}),
@@ -99,10 +103,9 @@ def test_observe_round_flags_client_failures() -> None:
         failures=1,
     )
     span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
-    assert span.status.status_code == StatusCode.ERROR
-    assert any(e.name == "fl.client_failures" for e in span.events)
+    assert span.status.status_code == StatusCode.UNSET
+    assert "error.type" not in _attrs(span)
     assert _attrs(span)["fl.failures"] == 1
-    assert "fl.round.failures" in _metric_names(metric_reader)
 
 
 def test_observe_round_clean_round_is_not_error() -> None:
@@ -425,7 +428,7 @@ def test_start_closes_every_round_after_its_global_evaluation() -> None:
     assert sorted(result.evaluate_metrics_serverapp) == [0, 1, 2, 3]
 
 
-def _histogram_points(reader: InMemoryMetricReader, name: str) -> list[Any]:
+def _points(reader: InMemoryMetricReader, name: str) -> list[Any]:
     data = reader.get_metrics_data()
     assert data is not None
     return [
@@ -443,7 +446,7 @@ def test_round_duration_is_the_round_span_duration() -> None:
     observe_round(server_round=4, metrics=None, train_clients=2)
     span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
     assert span.start_time is not None and span.end_time is not None
-    (point,) = _histogram_points(reader, "fl.round.duration")
+    (point,) = _points(reader, "fl.round.duration")
     assert point.count == 1
     assert point.sum == pytest.approx((span.end_time - span.start_time) / 1e9)
     assert dict(point.attributes) == {"fl.round": 4}
@@ -457,7 +460,7 @@ def test_payload_bytes_are_counted_per_type_and_direction() -> None:
     initial = ArrayRecord({"w": Array(np.ones(256, dtype=np.float32))})
     strategy.start(grid=cast(Any, _Grid()), initial_arrays=initial, num_rounds=2)
 
-    points = _histogram_points(reader, "fl.message.size")
+    points = _points(reader, "fl.message.size")
     by_key = {
         (p.attributes["fl.message.type"], p.attributes["fl.message.direction"]): p for p in points
     }
@@ -480,7 +483,7 @@ def test_error_replies_carry_no_payload() -> None:
     _, reader = _setup()
     strategy = ObservableFedAvg()
     strategy.aggregate_evaluate(1, [_failed("evaluate")])
-    assert _histogram_points(reader, "fl.message.size") == []
+    assert _points(reader, "fl.message.size") == []
 
 
 def test_round_duration_survives_an_unsampled_round(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -490,7 +493,7 @@ def test_round_duration_survives_an_unsampled_round(monkeypatch: pytest.MonkeyPa
     strategy = ObservableFedAvg(fraction_train=1.0, fraction_evaluate=1.0)
     initial = ArrayRecord({"w": Array(np.ones(2, dtype=np.float32))})
     strategy.start(grid=cast(Any, _Grid()), initial_arrays=initial, num_rounds=3)
-    points = _histogram_points(reader, "fl.round.duration")
+    points = _points(reader, "fl.round.duration")
     assert sorted(p.attributes["fl.round"] for p in points) == [1, 2, 3]
     assert all(p.count == 1 and p.sum >= 0 for p in points)
 
@@ -505,3 +508,99 @@ def test_a_round_whose_replies_all_fail_reads_zero_bytes_back() -> None:
     attrs = _attrs(next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round"))
     assert attrs["fl.round.message.size.client_to_server"] == 0
     assert attrs["fl.round.message.size.server_to_client"] > 0
+
+
+def _error_reply(code: int, reason: str = "boom", message_type: str = "train") -> Message:
+    request = Message(content=RecordDict(), dst_node_id=0, message_type=message_type)
+    return Message(Error(code=code, reason=reason), reply_to=request)
+
+
+@pytest.mark.parametrize(
+    ("code", "reason", "expected"),
+    [
+        (ErrorCode.CLIENT_APP_RAISED_EXCEPTION, "boom", "client_app_exception"),
+        (ErrorCode.LOAD_CLIENT_APP_EXCEPTION, "boom", "client_app_load_error"),
+        (ErrorCode.CLIENT_APP_CRASHED, "boom", "client_app_crashed"),
+        (ErrorCode.NODE_UNAVAILABLE, "boom", "node_unavailable"),
+        (ErrorCode.UNKNOWN, "<class 'ray.exceptions.OutOfMemoryError'>:<'killed'>", "oom"),
+        (ErrorCode.UNKNOWN, "<class 'ray.exceptions.RayActorError'>:<'died'>", "worker_died"),
+        (ErrorCode.UNKNOWN, "<class 'ray.exceptions.ActorDiedError'>:<'died'>", "worker_died"),
+        (ErrorCode.UNKNOWN, "<class 'ValueError'>:<'bad'>", "_OTHER"),
+        (ErrorCode.UNKNOWN, "no class here", "_OTHER"),
+        (99, "a code flwr has not defined", "_OTHER"),
+    ],
+)
+def test_failure_type_classifies_flowers_error(code: int, reason: str, expected: str) -> None:
+    assert failure_type(_error_reply(code, reason)) == expected
+
+
+def test_every_flower_error_code_has_an_error_type() -> None:
+    # A code flwr adds upstream fails here instead of reading as _OTHER in traces.
+    codes = {v for k, v in vars(ErrorCode).items() if k.isupper() and k != "UNKNOWN"}
+    assert codes == set(_ERROR_TYPES)
+
+
+class _FlakyGrid(_Grid):
+    """Node 1 raises, node 2 answers, node 3 never replies."""
+
+    def get_node_ids(self) -> list[int]:
+        return [1, 2, 3]
+
+    def send_and_receive(self, messages: Any, timeout: float | None = None) -> list[Message]:
+        replies = []
+        for msg in messages:
+            node = msg.metadata.dst_node_id
+            if node == 1:
+                error = Error(code=ErrorCode.CLIENT_APP_RAISED_EXCEPTION, reason="boom")
+                reply = Message(error, reply_to=msg)
+            elif node == 2:
+                (reply,) = super().send_and_receive([msg])
+            else:
+                continue
+            replies.append(reply)
+        return replies
+
+
+def test_failed_and_missing_replies_are_classified_and_tolerated() -> None:
+    span_exporter, reader = _setup()
+    strategy = ObservableFedAvg(fraction_train=1.0, fraction_evaluate=1.0)
+    initial = ArrayRecord({"w": Array(np.ones(2, dtype=np.float32))})
+    strategy.start(grid=cast(Any, _FlakyGrid()), initial_arrays=initial, num_rounds=1)
+
+    (span,) = _rounds(span_exporter)
+    failures = [dict(e.attributes or {}) for e in span.events if e.name == "fl.client.failure"]
+    seen = {(f["fl.message.type"], f["error.type"], f["fl.node.id"]) for f in failures}
+    assert seen == {
+        ("train", "client_app_exception", 1),
+        ("train", "timeout", 3),
+        ("evaluate", "client_app_exception", 1),
+        ("evaluate", "timeout", 3),
+    }
+    assert span.status.status_code == StatusCode.UNSET  # node 2's update still aggregated
+    assert _attrs(span)["fl.failures"] == 4
+    assert strategy.client_failures == {1: {"client_app_exception": 2, "timeout": 2}}
+    counted = {
+        (p.attributes["fl.message.type"], p.attributes["error.type"]): p.value
+        for p in _points(reader, "fl.round.failures")
+    }
+    assert counted == {
+        ("train", "client_app_exception"): 1,
+        ("train", "timeout"): 1,
+        ("evaluate", "client_app_exception"): 1,
+        ("evaluate", "timeout"): 1,
+    }
+
+
+def test_a_round_with_no_client_update_is_an_error() -> None:
+    span_exporter, reader = _setup()
+    strategy = ObservableFedAvg(fraction_train=1.0, fraction_evaluate=1.0)
+    arrays = ArrayRecord({"w": Array(np.ones(2, dtype=np.float32))})
+    strategy.configure_train(1, arrays, ConfigRecord(), cast(Any, _Grid()))
+    strategy.aggregate_train(1, [_error_reply(ErrorCode.CLIENT_APP_CRASHED)])
+    strategy.aggregate_evaluate(1, [])
+    span = next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round")
+    assert span.status.status_code == StatusCode.ERROR
+    assert _attrs(span)["error.type"] == "no_client_updates"
+    (point,) = _points(reader, "fl.round.duration")
+    assert point.attributes["error.type"] == "no_client_updates"
+    assert strategy.no_update_rounds == {1}
