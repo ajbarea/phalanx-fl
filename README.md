@@ -123,7 +123,8 @@ uv run flwr run . local --run-config 'num-server-rounds=5 partitioner="iid"'
 
 `experiments/financial_poisoning/` runs one such grid end to end: twelve banks on
 Financial PhraseBank sentiment, one relabelling negative news as positive, under
-each aggregation rule. See its README.
+each aggregation rule. See its README. `experiments/banking77_pilot/` holds four single-seed
+runs of the same setup on a 77-class intent task.
 
 ---
 
