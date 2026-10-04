@@ -14,7 +14,7 @@ at the cost of about 2 GB of CUDA wheels; Docker on Apple Silicon is Linux aarch
 ```bash
 git clone https://github.com/ajbarea/phalanx-fl.git
 cd phalanx-fl
-make sync        # uv sync --extra hf --extra torch (torch + HF stack + dev tools)
+make sync        # uv sync --all-extras (torch + HF stack + experiments + dev tools)
 ```
 
 ## Run a federated simulation

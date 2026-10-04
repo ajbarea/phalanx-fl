@@ -41,13 +41,27 @@ _fds: dict[tuple[str, str, int, float, int], FederatedDataset] = {}
 Flip = tuple[int, int]
 
 
+# A leading role tag keeps the server's stream apart from every client's: SeedSequence
+# pads entropy with zeros, so an untagged [seed] would equal a client's [seed, 0, 0].
+_SERVER_ROLE, _CLIENT_ROLE = 1, 2
+
+
+def server_entropy(seed: int) -> list[int]:
+    """Entropy for the server's initial adapters."""
+    return [_SERVER_ROLE, seed]
+
+
+def client_entropy(rnd: int, partition_id: int, seed: int) -> list[int]:
+    """Entropy for one client pass: the varying ids before the run seed, as numpy advises."""
+    return [_CLIENT_ROLE, rnd, partition_id, seed]
+
+
 def set_seed(entropy: int | Sequence[int]) -> None:
     """Seed Python / NumPy / torch RNGs from ``entropy`` so training is reproducible.
 
-    ``entropy`` goes through numpy's ``SeedSequence``, which hashes it into a 128-bit pool.
-    Clients pass ``[round, partition, seed]``, the varying ids first as numpy recommends,
-    so every (round, partition, seed) gets its own stream; a sum of scaled ids repeats
-    once an id outgrows its scale.
+    ``entropy`` goes through numpy's ``SeedSequence``, which hashes it into a 128-bit pool,
+    so every distinct entropy gets its own stream; a sum of scaled ids repeats once an id
+    outgrows its scale. Build it with ``server_entropy`` / ``client_entropy``.
 
     On CUDA, nondeterministic kernels are disabled too, strictly: an op with no
     deterministic kernel raises, failing that client, rather than warning and letting the

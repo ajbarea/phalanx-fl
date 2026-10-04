@@ -35,6 +35,16 @@ def test_set_seed_separates_ids_a_scaled_sum_would_merge() -> None:
     assert draw([3, 2, 1]) == draw([3, 2, 1])
 
 
+def test_server_and_client_entropy_never_share_a_stream() -> None:
+    # SeedSequence pads entropy with zeros, so untagged [5] and [5, 0, 0] are one stream:
+    # a run's initial adapters at seed 5 would replay client round 5, partition 0, seed 0.
+    def state(entropy: list[int]) -> list[int]:
+        return task.np.random.SeedSequence(entropy).generate_state(4).tolist()
+
+    assert state([5]) == state([5, 0, 0])
+    assert state(task.server_entropy(5)) != state(task.client_entropy(5, 0, 0))
+
+
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="needs CUDA")
 def test_set_seed_makes_cuda_accumulation_deterministic() -> None:
     # index_add_ on CUDA accumulates with atomics, so a float32 sum over many duplicate

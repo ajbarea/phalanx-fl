@@ -22,6 +22,7 @@ from transformers import logging as hf_logging
 
 from phalanx.task import (
     Flip,
+    client_entropy,
     default_device,
     get_adapter_state,
     get_model,
@@ -104,7 +105,7 @@ def train(msg: Message, context: Context) -> Message:
     partition_id = int(node["partition-id"])
     num_partitions = int(node["num-partitions"])
     rnd = _server_round(msg)
-    set_seed([rnd, partition_id, int(cfg["seed"])])  # one stream per (round, client, seed)
+    set_seed(client_entropy(rnd, partition_id, int(cfg["seed"])))
     flip, boost = attack_for(cfg, partition_id, rnd)
 
     with client_span(
@@ -161,7 +162,7 @@ def evaluate(msg: Message, context: Context) -> Message:
     partition_id = int(node["partition-id"])
     num_partitions = int(node["num-partitions"])
     rnd = _server_round(msg)
-    set_seed([rnd, partition_id, int(cfg["seed"])])  # one stream per (round, client, seed)
+    set_seed(client_entropy(rnd, partition_id, int(cfg["seed"])))
 
     with client_span(
         rnd=rnd, partition_id=partition_id, phase="evaluate", parent=_parent_context(msg)

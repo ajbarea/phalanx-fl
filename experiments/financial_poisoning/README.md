@@ -29,7 +29,7 @@ its median rank in rounds 1-5, while it was still honest.
 Needs a CUDA torch in the project venv (the sweep gives each client a third of an 8 GB GPU):
 
 ```bash
-uv sync --extra hf --extra torch
+uv sync --all-extras
 uv pip install --reinstall torch==2.13.0 torchvision==0.28.0 \
   --index-url https://download.pytorch.org/whl/cu129
 uv run --no-sync python experiments/financial_poisoning/sweep.py
