@@ -34,8 +34,8 @@ _DEFAULT_SERVICE = "phalanx-fl"
 # Doubling buckets, as semconv's GenAI durations use: rounds run from seconds on a GPU to
 # tens of minutes with a full global evaluation on CPU.
 _ROUND_DURATION_BUCKETS = [float(2**k) for k in range(0, 14)]  # 1 s .. 8192 s
-# LoRA payloads run from KiB (tiny BERT) to hundreds of MiB (large adapters).
-_MESSAGE_SIZE_BUCKETS = [float(2**k) for k in range(10, 31)]  # 1 KiB .. 1 GiB
+# From an evaluate reply's few metrics (tens of bytes) to LoRA payloads of hundreds of MiB.
+_MESSAGE_SIZE_BUCKETS = [float(2**k) for k in range(4, 31)]  # 16 B .. 1 GiB
 
 _tracer: Any = None
 _meter: Any = None

@@ -11,7 +11,7 @@ from typing import Any, cast
 
 import numpy as np
 import pytest
-from flwr.app import Array, ArrayRecord, Error, Message, MetricRecord, RecordDict
+from flwr.app import Array, ArrayRecord, ConfigRecord, Error, Message, MetricRecord, RecordDict
 from flwr.supercore.task_identity import TaskIdentity
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -473,7 +473,7 @@ def test_payload_bytes_are_counted_per_type_and_direction() -> None:
     spans = _rounds(span_exporter)
     for direction in ("server_to_client", "client_to_server"):
         recorded = sum(p.sum for (_, d), p in by_key.items() if d == direction)
-        assert sum(_attrs(s)[f"fl.payload_bytes.{direction}"] for s in spans) == recorded
+        assert sum(_attrs(s)[f"fl.round.message.size.{direction}"] for s in spans) == recorded
 
 
 def test_error_replies_carry_no_payload() -> None:
@@ -481,3 +481,27 @@ def test_error_replies_carry_no_payload() -> None:
     strategy = ObservableFedAvg()
     strategy.aggregate_evaluate(1, [_failed("evaluate")])
     assert _histogram_points(reader, "fl.message.size") == []
+
+
+def test_round_duration_survives_an_unsampled_round(monkeypatch: pytest.MonkeyPatch) -> None:
+    # An unsampled span has no timestamps; metrics are not sampled, so every round counts.
+    monkeypatch.setenv("OTEL_TRACES_SAMPLER", "always_off")
+    _, reader = _setup()
+    strategy = ObservableFedAvg(fraction_train=1.0, fraction_evaluate=1.0)
+    initial = ArrayRecord({"w": Array(np.ones(2, dtype=np.float32))})
+    strategy.start(grid=cast(Any, _Grid()), initial_arrays=initial, num_rounds=3)
+    points = _histogram_points(reader, "fl.round.duration")
+    assert sorted(p.attributes["fl.round"] for p in points) == [1, 2, 3]
+    assert all(p.count == 1 and p.sum >= 0 for p in points)
+
+
+def test_a_round_whose_replies_all_fail_reads_zero_bytes_back() -> None:
+    span_exporter, _ = _setup()
+    strategy = ObservableFedAvg(fraction_train=1.0, fraction_evaluate=1.0)
+    arrays = ArrayRecord({"w": Array(np.ones(2, dtype=np.float32))})
+    strategy.configure_train(1, arrays, ConfigRecord(), cast(Any, _Grid()))
+    strategy.aggregate_train(1, [_failed("train"), _failed("train")])
+    strategy.aggregate_evaluate(1, [])
+    attrs = _attrs(next(s for s in span_exporter.get_finished_spans() if s.name == "fl.round"))
+    assert attrs["fl.round.message.size.client_to_server"] == 0
+    assert attrs["fl.round.message.size.server_to_client"] > 0

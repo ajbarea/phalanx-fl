@@ -15,6 +15,7 @@ from the adapter state, not the full model).
 from __future__ import annotations
 
 import math
+import time
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -118,6 +119,7 @@ def observe_round(
     global_error: str | None = None,
     aggregation_skipped: bool = False,
     payload_bytes: dict[str, int] | None = None,
+    started: float | None = None,
     span: Any | None = None,
 ) -> None:
     """Decorate the round span with aggregated metrics + status, then end it.
@@ -137,7 +139,7 @@ def observe_round(
     span.set_attribute("fl.evaluate_ess", evaluate_ess)
     span.set_attribute("fl.failures", failures)
     for direction, nbytes in (payload_bytes or {}).items():
-        span.set_attribute(f"fl.payload_bytes.{direction}", nbytes)
+        span.set_attribute(f"fl.round.message.size.{direction}", nbytes)
     global_loss, global_accuracy = _round_summary(global_metrics)
     span.set_attribute("fl.global_loss", global_loss)
     span.set_attribute("fl.global_accuracy", global_accuracy)
@@ -166,10 +168,13 @@ def observe_round(
     if global_metrics is not None:
         record_global_metrics(rnd=server_round, loss=global_loss, accuracy=global_accuracy)
     span.end()
-    # From the span's own timestamps, so the metric is exactly the round span's duration.
+    # A recording span's own timestamps make the metric exactly its duration. An unsampled
+    # span has none, and metrics are not sampled, so fall back to the strategy's clock.
     start, end = getattr(span, "start_time", None), getattr(span, "end_time", None)
     if start is not None and end is not None:
         record_round_duration(rnd=server_round, seconds=(end - start) / 1e9)
+    elif started is not None:
+        record_round_duration(rnd=server_round, seconds=time.perf_counter() - started)
 
 
 def outlier_rank(updates: list[np.ndarray], index: int) -> int:
@@ -237,6 +242,7 @@ class ObservableMixin(FedAvg):
         self._round_spans: dict[int, Any] = {}
         self._awaiting_global: dict[int, dict[str, Any]] = {}
         self._round_bytes: dict[int, dict[str, int]] = {}
+        self._round_started: dict[int, float] = {}
         self._train_weighted = _train_is_weighted_mean(type(self))
         self.attacker_ranks: dict[int, list[int]] = {}
         self.skipped_rounds: set[int] = set()
@@ -290,6 +296,9 @@ class ObservableMixin(FedAvg):
         # traceparent — their spans become children of this round (one trace per round).
         span = start_round_span(server_round)
         self._round_spans[server_round] = span
+        self._round_started[server_round] = time.perf_counter()
+        # Both directions from the start, so a round whose replies all fail reads 0.
+        self._round_bytes[server_round] = {"server_to_client": 0, "client_to_server": 0}
         config["traceparent"] = traceparent_for(span)
         messages = list(super().configure_train(server_round, arrays, config, grid))
         self._count_bytes(server_round, messages, "train", "server_to_client")
@@ -354,6 +363,7 @@ class ObservableMixin(FedAvg):
             "evaluate_ess": _reply_ess(replies, self.weighted_by_key),
             "aggregation_skipped": server_round in self.skipped_rounds,
             "payload_bytes": self._round_bytes.pop(server_round, {}),
+            "started": self._round_started.pop(server_round, None),
             "span": self._round_spans.pop(server_round, None),
         }
         if self._global_evaluate is None:
