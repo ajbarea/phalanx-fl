@@ -101,10 +101,11 @@ use lands.
   is defined for evaluating GenAI output, expects a GenAI operation span as its parent, and
   lives in `semantic-conventions-genai` at Development status. A classifier's global accuracy
   is none of that, so the app-namespaced `fl.round.global_*` metrics stay.
-- [ ] **FL fault observability** — map client/worker failures to span `ERROR` status +
-  span events (the old `intellifl/utils/ray_logger.py` taxonomy: CRASH / OOM / TIMEOUT /
-  NODE_DEATH). Turns the observability layer from happy-path-only into a fault story —
-  worth extracting from the old app, re-expressed as OTel rather than bespoke logging.
+- [x] **FL fault observability — `error.type` per failed or missing reply.** Each one is an
+  `fl.client.failure` event on the round span, classified from Flower's error code (plus
+  Ray OOM and worker death from the reason, and `timeout` for a reply that never came),
+  and counted by type in `fl.round.failures` and the manifest. Per semconv, a round that
+  tolerated its failures stays unset; only a round that failed itself is `ERROR`.
 
 ---
 
