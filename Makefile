@@ -3,8 +3,8 @@
 ## aggregating only the adapters.
 ##
 ## Common targets:
-##   make sync     Install dependencies (torch + HF extras + dev group)
-##   make lint     ruff format --check + ruff check + ty
+##   make sync     Install dependencies (every extra + dev group)
+##   make lint     ruff format --check + ruff check + ty + actionlint
 ##   make test     Run the test suite
 ##   make smoke    Fast 2-round federated simulation (sanity check)
 ##   make run      Full federated simulation (flwr run, streamed)
@@ -19,7 +19,7 @@
 
 export UV_PROJECT_ENVIRONMENT ?= .venv
 # Run inside the project env with the model/data stack present (torch + HF).
-UVX := uv run --no-active --extra hf --extra torch
+UVX := uv run --no-active --all-extras
 # Simulation Runtime settings: SuperLink state since flwr 1.28, so pass per run.
 FEDCFG := --federation-config "num-supernodes=5 client-resources-num-cpus=2 client-resources-num-gpus=0.0"
 # Fixes blocked by flwr/flwr-datasets pins and unreachable from phalanx; recheck by 2026-12-05.
@@ -30,12 +30,13 @@ help:                      ## Show this help
 		| awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-10s\033[0m %s\n",$$1,$$2}'
 
 sync:                      ## Install all dependencies (torch: CPU, CUDA 13 on Linux aarch64)
-	uv sync --extra hf --extra torch
+	uv sync --all-extras
 
-lint:                      ## ruff format check + ruff lint + ty type-check
+lint:                      ## ruff format check + ruff lint + ty type-check + actionlint
 	uv run --no-active ruff format --check .
 	uv run --no-active ruff check .
 	uv run --no-active ty check
+	uv run --no-active actionlint
 
 fmt:                       ## Apply ruff formatting + autofixes
 	uv run --no-active ruff format .

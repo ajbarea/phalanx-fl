@@ -29,7 +29,7 @@ its median rank in rounds 1-5, while it was still honest.
 Needs a CUDA torch in the project venv (the sweep gives each client a third of an 8 GB GPU):
 
 ```bash
-uv sync --extra hf --extra torch
+uv sync --all-extras
 uv pip install --reinstall torch==2.13.0 torchvision==0.28.0 \
   --index-url https://download.pytorch.org/whl/cu129
 uv run --no-sync python experiments/financial_poisoning/sweep.py
@@ -60,7 +60,7 @@ code), keyed by round (round 0 is the untrained model).
 
 - **The committed runs come from tag `financial-poisoning-2026-09-24`** (commit `1a209f0a5`,
   flwr 1.36), the commit every manifest records. Check out that tag to replay them. Running
-  `sweep.py` on current code is a new experiment: it differs in the three ways below.
+  `sweep.py` on current code is a new experiment: it differs in the ways below.
 - **FedAvg weighted by batch count.** Current code weights by sample count. Here every bank
   holds 206 or 207 training sentences, 7 batches each, so the two weightings differ by at most
   0.027 percentage points of any bank's share.
@@ -68,5 +68,9 @@ code), keyed by round (round 0 is the untrained model).
   so the seeds varied each bank's train/test split, the initial adapters and each client's data
   order, but not which sentences a bank held. The spread over seeds leaves out partition
   variance. Current code seeds that shuffle too.
+- **Clients seeded from a scaled sum.** Each client pass seeded from
+  `1000 * round + partition + 100_000 * seed`, which is distinct for these runs (20 rounds, 12
+  banks) but repeats past round 99. Current code seeds from numpy's `SeedSequence`, so its
+  client streams differ from these.
 - **GPU runs were seeded but not bit-reproducible.** CUDA's nondeterministic kernels were not
   disabled then (current code disables them), so a replay can differ in the last digits.

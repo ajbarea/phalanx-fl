@@ -378,6 +378,7 @@ def main(grid: Grid, context: Context) -> None:
         global_eval_fn,
         load_global_test,
         sample_count,
+        server_entropy,
         set_adapter_state,
         set_seed,
     )
@@ -386,7 +387,7 @@ def main(grid: Grid, context: Context) -> None:
     init_telemetry(service_name=str(cfg["otel-service-name"]))
     # The seed fixes the initial adapters, so round 0 is the same in every run of one seed
     # and the scenarios of a sweep pair up.
-    set_seed(int(cfg["seed"]))
+    set_seed(server_entropy(int(cfg["seed"])))
 
     # Initial global state = the LoRA adapters only (not the frozen base model).
     model = get_model(

@@ -12,13 +12,13 @@ from __future__ import annotations
 
 import os
 import random
+from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
 import torch
 from datasets import Dataset, load_dataset
 from datasets.utils.logging import disable_progress_bar
-from evaluate import load as load_metric
 from flwr_datasets import FederatedDataset
 from flwr_datasets.partitioner import DirichletPartitioner, IidPartitioner, Partitioner
 from peft import LoraConfig, TaskType, get_peft_model
@@ -41,17 +41,37 @@ _fds: dict[tuple[str, str, int, float, int], FederatedDataset] = {}
 Flip = tuple[int, int]
 
 
-def set_seed(seed: int) -> None:
-    """Seed Python / NumPy / torch RNGs so a client's local training is reproducible.
+# A leading role tag keeps the server's stream apart from every client's: SeedSequence
+# pads entropy with zeros, so an untagged [seed] would equal a client's [seed, 0, 0].
+_SERVER_ROLE, _CLIENT_ROLE = 1, 2
 
-    Clients seed per (round, partition) (see client_app), so each is deterministic yet
-    distinct. On CUDA, nondeterministic kernels are disabled too, strictly: an op with no
+
+def server_entropy(seed: int) -> list[int]:
+    """Entropy for the server's initial adapters."""
+    return [_SERVER_ROLE, seed]
+
+
+def client_entropy(rnd: int, partition_id: int, seed: int) -> list[int]:
+    """Entropy for one client pass: the varying ids before the run seed, as numpy advises."""
+    return [_CLIENT_ROLE, rnd, partition_id, seed]
+
+
+def set_seed(entropy: int | Sequence[int]) -> None:
+    """Seed Python / NumPy / torch RNGs from ``entropy`` so training is reproducible.
+
+    ``entropy`` goes through numpy's ``SeedSequence``, which hashes it into a 128-bit pool,
+    so every distinct entropy gets its own stream; a sum of scaled ids repeats once an id
+    outgrows its scale. Build it with ``server_entropy`` / ``client_entropy``.
+
+    On CUDA, nondeterministic kernels are disabled too, strictly: an op with no
     deterministic kernel raises, failing that client, rather than warning and letting the
     replay drift unnoticed. The mode is process-wide and also slows some kernels.
     """
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
+    sequence = np.random.SeedSequence(entropy)
+    words = sequence.generate_state(4)  # 128 bits as uint32
+    random.seed(int.from_bytes(words.tobytes(), "little"))
+    np.random.seed(words)
+    torch.manual_seed(int(sequence.generate_state(1, dtype=np.uint64)[0]))
     if torch.cuda.is_available():
         # cuBLAS has deterministic kernels only with a fixed workspace, read when its first
         # handle is created; without it the first matmul raises. A value already set wins.
@@ -244,12 +264,14 @@ def attack_success_rate(predictions: torch.Tensor, references: torch.Tensor, fli
     return float((predictions[mask] == target).float().mean())
 
 
+def _accuracy(predictions: torch.Tensor, references: torch.Tensor) -> float:
+    return float((predictions == references).float().mean())
+
+
 def test_fn(model: Any, testloader: DataLoader[Any], device: torch.device) -> tuple[float, float]:
     """Local evaluation; returns (mean loss, accuracy)."""
-    metric: Any = load_metric("accuracy")
     loss, predictions, references = _predict(model, testloader, device)
-    metric.add_batch(predictions=predictions, references=references)
-    return loss, float(metric.compute()["accuracy"])
+    return loss, _accuracy(predictions, references)
 
 
 def global_eval_fn(
@@ -259,6 +281,6 @@ def global_eval_fn(
     loss, predictions, references = _predict(model, loader, device)
     return {
         "loss": loss,
-        "accuracy": float((predictions == references).float().mean()),
+        "accuracy": _accuracy(predictions, references),
         "attack_success_rate": attack_success_rate(predictions, references, flip),
     }

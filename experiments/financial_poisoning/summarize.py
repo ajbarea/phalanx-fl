@@ -39,10 +39,17 @@ FIGURES = RESULTS / "figures"
 
 # Categorical slots 1-3 of the dataviz reference palette (validated all-pairs, light).
 SERIES = {"clean": "#2a78d6", "flip": "#eb6834", "flip-boosted": "#1baf7a"}
+
+
+def _attackers(scenario: str) -> int:
+    ids = str(SCENARIOS[scenario].get("malicious-partitions", '""')).strip('"')
+    return len([i for i in ids.split(",") if i.strip()])
+
+
 LABELS = {
     "clean": "No attacker",
-    "flip": "1 of 12 flips labels",
-    "flip-boosted": "1 of 12 flips labels, boosted",
+    "flip": f"{_attackers('flip')} of {NUM_CLIENTS} flips labels",
+    "flip-boosted": f"{_attackers('flip-boosted')} of {NUM_CLIENTS} flips labels, boosted",
 }
 RULE_LABELS = {
     "fedavg": "FedAvg (no defense)",
@@ -67,11 +74,36 @@ def load() -> Cells:
     return cells
 
 
-def series(manifest: dict[str, Any], key: str) -> list[float]:
+def _scores(manifest: dict[str, Any]) -> dict[str, Any]:
     # Manifests written before the global evaluation was unified, the committed runs
     # among them, name the same server-side scores ``heldout_metrics``.
-    scores = manifest.get("global_metrics") or manifest["heldout_metrics"]
+    return manifest.get("global_metrics") or manifest["heldout_metrics"]
+
+
+def series(manifest: dict[str, Any], key: str) -> list[float]:
+    scores = _scores(manifest)
     return [float(scores[str(r)][key]) for r in range(ROUNDS + 1)]
+
+
+def setting(cells: Cells) -> str:
+    """Model, dataset and global test size as the manifests record them.
+
+    The size comes from ``num-examples``, which manifests record since the global
+    evaluation was unified; when any manifest lacks it, the size is left out.
+    """
+    runs = [m for ms in cells.values() for m in ms]
+
+    def one(key: str) -> str:
+        values = {str(m["run_config"][key]) for m in runs}
+        if len(values) != 1:
+            raise SystemExit(f"manifests disagree on {key}: {sorted(values)}")
+        return values.pop()
+
+    sizes = {_scores(m)["0"].get("num-examples") for m in runs}
+    if len(sizes - {None}) > 1:
+        raise SystemExit(f"manifests disagree on the global test size: {sorted(sizes - {None})}")
+    size = f" (n={int(next(iter(sizes)))})" if len(sizes) == 1 and None not in sizes else ""
+    return f"{one('model-name')} + LoRA, {one('dataset')} test split{size}"
 
 
 def _ranks(manifest: dict[str, Any], rounds: range) -> list[int]:
@@ -268,8 +300,15 @@ def _style(ax: Any) -> None:
 
 def _save(fig: Any, stem: str) -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
-    for ext in ("png", "pdf"):
-        fig.savefig(FIGURES / f"{stem}.{ext}", dpi=200, facecolor=SURFACE, bbox_inches="tight")
+    # No PDF creation date, so a rebuild from the same manifests is byte-identical.
+    fig.savefig(FIGURES / f"{stem}.png", dpi=200, facecolor=SURFACE, bbox_inches="tight")
+    fig.savefig(
+        FIGURES / f"{stem}.pdf",
+        dpi=200,
+        facecolor=SURFACE,
+        bbox_inches="tight",
+        metadata={"CreationDate": None},
+    )
     plt.close(fig)
 
 
@@ -328,7 +367,7 @@ def figure_by_round(cells: Cells) -> None:
         0.01,
         -0.02,
         f"Median over seeds; band = min to max; avg = mean of rounds {ATTACK_START}-{ROUNDS}. "
-        f"{NUM_CLIENTS} banks, DistilBERT + LoRA, Financial PhraseBank test split (n=970).",
+        f"{NUM_CLIENTS} banks, {setting(cells)}.",
         color=INK_2,
         fontsize=8,
     )

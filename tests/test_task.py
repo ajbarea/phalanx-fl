@@ -24,6 +24,27 @@ def test_set_seed_makes_training_rng_deterministic() -> None:
     assert torch.equal(a, b)
 
 
+def test_set_seed_separates_ids_a_scaled_sum_would_merge() -> None:
+    # 1000 * round + partition + 100_000 * seed gave seed 0 / round 101 and seed 1 / round 1
+    # the same stream; SeedSequence hashes the ids, so they no longer collide.
+    def draw(entropy: list[int]) -> tuple[float, float, float]:
+        set_seed(entropy)
+        return task.random.random(), float(task.np.random.rand()), float(torch.rand(1))
+
+    assert draw([101, 0, 0]) != draw([1, 0, 1])
+    assert draw([3, 2, 1]) == draw([3, 2, 1])
+
+
+def test_server_and_client_entropy_never_share_a_stream() -> None:
+    # SeedSequence pads entropy with zeros, so untagged [5] and [5, 0, 0] are one stream:
+    # a run's initial adapters at seed 5 would replay client round 5, partition 0, seed 0.
+    def state(entropy: list[int]) -> list[int]:
+        return task.np.random.SeedSequence(entropy).generate_state(4).tolist()
+
+    assert state([5]) == state([5, 0, 0])
+    assert state(task.server_entropy(5)) != state(task.client_entropy(5, 0, 0))
+
+
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="needs CUDA")
 def test_set_seed_makes_cuda_accumulation_deterministic() -> None:
     # index_add_ on CUDA accumulates with atomics, so a float32 sum over many duplicate

@@ -41,8 +41,6 @@ that, plus the OpenTelemetry observability layer that is the project's different
 - **`datasets>=2.15,<5`** — HF datasets. The `<5` ceiling is **not** ours; it is forced
   by `flwr-datasets` 0.6.0. transformers 5 only needs `>=2.15`, so the window is
   consistent. Revisit the ceiling when `flwr-datasets` lifts its cap.
-- **`evaluate>=0.4`** — the accuracy metric in `test_fn`.
-- **`scikit-learn>=1.3`** — required by `evaluate`'s accuracy metric backend.
 
 ## `torch` extra — training, CUDA on Linux aarch64
 
@@ -58,4 +56,6 @@ that, plus the OpenTelemetry observability layer that is the project's different
 - **`pytest` + `pytest-asyncio` + `pytest-cov` + `hypothesis`** — test stack.
 - **`pip-audit`** — supply-chain advisory scan (`make audit`, CI audit job).
 - **`ruff` + `ty`** — lint/format + type-check (`make lint`). Floors track the sister repos.
+- **`actionlint-py`** — actionlint as a wheel, so `make lint` and CI check workflow syntax and
+  expressions; GitHub runs no workflow it cannot parse and reports no failing check.
 - **`zensical`** — the documentation site generator (`make docs`).

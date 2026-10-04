@@ -49,7 +49,7 @@ make smoke       # fast 2-round federated simulation
 make trace       # run with OTel traces printed to the console (no collector needed)
 ```
 
-`make run` runs the full simulation, `make test` runs the suite, `make lint` runs ruff + ty. Run `make` with no target for the full list.
+`make run` runs the full simulation, `make test` runs the suite, `make lint` runs ruff, ty and actionlint. Run `make` with no target for the full list.
 
 ### Federation setup (flwr 1.39)
 
