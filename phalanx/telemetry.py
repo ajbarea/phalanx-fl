@@ -31,6 +31,12 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 
 _DEFAULT_SERVICE = "phalanx-fl"
 
+# Doubling buckets, as semconv's GenAI durations use: rounds run from seconds on a GPU to
+# tens of minutes with a full global evaluation on CPU.
+_ROUND_DURATION_BUCKETS = [float(2**k) for k in range(0, 14)]  # 1 s .. 8192 s
+# LoRA payloads run from KiB (tiny BERT) to hundreds of MiB (large adapters).
+_MESSAGE_SIZE_BUCKETS = [float(2**k) for k in range(10, 31)]  # 1 KiB .. 1 GiB
+
 _tracer: Any = None
 _meter: Any = None
 _instruments: dict[str, Any] = {}
@@ -88,18 +94,35 @@ def init_telemetry(
     )
     _meter = meter_provider.get_meter("phalanx")
 
+    # Metrics carry ``fl.round`` as an attribute, so each round is its own series; the
+    # count is bounded by num-server-rounds, far below the SDK's per-metric limit.
     _instruments = {
-        "round_loss": _meter.create_gauge("fl.round.loss"),
-        "round_accuracy": _meter.create_gauge("fl.round.accuracy"),
-        "round_train_clients": _meter.create_gauge("fl.round.train_clients"),
-        "round_evaluate_clients": _meter.create_gauge("fl.round.evaluate_clients"),
-        "round_train_ess": _meter.create_gauge("fl.round.train_ess"),
-        "round_evaluate_ess": _meter.create_gauge("fl.round.evaluate_ess"),
-        "round_failures": _meter.create_counter("fl.round.failures"),
-        "round_global_loss": _meter.create_gauge("fl.round.global_loss"),
-        "round_global_accuracy": _meter.create_gauge("fl.round.global_accuracy"),
-        "client_examples": _meter.create_counter("fl.client.examples"),
-        "client_loss": _meter.create_gauge("fl.client.loss"),
+        "round_loss": _meter.create_gauge("fl.round.loss", unit="1"),
+        "round_accuracy": _meter.create_gauge("fl.round.accuracy", unit="1"),
+        "round_train_clients": _meter.create_gauge("fl.round.train_clients", unit="{client}"),
+        "round_evaluate_clients": _meter.create_gauge("fl.round.evaluate_clients", unit="{client}"),
+        "round_train_ess": _meter.create_gauge("fl.round.train_ess", unit="{client}"),
+        "round_evaluate_ess": _meter.create_gauge("fl.round.evaluate_ess", unit="{client}"),
+        "round_failures": _meter.create_counter("fl.round.failures", unit="{failure}"),
+        "round_global_loss": _meter.create_gauge("fl.round.global_loss", unit="1"),
+        "round_global_accuracy": _meter.create_gauge("fl.round.global_accuracy", unit="1"),
+        "round_duration": _meter.create_histogram(
+            "fl.round.duration",
+            unit="s",
+            description="Wall time of a round, from configure_train to the end of its span.",
+            explicit_bucket_boundaries_advisory=_ROUND_DURATION_BUCKETS,
+        ),
+        "message_size": _meter.create_histogram(
+            "fl.message.size",
+            unit="By",
+            description=(
+                "Record payload bytes of one message, as Flower's count_bytes counts them "
+                "(keys and array serialization metadata included). Not network bytes."
+            ),
+            explicit_bucket_boundaries_advisory=_MESSAGE_SIZE_BUCKETS,
+        ),
+        "client_examples": _meter.create_counter("fl.client.examples", unit="{example}"),
+        "client_loss": _meter.create_gauge("fl.client.loss", unit="1"),
     }
 
     # Track the providers so buffered spans/metrics get flushed on exit. The OTLP
@@ -210,6 +233,20 @@ def record_global_metrics(*, rnd: int, loss: float, accuracy: float) -> None:
     attrs = {"fl.round": rnd}
     _instruments["round_global_loss"].set(loss, attributes=attrs)
     _instruments["round_global_accuracy"].set(accuracy, attributes=attrs)
+
+
+def record_round_duration(*, rnd: int, seconds: float) -> None:
+    """Record one round's wall time."""
+    _ensure_init()
+    _instruments["round_duration"].record(seconds, attributes={"fl.round": rnd})
+
+
+def record_message_size(*, nbytes: int, message_type: str, direction: str) -> None:
+    """Record one message's payload bytes; ``direction`` is server_to_client or client_to_server."""
+    _ensure_init()
+    _instruments["message_size"].record(
+        nbytes, attributes={"fl.message.type": message_type, "fl.message.direction": direction}
+    )
 
 
 def record_client_metrics(*, partition_id: int, num_examples: int, loss: float) -> None:
