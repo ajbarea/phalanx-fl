@@ -40,6 +40,9 @@ jobs:
         run: uv run ruff check .
       - name: ty type-check
         run: uv run ty check
+      # A workflow GitHub cannot parse never runs, and reports no failing check.
+      - name: actionlint (workflow syntax + expressions)
+        run: uv run actionlint
       - name: Minimize uv cache
         if: always()
         run: uv cache prune --ci
@@ -68,7 +71,7 @@ jobs:
       # aren't pinned in the lock, so --frozen can't fetch the per-Python wheel
       # (e.g. cp313). Lock/pyproject consistency is already gated by the lint job's
       # `uv lock --check`. Mirrors the velocity-fl convention.
-      - name: Install dependencies (every extra: HF stack, CPU torch, experiments)
+      - name: Install dependencies (every extra)
         run: 'uv sync --all-extras --python ${{ matrix.python-version }}'
       # The extras must be on `uv run` too: without them it re-syncs to the default
       # groups and drops torch before pytest collects. Mirrors the Makefile.

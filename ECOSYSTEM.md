@@ -56,4 +56,6 @@ that, plus the OpenTelemetry observability layer that is the project's different
 - **`pytest` + `pytest-asyncio` + `pytest-cov` + `hypothesis`** — test stack.
 - **`pip-audit`** — supply-chain advisory scan (`make audit`, CI audit job).
 - **`ruff` + `ty`** — lint/format + type-check (`make lint`). Floors track the sister repos.
+- **`actionlint-py`** — actionlint as a wheel, so `make lint` and CI check workflow syntax and
+  expressions; GitHub runs no workflow it cannot parse and reports no failing check.
 - **`zensical`** — the documentation site generator (`make docs`).

@@ -53,6 +53,7 @@ dev = [
     "pytest-cov>=6.0",
     "hypothesis>=6.150",
     "pip-audit",
+    "actionlint-py>=1.7.12",
     "ruff>=0.16.8",
     "ty>=0.0.82,<0.1",
     "zensical>=0.0.63",

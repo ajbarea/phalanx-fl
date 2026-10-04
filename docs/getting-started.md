@@ -77,7 +77,7 @@ participating client produces an `fl.client.train` or
 ## Develop
 
 ```bash
-make lint        # ruff format --check + ruff check + ty
+make lint        # ruff format --check + ruff check + ty + actionlint
 make test        # pytest
 make audit       # pip-audit
 ```

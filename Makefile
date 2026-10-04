@@ -4,7 +4,7 @@
 ##
 ## Common targets:
 ##   make sync     Install dependencies (every extra + dev group)
-##   make lint     ruff format --check + ruff check + ty
+##   make lint     ruff format --check + ruff check + ty + actionlint
 ##   make test     Run the test suite
 ##   make smoke    Fast 2-round federated simulation (sanity check)
 ##   make run      Full federated simulation (flwr run, streamed)
@@ -32,10 +32,11 @@ help:                      ## Show this help
 sync:                      ## Install all dependencies (torch: CPU, CUDA 13 on Linux aarch64)
 	uv sync --all-extras
 
-lint:                      ## ruff format check + ruff lint + ty type-check
+lint:                      ## ruff format check + ruff lint + ty type-check + actionlint
 	uv run --no-active ruff format --check .
 	uv run --no-active ruff check .
 	uv run --no-active ty check
+	uv run --no-active actionlint
 
 fmt:                       ## Apply ruff formatting + autofixes
 	uv run --no-active ruff format .
