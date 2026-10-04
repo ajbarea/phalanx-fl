@@ -1,0 +1,214 @@
+{
+  "generated_at": "2026-09-24T13:45:10.557920+00:00",
+  "git": {
+    "commit": "1a209f0a5bc29632277c72329c116b2c90d01d49",
+    "branch": "feat/financial-sentiment-poisoning",
+    "dirty": false
+  },
+  "python": "3.12.3",
+  "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "packages": {
+    "flwr": "1.36.0",
+    "flwr-datasets": "0.6.1",
+    "torch": "2.13.0+cu129",
+    "transformers": "5.12.1",
+    "peft": "0.18.1"
+  },
+  "run_config": {
+    "num-server-rounds": 20,
+    "model-name": "distilbert-base-uncased",
+    "dataset": "atrost/financial_phrasebank",
+    "text-column": "sentence",
+    "num-labels": 3,
+    "lora-target-modules": "q_lin,v_lin",
+    "seed": 0,
+    "partitioner": "iid",
+    "dirichlet-alpha": 0.5,
+    "local-epochs": 1,
+    "learning-rate": 0.0005,
+    "fraction-train": 1.0,
+    "fraction-evaluate": 0.0,
+    "otel-service-name": "phalanx-fl",
+    "strategy": "trimmed-mean",
+    "num-malicious": 0,
+    "num-nodes-to-select": 1,
+    "trim-beta": 0.08333333333333333,
+    "malicious-partitions": "0",
+    "attack": "label-flip",
+    "flip-from": 0,
+    "flip-to": 2,
+    "boost": 12.0,
+    "attack-start-round": 6,
+    "heldout-split": "test"
+  },
+  "metrics": {},
+  "heldout_metrics": {
+    "0": {
+      "loss": 1.1186130162208312,
+      "accuracy": 0.2886597812175751,
+      "attack_success_rate": 1.0
+    },
+    "1": {
+      "loss": 0.9329248013034943,
+      "accuracy": 0.5824742317199707,
+      "attack_success_rate": 0.0
+    },
+    "2": {
+      "loss": 0.8290932274633839,
+      "accuracy": 0.6061855554580688,
+      "attack_success_rate": 0.1120000034570694
+    },
+    "3": {
+      "loss": 0.7163181612568517,
+      "accuracy": 0.6587628722190857,
+      "attack_success_rate": 0.6159999966621399
+    },
+    "4": {
+      "loss": 0.6236763510011858,
+      "accuracy": 0.7237113118171692,
+      "attack_success_rate": 0.2800000011920929
+    },
+    "5": {
+      "loss": 0.5473839015729965,
+      "accuracy": 0.7628865838050842,
+      "attack_success_rate": 0.09600000083446503
+    },
+    "6": {
+      "loss": 0.5328026788849984,
+      "accuracy": 0.7597938179969788,
+      "attack_success_rate": 0.25600001215934753
+    },
+    "7": {
+      "loss": 0.49672460459893747,
+      "accuracy": 0.7793814539909363,
+      "attack_success_rate": 0.18400000035762787
+    },
+    "8": {
+      "loss": 0.4789756373051674,
+      "accuracy": 0.7814432978630066,
+      "attack_success_rate": 0.18400000035762787
+    },
+    "9": {
+      "loss": 0.4749309507108504,
+      "accuracy": 0.7855669856071472,
+      "attack_success_rate": 0.1679999977350235
+    },
+    "10": {
+      "loss": 0.45389662346532267,
+      "accuracy": 0.7958762645721436,
+      "attack_success_rate": 0.1679999977350235
+    },
+    "11": {
+      "loss": 0.4364175363894432,
+      "accuracy": 0.8103092908859253,
+      "attack_success_rate": 0.11999999731779099
+    },
+    "12": {
+      "loss": 0.42959119427588677,
+      "accuracy": 0.8123711347579956,
+      "attack_success_rate": 0.11999999731779099
+    },
+    "13": {
+      "loss": 0.4302287587235051,
+      "accuracy": 0.8123711347579956,
+      "attack_success_rate": 0.08799999952316284
+    },
+    "14": {
+      "loss": 0.42783196126261064,
+      "accuracy": 0.808247447013855,
+      "attack_success_rate": 0.1120000034570694
+    },
+    "15": {
+      "loss": 0.4156448889163233,
+      "accuracy": 0.8257731795310974,
+      "attack_success_rate": 0.09600000083446503
+    },
+    "16": {
+      "loss": 0.4104705260645959,
+      "accuracy": 0.8216494917869568,
+      "attack_success_rate": 0.08799999952316284
+    },
+    "17": {
+      "loss": 0.407505537233045,
+      "accuracy": 0.8288660049438477,
+      "attack_success_rate": 0.10400000214576721
+    },
+    "18": {
+      "loss": 0.40799638052140513,
+      "accuracy": 0.8257731795310974,
+      "attack_success_rate": 0.08799999952316284
+    },
+    "19": {
+      "loss": 0.3973491374523409,
+      "accuracy": 0.8329896926879883,
+      "attack_success_rate": 0.06400000303983688
+    },
+    "20": {
+      "loss": 0.39808442900257723,
+      "accuracy": 0.8319587707519531,
+      "attack_success_rate": 0.06400000303983688
+    }
+  },
+  "attacker_outlier_rank": {
+    "1": [
+      11
+    ],
+    "2": [
+      8
+    ],
+    "3": [
+      11
+    ],
+    "4": [
+      2
+    ],
+    "5": [
+      5
+    ],
+    "6": [
+      1
+    ],
+    "7": [
+      1
+    ],
+    "8": [
+      1
+    ],
+    "9": [
+      1
+    ],
+    "10": [
+      1
+    ],
+    "11": [
+      1
+    ],
+    "12": [
+      1
+    ],
+    "13": [
+      1
+    ],
+    "14": [
+      1
+    ],
+    "15": [
+      1
+    ],
+    "16": [
+      1
+    ],
+    "17": [
+      1
+    ],
+    "18": [
+      1
+    ],
+    "19": [
+      1
+    ],
+    "20": [
+      1
+    ]
+  }
+}

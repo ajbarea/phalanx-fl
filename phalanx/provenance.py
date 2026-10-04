@@ -27,6 +27,15 @@ def _git(*args: str) -> str | None:
         return None
 
 
+def _dirty() -> bool | None:
+    """Whether tracked files differ from HEAD, so the run's code is not that commit.
+
+    None when git is unavailable or this is not a work tree.
+    """
+    status = _git("status", "--porcelain", "--untracked-files=no")
+    return None if status is None else status != ""
+
+
 def _package_versions() -> dict[str, str]:
     versions: dict[str, str] = {}
     for pkg in _TRACKED_PACKAGES:
@@ -44,6 +53,7 @@ def provenance_header() -> dict[str, Any]:
         "git": {
             "commit": _git("rev-parse", "HEAD"),
             "branch": _git("rev-parse", "--abbrev-ref", "HEAD"),
+            "dirty": _dirty(),
         },
         "python": platform.python_version(),
         "platform": platform.platform(),
@@ -56,18 +66,24 @@ def run_manifest(
     run_config: dict[str, Any],
     metrics: dict[str, Any],
     global_metrics: dict[str, Any] | None = None,
+    extra: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Capture a reproducibility manifest for one federated run.
 
     ``metrics`` are the clients' federated evaluation per round; ``global_metrics`` the
     aggregated adapters on the global test set, from round 0 (the initial adapters).
+    ``extra`` adds top-level keys; one that would replace a core key raises.
     """
-    return {
+    manifest = {
         **provenance_header(),
         "run_config": dict(run_config),
         "metrics": dict(metrics),
         "global_metrics": dict(global_metrics or {}),
     }
+    clash = sorted(manifest.keys() & (extra or {}).keys())
+    if clash:
+        raise ValueError(f"extra would overwrite manifest keys {clash}")
+    return {**manifest, **(extra or {})}
 
 
 def write_manifest(manifest: dict[str, Any], directory: str | Path = "runs") -> Path:

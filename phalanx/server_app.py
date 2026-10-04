@@ -1,9 +1,11 @@
-"""phalanx-fl ServerApp: FedAvg over LoRA adapters, observed with OpenTelemetry.
+"""phalanx-fl ServerApp: robust aggregation over LoRA adapters, observed with OpenTelemetry.
 
-``ObservableFedAvg`` subclasses Flower's ``FedAvg`` and hooks the per-round entry
-points inside ``strategy.start()``: it counts participating clients in
+``ObservableMixin`` hooks the per-round entry points inside ``strategy.start()`` of
+any of Flower's FedAvg-family strategies: it counts participating clients in
 ``aggregate_train`` and, after ``aggregate_evaluate``, emits an ``fl.round`` span
 plus aggregated loss/accuracy/participation/ESS metrics, each named for its phase.
+``strategy`` in the run config picks the aggregation rule; ``ObservableFedAvg`` is the
+default.
 With a global evaluator, the span stays open until the aggregated adapters have also
 been scored on the global test set (flwr's ``evaluate_fn``, which runs after
 ``aggregate_evaluate``). Only the LoRA adapters are federated (the initial arrays come
@@ -16,9 +18,18 @@ import math
 from collections.abc import Callable, Iterable
 from typing import Any
 
+import numpy as np
 from flwr.app import ArrayRecord, ConfigRecord, Context, Message, MetricRecord
 from flwr.serverapp import Grid, ServerApp
-from flwr.serverapp.strategy import FedAvg, Result
+from flwr.serverapp.strategy import (
+    Bulyan,
+    FedAvg,
+    FedMedian,
+    FedTrimmedAvg,
+    Krum,
+    MultiKrum,
+    Result,
+)
 from opentelemetry.trace import Status, StatusCode
 
 from phalanx.provenance import run_manifest, write_manifest
@@ -66,8 +77,8 @@ def effective_sample_size(weights: Iterable[float]) -> float:
     return total * total / math.fsum(x * x for x in w)
 
 
-def _num_examples(msg: Message, key: str = "num-examples") -> float | None:
-    """The weight a client reported under ``key``, or None when the reply carries none.
+def _metric(msg: Message, key: str) -> float | None:
+    """The value a client reported under ``key``, or None when the reply carries none.
 
     Addresses the record by type rather than by the literal name ``client_app`` happens
     to use, the way flwr's own aggregation does — a telemetry read must not be the thing
@@ -79,6 +90,11 @@ def _num_examples(msg: Message, key: str = "num-examples") -> float | None:
         return None
     metrics: Any = record
     return float(metrics[key])
+
+
+def _num_examples(msg: Message, key: str = "num-examples") -> float | None:
+    """The weight a client reported under ``key`` (FedAvg's ``weighted_by_key``)."""
+    return _metric(msg, key)
 
 
 def _reply_ess(replies: Iterable[Message], key: str) -> float:
@@ -98,6 +114,7 @@ def observe_round(
     evaluate_ess: float = float("nan"),
     global_metrics: MetricRecord | None = None,
     global_error: str | None = None,
+    aggregation_skipped: bool = False,
     span: Any | None = None,
 ) -> None:
     """Decorate the round span with aggregated metrics + status, then end it.
@@ -126,6 +143,11 @@ def observe_round(
     if global_error is not None:
         span.add_event("fl.global_evaluation_failed", {"error": global_error})
         span.set_status(Status(StatusCode.ERROR, "global evaluation failed"))
+    if aggregation_skipped:
+        # The rule declined (e.g. Bulyan below 4f + 3 replies): the global model did not
+        # change, so this round's global metrics re-score the previous round's adapters.
+        span.add_event("fl.aggregation_skipped")
+        span.set_status(Status(StatusCode.ERROR, "aggregation skipped; global model unchanged"))
     record_round_metrics(
         rnd=server_round,
         loss=loss,
@@ -141,6 +163,18 @@ def observe_round(
     span.end()
 
 
+def outlier_rank(updates: list[np.ndarray], index: int) -> int:
+    """Rank of ``updates[index]`` by distance from the coordinate-wise median (1 = farthest)."""
+    median = np.median(np.stack(updates), axis=0)
+    distances = [float(np.linalg.norm(u - median)) for u in updates]
+    return 1 + sum(d > distances[index] for d in distances)
+
+
+def _flatten(message: Message) -> np.ndarray:
+    record = next(iter(message.content.array_records.values()))
+    return np.concatenate([a.ravel() for a in record.to_numpy_ndarrays()])
+
+
 def _by_round(records: dict[int, MetricRecord]) -> dict[str, dict[str, Any]]:
     return {str(rnd): dict(rec) for rnd, rec in records.items()}
 
@@ -148,8 +182,28 @@ def _by_round(records: dict[int, MetricRecord]) -> dict[str, dict[str, Any]]:
 GlobalEvaluator = Callable[[ArrayRecord], MetricRecord]
 
 
-class ObservableFedAvg(FedAvg):
-    """FedAvg that emits OTel round spans + FL metrics each round.
+def _train_is_weighted_mean(cls: type) -> bool:
+    """Whether ``cls`` aggregates training replies with FedAvg's ``num-examples`` mean.
+
+    Kish's ESS describes a weighted mean over the replies it is computed from. The median,
+    the trimmed mean and Bulyan do not take that mean; Krum and Multi-Krum take it over
+    the replies they select, which this mixin does not see. An ESS over every reply would
+    describe neither, so for these rules the train ESS is NaN.
+    """
+    owner = next(
+        c
+        for c in cls.__mro__
+        if "aggregate_train" in vars(c) and not issubclass(c, ObservableMixin)
+    )
+    return owner is FedAvg
+
+
+class ObservableMixin(FedAvg):
+    """Emits OTel round spans + FL metrics each round for the strategy it precedes in the MRO.
+
+    Also records, per round, the outlier rank of each reply flagged ``malicious`` (see
+    ``outlier_rank``): the bookkeeping behind "does the attacker stand out?". The flag is
+    read here only, never by the aggregation rule.
 
     ``global_evaluate`` scores the aggregated adapters on the global test set each round,
     and on the initial adapters as round 0. The strategy passes it to ``start`` as
@@ -166,6 +220,9 @@ class ObservableFedAvg(FedAvg):
         self._round_failures: dict[int, int] = {}
         self._round_spans: dict[int, Any] = {}
         self._awaiting_global: dict[int, dict[str, Any]] = {}
+        self._train_weighted = _train_is_weighted_mean(type(self))
+        self.attacker_ranks: dict[int, list[int]] = {}
+        self.skipped_rounds: set[int] = set()
 
     def start(
         self,
@@ -233,8 +290,19 @@ class ObservableFedAvg(FedAvg):
         replies = list(replies)
         self._round_train_clients[server_round] = sum(1 for m in replies if not m.has_error())
         self._round_failures[server_round] = sum(1 for m in replies if m.has_error())
-        self._round_train_ess[server_round] = _reply_ess(replies, self.weighted_by_key)
-        return super().aggregate_train(server_round, replies)
+        self._round_train_ess[server_round] = (
+            _reply_ess(replies, self.weighted_by_key) if self._train_weighted else float("nan")
+        )
+        arrays, metrics = super().aggregate_train(server_round, replies)
+        # After the rule, which validates the replies, so bookkeeping cannot abort a round.
+        ok = [m for m in replies if not m.has_error()]
+        if arrays is None and ok:
+            self.skipped_rounds.add(server_round)
+        flagged = [i for i, m in enumerate(ok) if _metric(m, "malicious")]
+        if flagged:
+            updates = [_flatten(m) for m in ok]
+            self.attacker_ranks[server_round] = [outlier_rank(updates, i) for i in flagged]
+        return arrays, metrics
 
     def aggregate_evaluate(
         self, server_round: int, replies: Iterable[Message]
@@ -250,6 +318,7 @@ class ObservableFedAvg(FedAvg):
             "failures": self._round_failures.pop(server_round, 0) + eval_failures,
             "train_ess": self._round_train_ess.pop(server_round, float("nan")),
             "evaluate_ess": _reply_ess(replies, self.weighted_by_key),
+            "aggregation_skipped": server_round in self.skipped_rounds,
             "span": self._round_spans.pop(server_round, None),
         }
         if self._global_evaluate is None:
@@ -259,49 +328,90 @@ class ObservableFedAvg(FedAvg):
         return metrics
 
 
+class ObservableFedAvg(ObservableMixin, FedAvg):
+    """FedAvg that emits OTel round spans + FL metrics each round."""
+
+
+_STRATEGIES: dict[str, type[FedAvg]] = {
+    "fedavg": FedAvg,
+    "krum": Krum,
+    "multikrum": MultiKrum,
+    "trimmed-mean": FedTrimmedAvg,
+    "median": FedMedian,
+    "bulyan": Bulyan,
+}
+
+
+def build_strategy(cfg: Any, global_evaluate: GlobalEvaluator | None = None) -> ObservableMixin:
+    """The observable strategy named by ``cfg["strategy"]``, configured from ``cfg``."""
+    name = str(cfg["strategy"])
+    if name not in _STRATEGIES:
+        raise ValueError(f"unknown strategy {name!r}; choose from {sorted(_STRATEGIES)}")
+    base = _STRATEGIES[name]
+    kwargs: dict[str, Any] = {
+        "fraction_train": float(cfg["fraction-train"]),
+        "fraction_evaluate": float(cfg["fraction-evaluate"]),
+        "global_evaluate": global_evaluate,
+    }
+    if name in ("krum", "multikrum", "bulyan"):
+        kwargs["num_malicious_nodes"] = int(cfg["num-malicious"])
+    if name == "multikrum":
+        kwargs["num_nodes_to_select"] = int(cfg["num-nodes-to-select"])
+    if name == "trimmed-mean":
+        kwargs["beta"] = float(cfg["trim-beta"])
+    observable = (
+        ObservableFedAvg
+        if base is FedAvg
+        else type(f"Observable{base.__name__}", (ObservableMixin, base), {})
+    )
+    return observable(**kwargs)
+
+
 @app.main()
 def main(grid: Grid, context: Context) -> None:
-    """Federate LoRA adapters with FedAvg; observe every round over OTLP."""
+    """Federate LoRA adapters with the configured strategy; observe every round over OTLP."""
     # deferred: heavy torch/HF import
     from phalanx.task import (
         default_device,
         get_adapter_state,
         get_model,
+        global_eval_fn,
         load_global_test,
         sample_count,
         set_adapter_state,
         set_seed,
-        test_fn,
     )
 
     cfg: Any = context.run_config  # flwr config values are a broad union; read as Any
     init_telemetry(service_name=str(cfg["otel-service-name"]))
-    set_seed(0)  # the initial adapters, and so round 0, are the same in every run
+    # The seed fixes the initial adapters, so round 0 is the same in every run of one seed
+    # and the scenarios of a sweep pair up.
+    set_seed(int(cfg["seed"]))
 
     # Initial global state = the LoRA adapters only (not the frozen base model).
-    model = get_model(str(cfg["model-name"]), num_labels=int(cfg["num-labels"]))
+    model = get_model(
+        str(cfg["model-name"]),
+        num_labels=int(cfg["num-labels"]),
+        target_modules=str(cfg["lora-target-modules"]),
+    )
     initial_arrays = ArrayRecord(get_adapter_state(model))
 
     testloader = load_global_test(
         str(cfg["model-name"]),
         dataset=str(cfg["dataset"]),
+        text_column=str(cfg["text-column"]),
         size=int(cfg["global-eval-size"]),
     )
     device = default_device()
     model.to(device)
+    flip = (int(cfg["flip-from"]), int(cfg["flip-to"]))
 
     def global_evaluate(arrays: ArrayRecord) -> MetricRecord:
         set_adapter_state(model, arrays.to_torch_state_dict())
-        loss, accuracy = test_fn(model, testloader, device)
-        return MetricRecord(
-            {"loss": loss, "accuracy": accuracy, "num-examples": sample_count(testloader)}
-        )
+        metrics: Any = global_eval_fn(model, testloader, device, flip)
+        return MetricRecord({**metrics, "num-examples": sample_count(testloader)})
 
-    strategy = ObservableFedAvg(
-        fraction_train=float(cfg["fraction-train"]),
-        fraction_evaluate=float(cfg["fraction-evaluate"]),
-        global_evaluate=global_evaluate,
-    )
+    strategy = build_strategy(cfg, global_evaluate)
     try:
         result = strategy.start(
             grid=grid,
@@ -314,6 +424,12 @@ def main(grid: Grid, context: Context) -> None:
                 run_config=dict(cfg),
                 metrics=_by_round(result.evaluate_metrics_clientapp),
                 global_metrics=_by_round(result.evaluate_metrics_serverapp),
+                extra={
+                    "attacker_outlier_rank": {
+                        str(rnd): r for rnd, r in strategy.attacker_ranks.items()
+                    },
+                    "aggregation_skipped_rounds": sorted(strategy.skipped_rounds),
+                },
             )
         )
     finally:

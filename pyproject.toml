@@ -44,6 +44,8 @@ torch = [
     "torch>=2.12",
     "torchvision>=0.15",
 ]
+# Figures for experiments/ reports.
+experiments = ["matplotlib>=3.10"]
 all = ["phalanx-fl[hf,torch]"]
 
 [dependency-groups]
@@ -83,17 +85,34 @@ num-server-rounds = 3
 # prajjwal1/bert-tiny re-upload omits it and fails to load on transformers 5).
 model-name = "google/bert_uncased_L-2_H-128_A-2"
 dataset = "stanfordnlp/imdb"
+text-column = "text"
 num-labels = 2
+# LoRA layers, comma-separated; "" = PEFT default for the architecture.
+lora-target-modules = ""
+seed = 0
 # Non-IID partitioning over the HF dataset; lower alpha = more label skew.
 partitioner = "dirichlet"
 dirichlet-alpha = 0.5
 local-epochs = 1
+learning-rate = 5e-5
 fraction-train = 0.1
 fraction-evaluate = 0.1
 # Global test set: the dataset's `test` split, scored server-side on the aggregated
 # adapters each round. A positive size takes a seeded sample of that many rows; 0 = all.
 global-eval-size = 0
 otel-service-name = "phalanx-fl"
+# Aggregation rule: fedavg | krum | multikrum | trimmed-mean | median | bulyan.
+strategy = "fedavg"
+num-malicious = 0          # f, for krum / multikrum / bulyan
+num-nodes-to-select = 1    # multikrum only
+trim-beta = 0.2            # trimmed-mean only
+# Poisoning: comma-separated partition ids; "" = everyone honest.
+malicious-partitions = ""
+attack = "none"            # none | label-flip
+flip-from = 0
+flip-to = 1
+boost = 1.0                # attacker scales its update by this before replying
+attack-start-round = 1
 # OTLP endpoint is read from the OTEL_EXPORTER_OTLP_ENDPOINT env var when set.
 
 # Federation settings live outside this file: a [tool.flwr.federations] block is

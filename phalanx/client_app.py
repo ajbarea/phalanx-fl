@@ -3,6 +3,11 @@
 Each client loads the broadcast adapter weights into a frozen-backbone LoRA model,
 trains/evaluates on its non-IID partition, and replies with the updated adapters only.
 A client span wraps each local pass so per-partition work shows up in traces.
+
+Partitions listed in ``malicious-partitions`` poison their training labels from
+``attack-start-round`` on and may scale their update by ``boost`` before replying.
+Each reply carries a ``malicious`` flag for the server's bookkeeping only; no
+aggregation rule reads it.
 """
 
 from __future__ import annotations
@@ -10,11 +15,13 @@ from __future__ import annotations
 import warnings
 from typing import Any
 
+import torch
 from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict
 from flwr.clientapp import ClientApp
 from transformers import logging as hf_logging
 
 from phalanx.task import (
+    Flip,
     default_device,
     get_adapter_state,
     get_model,
@@ -55,6 +62,38 @@ def _parent_context(msg: Message) -> Any:
     return None
 
 
+def _data_kwargs(cfg: Any) -> dict[str, Any]:
+    """The ``load_data`` keyword arguments shared by train and evaluate."""
+    return {
+        "dataset": str(cfg["dataset"]),
+        "text_column": str(cfg["text-column"]),
+        "partitioner": str(cfg["partitioner"]),
+        "alpha": float(cfg["dirichlet-alpha"]),
+        "seed": int(cfg["seed"]),
+    }
+
+
+def is_malicious(cfg: Any, partition_id: int) -> bool:
+    """Whether ``partition_id`` is listed in the comma-separated ``malicious-partitions``."""
+    listed = str(cfg["malicious-partitions"]).replace(" ", "")
+    return str(partition_id) in listed.split(",") if listed else False
+
+
+def attack_for(cfg: Any, partition_id: int, rnd: int) -> tuple[Flip | None, float]:
+    """This client's (label flip, update boost) for ``rnd``; (None, 1.0) when honest."""
+    if not is_malicious(cfg, partition_id) or rnd < int(cfg["attack-start-round"]):
+        return None, 1.0
+    flip = (int(cfg["flip-from"]), int(cfg["flip-to"])) if cfg["attack"] == "label-flip" else None
+    return flip, float(cfg["boost"])
+
+
+def boost_update(
+    global_state: dict[str, torch.Tensor], local_state: dict[str, torch.Tensor], boost: float
+) -> dict[str, torch.Tensor]:
+    """Scale the update away from the global model: ``g + boost * (l - g)``."""
+    return {k: global_state[k] + boost * (local_state[k] - global_state[k]) for k in local_state}
+
+
 @app.train()
 def train(msg: Message, context: Context) -> Message:
     """Load broadcast adapters, train locally, reply with updated adapters only."""
@@ -65,33 +104,48 @@ def train(msg: Message, context: Context) -> Message:
     partition_id = int(node["partition-id"])
     num_partitions = int(node["num-partitions"])
     rnd = _server_round(msg)
-    set_seed(1000 * rnd + partition_id)  # reproducible per (round, client)
+    set_seed(1000 * rnd + partition_id + 100_000 * int(cfg["seed"]))  # per (seed, round, client)
+    flip, boost = attack_for(cfg, partition_id, rnd)
 
     with client_span(
         rnd=rnd, partition_id=partition_id, phase="train", parent=_parent_context(msg)
     ):
         trainloader, _ = load_data(
-            partition_id,
-            num_partitions,
-            str(cfg["model-name"]),
-            dataset=str(cfg["dataset"]),
-            partitioner=str(cfg["partitioner"]),
-            alpha=float(cfg["dirichlet-alpha"]),
+            partition_id, num_partitions, str(cfg["model-name"]), flip=flip, **_data_kwargs(cfg)
         )
-        model = get_model(str(cfg["model-name"]), num_labels=int(cfg["num-labels"]))
-        set_adapter_state(model, msg.content.array_records["arrays"].to_torch_state_dict())
+        model = get_model(
+            str(cfg["model-name"]),
+            num_labels=int(cfg["num-labels"]),
+            target_modules=str(cfg["lora-target-modules"]),
+        )
+        global_state = msg.content.array_records["arrays"].to_torch_state_dict()
+        # set_adapter_state mutates its argument; keep an untouched copy for boosting.
+        set_adapter_state(model, {k: v.clone() for k, v in global_state.items()})
         device = default_device()
         model.to(device)
-        loss = train_fn(model, trainloader, epochs=int(cfg["local-epochs"]), device=device)
+        loss = train_fn(
+            model,
+            trainloader,
+            epochs=int(cfg["local-epochs"]),
+            device=device,
+            lr=float(cfg["learning-rate"]),
+        )
         record_client_metrics(
             partition_id=partition_id, num_examples=sample_count(trainloader), loss=loss
         )
 
+    state = {k: v.cpu() for k, v in get_adapter_state(model).items()}
+    if boost != 1.0:
+        state = boost_update(global_state, state, boost)
     content = RecordDict(
         {
-            "arrays": ArrayRecord(get_adapter_state(model)),
+            "arrays": ArrayRecord(state),
             "metrics": MetricRecord(
-                {"num-examples": sample_count(trainloader), "train_loss": loss}
+                {
+                    "num-examples": sample_count(trainloader),
+                    "train_loss": loss,
+                    "malicious": int(is_malicious(cfg, partition_id)),
+                }
             ),
         }
     )
@@ -107,20 +161,19 @@ def evaluate(msg: Message, context: Context) -> Message:
     partition_id = int(node["partition-id"])
     num_partitions = int(node["num-partitions"])
     rnd = _server_round(msg)
-    set_seed(1000 * rnd + partition_id)  # reproducible per (round, client)
+    set_seed(1000 * rnd + partition_id + 100_000 * int(cfg["seed"]))  # per (seed, round, client)
 
     with client_span(
         rnd=rnd, partition_id=partition_id, phase="evaluate", parent=_parent_context(msg)
     ):
         _, testloader = load_data(
-            partition_id,
-            num_partitions,
-            str(cfg["model-name"]),
-            dataset=str(cfg["dataset"]),
-            partitioner=str(cfg["partitioner"]),
-            alpha=float(cfg["dirichlet-alpha"]),
+            partition_id, num_partitions, str(cfg["model-name"]), **_data_kwargs(cfg)
         )
-        model = get_model(str(cfg["model-name"]), num_labels=int(cfg["num-labels"]))
+        model = get_model(
+            str(cfg["model-name"]),
+            num_labels=int(cfg["num-labels"]),
+            target_modules=str(cfg["lora-target-modules"]),
+        )
         set_adapter_state(model, msg.content.array_records["arrays"].to_torch_state_dict())
         device = default_device()
         model.to(device)
