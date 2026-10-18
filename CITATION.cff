@@ -4,7 +4,7 @@ title: "Phalanx: A Federated Learning Framework with Ray, Flower, and PyTorch"
 abstract: "Phalanx is a federated learning framework for Byzantine-robust aggregation and attack-simulation research, built on Ray, Flower, and PyTorch."
 type: software
 authors:
-  - given-names: Arnaldo
+  - given-names: AJ
     family-names: Barea
     orcid: "https://orcid.org/0009-0001-7938-2376"
 repository-code: "https://github.com/ajbarea/phalanx-fl"
