@@ -26,7 +26,9 @@ UVX := uv run --no-active --all-extras
 # Simulation Runtime settings: SuperLink state since flwr 1.28, so pass per run.
 FEDCFG := --federation-config "num-supernodes=5 client-resources-num-cpus=2 client-resources-num-gpus=0.0"
 # Fixes blocked by flwr/flwr-datasets pins and unreachable from phalanx; recheck by 2026-12-05.
-AUDIT_IGNORES := GHSA-537c-gmf6-5ccf GHSA-hhrp-gw25-jr43 PYSEC-2026-3552 PYSEC-2026-3553 PYSEC-2026-3554 PYSEC-2026-3716
+# PYSEC-2026-4217 (fsspec ReferenceFileSystem): fixed in 2026.6.0, which needs datasets 5;
+# flwr-datasets 0.6.1 caps datasets <5, and phalanx never opens reference:// paths.
+AUDIT_IGNORES := GHSA-537c-gmf6-5ccf GHSA-hhrp-gw25-jr43 PYSEC-2026-3552 PYSEC-2026-3553 PYSEC-2026-3554 PYSEC-2026-3716 PYSEC-2026-4217
 
 help:                      ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort \
