@@ -100,11 +100,6 @@ html {
   border-bottom: 1px solid color-mix(in srgb, var(--phx-teal) 35%, transparent);
 }
 
-/* Identifier columns (module paths, keys) read as one token, never split mid-name. */
-.md-typeset table:not([class]) td:first-child code {
-  white-space: nowrap;
-}
-
 .md-typeset table:not([class]) tr:hover td {
   background: color-mix(in srgb, var(--phx-teal) 4%, transparent);
 }
