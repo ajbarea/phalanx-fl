@@ -13,7 +13,7 @@ make test   # the suite; downloads a small BERT from the Hugging Face Hub
 make audit  # pip-audit over the locked dependencies
 ```
 
-`make run`, `make smoke` and `make trace` start a local federated simulation and download IMDB, and `make docs` starts a server, and `make otel-up` and `make otel-aspire` start Docker containers: run them only when the task says to.
+`make run`, `make smoke` and `make trace` start a local federated simulation and download IMDB, and `make docs` starts a server, and `make otel-up` and `make otel-aspire` start Docker containers: run them only when the task says to. `experiments/*/sweep.py` runs a multi-run grid on a GPU: run it only when asked.
 
 ## Rules
 
