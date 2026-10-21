@@ -28,7 +28,9 @@ FEDCFG := --federation-config "num-supernodes=5 client-resources-num-cpus=2 clie
 # Fixes blocked by flwr/flwr-datasets pins and unreachable from phalanx; recheck by 2026-12-05.
 # PYSEC-2026-4217 (fsspec ReferenceFileSystem): fixed in 2026.6.0, which needs datasets 5;
 # flwr-datasets 0.6.1 caps datasets <5, and phalanx never opens reference:// paths.
-AUDIT_IGNORES := GHSA-537c-gmf6-5ccf GHSA-hhrp-gw25-jr43 PYSEC-2026-3552 PYSEC-2026-3553 PYSEC-2026-3554 PYSEC-2026-3716 PYSEC-2026-4217
+# PYSEC-2026-4321 (uv's bundled CA store trusts a compromised emSign root): fixed in 0.13.4;
+# flwr 1.39 caps uv <0.12 and 1.41 caps it <0.13, so the lock carries 0.11.33.
+AUDIT_IGNORES := GHSA-537c-gmf6-5ccf GHSA-hhrp-gw25-jr43 PYSEC-2026-3552 PYSEC-2026-3553 PYSEC-2026-3554 PYSEC-2026-3716 PYSEC-2026-4217 PYSEC-2026-4321
 
 help:                      ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort \
