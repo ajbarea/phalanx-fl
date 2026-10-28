@@ -164,8 +164,8 @@ html {
   box-shadow: 0 10px 30px color-mix(in srgb, var(--phx-teal) 26%, transparent);
 }
 
-/* Brand mark in the footer copyright: dark art, inverted on dark footers. */
-.md-copyright .brand-mark,
+/* Brand mark in the landing footer: light on dark, dark on light. The content
+   pages' footer mark comes from shared.css. */
 .landing-footer .brand-mark {
   height: 1em;
   width: auto;
@@ -174,7 +174,6 @@ html {
   opacity: 0.75;
 }
 
-[data-md-color-scheme="slate"] .md-copyright .brand-mark,
 [data-md-color-scheme="slate"] .landing-footer .brand-mark {
   filter: invert(1);
 }
