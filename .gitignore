@@ -42,3 +42,4 @@ site/
 experiments/*/results/logs/
 experiments/*/sweep.out
 COMMITS.md
+*.log
