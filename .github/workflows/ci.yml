@@ -29,7 +29,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
-          version: 0.11.5
+          version: 0.13.6
           enable-cache: true
       - name: Verify lockfile is in sync with pyproject.toml
         run: uv lock --check
@@ -67,7 +67,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
-          version: 0.11.5
+          version: 0.13.6
           enable-cache: true
           cache-suffix: 'py${{ matrix.python-version }}'
       # No --frozen: torch comes from the explicit pytorch-cpu index, whose wheels
@@ -110,7 +110,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
-          version: 0.11.5
+          version: 0.13.6
           enable-cache: true
       - name: Install dependencies
         run: uv sync --frozen --all-extras
@@ -131,7 +131,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
-          version: 0.11.5
+          version: 0.13.6
           enable-cache: true
       # Validates the [tool.flwr] config + components and packages the app; starts no
       # federation. The federated run is `make smoke`.

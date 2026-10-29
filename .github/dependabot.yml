@@ -1,5 +1,5 @@
 # Canonical config: techne templates/dependabot.yml.example. /techne:sisters
-# audits drift. phalanx-fl (flwr 1.39 app): uv + github-actions + docker-compose
+# audits drift. phalanx-fl (flwr 1.42 app): uv + github-actions + docker-compose
 # (the local OTel backends in compose.yaml, pinned by digest).
 version: 2
 

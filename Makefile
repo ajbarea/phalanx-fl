@@ -1,4 +1,4 @@
-## Phalanx — federated learning on the latest Flower (flwr 1.39 app-model).
+## Phalanx — federated learning on the latest Flower (flwr 1.42 app-model).
 ## An OTel-observable FL research testbed: a federated LoRA fine-tune of a tiny BERT,
 ## aggregating only the adapters.
 ##
@@ -28,12 +28,7 @@ FEDCFG := --federation-config "num-supernodes=5 client-resources-num-cpus=2 clie
 # Fixes blocked by flwr/flwr-datasets pins and unreachable from phalanx; recheck by 2026-12-05.
 # PYSEC-2026-4217 (fsspec ReferenceFileSystem): fixed in 2026.6.0, which needs datasets 5;
 # flwr-datasets 0.6.1 caps datasets <5, and phalanx never opens reference:// paths.
-# PYSEC-2026-4321 (uv's bundled CA store trusts a compromised emSign root): fixed in 0.13.4;
-# flwr 1.39 caps uv <0.12 and 1.41 caps it <0.13, so the lock carries 0.11.33.
-# Mitigated meanwhile: UV_SYSTEM_CERTS makes every uv run, including flwr's own `uv sync`,
-# trust the OS store, which does not hold the emSign ECC Root CA - G3 (GHSA-hq85-5cpj-mr62).
-export UV_SYSTEM_CERTS := 1
-AUDIT_IGNORES := GHSA-537c-gmf6-5ccf GHSA-hhrp-gw25-jr43 PYSEC-2026-3552 PYSEC-2026-3553 PYSEC-2026-3554 PYSEC-2026-3716 PYSEC-2026-4217 PYSEC-2026-4321
+AUDIT_IGNORES := GHSA-hhrp-gw25-jr43 PYSEC-2026-3716 PYSEC-2026-4217
 
 help:                      ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort \

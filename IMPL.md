@@ -36,6 +36,11 @@ keeps that worktree's venv and cwd for every later run, from any worktree. Stop 
 (`flower-superexec`, `flower-superlink`) before switching, and read a run's verdict from
 `Received N results and 0 failures`: `flwr run` exits 0 when every client fails.
 
+**flwr 1.42 (2026-10-29).** No app-code changes. 1.42 requires `uv>=0.13.5` and
+`certifi>=2026.10.19` after the emSign CA compromise, which clears the `uv` alert (#23,
+PYSEC-2026-4321) and retires the `UV_SYSTEM_CERTS` stopgap; 1.40 moved `cryptography` to 50,
+which clears its 4 audit ignores. CI's uv pin moves to 0.13.6, which writes lock revision 5.
+
 **flwr 1.39 (2026-10-02).** No app-code changes. Since 1.38 (flwrlabs/flower#8175) an
 instruction `Message` reads `TaskIdentity.run_id`, which the runtime sets and a unit test
 does not; `tests/test_server.py` sets it with an autouse fixture, as flwr's own tests do.
@@ -156,20 +161,13 @@ unreadable, fixed there in ariadne#46.
 
 ## Open bugs & findings
 
-### Dependabot: 5 alerts are upstream pins in flwr (2026-09-13, dismissed 2026-09-26)
+### Dependabot: ray is an upstream pin in flwr (2026-09-13; cryptography cleared 2026-10-29)
 
-4 alerts against `cryptography` 46.0.7 and 1 against `ray` 2.55.1, both transitive
-through `flwr[simulation]`. `flwr` 1.36.0 through 1.39.0 and `flwrlabs/flower` main all pin
-`cryptography<47.0.0,>=46.0.7` and `ray==2.55.1`, so no lock bump reaches the fixes
-(`cryptography` >= 50.0.0, `ray` >= 2.56.0).
+`ray` 2.55.1 (GHSA-hhrp-gw25-jr43, fixed in 2.56.0) is transitive through
+`flwr[simulation]`, which pins `ray==2.55.1` through 1.42.0, so no lock bump reaches the fix.
+It is not reachable: Ray is only the simulation backend, never `ray.data`. The alert is
+dismissed as not used (analysis on #106) and `make audit` ignores the same ID. The 4
+`cryptography` alerts cleared when flwr 1.40 moved to `cryptography` 50.
 
-None is reachable: neither flwr nor phalanx imports `pkcs7` or
-`cryptography.x509.verification`; the bundled-OpenSSL advisory covers PKCS#7/CMS, QUIC,
-OCSP, AES-OCB/SIV, DHX and PKCS#12, where flwr uses EC, Ed25519, SSH key loading, HKDF
-and Fernet; and Ray is only the simulation backend, never `ray.data`. The alerts are
-dismissed as not used, with the analysis on #106, and `make audit` ignores the same IDs.
-
-Clears on the `flwr` release that relaxes the pins (flwrlabs/flower#7763 is open for
-cryptography 50). Not doing: `[tool.uv] override-dependencies` past a framework's hard
-equality pin, which trades unreachable advisories for a real chance of breaking
-simulation.
+Not doing: `[tool.uv] override-dependencies` past a framework's hard equality pin, which
+trades an unreachable advisory for a real chance of breaking simulation.
