@@ -17,10 +17,15 @@ env:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   lint:
     name: Lint (ruff + ty)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -31,6 +36,8 @@ jobs:
         with:
           version: 0.13.6
           enable-cache: true
+          prune-cache: true
+          save-cache: ${{ github.ref == 'refs/heads/main' }}
       - name: Verify lockfile is in sync with pyproject.toml
         run: uv lock --check
       # ty resolves torch/transformers via allowed-unresolved-imports, so lint
@@ -53,6 +60,7 @@ jobs:
   test:
     name: 'Test (Python ${{ matrix.python-version }})'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       matrix:
         python-version:
@@ -70,6 +78,8 @@ jobs:
           version: 0.13.6
           enable-cache: true
           cache-suffix: 'py${{ matrix.python-version }}'
+          prune-cache: true
+          save-cache: ${{ github.ref == 'refs/heads/main' }}
       # No --frozen: torch comes from the explicit pytorch-cpu index, whose wheels
       # aren't pinned in the lock, so --frozen can't fetch the per-Python wheel
       # (e.g. cp313). Lock/pyproject consistency is already gated by the lint job's
@@ -102,6 +112,7 @@ jobs:
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -112,6 +123,8 @@ jobs:
         with:
           version: 0.13.6
           enable-cache: true
+          prune-cache: true
+          save-cache: ${{ github.ref == 'refs/heads/main' }}
       - name: Install dependencies
         run: uv sync --frozen --all-extras
       - name: Audit for known vulnerabilities
@@ -123,6 +136,7 @@ jobs:
   build-app-bundle:
     name: build-app-bundle
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -133,6 +147,8 @@ jobs:
         with:
           version: 0.13.6
           enable-cache: true
+          prune-cache: true
+          save-cache: ${{ github.ref == 'refs/heads/main' }}
       # Validates the [tool.flwr] config + components and packages the app; starts no
       # federation. The federated run is `make smoke`.
       - name: Install dependencies
