@@ -2201,41 +2201,25 @@ name = "phalanx-fl"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "datasets" },
     { name = "flwr", extra = ["simulation"] },
     { name = "flwr-datasets" },
     { name = "numpy" },
     { name = "opentelemetry-exporter-otlp" },
     { name = "opentelemetry-sdk" },
+    { name = "peft" },
+    { name = "torch", version = "2.14.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
+    { name = "torch", version = "2.14.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
+    { name = "torch", version = "2.14.0+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "platform_machine == 'aarch64' and sys_platform == 'linux'" },
+    { name = "torchvision", version = "0.29.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
+    { name = "torchvision", version = "0.29.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
+    { name = "torchvision", version = "0.29.0+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "platform_machine == 'aarch64' and sys_platform == 'linux'" },
+    { name = "transformers" },
 ]
 
 [package.optional-dependencies]
-all = [
-    { name = "datasets" },
-    { name = "matplotlib" },
-    { name = "peft" },
-    { name = "torch", version = "2.14.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
-    { name = "torch", version = "2.14.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
-    { name = "torch", version = "2.14.0+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "platform_machine == 'aarch64' and sys_platform == 'linux'" },
-    { name = "torchvision", version = "0.29.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
-    { name = "torchvision", version = "0.29.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
-    { name = "torchvision", version = "0.29.0+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "platform_machine == 'aarch64' and sys_platform == 'linux'" },
-    { name = "transformers" },
-]
 experiments = [
     { name = "matplotlib" },
-]
-hf = [
-    { name = "datasets" },
-    { name = "peft" },
-    { name = "transformers" },
-]
-torch = [
-    { name = "torch", version = "2.14.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
-    { name = "torch", version = "2.14.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
-    { name = "torch", version = "2.14.0+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "platform_machine == 'aarch64' and sys_platform == 'linux'" },
-    { name = "torchvision", version = "0.29.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
-    { name = "torchvision", version = "0.29.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
-    { name = "torchvision", version = "0.29.0+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "platform_machine == 'aarch64' and sys_platform == 'linux'" },
 ]
 
 [package.dev-dependencies]
@@ -2253,22 +2237,21 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "datasets", marker = "extra == 'hf'", specifier = ">=2.15,<5" },
+    { name = "datasets", specifier = ">=2.15,<5" },
     { name = "flwr", extras = ["simulation"], specifier = ">=1.42" },
     { name = "flwr-datasets", specifier = ">=0.6" },
     { name = "matplotlib", marker = "extra == 'experiments'", specifier = ">=3.10" },
     { name = "numpy", specifier = ">=2" },
     { name = "opentelemetry-exporter-otlp", specifier = ">=1.30" },
     { name = "opentelemetry-sdk", specifier = ">=1.30" },
-    { name = "peft", marker = "extra == 'hf'", specifier = ">=0.10" },
-    { name = "phalanx-fl", extras = ["hf", "torch", "experiments"], marker = "extra == 'all'" },
-    { name = "torch", marker = "platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'torch'", specifier = ">=2.12", index = "https://download.pytorch.org/whl/cu130" },
-    { name = "torch", marker = "(platform_machine != 'aarch64' and extra == 'torch') or (sys_platform != 'linux' and extra == 'torch')", specifier = ">=2.12", index = "https://download.pytorch.org/whl/cpu" },
-    { name = "torchvision", marker = "platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'torch'", specifier = ">=0.15", index = "https://download.pytorch.org/whl/cu130" },
-    { name = "torchvision", marker = "(platform_machine != 'aarch64' and extra == 'torch') or (sys_platform != 'linux' and extra == 'torch')", specifier = ">=0.15", index = "https://download.pytorch.org/whl/cpu" },
-    { name = "transformers", marker = "extra == 'hf'", specifier = ">=5.10" },
+    { name = "peft", specifier = ">=0.10" },
+    { name = "torch", marker = "platform_machine != 'aarch64' or sys_platform != 'linux'", specifier = ">=2.12", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "torch", marker = "platform_machine == 'aarch64' and sys_platform == 'linux'", specifier = ">=2.12", index = "https://download.pytorch.org/whl/cu130" },
+    { name = "torchvision", marker = "platform_machine != 'aarch64' or sys_platform != 'linux'", specifier = ">=0.15", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "torchvision", marker = "platform_machine == 'aarch64' and sys_platform == 'linux'", specifier = ">=0.15", index = "https://download.pytorch.org/whl/cu130" },
+    { name = "transformers", specifier = ">=5.10" },
 ]
-provides-extras = ["hf", "torch", "experiments", "all"]
+provides-extras = ["experiments"]
 
 [package.metadata.requires-dev]
 dev = [
