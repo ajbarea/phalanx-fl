@@ -37,6 +37,17 @@ from flwr.serverapp.strategy import (
 from opentelemetry.trace import Status, StatusCode
 
 from phalanx.provenance import run_manifest, write_manifest
+from phalanx.task import (
+    default_device,
+    get_adapter_state,
+    get_model,
+    global_eval_fn,
+    load_global_test,
+    sample_count,
+    server_entropy,
+    set_adapter_state,
+    set_seed,
+)
 from phalanx.telemetry import (
     init_telemetry,
     record_failures,
@@ -517,19 +528,6 @@ def build_strategy(cfg: Any, global_evaluate: GlobalEvaluator | None = None) -> 
 @app.main()
 def main(grid: Grid, context: Context) -> None:
     """Federate LoRA adapters with the configured strategy; observe every round over OTLP."""
-    # deferred: heavy torch/HF import
-    from phalanx.task import (
-        default_device,
-        get_adapter_state,
-        get_model,
-        global_eval_fn,
-        load_global_test,
-        sample_count,
-        server_entropy,
-        set_adapter_state,
-        set_seed,
-    )
-
     cfg: Any = context.run_config  # flwr config values are a broad union; read as Any
     init_telemetry(service_name=str(cfg["otel-service-name"]))
     # The seed fixes the initial adapters, so round 0 is the same in every run of one seed

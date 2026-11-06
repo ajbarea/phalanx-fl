@@ -28,23 +28,16 @@ dependencies = [
     "opentelemetry-sdk>=1.30",
     "opentelemetry-exporter-otlp>=1.30",
     "numpy>=2",
-]
-
-[project.optional-dependencies]
-# Model + data stack. Torch wheel per platform: see [tool.uv.sources].
-hf = [
     "transformers>=5.10",
     "peft>=0.10",
-    # flwr-datasets 0.6.0 caps datasets <5; transformers 5 only needs >=2.15.
     "datasets>=2.15,<5",
-]
-torch = [
     "torch>=2.12",
     "torchvision>=0.15",
 ]
+
+[project.optional-dependencies]
 # Figures for experiments/ reports.
 experiments = ["matplotlib>=3.10"]
-all = ["phalanx-fl[hf,torch,experiments]"]
 
 [dependency-groups]
 dev = [
